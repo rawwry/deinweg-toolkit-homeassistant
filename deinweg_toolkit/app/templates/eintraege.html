@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% from "_untermenue.html" import arbeitszeit with context %}
+{% block titel %} – Übersicht{% endblock %}
+{% block inhalt %}
+
+{{ arbeitszeit('eintraege') }}
+
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h1>Übersicht</h1>
+    <p class="summe">{{ kopf.n }} Einträge <span>· {{ kopf.m | gesamtstunden }} · {{ zeitraum_wort }}</span></p>
+  </div>
+
+  {% with ziel = "/eintraege", abrechenbar_zeigen = true, suche_zeigen = true %}{% include "_filter.html" %}{% endwith %}
+
+  <div class="knopfreihe">
+    <a class="knopf haupt" href="/export.xlsx?{{ query }}">Excel herunterladen</a>
+    <a class="knopf leise" href="/export.csv?{{ query }}">CSV herunterladen</a>
+  </div>
+</section>
+
+<section class="karte">
+  {% if zeilen %}
+  {# Das Formular steht leer neben der Tabelle, die Kästchen in den Zeilen
+     verweisen über form="massenloeschen" darauf. Sonst müsste es die ganze
+     Tabelle umschließen – und die einzelnen Lösch-Formulare in den Zeilen
+     lägen dann verschachtelt darin, was ungültiges HTML wäre. #}
+  {% if loeschbar %}
+  <form action="/eintraege/loeschen" method="post" id="massenloeschen"
+        onsubmit="return massenwahl_bestaetigen()">
+    <input type="hidden" name="zurueck" value="/eintraege?{{ query }}">
+  </form>
+  {% endif %}
+
+  {% if loeschbar %}
+  <div class="massenleiste">
+    <span class="massenstand" id="massenstand">Nichts ausgewählt</span>
+    <button class="knopf klein warn" type="submit" form="massenloeschen"
+            id="massenknopf" disabled>Ausgewählte löschen</button>
+    {% if not darf_fremde %}
+    <span class="klein leise">{{ t("datensaetze.nur_eigene") }}</span>
+    {% endif %}
+    {% if not darf_fremde_bearb %}
+    <span class="klein leise">{{ t("datensaetze.nur_eigene_bearbeiten") }}</span>
+    {% endif %}
+  </div>
+  {% elif not darf_fremde %}
+  <p class="klein leise">
+    {%- if eigener %}{{ t("datensaetze.nichts_loeschbar_eigen", name=eigener) }}
+    {%- else %}{{ t("datensaetze.nichts_loeschbar") }}{% endif %}
+  </p>
+  {% endif %}
+
+  <table class="liste dicht">
+    <thead>
+      <tr><th class="wahlspalte">{% if loeschbar %}<input type="checkbox" id="alle-waehlen"
+              aria-label="Alle Einträge dieser Seite auswählen">{% endif %}</th>
+          <th>Datum</th><th>Zeit</th><th>Dauer</th><th>Betreute Person</th>
+          <th>Leistung</th><th>Mitarbeiter</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for z in zeilen %}
+      <tr>
+        <td class="wahlspalte">
+          {%- if z.id in loeschbar %}<input type="checkbox" name="ids" value="{{ z.id }}"
+            form="massenloeschen" class="massenwahl"
+            aria-label="Eintrag vom {{ z.datum | deutsch }} auswählen">{% endif -%}
+        </td>
+        <td class="zahlen">{{ z.datum | deutsch }}</td>
+        <td class="zahlen leise"><span class="zeitspanne">{{ z.start or "—" }}{% if z.ende %} <span class="bis">{{ z.ende }}</span>{% endif %}</span></td>
+        <td class="zahlen stark">{{ z.dauer_min | hhmm }}</td>
+        <td>{{ z.klient }}</td>
+        <td class="leise">{{ z.beschreibung }}</td>
+        <td class="leise">{{ z.mitarbeiter }}</td>
+        <td class="rechts nowrap">
+          {% if z.id in bearbeitbar %}
+          <a class="knopf-icon" href="/eintraege/{{ z.id }}/bearbeiten?zurueck={{ ('/eintraege?' ~ query) | urlencode }}"
+             title="Bearbeiten" aria-label="Bearbeiten">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </a>
+          {% endif %}
+          {% if z.id in loeschbar %}
+          <form class="inline" action="/eintraege/{{ z.id }}/loeschen" method="post"
+                onsubmit="return confirm('Diesen Eintrag löschen?')">
+            <input type="hidden" name="zurueck" value="/eintraege?{{ query }}">
+            <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if seiten_gesamt > 1 %}
+  <nav class="blaettern" aria-label="Seiten">
+    <span class="blaettern-stand">
+      <strong>{{ erste_nr }}–{{ letzte_nr }}</strong> von {{ kopf.n }} Einträgen
+    </span>
+
+    <div class="seitenzahlen">
+      {% if seite_nr > 1 %}
+        <a class="seitenknopf pfeil" href="/eintraege?{{ query }}&seite_nr={{ seite_nr-1 }}"
+           aria-label="Vorherige Seite">‹</a>
+      {% else %}
+        <span class="seitenknopf pfeil aus" aria-hidden="true">‹</span>
+      {% endif %}
+
+      {% set fenster = 2 %}
+      {% for nr in range(1, seiten_gesamt + 1) %}
+        {% if nr == 1 or nr == seiten_gesamt or (nr >= seite_nr - fenster and nr <= seite_nr + fenster) %}
+          {% if nr == seite_nr %}
+            <span class="seitenknopf hier" aria-current="page">{{ nr }}</span>
+          {% else %}
+            <a class="seitenknopf" href="/eintraege?{{ query }}&seite_nr={{ nr }}">{{ nr }}</a>
+          {% endif %}
+        {% elif nr == seite_nr - fenster - 1 or nr == seite_nr + fenster + 1 %}
+          <span class="seitenluecke">…</span>
+        {% endif %}
+      {% endfor %}
+
+      {% if mehr %}
+        <a class="seitenknopf pfeil" href="/eintraege?{{ query }}&seite_nr={{ seite_nr+1 }}"
+           aria-label="Nächste Seite">›</a>
+      {% else %}
+        <span class="seitenknopf pfeil aus" aria-hidden="true">›</span>
+      {% endif %}
+    </div>
+
+    <span class="blaettern-stand">Seite <strong>{{ seite_nr }}</strong> von {{ seiten_gesamt }}</span>
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <p class="leer">{{ t("datensaetze.leer") }}</p>
+  {% endif %}
+</section>
+
+<script>
+  // Mehrfachauswahl in der Datensatzliste. Die Sicherheitsabfrage sitzt
+  // bewusst hier und nicht auf einer Zwischenseite - dieselbe Handhabung
+  // wie beim Löschen einer einzelnen Zeile.
+  (function () {
+    var alle    = document.getElementById("alle-waehlen"),
+        stand   = document.getElementById("massenstand"),
+        knopf   = document.getElementById("massenknopf"),
+        kaesten = Array.prototype.slice.call(
+                    document.querySelectorAll("input.massenwahl"));
+    if (!kaesten.length || !knopf) return;
+
+    function gewaehlt() {
+      return kaesten.filter(function (k) { return k.checked; });
+    }
+
+    function anzeigen() {
+      var n = gewaehlt().length;
+      stand.textContent = n === 0 ? "Nichts ausgewählt"
+                        : (n === 1 ? "1 Eintrag ausgewählt"
+                                   : n + " Einträge ausgewählt");
+      stand.classList.toggle("hat", n > 0);
+      knopf.disabled = n === 0;
+      if (alle) {
+        alle.checked = n === kaesten.length;
+        alle.indeterminate = n > 0 && n < kaesten.length;
+      }
+    }
+
+    if (alle) {
+      alle.addEventListener("change", function () {
+        kaesten.forEach(function (k) { k.checked = alle.checked; });
+        anzeigen();
+      });
+    }
+    kaesten.forEach(function (k) { k.addEventListener("change", anzeigen); });
+
+    window.massenwahl_bestaetigen = function () {
+      var n = gewaehlt().length;
+      if (!n) return false;
+      return confirm(n === 1
+        ? "Diesen Eintrag unwiderruflich löschen?"
+        : n + " Einträge unwiderruflich löschen? Das lässt sich nicht rückgängig machen.");
+    };
+
+    anzeigen();
+  })();
+</script>
+
+{% endblock %}

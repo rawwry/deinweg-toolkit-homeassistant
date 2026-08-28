@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+{% from "_untermenue.html" import arbeitszeit with context %}
+{% block titel %} – Zeiterfassung{% endblock %}
+{% block inhalt %}
+
+{{ arbeitszeit('zeiterfassung') }}
+
+{% if spruch.text %}
+<figure class="spruch">
+  <blockquote>{{ spruch.text }}</blockquote>
+  {% if spruch.quelle %}<figcaption>{{ spruch.quelle }}</figcaption>{% endif %}
+</figure>
+{% endif %}
+
+{# Sprungmarke für die Rückkehr nach dem Speichern. Sie sitzt bewusst
+   über den Meldungen und nicht auf der Karte darunter – sonst landete
+   die Bestätigung knapp oberhalb des sichtbaren Bereichs. #}
+<div id="erfassen">
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+{% if offene %}
+<p class="meldung offen-hinweis">{{ offene }} Import{{ 'e' if offene != 1 }} {{ 'warten' if offene != 1 else 'wartet' }} auf deine Prüfung – siehe unten.</p>
+{% endif %}
+</div>
+
+{% set darf_erfassen = hat_zugriff(request.state.benutzer, "manuelle_eintraege") %}
+{% set darf_import = hat_zugriff(request.state.benutzer, "listenimport") %}
+
+{# Das Formular steht leer ausserhalb des Rasters, seine Felder verweisen
+   ueber form="erfassung" darauf. So liegt es nicht um die Karten herum und
+   kann das Upload-Formular daneben nicht verschachteln - verschachtelte
+   Formulare sind ungueltiges HTML und werden vom Browser aufgetrennt. #}
+{% if darf_erfassen %}<form action="/erfassung" method="post" id="erfassung"></form>{% endif %}
+
+<section class="raster buendig">
+  <div class="spalte">
+
+    {% if darf_erfassen %}
+    <div class="karte">
+      <h1>Manuelle Zeiterfassung</h1>
+      <p class="lead">{{ t("erfassung.lead") }}</p>
+
+      <div class="erfasser">
+        <label class="feld">
+          <span>Mitarbeiter</span>
+          {# Auswahl statt Freitext: die Namen kommen aus dem gepflegten
+             Team. Namen, die nur noch in alten Zeiten vorkommen, stehen
+             in einer zweiten Gruppe darunter – sonst wären deren Zeiten
+             über dieses Feld nicht mehr erreichbar. #}
+          <select name="mitarbeiter" form="erfassung" required
+                  {{ 'autofocus' if not mitarbeiter }}>
+            <option value="">– bitte auswählen –</option>
+            {% for m in mitarbeiterliste.team %}
+              <option value="{{ m }}" {{ 'selected' if m == mitarbeiter }}>{{ m }}</option>
+            {% endfor %}
+            {% if mitarbeiterliste.weitere %}
+            <optgroup label="nicht mehr im Team">
+              {% for m in mitarbeiterliste.weitere %}
+                <option value="{{ m }}" {{ 'selected' if m == mitarbeiter }}>{{ m }}</option>
+              {% endfor %}
+            </optgroup>
+            {% endif %}
+          </select>
+        </label>
+        {% if mitarbeiter %}
+        <p class="erfasser-status">
+          <span class="marke-status gut">aktiv</span>
+          wird in jeden Eintrag übernommen
+        </p>
+        {% endif %}
+      </div>
+
+      {% if not mitarbeiterliste.team and not mitarbeiterliste.weitere %}
+      <p class="meldung offen-hinweis">{{ t("erfassung.kein_team") }}</p>
+      {% endif %}
+
+      <h2 class="unterkopf">Neuer Eintrag</h2>
+
+      {# Jede Zeile ist ein vollständiger Eintrag. Der Server nimmt die
+         Felder als parallele Listen entgegen, eine Zeile ist der
+         Normalfall. Weitere kommen per Skript dazu; ohne Skript bleibt es
+         bei der einen – die Seite funktioniert dann wie bisher. #}
+      <div class="erfassliste" id="erfassliste">
+        <div class="erfasszeile">
+          <div class="erfasszeile-kopf">
+            <span class="erfasszeile-nr">Eintrag 1</span>
+          </div>
+
+          <div class="feldreihe erfassreihe">
+            <label class="feld">
+              <span>Datum</span>
+              <input type="text" name="datum" value="{{ datum }}" required form="erfassung"
+                     inputmode="numeric" placeholder="TT.MM.JJJJ" maxlength="10"
+                     class="datumfeld" autocomplete="off">
+            </label>
+            <label class="feld">
+              <span>Betreuter</span>
+              <input type="text" name="klient" list="klienten" autocomplete="off" required
+                     form="erfassung" placeholder="Name" {{ 'autofocus' if mitarbeiter }}>
+            </label>
+            <label class="feld">
+              <span>Startzeit</span>
+              <input type="text" name="start" required inputmode="numeric" form="erfassung"
+                     placeholder="HH:MM" maxlength="5" class="zeitfeld" autocomplete="off">
+            </label>
+            <label class="feld">
+              <span>Endzeit</span>
+              <input type="text" name="ende" required inputmode="numeric" form="erfassung"
+                     placeholder="HH:MM" maxlength="5" class="zeitfeld" autocomplete="off">
+            </label>
+            <div class="feld dauer-anzeige">
+              <span>Dauer</span>
+              <output class="dauer-ausgabe">–</output>
+            </div>
+          </div>
+
+          <div class="feldreihe zwei erfassreihe-text">
+            {% if leistungen %}
+            <label class="feld">
+              <span>Leistungsbeschreibung <span class="leise">– vorgegebene Auswahl</span></span>
+              <select name="leistung" form="erfassung">
+                <option value="">– keine –</option>
+                {% for l in leistungen %}<option value="{{ l }}">{{ l }}</option>{% endfor %}
+              </select>
+            </label>
+            {% endif %}
+            <label class="feld">
+              <span>Eigene Beschreibung <span class="leise">– darf leer bleiben{% if leistungen %}, wird angehängt{% endif %}</span></span>
+              <input type="text" name="beschreibung" autocomplete="off" form="erfassung"
+                     placeholder="z. B. Begleitung zum Amt, Hilfe im Haushalt">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {% if not leistungen %}
+      <p class="klein leise">{{ t("erfassung.leistung_leer") }}</p>
+      {% endif %}
+
+      {# Der Knopf steht nur mit Skript zur Verfügung und wird dort
+         eingeblendet – ohne Skript ließe sich keine Zeile hinzufügen. #}
+      <div class="knopfreihe" id="zeilenknopf" hidden>
+        <button class="knopf leise klein" type="button" id="zeile-mehr">
+          + Weitere Zeile
+        </button>
+        <span class="klein leise" id="zeilenstand"></span>
+      </div>
+
+      <div class="knopfreihe">
+        <button class="knopf haupt" type="submit" form="erfassung" id="erfassen-knopf">
+          Eintrag speichern</button>
+        {% if mitarbeiter %}
+        <a class="knopf leise" href="/eintraege?mitarbeiter={{ mitarbeiter | urlencode }}">
+          Alle Einträge von {{ mitarbeiter }}</a>
+        {% endif %}
+      </div>
+
+      <datalist id="klienten">
+        {% for k in klienten %}<option value="{{ k }}">{% endfor %}
+      </datalist>
+    </div>
+    {% endif %}
+
+    {% if darf_import %}
+    <div class="karte hochkant">
+      <h1>Zeitlisten einlesen</h1>
+      <p class="lead">{{ t("start.upload") }}</p>
+
+      <form action="/upload" method="post" enctype="multipart/form-data">
+        {# Beide Felder nebeneinander – die Karte ist breit genug. #}
+        <div class="feldreihe zwei">
+          <label class="feld">
+            <span>Dateien</span>
+            <input type="file" name="datei" accept=".xlsx,.xlsm,.csv" multiple required>
+          </label>
+
+          <label class="feld">
+            <span>Mitarbeiter</span>
+            <select name="mitarbeiter" required>
+              <option value="">– bitte auswählen –</option>
+              {% for m in mitarbeiterliste.team %}
+                <option value="{{ m }}">{{ m }}</option>
+              {% endfor %}
+              {% if mitarbeiterliste.weitere %}
+              <optgroup label="nicht mehr im Team">
+                {% for m in mitarbeiterliste.weitere %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+              </optgroup>
+              {% endif %}
+            </select>
+          </label>
+        </div>
+
+        {# Der gewaehlte Name gilt immer, auch wenn die Datei eine eigene
+           Spalte mitbringt. Frueher war das eine Wahlmoeglichkeit; da der
+           Name jetzt Pflicht ist, waere die Rueckfrage nur verwirrend. #}
+        <input type="hidden" name="erzwingen" value="1">
+
+        <div class="knopfreihe unten">
+          <button class="knopf haupt" type="submit">Datei einlesen</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <div class="spalte">
+    <div class="karte schmal">
+      <h2>Bestand</h2>
+      <p class="zahl">{{ summe.n }}<span class="einheit">Einträge</span></p>
+      <p class="zahl-label">{{ summe.m | gesamtstunden }} insgesamt</p>
+      <a class="knopf leise" href="/eintraege">Zur Übersicht</a>
+    </div>
+
+    <div class="karte schmal">
+      <div class="kastenkopf">
+        <h2>Abgaben</h2>
+        <span class="monatswechsel">
+          <a class="minipfeil" href="/?monat={{ monat_vor }}" title="Monat zurück">‹</a>
+          <span class="kastenmonat">{{ abgabe.wort }}</span>
+          <a class="minipfeil" href="/?monat={{ monat_zurueck }}" title="Monat vor">›</a>
+        </span>
+      </div>
+
+      {% if abgabe.stand %}
+      <ul class="standliste abgabekompakt">
+        {% for p in abgabe.stand %}
+        <li class="{{ 'da' if p.da else ('fehlt' if p.pflicht else 'ohnepflicht') }}">
+          <div class="standkopf">
+            <span class="stark">{{ p.name }}</span>
+            {% if p.da %}
+              <span class="zahlen klein">{{ p.m | hhmm }} Std</span>
+            {% elif p.pflicht %}
+              <span class="marke-status dopp">ausstehend</span>
+            {% else %}
+              <span class="klein leise">ohne Pflicht</span>
+            {% endif %}
+          </div>
+          <span class="standfuss">
+            {%- if p.da %}{{ p.n }} Einheiten · {{ p.art }}
+            {%- elif p.pflicht %}noch nichts eingegangen
+            {%- else %}zählt nicht zum Soll{% endif -%}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+
+      {% if abgabe.fremd %}
+      <p class="klein leise" style="margin: 12px 0 0;">
+        Unbekannt in diesem Monat: <strong>{{ abgabe.fremd | join(", ") }}</strong> –
+        <a href="/einstellungen?bereich=mitarbeiter">zuordnen</a>
+      </p>
+      {% endif %}
+      {% else %}
+      <p class="klein leise" style="margin: 0;">{{ t("start.kein_team") }}</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% if darf_erfassen and mitarbeiter %}
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Zuletzt von Hand erfasst</h2>
+    {% if tagessumme.n %}
+    <p class="summe">{{ tagessumme.m | hhmm }} Std <span>· am {{ datum }}</span></p>
+    {% endif %}
+  </div>
+
+  {% if letzte %}
+  <table class="liste dicht">
+    <thead>
+      <tr><th>Datum</th><th>Zeit</th><th class="num">Dauer</th><th>Betreuter</th>
+          <th>Leistung</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for z in letzte %}
+      <tr>
+        <td class="zahlen">{{ z.datum | deutsch }}</td>
+        <td class="zahlen leise"><span class="zeitspanne">{{ z.start or "—" }}{% if z.ende %} <span class="bis">{{ z.ende }}</span>{% endif %}</span></td>
+        <td class="zahlen num stark">{{ z.dauer_min | hhmm }}</td>
+        <td>{{ z.klient }}</td>
+        <td class="leise">{{ z.beschreibung }}</td>
+        <td class="rechts nowrap">
+          <a class="knopf-icon" href="/eintraege/{{ z.id }}/bearbeiten?zurueck={{ ('/?mitarbeiter=' ~ mitarbeiter ~ '&datum=' ~ datum) | urlencode }}"
+             title="Bearbeiten" aria-label="Bearbeiten">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </a>
+          <form class="inline" action="/eintraege/{{ z.id }}/loeschen" method="post"
+                onsubmit="return confirm('Diesen Eintrag löschen?')">
+            <input type="hidden" name="zurueck" value="/?mitarbeiter={{ mitarbeiter | urlencode }}&datum={{ datum | urlencode }}">
+            <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="leer">{{ t("erfassung.leer", mitarbeiter=mitarbeiter) }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if importe %}
+<section class="karte">
+  <h2>Warten auf Prüfung</h2>
+  <p class="lead">{{ t("start.vorschau_offen") }}</p>
+  <table class="liste">
+    <thead>
+      <tr><th>Datei</th><th>Mitarbeiter</th><th>Zeitpunkt</th><th>Zeilen</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for i in importe %}
+      <tr>
+        <td class="stark">{{ i.dateiname }}</td>
+        <td>{{ i.mitarbeiter or "—" }}</td>
+        <td class="leise klein">{{ i.hochgeladen_am }}</td>
+        <td class="links">{{ i.zeilen }}</td>
+        <td class="rechts nowrap">
+          <a class="knopf klein haupt" href="/vorschau/{{ i.id }}">Vorschau öffnen</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<script>
+  (function () {
+    var formular = document.getElementById("erfassung"),
+        liste    = document.getElementById("erfassliste");
+    if (!formular || !liste) return;
+
+    var knopfreihe = document.getElementById("zeilenknopf"),
+        mehrknopf  = document.getElementById("zeile-mehr"),
+        stand      = document.getElementById("zeilenstand"),
+        speichern  = document.getElementById("erfassen-knopf"),
+        vorlage    = liste.firstElementChild.cloneNode(true);
+
+    // Die Vorlage ist eine Kopie der ersten Zeile im Ausgangszustand:
+    // ohne Werte, ohne autofocus. Sie wird nur geklont, nie eingehängt.
+    vorlage.querySelectorAll("input, select").forEach(function (f) {
+      f.removeAttribute("autofocus");
+      if (f.tagName === "SELECT") f.selectedIndex = 0; else f.value = "";
+    });
+
+    function zeilen() {
+      return Array.prototype.slice.call(liste.children);
+    }
+
+    function nummerieren() {
+      var alle = zeilen();
+      alle.forEach(function (z, i) {
+        z.querySelector(".erfasszeile-nr").textContent = "Eintrag " + (i + 1);
+      });
+      liste.classList.toggle("mehrere", alle.length > 1);
+      stand.textContent = alle.length > 1 ? alle.length + " Einträge auf einmal" : "";
+      speichern.textContent = alle.length > 1 ? "Einträge speichern"
+                                              : "Eintrag speichern";
+    }
+
+    // Punkte beim Tippen selbst setzen: 07052026 wird zu 07.05.2026
+    function datumsfeld(feld) {
+      feld.addEventListener("input", function () {
+        var z = feld.value.replace(/\D/g, "").slice(0, 8);
+        if (z.length > 4)      feld.value = z.slice(0,2) + "." + z.slice(2,4) + "." + z.slice(4);
+        else if (z.length > 2) feld.value = z.slice(0,2) + "." + z.slice(2);
+        else if (feld.value !== z && /^\d*$/.test(feld.value) === false) feld.value = z;
+      });
+    }
+
+    function minuten(wert) {
+      var t = /^(\d{1,2}):(\d{2})$/.exec((wert || "").trim());
+      if (!t) return null;
+      var std = +t[1], min = +t[2];
+      if (std > 23 || min > 59) return null;
+      return std * 60 + min;
+    }
+
+    // Die Dauer wird je Zeile gerechnet - deshalb über die Zeile suchen
+    // und nicht über Kennungen, die es bei mehreren Zeilen mehrfach gäbe.
+    function rechnen(zeile) {
+      var ausgabe = zeile.querySelector(".dauer-ausgabe"),
+          felder  = zeile.querySelectorAll(".zeitfeld");
+      if (!ausgabe || felder.length < 2) return;
+      var a = minuten(felder[0].value), b = minuten(felder[1].value);
+      if (a === null || b === null) { ausgabe.textContent = "–"; ausgabe.className = "dauer-ausgabe"; return; }
+      var d = b - a;
+      if (d < 0) d += 1440;
+      if (d === 0) { ausgabe.textContent = "0:00"; ausgabe.className = "dauer-ausgabe achtung"; return; }
+      ausgabe.textContent = Math.floor(d / 60) + ":" + String(d % 60).padStart(2, "0");
+      ausgabe.className = "dauer-ausgabe " + (d > 720 ? "achtung" : "gut");
+    }
+
+    function verkabeln(zeile) {
+      var datum = zeile.querySelector(".datumfeld");
+      if (datum) datumsfeld(datum);
+      zeile.querySelectorAll(".zeitfeld").forEach(function (feld) {
+        feld.addEventListener("input", function () {
+          var z = feld.value.replace(/\D/g, "").slice(0, 4);
+          feld.value = z.length > 2 ? z.slice(0, 2) + ":" + z.slice(2) : z;
+          rechnen(zeile);
+        });
+        feld.addEventListener("blur", function () { rechnen(zeile); });
+      });
+      var weg = zeile.querySelector(".zeile-weg");
+      if (weg) {
+        weg.addEventListener("click", function () {
+          if (zeilen().length < 2) return;
+          zeile.remove();
+          nummerieren();
+        });
+      }
+      rechnen(zeile);
+    }
+
+    // Der Entfernen-Knopf steht nicht im HTML, sondern kommt hier dazu -
+    // ohne Skript liesse sich ohnehin keine Zeile hinzufuegen.
+    function entfernenknopf(zeile) {
+      var kopf = zeile.querySelector(".erfasszeile-kopf");
+      if (!kopf || kopf.querySelector(".zeile-weg")) return;
+      var knopf = document.createElement("button");
+      knopf.type = "button";
+      knopf.className = "knopf-icon warn zeile-weg";
+      knopf.title = "Diese Zeile entfernen";
+      knopf.setAttribute("aria-label", "Diese Zeile entfernen");
+      knopf.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+        '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" ' +
+        'stroke-linecap="round"/></svg>';
+      kopf.appendChild(knopf);
+    }
+
+    zeilen().forEach(function (z) { entfernenknopf(z); verkabeln(z); });
+    knopfreihe.hidden = false;
+
+    mehrknopf.addEventListener("click", function () {
+      var neue = vorlage.cloneNode(true);
+      liste.appendChild(neue);
+      entfernenknopf(neue);
+      verkabeln(neue);
+      nummerieren();
+      // Das Datum der vorigen Zeile übernehmen: meistens werden mehrere
+      // Zeiten desselben Tages nacheinander erfasst.
+      var alle = zeilen(), vorige = alle[alle.length - 2];
+      if (vorige) {
+        neue.querySelector(".datumfeld").value =
+          vorige.querySelector(".datumfeld").value;
+      }
+      var ziel = neue.querySelector("input[name='klient']");
+      if (ziel) ziel.focus();
+    });
+
+    nummerieren();
+  })();
+</script>
+
+{% endblock %}

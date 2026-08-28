@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+{% from "_wiki_teile.html" import zweig, neu_formular, seitenknoepfe %}
+{% block titel %} – Wiki{% if titel and titel != "Wiki" %} · {{ titel }}{% endif %}{% endblock %}
+{% block inhalt %}
+{# Einmal oben bestimmt und überall weitergereicht. Die eigentliche Sperre
+   sitzt in auth.SessionAuth; hier wird nur ausgeblendet, was ohnehin
+   abgewiesen würde. #}
+{% set darf_schreiben = darf_wiki_schreiben(request.state.benutzer) %}
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+{% if art in ("seite", "ordner", "bearbeiten") %}
+<nav class="wiki-krumen" aria-label="Pfad">
+  <a href="/wiki">Wiki</a>
+  {% for k in brotkrumen %}
+    <span class="wiki-krumen-teiler">/</span>
+    {% if loop.last %}<span class="hier">{{ k.titel }}</span>
+    {% else %}<a href="{{ k.adresse }}">{{ k.titel }}</a>{% endif %}
+  {% endfor %}
+</nav>
+{% endif %}
+
+<div class="wiki {{ 'mit-abschnitten' if verzeichnis }}">
+
+  {# --- Navigation: die Ordnerstruktur ist die Wiki-Struktur --- #}
+  <aside class="wiki-seitenleiste karte">
+    <form class="wiki-suche" action="/wiki/aktion/suche" method="get" role="search">
+      <input type="search" name="q" value="{{ suchwort }}" autocomplete="off"
+             placeholder="Wiki durchsuchen …" aria-label="Wiki durchsuchen">
+      <button class="knopf-icon" type="submit" title="Suchen" aria-label="Suchen">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.2" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M15.6 15.6 20 20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </form>
+
+    <nav class="wiki-baum" aria-label="Wiki-Struktur">
+      <a class="wiki-knoten wiki-wurzel {{ 'hier' if wurzel_hier }}" href="/wiki"
+         data-ziel="" title="Oberste Ebene – zum Verschieben hierher ziehen">
+        <svg class="wiki-symbol" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19v-8.5Z"
+                stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+        <span>Startseite</span>
+      </a>
+      {% if baum %}
+        {{ zweig(baum, aktuell) }}
+      {% else %}
+        <p class="leer klein">{{ t("wiki.baum_leer" if darf_schreiben
+                                   else "wiki.baum_leer_lesen") }}</p>
+      {% endif %}
+    </nav>
+
+    {% if darf_schreiben %}
+    <details class="wiki-anlegen">
+      <summary>Neu anlegen</summary>
+      {{ neu_formular(ordner, ordner_auswahl) }}
+    </details>
+    {% endif %}
+    {% if darf_schreiben %}
+    <p class="klein leise wiki-ziehhinweis">{{ t("wiki.ziehen") }}</p>
+    {% endif %}
+  </aside>
+
+  {# --- Abschnitte dieser Seite. Steht im Quelltext zwischen Navigation
+         und Inhalt: auf breiten Fenstern schiebt das Raster es nach
+         rechts, auf schmalen bleibt es als zugeklapptes Menü hier
+         stehen - also über dem Text und nicht darunter. --- #}
+  {% if verzeichnis %}
+  <details class="wiki-abschnitte" id="wiki-abschnitte">
+    <summary>Auf dieser Seite</summary>
+    <ul>
+      {% for u in verzeichnis %}
+      <li class="stufe-{{ u.stufe }}"><a href="#{{ u.marke }}">{{ u.titel }}</a></li>
+      {% endfor %}
+    </ul>
+  </details>
+  <script>
+    // Auf breiten Fenstern steht die Liste offen in der rechten Spalte,
+    // auf schmalen zugeklappt über dem Text. Hier direkt hinter dem
+    // Element ausgeführt, damit nichts kurz auf- und wieder zuklappt.
+    (function () {
+      var k = document.getElementById("wiki-abschnitte");
+      if (k && window.matchMedia("(min-width: 1240px)").matches) k.open = true;
+    })();
+  </script>
+  {% endif %}
+
+  {# --- Inhalt --- #}
+  <div class="wiki-haupt">
+
+    {% if art == "seite" %}
+    <article class="karte wiki-blatt">
+      <div class="wiki-werkzeugleiste">
+        <div class="wiki-aktionen">
+          {{ seitenknoepfe(aktuell, adresse, titel, darf_schreiben) }}
+        </div>
+        <span class="klein leise">Zuletzt geändert {{ geaendert }}</span>
+      </div>
+      <div class="wiki-inhalt">{{ html }}</div>
+      <p class="klein leise wiki-fuss">
+        Datei <code>{{ aktuell }}</code> · {{ zeichen }} Zeichen
+      </p>
+    </article>
+
+    {% elif art == "bearbeiten" %}
+    <article class="karte">
+      <div class="wiki-werkzeugleiste">
+        <h1>Seite bearbeiten</h1>
+        <div class="wiki-aktionen">
+          <a class="knopf-icon" href="/wiki/aktion/herunterladen?pfad={{ aktuell | urlencode }}"
+             title="Als Markdown-Datei herunterladen" aria-label="Herunterladen">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 4v11m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.7"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M5 17.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-1.5"
+                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </a>
+          {% if darf_schreiben %}
+          <form class="inline" action="/wiki/aktion/loeschen" method="post"
+                onsubmit="return confirm('Die Seite „{{ titel }}“ ({{ aktuell }}) endgültig löschen? Das lässt sich nicht rückgängig machen.')">
+            <input type="hidden" name="pfad" value="{{ aktuell }}">
+            <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      <p class="lead">{{ t("wiki.editor_lead") }}</p>
+
+      <form action="/wiki/aktion/speichern" method="post" class="wiki-editor" id="wiki-editor">
+        <input type="hidden" name="pfad" value="{{ aktuell }}">
+        <input type="hidden" name="pruefsumme" value="{{ pruefsumme }}">
+        <div class="feldreihe zwei">
+          <label class="feld">
+            <span>Dateiname</span>
+            <input type="text" name="name" value="{{ name }}" required autocomplete="off">
+          </label>
+          <label class="feld">
+            <span>Ordner</span>
+            <select name="ordner">
+              <option value="" {{ 'selected' if not ordner }}>— oberste Ebene —</option>
+              {% for o in ordner_auswahl %}
+                <option value="{{ o.pfad }}" {{ 'selected' if o.pfad == ordner }}>{{ o.anzeige }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+        <label class="feld">
+          <span>Inhalt <span class="leise">– Markdown</span></span>
+          <textarea name="inhalt" id="wiki-text" rows="26" spellcheck="false">{{ roh }}</textarea>
+        </label>
+        <div class="knopfreihe">
+          <button class="knopf haupt" type="submit">Speichern</button>
+          <a class="knopf leise" href="{{ adresse }}">Abbrechen</a>
+        </div>
+      </form>
+
+      <details class="wiki-spick">
+        <summary>Kurze Markdown-Hilfe</summary>
+        <div class="tabellenrolle">
+          <table class="liste dicht">
+            <thead><tr><th>So schreibt man</th><th>So sieht es aus</th></tr></thead>
+            <tbody>
+              <tr><td><code># Überschrift</code></td><td>größte Überschrift, gilt zugleich als Seitentitel</td></tr>
+              <tr><td><code>## Zwischenüberschrift</code></td><td>Abschnitt</td></tr>
+              <tr><td><code>**fett**</code> · <code>*kursiv*</code></td><td><strong>fett</strong> · <em>kursiv</em></td></tr>
+              <tr><td><code>* Punkt</code> · <code>1. Punkt</code></td><td>Aufzählung, eingerückt auch verschachtelt</td></tr>
+              <tr><td><code>- [ ] Aufgabe</code></td><td>Kästchen zum Abhaken</td></tr>
+              <tr><td><code>[Text](02_seite.md)</code></td><td>Link auf eine andere Wiki-Seite</td></tr>
+              <tr><td><code>| A | B |</code></td><td>Tabelle, darunter eine Zeile <code>| --- | --- |</code></td></tr>
+              <tr><td><code>&gt; Zitat</code> · <code>---</code></td><td>Zitat · Trennlinie</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </article>
+
+    {% elif art == "ordner" %}
+    <article class="karte">
+      <div class="wiki-werkzeugleiste">
+        <h1>{{ titel }}</h1>
+        {% if aktuell and darf_schreiben %}
+        <form class="inline" action="/wiki/aktion/loeschen" method="post"
+              onsubmit="return confirm('Den Ordner „{{ titel }}“ entfernen? Das geht nur, wenn er leer ist.')">
+          <input type="hidden" name="pfad" value="{{ aktuell }}">
+          <button class="knopf klein warn" type="submit">Ordner löschen</button>
+        </form>
+        {% endif %}
+      </div>
+
+      {% if einleitung %}
+      <div class="wiki-inhalt wiki-einleitung">{{ einleitung }}</div>
+      <p class="klein leise">
+        Aus <code>{{ start_datei }}</code>{% if darf_schreiben %} ·
+        <a href="{{ start_adresse }}?bearbeiten=1">bearbeiten</a>{% endif %}
+      </p>
+      {% endif %}
+
+      {% if kinder_ordner or kinder_seiten %}
+      <ul class="wiki-kacheln">
+        {% for o in kinder_ordner %}
+        <li><a class="wiki-kachel ordner" href="{{ o.adresse }}">
+          <span class="wiki-kachel-art">Ordner</span>
+          <span class="wiki-kachel-titel">{{ o.titel }}</span>
+        </a></li>
+        {% endfor %}
+        {% for s in kinder_seiten %}
+        <li><a class="wiki-kachel" href="{{ s.adresse }}">
+          <span class="wiki-kachel-art">Seite</span>
+          <span class="wiki-kachel-titel">{{ s.titel }}</span>
+          <span class="wiki-kachel-fuss">{{ s.name }} · {{ s.geaendert }}</span>
+        </a></li>
+        {% endfor %}
+      </ul>
+
+      <div class="wiki-listenansicht tabellenrolle">
+        <table class="liste dicht wiki-verzeichnis">
+          <thead>
+            <tr><th class="artspalte"></th><th>Name</th>
+                <th>Größe</th><th>Geändert</th>
+                <th class="rechts">Aktion</th></tr>
+          </thead>
+          <tbody>
+            {% for o in kinder_ordner %}
+            <tr>
+              <td class="artspalte">
+                <svg class="wiki-symbol ordner" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3.5 7.4c0-.95.75-1.7 1.7-1.7h3.1l1.8 2h8.2c.95 0 1.7.75 1.7 1.7v7.5c0 .95-.75 1.7-1.7 1.7H5.2c-.95 0-1.7-.75-1.7-1.7V7.4Z"
+                        fill="currentColor"/>
+                </svg>
+              </td>
+              <td class="stark"><a href="{{ o.adresse }}">{{ o.titel }}</a></td>
+              <td class="leise">{{ o.umfang }}</td>
+              <td class="leise zahlen">—</td>
+              <td class="rechts nowrap"></td>
+            </tr>
+            {% endfor %}
+            {% for s in kinder_seiten %}
+            <tr>
+              <td class="artspalte">
+                <svg class="wiki-symbol" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M7 3.5h7L19 8v12a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5A1.5 1.5 0 0 1 7 3.5Z"
+                        stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                  <path d="M13.5 3.5V8H19" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                </svg>
+              </td>
+              <td><a href="{{ s.adresse }}" title="{{ s.name }}">{{ s.titel }}</a></td>
+              <td class="leise zahlen">{{ s.groesse }}</td>
+              <td class="leise zahlen">{{ s.geaendert }}</td>
+              <td class="rechts nowrap">{{ seitenknoepfe(s.pfad, s.adresse, s.titel, darf_schreiben) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="leer">{{ t("wiki.ordner_leer") }}</p>
+      {% endif %}
+    </article>
+
+    {% if darf_schreiben %}
+    <section class="karte">
+      <h2>Hier etwas anlegen</h2>
+      {{ neu_formular(aktuell, ordner_auswahl) }}
+    </section>
+    {% endif %}
+
+    {% elif art == "suche" %}
+    <article class="karte">
+      <h1>Suche</h1>
+      {% if suchwort %}
+        <p class="lead">
+          {{ treffer | length }} Seite{{ '' if treffer | length == 1 else 'n' }}
+          für „{{ suchwort }}“.
+        </p>
+        {% if treffer %}
+        <ul class="wiki-treffer">
+          {% for tr in treffer %}
+          <li>
+            <a class="wiki-treffer-titel" href="{{ tr.adresse }}">{{ tr.titel }}</a>
+            <span class="klein leise">{{ tr.pfad }} · {{ tr.anzahl }}×</span>
+            {% if tr.stelle %}<p class="wiki-treffer-stelle">{{ tr.stelle }}</p>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="leer">{{ t("wiki.suche_leer", wort=suchwort) }}</p>
+        {% endif %}
+      {% else %}
+        <p class="leer">{{ t("wiki.suche_lead") }}</p>
+      {% endif %}
+    </article>
+
+    {% else %}
+    <article class="karte">
+      <h1>Nicht gefunden</h1>
+      <p class="lead">{{ t("wiki.fehlt", pfad=gesucht) }}</p>
+      <div class="knopfreihe">
+        <a class="knopf haupt" href="/wiki">Zur Startseite des Wikis</a>
+      </div>
+    </article>
+    {% endif %}
+
+  </div>
+</div>
+
+{# Wird vom Ziehen im Baum abgeschickt. Steht bewusst ausserhalb aller
+   anderen Formulare - verschachtelte Formulare trennt der Browser
+   stillschweigend auf. #}
+{% if darf_schreiben %}
+<form id="wiki-verschieben" action="/wiki/aktion/verschieben" method="post" hidden>
+  <input type="hidden" name="pfad" id="wiki-quelle">
+  <input type="hidden" name="ziel" id="wiki-ziel">
+</form>
+{% endif %}
+
+<script>
+(function () {
+  var baum = document.querySelector(".wiki-baum");
+  var verschieben = document.getElementById("wiki-verschieben");
+  // Ohne Schreibrecht steht das Formular nicht in der Seite. Dann bleibt
+  // auch das Ziehen aus - und der Anfasser verschwindet, damit sich nichts
+  // bewegen lässt, was hinterher doch nicht gespeichert würde.
+  if (baum && !verschieben) {
+    baum.querySelectorAll("[draggable]").forEach(function (n) {
+      n.removeAttribute("draggable");
+    });
+  }
+  if (baum && verschieben) {
+    var gezogen = null;
+
+    baum.addEventListener("dragstart", function (e) {
+      var knoten = e.target.closest("[data-pfad]");
+      if (!knoten) return;
+      gezogen = knoten;
+      e.dataTransfer.effectAllowed = "move";
+      // Ohne gesetzte Daten startet Firefox das Ziehen gar nicht erst.
+      try { e.dataTransfer.setData("text/plain", knoten.dataset.pfad); } catch (x) {}
+      knoten.classList.add("wird-gezogen");
+    });
+
+    baum.addEventListener("dragend", function () {
+      if (gezogen) gezogen.classList.remove("wird-gezogen");
+      baum.querySelectorAll(".ziel-aktiv").forEach(function (k) {
+        k.classList.remove("ziel-aktiv");
+      });
+      gezogen = null;
+    });
+
+    function zielVon(e) {
+      var ziel = e.target.closest("[data-ziel]");
+      if (!ziel || !gezogen) return null;
+      var quelle = gezogen.dataset.pfad,
+          hin = ziel.dataset.ziel;
+      // nicht auf sich selbst und nicht in den eigenen Ordner
+      if (hin === quelle || hin.indexOf(quelle + "/") === 0) return null;
+      var bisher = quelle.indexOf("/") < 0 ? "" : quelle.slice(0, quelle.lastIndexOf("/"));
+      if (bisher === hin) return null;
+      return ziel;
+    }
+
+    baum.addEventListener("dragover", function (e) {
+      var ziel = zielVon(e);
+      if (!ziel) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      ziel.classList.add("ziel-aktiv");
+    });
+
+    baum.addEventListener("dragleave", function (e) {
+      var ziel = e.target.closest("[data-ziel]");
+      if (ziel) ziel.classList.remove("ziel-aktiv");
+    });
+
+    baum.addEventListener("drop", function (e) {
+      var ziel = zielVon(e);
+      if (!ziel) return;
+      e.preventDefault();
+      ziel.classList.remove("ziel-aktiv");
+      var quelle = gezogen.dataset.pfad,
+          name = quelle.split("/").pop(),
+          wohin = ziel.dataset.ziel || "die oberste Ebene";
+      if (!confirm("„" + name + "“ nach " + wohin + " verschieben?")) return;
+      document.getElementById("wiki-quelle").value = quelle;
+      document.getElementById("wiki-ziel").value = ziel.dataset.ziel;
+      verschieben.submit();
+    });
+  }
+
+  // Abschnittsliste: den Abschnitt hervorheben, in dem man gerade liest.
+  // Bewusst am Rollen aufgehaengt und nicht am IntersectionObserver: der
+  // meldet sich nur, wenn eine Ueberschrift eine gedachte Linie kreuzt -
+  // steht beim Laden schon eine mitten im Bild oder faellt eine Meldung
+  // aus, bleibt die Liste stumm. Die Rechnung hier ist immer eindeutig:
+  // aktuell ist die letzte Ueberschrift, die oben aus dem Bild gelaufen
+  // ist. Gerechnet wird nur einmal pro Bild, deshalb kostet es nichts.
+  var liste = document.getElementById("wiki-abschnitte");
+  if (liste) {
+    var punkte = {}, reihe = [], geplant = false;
+    liste.querySelectorAll("a[href^='#']").forEach(function (a) {
+      var ziel = document.getElementById(decodeURIComponent(a.hash.slice(1)));
+      if (ziel) { punkte[ziel.id] = a; reihe.push(ziel); }
+    });
+
+    function anzeigen() {
+      geplant = false;
+      var treffer = null;
+      reihe.forEach(function (z) {
+        if (z.getBoundingClientRect().top <= 140) treffer = z;
+      });
+      // Ganz oben, noch vor der ersten Ueberschrift: dann gilt die erste.
+      if (!treffer) treffer = reihe[0];
+      Object.keys(punkte).forEach(function (id) {
+        punkte[id].classList.toggle("hier", !!treffer && id === treffer.id);
+      });
+    }
+
+    function planen() {
+      // Kurz sammeln statt bei jedem Rollschritt zu rechnen. Bewusst ein
+      // Zeitgeber und kein requestAnimationFrame: das laeuft in einem
+      // Hintergrund-Tab gar nicht, und losgeloest von window aufgerufen
+      // wirft es in manchen Browsern sogar einen Fehler.
+      if (geplant) return;
+      geplant = true;
+      setTimeout(anzeigen, 60);
+    }
+
+    if (reihe.length) {
+      window.addEventListener("scroll", planen, {passive: true});
+      window.addEventListener("resize", planen);
+      anzeigen();
+    }
+  }
+
+  // Im Bearbeitungsmodus: Strg+S bzw. Cmd+S speichert, der Tabulator
+  // rueckt ein statt ins naechste Feld zu springen.
+  var text = document.getElementById("wiki-text");
+  if (text) {
+    var formular = document.getElementById("wiki-editor");
+    document.addEventListener("keydown", function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        formular.submit();
+      }
+    });
+    text.addEventListener("keydown", function (e) {
+      if (e.key !== "Tab" || e.shiftKey) return;
+      e.preventDefault();
+      var a = text.selectionStart, b = text.selectionEnd;
+      text.value = text.value.slice(0, a) + "  " + text.value.slice(b);
+      text.selectionStart = text.selectionEnd = a + 2;
+    });
+  }
+})();
+</script>
+
+{% endblock %}

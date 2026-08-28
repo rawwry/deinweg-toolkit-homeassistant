@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block titel %} – Eintrag bearbeiten{% endblock %}
+{% block inhalt %}
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+
+<section class="karte schmal-mitte">
+  <h1>Eintrag bearbeiten</h1>
+  <p class="lead">{{ t("bearbeiten.lead", zeitpunkt=z.angelegt_am) }}</p>
+
+  <form action="/eintraege/{{ z.id }}/bearbeiten" method="post">
+    <input type="hidden" name="zurueck" value="{{ zurueck }}">
+
+    <div class="feldreihe">
+      <label class="feld">
+        <span>Datum</span>
+        <input type="date" name="datum" value="{{ z.datum }}" required>
+      </label>
+      <label class="feld">
+        <span>Beginn</span>
+        <input type="time" name="start" value="{{ z.start or '' }}">
+      </label>
+      <label class="feld">
+        <span>Ende</span>
+        <input type="time" name="ende" value="{{ z.ende or '' }}">
+      </label>
+      <label class="feld">
+        <span>Dauer</span>
+        <input type="text" name="dauer" value="{{ z.dauer_min | hhmm }}"
+               inputmode="numeric" placeholder="01:30">
+      </label>
+    </div>
+    <p class="klein leise felderklaerung">{{ t("bearbeiten.dauer_hinweis") }}</p>
+
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Betreute Person</span>
+        <input type="text" name="klient" value="{{ z.klient }}" list="klienten"
+               autocomplete="off" required>
+        <datalist id="klienten">
+          {% for k in klienten %}<option value="{{ k }}">{% endfor %}
+        </datalist>
+      </label>
+      <label class="feld">
+        <span>Mitarbeiter</span>
+        <input type="text" name="mitarbeiter" value="{{ z.mitarbeiter }}" list="leute"
+               autocomplete="off" required>
+        <datalist id="leute">
+          {% for m in leute %}<option value="{{ m }}">{% endfor %}
+        </datalist>
+      </label>
+    </div>
+
+    <label class="feld">
+      <span>Leistung / Beschreibung</span>
+      <input type="text" name="beschreibung" value="{{ z.beschreibung or '' }}">
+    </label>
+
+    <label class="ankreuz">
+      <input type="checkbox" name="abrechenbar" value="1" {{ 'checked' if z.abrechenbar }}>
+      <span>Abrechenbare Leistung am Menschen (aus bei Urlaub, Team, Sonstiges)</span>
+    </label>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Änderungen speichern</button>
+      <a class="knopf leise" href="{{ zurueck }}">Abbrechen</a>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% from "_vorgang_teile.html" import statusmarke, priomarke, frist, werwahl, werskript with context %}
+{% block titel %} – Aufgaben{% endblock %}
+{% block inhalt %}
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h1>Aufgaben</h1>
+    <p class="summe">{{ zahlen.offen }} <span>· offen von {{ zahlen.gesamt }} insgesamt</span></p>
+  </div>
+  <p class="lead">{{ t("vorgaenge.lead") }}</p>
+
+  <div class="kennzahlen">
+    <a class="kennzahl {{ 'hat' if zahlen.ueberfaellig }} k-ueberfaellig"
+       href="/vorgaenge?faellig=ueberfaellig">
+      <span class="kzahl">{{ zahlen.ueberfaellig }}</span>
+      <span class="klabel">überfällig</span>
+    </a>
+    <a class="kennzahl {{ 'hat' if zahlen.heute }} k-heute" href="/vorgaenge?faellig=heute">
+      <span class="kzahl">{{ zahlen.heute }}</span>
+      <span class="klabel">heute fällig</span>
+    </a>
+    <a class="kennzahl {{ 'hat' if zahlen.bald }} k-bald" href="/vorgaenge?faellig=bald">
+      <span class="kzahl">{{ zahlen.bald }}</span>
+      <span class="klabel">fällig in {{ bald_tage }} Tagen</span>
+    </a>
+    <a class="kennzahl {{ 'hat' if zahlen.wartend }} k-wartend" href="/vorgaenge?faellig=wartend&amp;zustand=alle">
+      <span class="kzahl">{{ zahlen.wartend }}</span>
+      <span class="klabel">wartet auf Rückmeldung</span>
+    </a>
+    <a class="kennzahl k-erledigt" href="/vorgaenge?zustand=erledigt">
+      <span class="kzahl">{{ zahlen.erledigt }}</span>
+      <span class="klabel">erledigt / archiviert</span>
+    </a>
+  </div>
+
+  <div class="knopfreihe" style="margin-top: 16px;">
+    <button type="button" class="knopf haupt" id="neu-oeffnen">Neuen Vorgang anlegen</button>
+    <a class="knopf" href="/vorgaenge/logbuch">Logbuch aller Vorgänge</a>
+  </div>
+</section>
+
+<section class="karte" id="neu">
+  <details id="neu-formular" {{ 'open' if formular_offen }}>
+    <summary class="aufklapp">Neuen Vorgang anlegen</summary>
+
+    <p class="lead">{{ t("vorgaenge.anlegen_hinweis") }}</p>
+
+    {% if klienten %}
+    <form action="/vorgaenge" method="post" class="vorgang-formular">
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Betreute Person <span class="leise">– aus den vorhandenen Daten</span></span>
+          <select name="klient" required>
+            <option value="">bitte wählen</option>
+            {% for k in klienten %}
+            <option value="{{ k }}" {{ 'selected' if vorbelegt_klient == k }}>{{ k }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="feld">
+          <span>Vorgangsart</span>
+          <select name="art">
+            {% for a in V_ARTEN %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <label class="feld">
+        <span>Titel / kurze Bezeichnung</span>
+        <input type="text" name="titel" required maxlength="160"
+               placeholder="z. B. Fortschreibung 2026/27 beim LWL">
+      </label>
+
+      <label class="feld">
+        <span>Beschreibung oder Notiz <span class="leise">– darf leer bleiben</span></span>
+        <textarea name="beschreibung" rows="3"
+                  placeholder="Was ist der Stand, was wurde vereinbart, was fehlt noch?"></textarea>
+      </label>
+
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Zuständige Person</span>
+          <select name="zustaendig" required>
+            <option value="">bitte wählen</option>
+            {% for m in leute %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="feld">
+          <span>Weitere beteiligte Personen <span class="leise">– optional, mit Komma</span></span>
+          <input type="text" name="beteiligte" maxlength="200" autocomplete="off"
+                 placeholder="z. B. zwei Namen aus dem Team">
+        </label>
+      </div>
+
+      <div class="feldreihe">
+        <label class="feld">
+          <span>Status</span>
+          <select name="status">
+            {% for s in V_STATUS %}<option value="{{ s }}" {{ 'selected' if s == 'Offen' }}>{{ s }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="feld">
+          <span>Priorität</span>
+          <select name="prioritaet">
+            {% for p in V_PRIO %}<option value="{{ p }}" {{ 'selected' if p == 'Normal' }}>{{ p }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="feld">
+          <span>Frist / Wiedervorlage <span class="leise">– optional</span></span>
+          <input type="date" name="frist" min="2020-01-01">
+        </label>
+      </div>
+
+      {{ werwahl(leute) }}
+
+      <div class="knopfreihe">
+        <button class="knopf haupt" type="submit">Vorgang anlegen</button>
+      </div>
+    </form>
+    {% else %}
+    <p class="leer">{{ t("vorgaenge.keine_personen") }}</p>
+    {% endif %}
+  </details>
+</section>
+
+<section class="karte">
+  <form class="filter" method="get" action="/vorgaenge">
+    <label><span>Betreute Person</span>
+      <select name="klient">
+        <option value="">alle</option>
+        {% for k in klienten %}<option value="{{ k }}" {{ 'selected' if f.klient == k }}>{{ k }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span>Zuständig</span>
+      <select name="zustaendig">
+        <option value="">alle</option>
+        {% for m in vorhandene_zustaendige %}<option value="{{ m }}" {{ 'selected' if f.zustaendig == m }}>{{ m }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span>Status</span>
+      <select name="status">
+        <option value="">alle</option>
+        {% for s in V_STATUS %}<option value="{{ s }}" {{ 'selected' if f.status == s }}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span>Vorgangsart</span>
+      <select name="art">
+        <option value="">alle</option>
+        {% for a in vorhandene_arten %}<option value="{{ a }}" {{ 'selected' if f.art == a }}>{{ a }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span>Sortierung</span>
+      <select name="sortierung">
+        <option value="frist" {{ 'selected' if sortierung == 'frist' }}>Frist, nächste zuerst</option>
+        <option value="frist_neu" {{ 'selected' if sortierung == 'frist_neu' }}>Frist, späteste zuerst</option>
+        <option value="neu" {{ 'selected' if sortierung == 'neu' }}>zuletzt angelegt</option>
+        <option value="alt" {{ 'selected' if sortierung == 'alt' }}>zuerst angelegt</option>
+        <option value="person" {{ 'selected' if sortierung == 'person' }}>betreute Person</option>
+        <option value="status" {{ 'selected' if sortierung == 'status' }}>Status</option>
+        <option value="art" {{ 'selected' if sortierung == 'art' }}>Vorgangsart</option>
+        <option value="zustaendig" {{ 'selected' if sortierung == 'zustaendig' }}>Zuständigkeit</option>
+      </select>
+    </label>
+    <label><span>Suche</span>
+      <input type="search" name="q" value="{{ f.q or '' }}" placeholder="Titel, Notiz oder Person">
+    </label>
+    <div class="filter-knoepfe">
+      <button class="knopf" type="submit">Filtern</button>
+      <a class="knopf leise" href="/vorgaenge">Filter entfernen</a>
+    </div>
+  </form>
+
+  {% if aktive_filter %}
+  <div class="filterstand">
+    <span class="filterstand-marke">Aktiv</span>
+    {% for feld, wert in aktive_filter %}
+      <span class="filterchip"><span class="leise">{{ feld }}:</span> {{ wert }}</span>
+    {% endfor %}
+    <a class="knopf klein leise" href="/vorgaenge">zurücksetzen</a>
+  </div>
+  {% endif %}
+</section>
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>{{ liste | length }} Vorgang{{ '' if liste | length == 1 else 'e' }}</h2>
+  </div>
+
+  {% if liste %}
+  <div class="tabellenrolle">
+  <table class="liste dicht vorgangstabelle">
+    <thead>
+      <tr><th>Frist</th><th>Betreute Person</th><th>Vorgang</th><th>Art</th>
+          <th>Status</th><th>Zuständig</th><th>Priorität</th><th>Aktion</th></tr>
+    </thead>
+    <tbody>
+    {% for z in liste %}
+      <tr class="{{ 'zeile-ueberfaellig' if z.lage == 'ueberfaellig' }}{{ ' zeile-zu' if z.v.status in V_ABGESCHLOSSEN }}">
+        <td class="zahlen nowrap">{{ frist(z.v, z.lage) }}</td>
+        <td><a href="/vorgaenge/person?name={{ z.v.klient | urlencode }}">{{ z.v.klient }}</a></td>
+        <td>
+          <a class="stark" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}</a>
+          {% if z.v.beschreibung %}<span class="klein leise kuerzel">{{ z.v.beschreibung }}</span>{% endif %}
+        </td>
+        <td class="leise klein">{{ z.v.art }}</td>
+        <td class="nowrap links">{{ statusmarke(z.v.status) }}</td>
+        <td class="leise">{{ z.v.zustaendig }}</td>
+        <td class="nowrap">{{ priomarke(z.v.prioritaet) }}</td>
+        <td class="rechts nowrap">
+          <a class="knopf-icon" href="/vorgaenge/{{ z.v.id }}" title="Öffnen" aria-label="Öffnen">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"
+                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
+            </svg>
+          </a>
+          <form class="inline" action="/vorgaenge/{{ z.v.id }}/loeschen" method="post"
+                onsubmit="return confirm('Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
+            <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
+            <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="leer">{{ t("vorgaenge.leer") }}</p>
+  {% endif %}
+</section>
+
+{{ werskript() }}
+<script>
+  // Der Knopf "Neuen Vorgang anlegen" oeffnet die aufklappbare Karte und
+  // scrollt sie ins Bild - ein reiner #-Anker haette am geschlossenen
+  // <details> nichts bewirkt.
+  (function () {
+    var knopf = document.getElementById("neu-oeffnen"),
+        formular = document.getElementById("neu-formular");
+    if (knopf && formular) {
+      knopf.addEventListener("click", function () {
+        formular.open = true;
+        formular.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  })();
+</script>
+{% endblock %}

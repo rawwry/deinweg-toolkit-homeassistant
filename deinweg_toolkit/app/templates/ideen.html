@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block titel %} – Ideen{% endblock %}
+{% block inhalt %}
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+<section class="karte">
+  <h1>Ideen und Rückmeldungen</h1>
+  <p class="lead">{{ t("ideen.lead") }}</p>
+
+  <form action="/ideen" method="post">
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Worum geht's?</span>
+        <select name="art">
+          {% for a in arten %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="feld">
+        <span>Von <span class="leise">– darf leer bleiben</span></span>
+        <input type="text" name="wer" autocomplete="off" placeholder="Name oder Kürzel">
+      </label>
+    </div>
+
+    <label class="feld">
+      <span>Text</span>
+      <textarea name="text" rows="6" required
+                placeholder="Zum Beispiel: Beim Import einer Liste von Kollege X fehlt die letzte Zeile. Oder: Es wäre praktisch, wenn man beim manuellen Eintrag mehrere Zeilen am Stück eingeben könnte."></textarea>
+    </label>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Abschicken</button>
+    </div>
+  </form>
+</section>
+
+<section class="karte">
+  <h2>Bisher eingegangen{% if eintraege %} · {{ eintraege | length }}{% endif %}</h2>
+  {% if eintraege %}
+  <ul class="ideenreihen">
+    {% for e in eintraege %}
+    <li class="ideenreihe {{ 'wirdbearbeitet' if bearbeiten == e.nr }}">
+      {% if bearbeiten == e.nr %}
+        <form action="/ideen/{{ e.nr }}/bearbeiten" method="post" class="ideenformular">
+          <div class="feldreihe zwei">
+            <label class="feld">
+              <span>Worum geht's?</span>
+              <select name="art">
+                {% for a in arten %}<option value="{{ a }}" {{ 'selected' if a == e.art }}>{{ a }}</option>{% endfor %}
+              </select>
+            </label>
+            <label class="feld">
+              <span>Von</span>
+              <input type="text" name="wer" value="{{ e.wer }}" autocomplete="off">
+            </label>
+          </div>
+          <label class="feld">
+            <span>Text</span>
+            <textarea name="text" rows="5" required>{{ e.text }}</textarea>
+          </label>
+          <div class="knopfreihe">
+            <button class="knopf haupt" type="submit">Änderung speichern</button>
+            <a class="knopf leise" href="/ideen">Abbrechen</a>
+          </div>
+          <p class="klein leise" style="margin: 10px 0 0;">{{ t("ideen.bearbeiten_hinweis", zeitpunkt=e.zeit) }}</p>
+        </form>
+      {% else %}
+        <span class="marke-status {{ 'dopp' if e.art == 'Fehler' else ('offen' if e.art == 'Kritik' else 'gut') }} ideenart">{{ e.art }}</span>
+        <div class="ideeninhalt">
+          <div class="ideenzeile1">
+            <span class="stark">{{ e.wer }}</span>
+            <span class="leise klein zahlen">{{ e.zeit }}</span>
+          </div>
+          <p class="ideentext">{{ e.text }}</p>
+        </div>
+        <div class="ideenaktionen">
+          <a class="knopf-icon" href="/ideen?bearbeiten={{ e.nr }}" title="Bearbeiten" aria-label="Bearbeiten">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </a>
+          <form class="inline" action="/ideen/{{ e.nr }}/loeschen" method="post"
+                onsubmit="return confirm('Diesen Eintrag endgültig entfernen?')">
+            <button class="knopf-icon warn" type="submit" title="Entfernen" aria-label="Entfernen">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="leer">{{ t("ideen.leer") }}</p>
+  {% endif %}
+</section>
+
+{% endblock %}

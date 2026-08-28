@@ -1,0 +1,296 @@
+{# Gemeinsame Bausteine des Fuhrparks. Eine Stelle für Erfassung und
+   Auswertung, damit beide Seiten dieselben Marken und Formulare benutzen. #}
+
+{% from "_untermenue.html" import untermenue with context %}
+
+{# Die beiden Unterpunkte des Menüpunkts „Fuhrpark“. Bewusst nur zwei –
+   alles Weitere passiert innerhalb dieser beiden Seiten. Dieselbe Leiste
+   wie unter „Arbeitszeit“, damit sich beide gleich anfühlen. #}
+{% macro unternavigation(unterseite) %}
+{{ untermenue([("/fuhrpark", "Erfassung", unterseite == "erfassung"),
+               ("/fuhrpark/auswertung", "Auswertung", unterseite == "auswertung")],
+              "Fuhrpark") }}
+{% endmacro %}
+
+
+{# Ein Ereignis in einem Wort: „Tanken“, „Wartung: Ölwechsel“, … #}
+{% macro ereignistitel(z) -%}
+{%- if z.art == 'wartung' and z.wartungsart -%}
+Wartung: {{ z.wartungsart }}
+{%- elif z.art == 'reifen' and z.wechsel_art -%}
+Reifen: {{ z.wechsel_art }}
+{%- else -%}
+{{ KFZ_ARTEN[z.art].wort if z.art in KFZ_ARTEN else z.art }}
+{%- endif -%}
+{%- endmacro %}
+
+
+{% macro artmarke(art) -%}
+<span class="kfz-marke kfz-k-{{ art }}">
+  <span class="kfz-symbol">{{ kfz_zeichen(art) }}</span>
+  {{ KFZ_ARTEN[art].wort }}
+</span>
+{%- endmacro %}
+
+
+{# --- Symbole der Erfassungsarten -----------------------------------------
+
+   Handgezeichnete Strichsymbole, kein Zusatzpaket und keine Emoji. Emoji
+   standen hier bis 0.8.6 und waren der Grund, warum die Auswahl unruhig
+   wirkte: sie kommen als fertige Farbbilder aus dem Betriebssystem, sehen
+   auf jedem Gerät anders aus und lassen sich weder einfärben noch an die
+   Strichstärke der übrigen Oberfläche angleichen.
+
+   Diese hier erben ihre Farbe über currentColor und nehmen damit den Ton
+   der jeweiligen Kategorie an – denselben, den auch die Diagramme und die
+   Marken in der Historie verwenden (--kfz-*). Wer eine neunte Art ergänzt,
+   trägt sie in kfz.ARTEN ein und hängt hier einen Zweig an. #}
+{% macro kfz_zeichen(art) -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if art == "tanken" %}
+  <rect x="3.6" y="3.4" width="9.6" height="17.2" rx="2"/>
+  <rect x="6" y="6" width="4.8" height="4" rx="1"/>
+  <path d="M13.2 10h2.4a1.4 1.4 0 0 1 1.4 1.4v4.4a1.6 1.6 0 0 0 3.2 0V9.6l-1.9-2"/>
+{%- elif art == "inspektion" %}
+  <path d="M16.9 3.6a4.6 4.6 0 0 0-6.1 5.6l-6.4 6.4a1.8 1.8 0 0 0 0 2.5l1.5 1.5a1.8 1.8 0 0 0 2.5 0l6.4-6.4a4.6 4.6 0 0 0 5.6-6.1l-2.9 2.9-2.6-.7-.7-2.6 2.7-3.1Z"/>
+{%- elif art == "wartung" %}
+  {# Die Zaehne sitzen dicht am Kranz. Weiter aussen las sich das Zahnrad
+     bei dieser Groesse wie eine Sonne. #}
+  <circle cx="12" cy="12" r="3.4"/>
+  <path d="M12 4.2v2.6M12 17.2v2.6M4.2 12h2.6M17.2 12h2.6"/>
+  <path d="M17.5 6.5l-1.8 1.8M6.5 6.5l1.8 1.8M17.5 17.5l-1.8-1.8M6.5 17.5l1.8-1.8"/>
+{%- elif art == "reparatur" %}
+  <rect x="2.8" y="8.2" width="18.4" height="11.6" rx="2"/>
+  <path d="M8.8 8.2V6.6c0-.8.6-1.4 1.4-1.4h3.6c.8 0 1.4.6 1.4 1.4v1.6"/>
+  <path d="M2.8 13.4h18.4"/>
+  <rect x="9.9" y="11.7" width="4.2" height="3.4" rx=".8"/>
+{%- elif art == "reifen" %}
+  <circle cx="12" cy="12" r="8.6"/>
+  <circle cx="12" cy="12" r="3.2"/>
+  <path d="M12 3.4v5.4M12 15.2v5.4M3.4 12h5.4M15.2 12h5.4"/>
+{%- elif art == "tuev" %}
+  <rect x="4.4" y="4.6" width="15.2" height="16" rx="2"/>
+  <rect x="9" y="2.6" width="6" height="3.6" rx="1.2"/>
+  <path d="M8.6 12.8l2.4 2.4 4.6-5"/>
+{%- elif art == "sonstiges" %}
+  <rect x="2.6" y="6" width="18.8" height="12" rx="2"/>
+  <circle cx="12" cy="12" r="2.7"/>
+  <path d="M6.2 9.4v5.2M17.8 9.4v5.2"/>
+{%- elif art == "km" %}
+  <path d="M3.4 17.8a8.6 8.6 0 0 1 17.2 0"/>
+  <path d="M12 17.8 16 11.6"/>
+  <circle cx="12" cy="17.8" r="1.4"/>
+  <path d="M4.6 14.3h1.8M17.6 14.3h1.8M12 8.6V6.8"/>
+{%- else %}
+  <circle cx="12" cy="12" r="8.6"/>
+{%- endif %}
+</svg>
+{%- endmacro %}
+
+
+{# Die Auswahl der Erfassungsart. Jeder Eintrag lädt dieselbe Seite mit
+   dem passenden Formular – kein Skript, keine verschachtelten Menüs.
+
+   Zwei Gruppen statt eines Rasters mit Löchern: oben die beiden Handgriffe,
+   die ständig vorkommen (Tanken, Kilometerstand), darunter die sechs, die
+   ein paarmal im Jahr anfallen. 2 und 6 gehen in jeder Fensterbreite ohne
+   Rest auf – das frühere Raster mit einer 2×2-Kachel tat das nur bei genau
+   vier Spalten und ließ sonst Lücken. Welche Art oben steht, sagt
+   kfz.ARTEN über „haupt“. #}
+{% macro erfasskacheln(fahrzeug_id, was) %}
+{% set adresse = "/fuhrpark?fahrzeug=" ~ fahrzeug_id ~ "&was=" %}
+<div class="kfz-arten">
+  <div class="kfz-arten-haupt">
+    {% for schluessel, angaben in KFZ_ARTEN.items() if angaben.haupt %}
+    <a class="kfz-art haupt kfz-a-{{ schluessel }} {{ 'aktiv' if was == schluessel }}"
+       href="{{ adresse }}{{ schluessel }}#formular">
+      <span class="kfz-art-zeichen">{{ kfz_zeichen(schluessel) }}</span>
+      <span class="kfz-art-wort">{{ angaben.wort }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  <div class="kfz-arten-weitere">
+    {% for schluessel, angaben in KFZ_ARTEN.items() if not angaben.haupt %}
+    <a class="kfz-art kfz-a-{{ schluessel }} {{ 'aktiv' if was == schluessel }}"
+       href="{{ adresse }}{{ schluessel }}#formular">
+      <span class="kfz-art-zeichen">{{ kfz_zeichen(schluessel) }}</span>
+      <span class="kfz-art-wort">{{ angaben.wort }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+
+{# Das Erfassungsformular. Alle Arten teilen sich eine Vorlage; jede Art
+   blendet die Felder ein, die sie braucht. Beim Bearbeiten steht in
+   „satz“ der bestehende Eintrag und die Felder sind vorbelegt. #}
+{% macro erfassformular(was, fahrzeug, satz, wartungsarten, heute_iso, einheit, stand) %}
+{% set angaben = KFZ_ARTEN[was] %}
+{% set braucht_kosten = was != 'km' %}
+{% set braucht_werkstatt = was in ('inspektion', 'wartung', 'reparatur', 'reifen', 'tuev') %}
+{% set braucht_intervall = was in ('inspektion', 'wartung', 'tuev') %}
+
+<form action="/fuhrpark/erfassen" method="post" class="kfz-formular" id="formular">
+  <input type="hidden" name="fahrzeug_id" value="{{ fahrzeug.id }}">
+  <input type="hidden" name="art" value="{{ was }}">
+  {% if satz %}<input type="hidden" name="eintrag_id" value="{{ satz.id }}">{% endif %}
+
+  <div class="feldreihe">
+    <label class="feld">
+      <span>Datum</span>
+      <input type="date" name="datum" required max="{{ heute_iso }}"
+             value="{{ satz.datum if satz else heute_iso }}">
+    </label>
+
+    {% if was != 'sonstiges' %}
+    <label class="feld">
+      <span>Kilometerstand
+        {%- if was == 'km' %}
+        {%- elif was == 'tanken' %} <span class="leise">– für den Verbrauch</span>
+        {%- else %} <span class="leise">– darf leer bleiben</span>{% endif %}</span>
+      <input type="number" name="km" inputmode="numeric" min="0" step="1"
+             {{ 'required' if was == 'km' }}
+             placeholder="{{ stand if stand else 'z. B. 148000' }}"
+             value="{{ satz.km if satz and satz.km is not none else '' }}">
+    </label>
+    {% endif %}
+
+    {% if was == 'tanken' %}
+    <label class="feld">
+      <span>Getankt <span class="leise">– in {{ einheit }}</span></span>
+      <input type="text" name="liter" inputmode="decimal" required
+             placeholder="z. B. 42,35"
+             value="{{ satz.liter | liter if satz and satz.liter is not none else '' }}">
+    </label>
+    {% endif %}
+
+    {% if braucht_kosten %}
+    <label class="feld">
+      <span>{{ 'Gesamtpreis' if was == 'tanken' else 'Preis' }}
+        <span class="leise">– in Euro</span></span>
+      <input type="text" name="kosten" inputmode="decimal" placeholder="z. B. 68,40"
+             value="{{ satz.kosten | liter if satz and satz.kosten is not none else '' }}">
+    </label>
+    {% endif %}
+  </div>
+
+  {% if was == 'tanken' %}
+  <label class="ankreuz">
+    <input type="checkbox" name="voll" value="1"
+           {{ 'checked' if not satz or satz.voll }}>
+    <span>Vollgetankt – nur zwischen zwei vollen Tanks lässt sich der
+      Verbrauch berechnen. Haken weg bei einer Teiltankung.</span>
+  </label>
+  <p class="klein leise felderklaerung">{{ t("kfz.tanken_km_hinweis") }}</p>
+  {% endif %}
+
+  {% if was == 'wartung' %}
+  <label class="feld">
+    <span>Wartungsart</span>
+    <input type="text" name="wartungsart" required maxlength="120" list="wartungsarten"
+           autocomplete="off" placeholder="z. B. Ölwechsel, Bremsflüssigkeit, Klimaservice"
+           value="{{ satz.wartungsart if satz else '' }}">
+    <datalist id="wartungsarten">
+      {% for a in wartungsarten %}<option value="{{ a }}">{% endfor %}
+    </datalist>
+  </label>
+  {% endif %}
+
+  {% if was == 'reifen' %}
+  <label class="feld">
+    <span>Gewechselt auf</span>
+    <select name="wechsel_art" required>
+      <option value="">bitte wählen</option>
+      {% for a in KFZ_REIFENWECHSEL %}
+      <option value="{{ a }}" {{ 'selected' if satz and satz.wechsel_art == a }}>{{ a }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% endif %}
+
+  {% if was in ('reparatur', 'sonstiges', 'inspektion') %}
+  <label class="feld">
+    <span>{{ 'Was wurde repariert?' if was == 'reparatur' else 'Wofür?' }}
+      {%- if was != 'reparatur' %} <span class="leise">– darf leer bleiben</span>{% endif %}</span>
+    <input type="text" name="beschreibung" maxlength="300" autocomplete="off"
+           {{ 'required' if was == 'reparatur' }}
+           placeholder="{{ 'z. B. Lichtmaschine ersetzt' if was == 'reparatur' else 'z. B. Kfz-Steuer, Versicherung, Wäsche' }}"
+           value="{{ satz.beschreibung if satz else '' }}">
+  </label>
+  {% endif %}
+
+  {% if braucht_werkstatt or braucht_intervall %}
+  <div class="feldreihe">
+    {% if braucht_werkstatt %}
+    <label class="feld">
+      <span>Werkstatt <span class="leise">– darf leer bleiben</span></span>
+      <input type="text" name="werkstatt" maxlength="120" autocomplete="off"
+             placeholder="z. B. Autohaus Schmidt"
+             value="{{ satz.werkstatt if satz else '' }}">
+    </label>
+    {% endif %}
+
+    {% if braucht_intervall %}
+    <label class="feld">
+      <span>Wieder fällig nach <span class="leise">– Monaten</span></span>
+      <input type="number" name="intervall_monate" min="1" max="240" step="1"
+             placeholder="{{ '24' if was == 'tuev' else 'z. B. 12' }}"
+             value="{{ satz.intervall_monate if satz and satz.intervall_monate else '' }}">
+    </label>
+    {% if was != 'tuev' %}
+    <label class="feld">
+      <span>oder nach <span class="leise">– Kilometern</span></span>
+      <input type="number" name="intervall_km" min="100" max="500000" step="100"
+             placeholder="z. B. 15000"
+             value="{{ satz.intervall_km if satz and satz.intervall_km else '' }}">
+    </label>
+    {% endif %}
+    <label class="feld">
+      <span>Nächster Termin <span class="leise">– sonst aus dem Intervall</span></span>
+      <input type="date" name="faellig_datum"
+             value="{{ satz.faellig_datum if satz and satz.faellig_datum else '' }}">
+    </label>
+    {% endif %}
+  </div>
+  {% if braucht_intervall %}
+  <p class="klein leise felderklaerung">{{ t("kfz.intervall_hinweis") }}</p>
+  {% endif %}
+  {% endif %}
+
+  <label class="feld">
+    <span>Notiz <span class="leise">– darf leer bleiben</span></span>
+    <textarea name="notiz" rows="2"
+              placeholder="Alles, was später noch wichtig sein könnte">{{ satz.notiz if satz else '' }}</textarea>
+  </label>
+
+  <div class="knopfreihe">
+    <button class="knopf haupt" type="submit">
+      {{ 'Änderung speichern' if satz else angaben.wort ~ ' speichern' }}</button>
+    <a class="knopf leise" href="/fuhrpark?fahrzeug={{ fahrzeug.id }}">Abbrechen</a>
+  </div>
+</form>
+{% endmacro %}
+
+
+{# Eine Zeile der Fälligkeitsliste – dieselbe Darstellung auf beiden Seiten. #}
+{% macro faelligkeit(e, mit_fahrzeug=true) %}
+<li class="kfz-faellig l-{{ e.lage }}">
+  {# Farbiger Punkt statt eines Emoji – der Rest des Fuhrparks kommt seit
+     0.8.7 ohne aus, und die Farbe steht ohnehin schon an der Zeile. #}
+  <span class="kfz-faellig-punkt" aria-hidden="true"></span>
+  <span class="kfz-faellig-text">
+    {% if mit_fahrzeug %}
+    <a class="stark" href="/fuhrpark?fahrzeug={{ e.fahrzeug_id }}">{{ e.fahrzeug }}</a>
+    <span class="leise">·</span>
+    {% endif %}
+    <span class="stark">{{ e.anlass }}</span>
+    <span class="kfz-faellig-wann">{{ e.text }}</span>
+  </span>
+  <span class="kfz-faellig-datum klein leise zahlen">
+    {% if e.faellig_datum %}{{ e.faellig_datum | deutsch }}{% endif %}
+    {%- if e.faellig_km %}{% if e.faellig_datum %} · {% endif %}{{ e.faellig_km | km }}{% endif %}
+  </span>
+</li>
+{% endmacro %}

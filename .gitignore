@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+._*
+# Python
+__pycache__/
+*.py[cod]
+venv/
+# Nichts von den echten Daten gehört hierher - die liegen auf dem Pi
+# unter /share/deinweg-toolkit und haben in einem öffentlichen
+# Repository nichts zu suchen.
+db/
+files/
+export/

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_vorgang_teile.html" import logzeile, logtag with context %}
+{% block titel %} – Logbuch{% endblock %}
+{% block inhalt %}
+
+<p class="statuszeile klein leise">
+  <a href="/vorgaenge">Aufgaben</a> › Logbuch
+</p>
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h1>Logbuch</h1>
+    <p class="summe">{{ gesamt }} <span>· Einträge{% if gesamt > zeilen | length %} · gezeigt werden die letzten {{ zeilen | length }}{% endif %}</span></p>
+  </div>
+  <p class="lead">{{ t("vorgaenge.logbuch_lead") }}</p>
+
+  <form class="filter" method="get" action="/vorgaenge/logbuch">
+    <label><span>Betreute Person</span>
+      <select name="klient">
+        <option value="">alle</option>
+        {% for k in klienten %}<option value="{{ k }}" {{ 'selected' if f.klient == k }}>{{ k }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span>Involvierter Mitarbeiter</span>
+      <select name="wer">
+        <option value="">alle</option>
+        {% for m in leute %}<option value="{{ m }}" {{ 'selected' if f.wer == m }}>{{ m }}</option>{% endfor %}
+      </select>
+    </label>
+    <label><span>Suche</span>
+      <input type="search" name="q" value="{{ f.q or '' }}" placeholder="Stichwort im Eintrag">
+    </label>
+    <div class="filter-knoepfe">
+      <button class="knopf" type="submit">Filtern</button>
+      <a class="knopf leise" href="/vorgaenge/logbuch">Filter entfernen</a>
+    </div>
+  </form>
+</section>
+
+<section class="karte logbuchkarte">
+  {% if tage %}
+    {% for gruppe in tage %}
+    {{ logtag(gruppe.wort) }}
+    <ul class="logliste">
+      {% for e in gruppe.zeilen %}{{ logzeile(e) }}{% endfor %}
+    </ul>
+    {% endfor %}
+  {% else %}
+  <p class="leer">{{ t("vorgaenge.logbuch_leer") }}</p>
+  {% endif %}
+</section>
+
+{% endblock %}

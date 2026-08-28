@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% from "_dateien_teile.html" import zweig, dateisymbol, dateiknoepfe,
+   ordnerknoepfe, dateidetails with context %}
+{% block titel %} – Dateien{% endblock %}
+{% block inhalt %}
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+<nav class="wiki-krumen" aria-label="Pfad">
+  <a href="/dateien">Dateien</a>
+  {% for k in brotkrumen %}
+    <span class="wiki-krumen-teiler">/</span>
+    {% if loop.last %}<span class="hier">{{ k.name }}</span>
+    {% else %}<a href="/dateien?ordner={{ k.pfad | urlencode }}">{{ k.name }}</a>{% endif %}
+  {% endfor %}
+</nav>
+
+<div class="wiki">
+
+  {# --- Seitenleiste: derselbe Aufbau wie im Wiki --- #}
+  <aside class="wiki-seitenleiste karte">
+    <div class="dateiwerkzeuge">
+      {# Hochladen als Symbolknopf: das eigentliche Dateifeld ist versteckt,
+         der Knopf ist sein Label. Nach der Auswahl schickt das Skript das
+         Formular ab. Ohne Skript bleibt der Absenden-Knopf sichtbar. #}
+      <form action="/dateien/hochladen" method="post" enctype="multipart/form-data"
+            id="hochladeform" class="inline">
+        <input type="hidden" name="ordner" value="{{ ordner }}">
+        <input type="file" name="datei" id="dateifeld" multiple required
+               class="dateifeld-versteckt"
+               accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.odt,.ods,.odp,.csv,.txt,.md">
+        <label class="knopf-icon" for="dateifeld"
+               title="Dateien in diesen Ordner hochladen" tabindex="0" role="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 20V8m0 0-4 4m4-4 4 4" stroke="currentColor" stroke-width="1.7"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M5 5.5h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </label>
+        <button class="knopf klein" type="submit" id="hochladeknopf">Hochladen</button>
+      </form>
+
+      <button class="knopf-icon" type="button" id="ordnerknopf"
+              title="Neuen Ordner hier anlegen" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3.5 7.5c0-1.1.9-2 2-2h3.2l1.8 2h8c1.1 0 2 .9 2 2v8.5c0 1.1-.9 2-2 2H5.5c-1.1 0-2-.9-2-2v-10.5Z"
+                stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M12 11.5v5M9.5 14h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <form action="/dateien/ordner" method="post" class="ordnerform" id="ordnerform">
+      <input type="hidden" name="ordner" value="{{ ordner }}">
+      <label class="feld">
+        <span>Neuer Ordner</span>
+        <input type="text" name="name" required autocomplete="off"
+               placeholder="z. B. Fotos Sommerfest">
+      </label>
+      <div class="knopfreihe">
+        <button class="knopf klein haupt" type="submit">Anlegen</button>
+      </div>
+    </form>
+
+    <nav class="wiki-baum" aria-label="Dateistruktur">
+      <a class="wiki-knoten wiki-wurzel {{ 'hier' if wurzel_hier }}" href="/dateien"
+         data-ziel="" title="Oberste Ebene – zum Verschieben hierher ziehen">
+        <svg class="wiki-symbol" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19v-8.5Z"
+                stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+        <span>Alle Dateien</span>
+      </a>
+      {% if baum %}
+        {{ zweig(baum, ordner) }}
+      {% else %}
+        <p class="leer klein">{{ t("dateien.baum_leer") }}</p>
+      {% endif %}
+    </nav>
+
+    <p class="klein leise dateiablage">{{ t("dateien.ablage", pfad=ablage) }}</p>
+    <p class="klein leise">{{ t("dateien.erlaubt", endungen=endungen, mb=max_mb) }}</p>
+    <p class="klein leise wiki-ziehhinweis">{{ t("dateien.ziehen") }}</p>
+  </aside>
+
+  {# --- Hauptbereich --- #}
+  <div class="wiki-haupt">
+    <article class="karte">
+      <div class="kopfzeile">
+        <h1>{{ brotkrumen[-1].name if brotkrumen else "Alle Dateien" }}</h1>
+        <div class="dateikopf-rechts">
+          <div class="schalter dateiansicht">
+            <span class="dateiliste-text">Liste</span>
+            <button type="button" class="dateiliste-knopf" role="switch" aria-checked="false"
+                    aria-label="Zwischen Listen- und Kachelansicht wechseln"></button>
+          </div>
+        </div>
+      </div>
+      {% if not brotkrumen %}<p class="lead">{{ t("dateien.lead") }}</p>{% endif %}
+
+      {% if not unterordner and not dateien %}
+      <p class="leer">{{ t("dateien.leer") }}</p>
+      {% else %}
+
+      {# Beide Darstellungen stehen im HTML, umgeschaltet wird per CSS über
+         data-dateiliste am <html>. Dieselbe Technik wie beim Wiki und bei
+         Hell/Dunkel – so blitzt beim Laden nichts auf. Standard ist hier
+         die Liste. #}
+      <div class="tabellenrolle dateien-listenansicht">
+        <table class="liste dicht wiki-verzeichnis dateiverzeichnis">
+          <thead>
+            <tr><th class="artspalte"></th><th>Name</th><th>Art</th>
+                <th>Größe</th><th>Geändert</th><th>Aktionen</th></tr>
+          </thead>
+          <tbody>
+            {% for o in unterordner %}
+            <tr class="dateizeile" draggable="true" data-pfad="{{ o.pfad }}" data-art="ordner">
+              <td class="artspalte">{{ dateisymbol("ordner") }}</td>
+              <td><a class="stark" href="/dateien?ordner={{ o.pfad | urlencode }}">{{ o.name }}</a></td>
+              <td class="leise">Ordner</td>
+              <td class="leise nowrap">{{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträge' }}</td>
+              <td class="leise nowrap">{{ o.geaendert }}</td>
+              <td class="nowrap">{{ ordnerknoepfe(o, ordner) }}</td>
+            </tr>
+            <tr class="dateidetailzeile" data-detail="{{ o.pfad }}" hidden>
+              <td colspan="6">{{ dateidetails(o, ordner, ordner_auswahl) }}</td>
+            </tr>
+            {% endfor %}
+
+            {% for d in dateien %}
+            <tr class="dateizeile {{ 'unbekannt' if not d.bekannt }}"
+                draggable="true" data-pfad="{{ d.pfad }}" data-art="datei">
+              <td class="artspalte">{{ dateisymbol(d.art) }}</td>
+              <td>
+                {% if d.bekannt %}
+                <a class="stark" href="{{ d.adresse }}" target="_blank" rel="noopener">{{ d.name }}</a>
+                {% else %}<span class="stark">{{ d.name }}</span>{% endif %}
+              </td>
+              <td class="leise">{{ d.wort }}</td>
+              <td class="zahlen leise nowrap">{{ d.groesse }}</td>
+              <td class="leise nowrap">{{ d.geaendert }}</td>
+              <td class="nowrap">{{ dateiknoepfe(d, ordner) }}</td>
+            </tr>
+            <tr class="dateidetailzeile" data-detail="{{ d.pfad }}" hidden>
+              <td colspan="6">{{ dateidetails(d, ordner, ordner_auswahl) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <ul class="dateiliste dateien-kachelansicht">
+        {% for o in unterordner %}
+        <li class="dateikachel ordnerkachel" draggable="true"
+            data-pfad="{{ o.pfad }}" data-art="ordner">
+          <a class="dateikachel-flaeche" href="/dateien?ordner={{ o.pfad | urlencode }}">
+            <span class="dateikachel-bild ordner">{{ dateisymbol("ordner") }}</span>
+            <span class="dateikachel-name">{{ o.name }}</span>
+            <span class="dateikachel-zeile">{{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträge' }} · {{ o.geaendert }}</span>
+          </a>
+          <div class="dateikachel-knoepfe">{{ ordnerknoepfe(o, ordner) }}</div>
+          <div class="dateikachel-detail" data-detail="{{ o.pfad }}" hidden>
+            {{ dateidetails(o, ordner, ordner_auswahl) }}
+          </div>
+        </li>
+        {% endfor %}
+        {% for d in dateien %}
+        <li class="dateikachel k-{{ d.art }}" draggable="true"
+            data-pfad="{{ d.pfad }}" data-art="datei">
+          <a class="dateikachel-flaeche" {% if d.bekannt %}href="{{ d.adresse }}"
+             target="_blank" rel="noopener"{% endif %}>
+            {% if d.art == "video" %}
+            <span class="dateikachel-bild art"><span class="dateikachel-wort">▶ {{ d.wort }}</span></span>
+            {% elif d.art == "bild" %}
+            {# Kein eigenes Vorschaubild: der Browser skaliert das Original.
+               Bei diesen Größen billiger als eine Bibliothek dafür. #}
+            <span class="dateikachel-bild"><img src="{{ d.adresse }}" alt="" loading="lazy"></span>
+            {% else %}
+            <span class="dateikachel-bild art"><span class="dateikachel-wort">{{ d.wort }}</span></span>
+            {% endif %}
+            <span class="dateikachel-name">{{ d.name }}</span>
+            <span class="dateikachel-zeile">{{ d.groesse }} · {{ d.geaendert }}</span>
+          </a>
+          <div class="dateikachel-knoepfe">{{ dateiknoepfe(d, ordner) }}</div>
+          <div class="dateikachel-detail" data-detail="{{ d.pfad }}" hidden>
+            {{ dateidetails(d, ordner, ordner_auswahl) }}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </article>
+  </div>
+</div>
+
+{# Wird vom Ziehen abgeschickt. Steht bewusst außerhalb aller anderen
+   Formulare – verschachtelte Formulare trennt der Browser auf. #}
+<form id="datei-verschieben" action="/dateien/verschieben" method="post" hidden>
+  <input type="hidden" name="pfad" id="datei-quelle">
+  <input type="hidden" name="ziel" id="datei-ziel">
+  <input type="hidden" name="ordner" value="{{ ordner }}">
+</form>
+
+<script>
+(function () {
+  // --- Hochladen: Knopf statt Dateifeld ------------------------------------
+  var feld = document.getElementById("dateifeld"),
+      formular = document.getElementById("hochladeform"),
+      knopf = document.getElementById("hochladeknopf");
+  if (feld && formular && knopf) {
+    knopf.hidden = true;              // mit Skript reicht das Symbol
+    feld.addEventListener("change", function () {
+      if (feld.files && feld.files.length) formular.submit();
+    });
+  }
+
+  // --- Ordnerformular aufklappen -------------------------------------------
+  var ordnerknopf = document.getElementById("ordnerknopf"),
+      ordnerform  = document.getElementById("ordnerform");
+  if (ordnerknopf && ordnerform) {
+    ordnerform.hidden = true;
+    ordnerknopf.addEventListener("click", function () {
+      ordnerform.hidden = !ordnerform.hidden;
+      ordnerknopf.setAttribute("aria-expanded", ordnerform.hidden ? "false" : "true");
+      if (!ordnerform.hidden) ordnerform.querySelector("input[name=name]").focus();
+    });
+  }
+
+  // --- Umbenennen und Schnipsel aufklappen ---------------------------------
+  document.querySelectorAll("[data-detail]").forEach(function (d) { d.hidden = true; });
+  document.querySelectorAll("[data-umbenennen]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var pfad = b.getAttribute("data-umbenennen");
+      document.querySelectorAll('[data-detail="' + CSS.escape(pfad) + '"]')
+        .forEach(function (d) {
+          d.hidden = !d.hidden;
+          if (!d.hidden) { var f = d.querySelector("input[name=name]"); if (f) f.focus(); }
+        });
+    });
+  });
+
+  // --- Markdown kopieren ----------------------------------------------------
+  document.querySelectorAll(".kopieren").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var text = b.getAttribute("data-schnipsel");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          b.classList.add("hat-kopiert");
+          setTimeout(function () { b.classList.remove("hat-kopiert"); }, 1400);
+        }, zeigen);
+      } else { zeigen(); }
+      function zeigen() {
+        // Klappt das Kopieren nicht, wird der Schnipsel wenigstens sichtbar
+        var pfad = b.parentNode.querySelector("[data-umbenennen]")
+                     .getAttribute("data-umbenennen");
+        document.querySelectorAll('[data-detail="' + CSS.escape(pfad) + '"]')
+          .forEach(function (d) {
+            d.hidden = false;
+            var f = d.querySelector(".dateischnipsel input");
+            if (f) { f.focus(); f.select(); }
+          });
+      }
+    });
+  });
+
+  // --- Ziehen und Ablegen, wie im Wiki -------------------------------------
+  var verschieben = document.getElementById("datei-verschieben");
+  if (!verschieben) return;
+  var gezogen = null;
+
+  function zielVon(e) {
+    var t = e.target.closest("[data-ziel]");
+    return t;
+  }
+
+  document.addEventListener("dragstart", function (e) {
+    var knoten = e.target.closest("[data-pfad]");
+    if (!knoten) return;
+    gezogen = knoten;
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", knoten.dataset.pfad); } catch (x) {}
+  });
+  document.addEventListener("dragend", function () {
+    gezogen = null;
+    document.querySelectorAll(".ziel-aktiv").forEach(function (n) {
+      n.classList.remove("ziel-aktiv");
+    });
+  });
+  document.addEventListener("dragover", function (e) {
+    if (!gezogen) return;
+    var ziel = zielVon(e);
+    if (!ziel) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    ziel.classList.add("ziel-aktiv");
+  });
+  document.addEventListener("dragleave", function (e) {
+    var ziel = zielVon(e);
+    if (ziel) ziel.classList.remove("ziel-aktiv");
+  });
+  document.addEventListener("drop", function (e) {
+    if (!gezogen) return;
+    var ziel = zielVon(e);
+    if (!ziel) return;
+    e.preventDefault();
+    ziel.classList.remove("ziel-aktiv");
+    var quelle = gezogen.dataset.pfad,
+        name = quelle.split("/").pop(),
+        wohin = ziel.dataset.ziel || "die oberste Ebene";
+    if (quelle === ziel.dataset.ziel) return;
+    if (!confirm("„" + name + "“ nach " + wohin + " verschieben?")) return;
+    document.getElementById("datei-quelle").value = quelle;
+    document.getElementById("datei-ziel").value = ziel.dataset.ziel;
+    verschieben.submit();
+  });
+})();
+</script>
+
+{% endblock %}

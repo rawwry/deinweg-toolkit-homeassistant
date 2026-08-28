@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% from "_untermenue.html" import arbeitszeit with context %}
+{% block titel %} – Auswertung{% endblock %}
+{% block inhalt %}
+
+{{ arbeitszeit('auswertung') }}
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h1>Auswertung{% if aktive_filter %} <span class="marke-status offen">gefiltert</span>{% endif %}</h1>
+    <p class="summe">{{ gesamt | gesamtstunden }} <span>· {{ zeitraum_wort }}</span></p>
+  </div>
+
+  {% with ziel = "/auswertung", abrechenbar_zeigen = true %}{% include "_filter.html" %}{% endwith %}
+</section>
+
+<section class="raster">
+  <div class="karte">
+    <h2>Stunden pro betreuter Person</h2>
+    <p class="boxumfang">
+      Zeitraum <strong>{{ zeitraum_wort }}</strong>
+      {%- if f.klient %} · nur <strong>{{ f.klient }}</strong>{% else %} · alle betreuten Personen{% endif %}
+      {%- if f.mitarbeiter %} · nur Zeiten von <strong>{{ f.mitarbeiter }}</strong>{% else %} · alle Mitarbeiter{% endif %}
+      {%- if je_klient %} · {{ je_klient | length }}
+        {{ "Person" if je_klient | length == 1 else "Personen" }}{% endif %}
+    </p>
+    {% if je_klient %}
+    <table class="liste">
+      <thead>
+        <tr>
+          <th>Betreute Person</th>
+          <th>Mitarbeiter</th>
+          <th>Einheiten</th>
+          <th>IST</th>
+          {% if soll_aktiv %}<th>Soll</th><th>Abweichung</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in je_klient %}
+        <tr>
+          <td class="stark">{{ r.klient }}</td>
+          <td class="leise">
+            {% if r.anzahl_leute > 2 %}
+              <span title="{{ r.leute | join(', ') }}">{{ r.anzahl_leute }} Personen</span>
+            {% else %}
+              {{ r.leute | join(', ') }}
+            {% endif %}
+          </td>
+          <td class="zahlen">{{ r.n }}</td>
+          <td class="zahlen stark">{{ r.m | hhmm }}</td>
+          {% if soll_aktiv %}
+            <td class="zahlen leise">{{ r.soll | hhmm if r.soll else "—" }}</td>
+            <td class="zahlen">
+              {% if r.abweichung is not none %}
+                <span class="marke-status {{ 'gut' if r.abweichung >= 0 else 'dopp' }}">{{ '+' if r.abweichung >= 0 }}{{ r.abweichung | hhmm }}</span>
+              {% else %}<span class="leise">—</span>{% endif %}
+            </td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if soll_aktiv %}
+    <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.soll_erklaerung") }}</p>
+    {% elif f.monat %}
+    <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.soll_fehlt") }}</p>
+    {% endif %}
+    {% else %}
+    <p class="leer">{{ t("auswertung.tabelle_leer", zeitraum=zeitraum_wort) }}</p>
+    {% endif %}
+  </div>
+
+  <div class="spalte">
+    <div class="karte schmal">
+      <h2>Stundenkontingent</h2>
+      <p class="klein leise" style="margin-top: -8px;">{{ zeitraum_wort }}{% if monate_anzahl > 1 %} · {{ monate_anzahl }} Monate{% endif %}</p>
+      {% if stand %}
+      <ul class="standliste">
+        {% for r in stand %}
+        <li>
+          <div class="standkopf">
+            <span class="stark">{{ r.klient }}</span>
+            <span class="prozent {{ 'ueber' if r.prozent > 105 }}{{ ' knapp' if r.prozent < 90 }}">{{ r.prozent }} %</span>
+          </div>
+          <span class="balkenspur">
+            <span class="balken {{ 'ueber' if r.prozent > 105 }}{{ ' knapp' if r.prozent < 90 }}"
+                  style="width: {{ [r.prozent, 100] | min }}%"></span>
+          </span>
+          <span class="standfuss zahlen">{{ r.m | hhmm }} von {{ r.soll | hhmm }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="leer klein">{{ t("auswertung.kontingent_leer") }}</p>
+      {% endif %}
+    </div>
+
+    <div class="karte schmal">
+      <h2>Verdienst</h2>
+      <p class="klein leise" style="margin-top: -8px;">{{ zeitraum_wort }}</p>
+      {% if verdienst %}
+      <table class="liste">
+        <tbody>
+        {% for r in verdienst %}
+          <tr>
+            <td>
+              <span class="stark">{{ r.klient }}</span><br>
+              <span class="klein leise zahlen">{{ r.m | hhmm }} × {{ r.satz | euro }}</span>
+            </td>
+            <td class="num zahlen stark betrag">{{ r.betrag | euro }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td class="stark">Summe</td>
+            <td class="num zahlen stark betrag gross">{{ verdienst_gesamt | euro }}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.verdienst_hinweis") }}</p>
+      {% else %}
+      <p class="leer klein">{{ t("auswertung.verdienst_leer") }}</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{% endblock %}

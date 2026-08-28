@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de" data-thema="dunkel" data-breite="voll">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#131416">
+<title>Anmelden – Dein Weg Toolkit</title>
+<link rel="stylesheet" href="/static/style.css?v={{ VERSION }}">
+<link rel="manifest" href="/static/manifest.json?v={{ VERSION }}">
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico?v={{ VERSION }}">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png?v={{ VERSION }}">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v={{ VERSION }}">
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("toolkit-thema");
+      if (t === "hell" || t === "dunkel") document.documentElement.dataset.thema = t;
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body class="anmeldeseite">
+{# Der Schein hinter der Karte ist reines CSS - kein Bild, das geladen
+   werden müsste, und er trägt in Hell wie Dunkel. #}
+<div class="anmelde-schein" aria-hidden="true"></div>
+<main class="anmelde-huelle">
+  <div class="anmelde-saeule">
+
+    {# Das Logo steht über der Karte, nicht darin: es gehört zur Seite,
+       nicht zum Formular. So bekommt die Karte ihren eigenen Rahmen und
+       die Marke bleibt für sich stehen. #}
+    <a class="anmelde-marke" href="/">
+      <img class="nur-dunkel" src="/static/logo-fuer-dunkel.png?v={{ VERSION }}" alt="Dein Weg Toolkit">
+      <img class="nur-hell"   src="/static/logo-fuer-hell.png?v={{ VERSION }}"   alt="Dein Weg Toolkit">
+    </a>
+
+    <div class="karte anmeldekarte">
+      <h1>Anmelden</h1>
+      <p class="lead">{{ t("login.lead") }}</p>
+
+    {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+
+    <form action="/login" method="post">
+      <input type="hidden" name="weiter" value="{{ weiter }}">
+      <label class="feld">
+        <span>Benutzername</span>
+        <input type="text" name="benutzername" required autofocus autocomplete="username">
+      </label>
+      <label class="feld">
+        <span>Passwort</span>
+        <input type="password" name="passwort" required autocomplete="current-password">
+      </label>
+      <div class="knopfreihe">
+        <button class="knopf haupt anmelde-knopf" type="submit">Anmelden</button>
+      </div>
+    </form>
+    </div>
+
+    <p class="anmelde-fuss">Dein Weg Toolkit · Version {{ VERSION }}</p>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% from "_kfz_teile.html" import unternavigation, erfasskacheln, erfassformular,
+   ereignistitel, artmarke, faelligkeit with context %}
+{% block titel %} – Fuhrpark{% endblock %}
+{% block inhalt %}
+
+{{ unternavigation('erfassung') }}
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+{% if not fahrzeuge %}
+<section class="karte">
+  <h1>Fuhrpark</h1>
+  <p class="lead">{{ t("kfz.keine_fahrzeuge") }}</p>
+  {% if hat_zugriff(request.state.benutzer, "einstellungen") %}
+  <div class="knopfreihe">
+    <a class="knopf haupt" href="/einstellungen?bereich=kfz">Fahrzeug anlegen</a>
+  </div>
+  {% endif %}
+</section>
+
+{% else %}
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h1>Erfassung</h1>
+    {% if stand is not none %}
+    <p class="summe">{{ stand | km }} <span>· aktueller Stand</span></p>
+    {% endif %}
+  </div>
+
+  {# Die Fahrzeugwahl ist ein eigenes kleines Formular. Es schickt beim
+     Wechsel ab; wer kein JavaScript hat, drückt daneben auf „Wechseln“. #}
+  <form class="kfz-wahl" method="get" action="/fuhrpark">
+    <label class="feld">
+      <span>Fahrzeug</span>
+      <select name="fahrzeug" id="fahrzeugwahl">
+        {% for f in fahrzeuge %}
+        <option value="{{ f.id }}" {{ 'selected' if gewaehlt and f.id == gewaehlt.id }}>
+          {{ bezeichnung(f) }}{% if f.kennzeichen %} · {{ f.kennzeichen }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="knopf" type="submit">Wechseln</button>
+  </form>
+
+  <dl class="kfz-stammzeile">
+    {% if gewaehlt.kennzeichen %}<dt>Kennzeichen</dt><dd>{{ gewaehlt.kennzeichen }}</dd>{% endif %}
+    {% if gewaehlt.kraftstoff %}<dt>Kraftstoff</dt><dd>{{ gewaehlt.kraftstoff }}</dd>{% endif %}
+    {% if gewaehlt.baujahr %}<dt>Baujahr</dt><dd>{{ gewaehlt.baujahr }}</dd>{% endif %}
+    {% if gewaehlt.leistung %}<dt>Leistung</dt><dd>{{ gewaehlt.leistung }} kW</dd>{% endif %}
+    {% if gewaehlt.getriebe %}<dt>Getriebe</dt><dd>{{ gewaehlt.getriebe }}</dd>{% endif %}
+    <dt>Erfasst</dt><dd>{{ zahlen.n }} {{ 'Eintrag' if zahlen.n == 1 else 'Einträge' }}
+      {%- if zahlen.kosten %} · {{ zahlen.kosten | euro }}{% endif %}</dd>
+  </dl>
+</section>
+
+{% if offene %}
+<section class="karte">
+  <h2>Steht an für {{ bezeichnung(gewaehlt) }}</h2>
+  <ul class="kfz-faelligkeiten">
+    {% for e in offene %}{{ faelligkeit(e, false) }}{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="karte" id="erfassen">
+  <div class="kopfzeile">
+    <h2>{{ 'Eintrag bearbeiten' if satz else 'Was möchtest du erfassen?' }}</h2>
+    {% if was and not satz %}
+    <a class="knopf klein leise" href="/fuhrpark?fahrzeug={{ gewaehlt.id }}">Auswahl schließen</a>
+    {% endif %}
+  </div>
+
+  {% if satz %}
+  <p class="lead">
+    <strong>{{ ereignistitel(satz) }}</strong> vom {{ satz.datum | deutsch }}.
+    {{ t("kfz.bearbeiten_lead") }}
+  </p>
+  {% else %}
+  <p class="lead">{{ t("kfz.erfassen_lead") }}</p>
+  {{ erfasskacheln(gewaehlt.id, was) }}
+  {% endif %}
+
+  {% if was %}
+  {{ erfassformular(was, gewaehlt, satz, wartungsarten, heute_iso, einheit, stand) }}
+  {% endif %}
+</section>
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Historie</h2>
+    <p class="klein leise">{{ historie | length }} von {{ zahlen.n }}
+      {{ 'Eintrag' if zahlen.n == 1 else 'Einträgen' }}</p>
+  </div>
+
+  {% if historie %}
+  <div class="tabellenrolle">
+    <table class="liste kfz-historie">
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Was</th>
+          <th>Angaben</th>
+          <th class="num">Km-Stand</th>
+          <th class="num">Kosten</th>
+          <th class="num">Aktion</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for z in historie %}
+        <tr>
+          <td class="zahlen nowrap">{{ z.datum | deutsch }}</td>
+          <td>{{ artmarke(z.art) }}</td>
+          <td>
+            <span class="stark">{{ ereignistitel(z) }}</span>
+            {% if z.beschreibung %}<br><span class="klein">{{ z.beschreibung }}</span>{% endif %}
+            {% if z.art == 'tanken' and z.liter %}
+              <br><span class="klein leise zahlen">{{ z.liter | liter }} {{ einheit }}{% if not z.voll %} · Teiltankung{% endif %}</span>
+            {% endif %}
+            {% if z.werkstatt %}<br><span class="klein leise">{{ z.werkstatt }}</span>{% endif %}
+            {% if z.faellig_datum or z.faellig_km %}
+              <br><span class="klein leise">wieder fällig
+                {%- if z.faellig_datum %} am {{ z.faellig_datum | deutsch }}{% endif %}
+                {%- if z.faellig_km %}{% if z.faellig_datum %} oder{% endif %} bei {{ z.faellig_km | km }}{% endif %}</span>
+            {% endif %}
+            {% if z.notiz %}<br><span class="klein leise">{{ z.notiz }}</span>{% endif %}
+          </td>
+          <td class="num zahlen nowrap">{{ z.km | km }}</td>
+          <td class="num zahlen nowrap">{{ z.kosten | euro if z.kosten else '—' }}</td>
+          <td class="num nowrap">
+            <a class="knopf-icon" title="Eintrag bearbeiten"
+               href="/fuhrpark?fahrzeug={{ gewaehlt.id }}&amp;bearbeiten={{ z.id }}#formular">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 20h4l10-10-4-4L4 16v4Z" stroke="currentColor"
+                      stroke-width="1.7" stroke-linejoin="round"/>
+                <path d="M14 6l4 4" stroke="currentColor" stroke-width="1.7"/>
+              </svg>
+            </a>
+            <form class="inline" method="post"
+                  action="/fuhrpark/ereignis/{{ z.id }}/loeschen"
+                  onsubmit="return confirm('Diesen Eintrag wirklich löschen?');">
+              <input type="hidden" name="zurueck" value="/fuhrpark?fahrzeug={{ gewaehlt.id }}">
+              <button class="knopf-icon warn" type="submit" title="Eintrag löschen">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12" stroke="currentColor"
+                        stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if not alle and zahlen.n > historie | length %}
+  <div class="knopfreihe" style="margin-top: 14px;">
+    <a class="knopf leise" href="/fuhrpark?fahrzeug={{ gewaehlt.id }}&amp;alle=1">
+      Alle {{ zahlen.n }} Einträge zeigen</a>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <p class="leer">{{ t("kfz.historie_leer", fahrzeug=bezeichnung(gewaehlt)) }}</p>
+  {% endif %}
+</section>
+
+<script>
+  // Fahrzeugwechsel ohne den Umweg über den Knopf daneben. Der Knopf
+  // bleibt im HTML stehen, damit die Wahl auch ohne Skript funktioniert.
+  (function () {
+    var wahl = document.getElementById("fahrzeugwahl");
+    if (wahl) {
+      wahl.addEventListener("change", function () { wahl.form.submit(); });
+    }
+  })();
+</script>
+
+{% endif %}
+{% endblock %}

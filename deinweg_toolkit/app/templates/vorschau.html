@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block titel %} – Vorschau: {{ imp.dateiname }}{% endblock %}
+{% block inhalt %}
+
+<section class="karte">
+  <h1>Vorschau: {{ imp.dateiname }}</h1>
+  <p class="lead">
+    {{ imp.zeilen_gesamt }} Zeilen gelesen ·
+    <strong>{{ imp.zeilen_neu }} neu</strong> ·
+    {{ imp.zeilen_dubletten }} Dubletten ·
+    {{ summe_neu | hhmm }} Stunden werden übernommen
+  </p>
+  <p class="leise klein">{{ imp.notiz }}</p>
+
+  <div class="knopfreihe">
+    <form action="/vorschau/{{ imp.id }}/uebernehmen" method="post">
+      <label class="ankreuz">
+        <input type="checkbox" name="dubletten" value="1">
+        <span>Auch als Dublette markierte Zeilen übernehmen</span>
+      </label>
+      <button class="knopf haupt" type="submit">{{ imp.zeilen_neu }} Einträge speichern</button>
+    </form>
+    <form action="/vorschau/{{ imp.id }}/verwerfen" method="post">
+      <button class="knopf leise" type="submit">Verwerfen</button>
+    </form>
+  </div>
+
+  {% if offene %}
+  <p class="meldung hinweis">Noch offene Vorschauen:
+    {% for o in offene %}<a href="/vorschau/{{ o.id }}">{{ o.dateiname }}</a>{{ ", " if not loop.last }}{% endfor %}
+  </p>
+  {% endif %}
+</section>
+
+<section class="karte">
+  <table class="liste dicht">
+    <thead>
+      <tr><th>Datum</th><th>Zeit</th><th class="num">Dauer</th><th>Betreute Person</th>
+          <th>Leistung</th><th>Mitarbeiter</th><th>Prüfung</th></tr>
+    </thead>
+    <tbody>
+    {% for z in zeilen %}
+      <tr class="{{ 'dublette' if z.dublette }}{{ ' warnung' if z.warnung and not z.dublette }}">
+        <td class="zahlen">{{ z.datum | deutsch }}</td>
+        <td class="zahlen leise"><span class="zeitspanne">{{ z.start or "—" }}{% if z.ende %} <span class="bis">{{ z.ende }}</span>{% endif %}</span></td>
+        <td class="zahlen num stark">{{ z.dauer_min | hhmm }}</td>
+        <td>{{ z.klient }}{% if not z.abrechenbar %} <span class="marke-status weg">nicht abrechenbar</span>{% endif %}</td>
+        <td class="leise">{{ z.beschreibung }}</td>
+        <td class="leise">{{ z.mitarbeiter }}</td>
+        <td class="klein">
+          {% if z.dublette %}<span class="marke-status dopp">{{ z.dublette }}</span>{% endif %}
+          {% if z.warnung %}<span class="marke-status offen">{{ z.warnung }}</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% endblock %}

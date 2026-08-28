@@ -1,0 +1,95 @@
+{# Bausteine für die Verwaltungsvorgänge. Import mit "with context",
+   damit die globalen Listen (V_STATUS usw.) verfügbar bleiben. #}
+
+{% macro statusmarke(status) -%}
+<span class="marke-status {{ V_STATUS_KLASSE.get(status, 'weg') }}">{{ status }}</span>
+{%- endmacro %}
+
+{% macro priomarke(prio) -%}
+{% if prio and prio != "Normal" %}<span class="prio {{ V_PRIO_KLASSE.get(prio, '') }}">{{ prio }}</span>{% else %}<span class="leise klein">Normal</span>{% endif %}
+{%- endmacro %}
+
+{% macro frist(v, lage) -%}
+{% if v.frist %}
+  <span class="fristmarke f-{{ lage }}">{{ v.frist | deutsch }}</span>
+  {% if lage == "ueberfaellig" %}<span class="klein fristwort f-ueberfaellig">überfällig</span>
+  {% elif lage == "heute" %}<span class="klein fristwort f-heute">heute</span>
+  {% elif lage == "bald" %}<span class="klein fristwort f-bald">bald</span>{% endif %}
+{% else %}
+  <span class="leise">ohne Frist</span>
+{% endif %}
+{%- endmacro %}
+
+{# Handelnde Person. Ohne Anmeldung im Tool ist das die einzige Möglichkeit,
+   Verantwortlichkeit sauber zu protokollieren. #}
+{% macro werwahl(leute, beschriftung="Handelnde Person") -%}
+<label class="feld">
+  <span>{{ beschriftung }}</span>
+  <select name="wer" class="werwahl" required>
+    <option value="">bitte wählen</option>
+    {% for m in leute %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+  </select>
+</label>
+{%- endmacro %}
+
+{% macro werskript() -%}
+<script>
+  // Die zuletzt gewählte handelnde Person bleibt im Browser gespeichert,
+  // damit sie nicht bei jeder Aktion neu ausgewählt werden muss.
+  (function () {
+    var schluessel = "toolkit-wer", gemerkt = null;
+    try { gemerkt = localStorage.getItem(schluessel); } catch (e) {}
+    document.querySelectorAll("select.werwahl").forEach(function (feld) {
+      if (gemerkt) {
+        for (var i = 0; i < feld.options.length; i++) {
+          if (feld.options[i].value === gemerkt) { feld.value = gemerkt; break; }
+        }
+      }
+      feld.addEventListener("change", function () {
+        try { localStorage.setItem(schluessel, feld.value); } catch (e) {}
+      });
+    });
+  })();
+</script>
+{%- endmacro %}
+
+{# Eine Zeile im Logbuch #}
+{# Eine Zeile im Logbuch. Zwei Spalten: links wann und wer, rechts was.
+   Vorher stand alles in einer Zeile hintereinander – Zeitpunkt, Name,
+   Aktion, Person, Vorgang – und die Seite war eine gleichförmige
+   Textwand. Das Datum steht jetzt nicht mehr in jeder Zeile, sondern
+   einmal als Tagesüberschrift darüber (siehe logtag). #}
+{% macro logzeile(e, mit_person=true) -%}
+<li class="logeintrag">
+  <div class="logzeit">
+    <span class="loguhr">{{ e.zeitpunkt | uhrzeit }}</span>
+    <span class="logwer">{{ e.wer }}</span>
+  </div>
+  <div class="loginhalt">
+    <div class="logkopf">
+      <span class="logaktion {{ V_LOG_KLASSE.get(e.aktion, 'la-notiz') }}">{{ e.aktion }}</span>
+      {% if e.vorgang_id %}
+        <a class="logbezug" href="/vorgaenge/{{ e.vorgang_id }}">
+          {%- if e.titel %}{{ e.titel }}{% else %}Vorgang #{{ e.vorgang_id }}{% endif -%}
+        </a>
+      {% elif e.titel %}
+        {# Kein Bezug mehr, aber ein Titel: der Vorgang wurde gelöscht. Die
+           Zeile bleibt trotzdem stehen, sonst wäre nicht nachvollziehbar,
+           dass es ihn je gab. #}
+        <span class="logbezug weg">{{ e.titel }}</span>
+        <span class="marke-status vorgang-weg">gelöscht</span>
+      {% endif %}
+      {% if mit_person %}
+        <a class="logperson" href="/vorgaenge/person?name={{ e.klient | urlencode }}">{{ e.klient }}</a>
+      {% endif %}
+    </div>
+    {% if e.beschreibung %}<p class="logtext">{{ e.beschreibung }}</p>{% endif %}
+  </div>
+</li>
+{%- endmacro %}
+
+
+{# Die Tagesüberschrift über einer Gruppe von Logzeilen. #}
+{% macro logtag(wort) -%}
+<h3 class="logtag">{{ wort }}</h3>
+{%- endmacro %}

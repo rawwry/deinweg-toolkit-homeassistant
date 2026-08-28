@@ -1,0 +1,67 @@
+{# Gemeinsamer Filter für Auswertung und Datensätze.
+   Erwartet: ziel (Formularadresse), f, jahre, monatsnamen, leute, klienten,
+   aktive_filter und optional abrechenbar_zeigen. #}
+<form class="filter" method="get" action="{{ ziel }}">
+  <label><span>Von Jahr</span>
+    <select name="von_jahr">
+      <option value="">alle</option>
+      {% for j in jahre %}<option value="{{ j }}" {{ 'selected' if f.von_jahr==j }}>{{ j }}</option>{% endfor %}
+    </select>
+  </label>
+  <label><span>Von Monat</span>
+    <select name="von_monat">
+      <option value="">alle</option>
+      {% for nr, wort in monatsnamen.items() %}<option value="{{ nr }}" {{ 'selected' if f.von_monat==nr }}>{{ wort }}</option>{% endfor %}
+    </select>
+  </label>
+  <label><span>Bis Jahr</span>
+    <select name="bis_jahr">
+      <option value="">alle</option>
+      {% for j in jahre %}<option value="{{ j }}" {{ 'selected' if f.bis_jahr==j }}>{{ j }}</option>{% endfor %}
+    </select>
+  </label>
+  <label><span>Bis Monat</span>
+    <select name="bis_monat">
+      <option value="">alle</option>
+      {% for nr, wort in monatsnamen.items() %}<option value="{{ nr }}" {{ 'selected' if f.bis_monat==nr }}>{{ wort }}</option>{% endfor %}
+    </select>
+  </label>
+  <label><span>Betreute Person</span>
+    <select name="klient">
+      <option value="">alle</option>
+      {% for k in klienten %}<option value="{{ k }}" {{ 'selected' if f.klient==k }}>{{ k }}</option>{% endfor %}
+    </select>
+  </label>
+  <label><span>Mitarbeiter</span>
+    <select name="mitarbeiter">
+      <option value="">alle</option>
+      {% for m in leute %}<option value="{{ m }}" {{ 'selected' if f.mitarbeiter==m }}>{{ m }}</option>{% endfor %}
+    </select>
+  </label>
+  {% if suche_zeigen %}
+  <label><span>Suche</span>
+    <input type="search" name="q" value="{{ f.q or '' }}"
+           placeholder="Leistung, Person oder Mitarbeiter">
+  </label>
+  {% endif %}
+  {% if abrechenbar_zeigen %}
+  <label class="filter-umschalter">
+    <input type="checkbox" name="nur_abrechenbar" value="1" {{ 'checked' if f.nur_abrechenbar }}>
+    <span>nur abrechenbare Zeiten</span>
+  </label>
+  {% endif %}
+  <div class="filter-knoepfe">
+    <button class="knopf" type="submit">Filtern</button>
+    <a class="knopf leise" href="{{ ziel }}">Filter entfernen</a>
+  </div>
+</form>
+
+{% if aktive_filter %}
+<div class="filterstand">
+  <span class="filterstand-marke">Aktiv</span>
+  {% for feld, wert in aktive_filter %}
+    <span class="filterchip"><span class="leise">{{ feld }}:</span> {{ wert }}</span>
+  {% endfor %}
+  <a class="knopf klein leise" href="{{ ziel }}">zurücksetzen</a>
+</div>
+{% endif %}

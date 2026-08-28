@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+{% from "_kfz_teile.html" import unternavigation, ereignistitel, artmarke,
+   faelligkeit, kfz_zeichen with context %}
+{% block titel %} – Fuhrpark Auswertung{% endblock %}
+{% block inhalt %}
+
+{{ unternavigation('auswertung') }}
+
+{% if not fahrzeuge %}
+<section class="karte">
+  <h1>Auswertung</h1>
+  <p class="lead">{{ t("kfz.keine_fahrzeuge") }}</p>
+  {% if hat_zugriff(request.state.benutzer, "einstellungen") %}
+  <div class="knopfreihe">
+    <a class="knopf haupt" href="/einstellungen?bereich=kfz">Fahrzeug anlegen</a>
+  </div>
+  {% endif %}
+</section>
+
+{% else %}
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h1>Auswertung</h1>
+    <p class="summe">{{ kennzahlen.zeitraum_kosten | euro }}
+      <span>· {{ zeitraum_wort }}</span></p>
+  </div>
+
+  <form class="filter" method="get" action="/fuhrpark/auswertung">
+    {# Zeitraum: Schnellwahl als Reihe, daneben der eigene Zeitraum. Es
+       gilt immer genau eines von beidem – sobald ein Datum eingetragen
+       ist, gewinnt es und keine der Pillen ist mehr hervorgehoben. #}
+    <fieldset class="zeitraumfeld">
+      <legend>Zeitraum</legend>
+      <div class="zeitraumwahl">
+        {% for schluessel, wort in ZEITRAEUME.items() %}
+        <label class="zeitraumpille">
+          <input type="radio" name="zeitraum" value="{{ schluessel }}"
+                 {{ 'checked' if f.zeitraum == schluessel }}>
+          <span>{{ wort }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="zeitraumeigen {{ 'gilt' if not f.zeitraum }}">
+        <span class="zeitraumeigen-wort">oder eigener Zeitraum</span>
+        <input type="date" name="von" value="{{ f.von }}" aria-label="Zeitraum von">
+        {# „bis“ und das zweite Feld bleiben zusammen, sonst steht das
+           Wörtchen beim Umbruch hinter dem ersten Feld statt vor dem
+           zweiten und die Reihe liest sich falsch herum. #}
+        <span class="zeitraumeigen-bis">
+          <span class="leise">bis</span>
+          <input type="date" name="bis" value="{{ f.bis }}" aria-label="Zeitraum bis">
+        </span>
+      </div>
+    </fieldset>
+
+    <label><span>Fahrzeug</span>
+      <select name="fahrzeug">
+        <option value="">alle Fahrzeuge</option>
+        {% for fz in fahrzeuge %}
+        <option value="{{ fz.id }}" {{ 'selected' if f.fahrzeug == fz.id | string }}>{{ bezeichnung(fz) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label><span>Kategorie</span>
+      <select name="kategorie">
+        <option value="">alle Kategorien</option>
+        {% for schluessel, angaben in KFZ_ARTEN.items() %}
+        <option value="{{ schluessel }}" {{ 'selected' if f.kategorie == schluessel }}>{{ angaben.wort }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="filter-knoepfe">
+      <button class="knopf" type="submit">Filtern</button>
+      <a class="knopf leise" href="/fuhrpark/auswertung?zeitraum=alles">Filter entfernen</a>
+    </div>
+  </form>
+
+  {% if aktive_filter %}
+  <div class="filterstand">
+    <span class="filterstand-marke">Aktiv</span>
+    {% for feld, wert in aktive_filter %}
+      <span class="filterchip"><span class="leise">{{ feld }}:</span> {{ wert }}</span>
+    {% endfor %}
+    <a class="knopf klein leise" href="/fuhrpark/auswertung?zeitraum=alles">zurücksetzen</a>
+  </div>
+  {% endif %}
+</section>
+
+{# --- Handlungsbedarf ------------------------------------------------------
+   Steht bewusst über allen Zahlen: die erste Frage beim Öffnen ist nicht
+   „was hat es gekostet“, sondern „muss ich mich um etwas kümmern“.
+   Fälligkeiten richten sich nach dem heutigen Tag, der Zeitraumfilter
+   wirkt hier deshalb nicht. #}
+<section class="karte kfz-handlungsbedarf {{ 'hat-alarm' if kennzahlen.ueberfaellig }}">
+  <div class="kopfzeile">
+    <h2>Was ansteht</h2>
+    <p class="klein leise felderklaerung">{{ t("kfz.faellig_zeitraum") }}</p>
+  </div>
+
+  {% if offen %}
+  <ul class="kfz-faelligkeiten">
+    {% for e in offen %}{{ faelligkeit(e) }}{% endfor %}
+  </ul>
+  {% else %}
+  <p class="leer">{{ t("kfz.nichts_faellig") }}</p>
+  {% endif %}
+</section>
+
+{# --- Kennzahlen ----------------------------------------------------------- #}
+<section class="karte">
+  <h2>Auf einen Blick</h2>
+  <div class="kennzahlen kfz-kpi">
+    <div class="kennzahl">
+      <span class="kzahl">{{ kennzahlen.fahrzeuge }}</span>
+      <span class="klabel">aktive Fahrzeuge</span>
+    </div>
+    <div class="kennzahl {{ 'hat k-ueberfaellig' if kennzahlen.ueberfaellig }}">
+      <span class="kzahl">{{ kennzahlen.ueberfaellig }}</span>
+      <span class="klabel">überfällig</span>
+    </div>
+    <div class="kennzahl {{ 'hat k-heute' if kennzahlen.bald }}">
+      <span class="kzahl">{{ kennzahlen.bald }}</span>
+      <span class="klabel">bald fällig</span>
+    </div>
+    <div class="kennzahl">
+      <span class="kzahl betrag">{{ kennzahlen.monat | euro }}</span>
+      <span class="klabel">Kosten dieser Monat</span>
+    </div>
+    <div class="kennzahl">
+      <span class="kzahl betrag">{{ kennzahlen.jahr | euro }}</span>
+      <span class="klabel">Kosten dieses Jahr</span>
+    </div>
+    <div class="kennzahl">
+      <span class="kzahl betrag">
+        {%- if kennzahlen.je_km %}{{ "%.2f" | format(kennzahlen.je_km) | replace(".", ",") }} €{% else %}—{% endif %}</span>
+      <span class="klabel">je Kilometer · {{ zeitraum_wort }}</span>
+    </div>
+    <div class="kennzahl">
+      <span class="kzahl">
+        {%- if kennzahlen.verbrauch %}{{ komma(kennzahlen.verbrauch) }}<span
+          class="einheit">{{ kennzahlen.einheit }}</span>{% else %}—{% endif %}</span>
+      <span class="klabel">Ø Verbrauch je 100 km</span>
+    </div>
+    <div class="kennzahl">
+      <span class="kzahl">{{ kennzahlen.strecke | km if kennzahlen.strecke else "—" }}</span>
+      <span class="klabel">gefahren · {{ zeitraum_wort }}</span>
+    </div>
+  </div>
+  {% if not kennzahlen.je_km or not kennzahlen.verbrauch %}
+  <p class="klein leise felderklaerung">{{ t("kfz.kennzahlen_unvollstaendig") }}</p>
+  {% endif %}
+</section>
+
+{# --- Kosten --------------------------------------------------------------- #}
+<section class="raster">
+  <div class="karte">
+    <div class="kopfzeile">
+      <h2>Kostenentwicklung</h2>
+      <p class="klein leise">Wofür ging das Geld – und wann?</p>
+    </div>
+
+    {% if kostendiagramm %}
+    <div class="diagrammhuelle">
+      <svg class="kfz-diagramm" viewBox="0 0 {{ kostendiagramm.breite }} {{ kostendiagramm.hoehe }}"
+           preserveAspectRatio="xMidYMid meet" role="img"
+           aria-label="Kosten je Monat, nach Kategorie gestapelt">
+        <line x1="{{ kostendiagramm.links }}" y1="{{ kostendiagramm.grundlinie }}"
+              x2="{{ kostendiagramm.rechts_x }}" y2="{{ kostendiagramm.grundlinie }}"
+              class="achse"/>
+        {% for s in kostendiagramm.saeulen %}
+          {% for teil in s.teile %}
+          <rect x="{{ s.x }}" y="{{ teil.y }}" width="{{ s.b }}" height="{{ teil.h }}"
+                class="kfz-f-{{ teil.art }}">
+            <title>{{ s.kurz }} {{ s.jahr }} · {{ teil.wort }}: {{ teil.betrag | euro }}</title>
+          </rect>
+          {% endfor %}
+          <text x="{{ s.mitte }}" y="{{ kostendiagramm.grundlinie + 14 }}"
+                class="achsentext" text-anchor="middle">{{ s.kurz }}</text>
+          <text x="{{ s.mitte }}" y="{{ kostendiagramm.grundlinie + 25 }}"
+                class="achsentext klein" text-anchor="middle">{{ s.jahr[2:] }}</text>
+        {% endfor %}
+      </svg>
+    </div>
+    <div class="legende">
+      {% for a in kostendiagramm.arten %}
+      <span><span class="punkt kfz-p-{{ a.art }}"></span>{{ a.wort }}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="leer">{{ t("kfz.diagramm_leer") }}</p>
+    {% endif %}
+  </div>
+
+  <div class="karte schmal">
+    <h2>Kostenverteilung</h2>
+    {% if kuchen %}
+    <div class="kfz-ring">
+      <svg viewBox="0 0 160 160" role="img" aria-label="Anteil der Kategorien an den Gesamtkosten">
+        <g transform="rotate(-90 80 80)">
+          {% for s in kuchen.stuecke %}
+          <circle cx="80" cy="80" r="{{ kuchen.radius }}" fill="none"
+                  stroke-width="{{ kuchen.dicke }}" class="kfz-f-{{ s.art }}"
+                  stroke-dasharray="{{ s.laenge }} {{ s.rest }}"
+                  stroke-dashoffset="{{ s.versatz }}">
+            <title>{{ s.wort }}: {{ s.betrag | euro }}</title>
+          </circle>
+          {% endfor %}
+        </g>
+      </svg>
+    </div>
+    {% endif %}
+
+    {% if je_art %}
+    <table class="liste dicht">
+      <tbody>
+      {% for r in je_art %}
+        <tr>
+          <td><span class="punkt kfz-p-{{ r.art }}"></span> {{ r.wort }}</td>
+          <td class="num zahlen leise">{{ r.anteil | round | int }} %</td>
+          <td class="num zahlen stark betrag">{{ r.betrag | euro }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="stark">Summe</td>
+          <td></td>
+          <td class="num zahlen stark betrag gross">{{ kennzahlen.zeitraum_kosten | euro }}</td>
+        </tr>
+      </tfoot>
+    </table>
+    {% else %}
+    <p class="leer klein">{{ t("kfz.kosten_leer", zeitraum=zeitraum_wort) }}</p>
+    {% endif %}
+  </div>
+</section>
+
+{# --- Verbrauch ------------------------------------------------------------ #}
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Verbrauchsentwicklung</h2>
+    <p class="klein leise">Wird ein Fahrzeug durstiger?</p>
+  </div>
+
+  {% if verbrauchsdiagramm %}
+  <div class="diagrammhuelle">
+    <svg class="kfz-diagramm" viewBox="0 0 {{ verbrauchsdiagramm.breite }} {{ verbrauchsdiagramm.hoehe }}"
+         preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="Verbrauch je 100 Kilometer im Zeitverlauf">
+      <line x1="{{ verbrauchsdiagramm.links }}" y1="{{ verbrauchsdiagramm.grundlinie }}"
+            x2="{{ verbrauchsdiagramm.rechts_x }}" y2="{{ verbrauchsdiagramm.grundlinie }}"
+            class="achse"/>
+      <line x1="{{ verbrauchsdiagramm.links }}" y1="{{ verbrauchsdiagramm.oben }}"
+            x2="{{ verbrauchsdiagramm.rechts_x }}" y2="{{ verbrauchsdiagramm.oben }}"
+            class="achse hilfslinie"/>
+      <text x="{{ verbrauchsdiagramm.links - 6 }}" y="{{ verbrauchsdiagramm.oben + 4 }}"
+            class="achsentext" text-anchor="end">{{ verbrauchsdiagramm.hoch }}</text>
+      <text x="{{ verbrauchsdiagramm.links - 6 }}" y="{{ verbrauchsdiagramm.grundlinie + 4 }}"
+            class="achsentext" text-anchor="end">{{ verbrauchsdiagramm.tief }}</text>
+      <text x="{{ verbrauchsdiagramm.links }}" y="{{ verbrauchsdiagramm.grundlinie + 18 }}"
+            class="achsentext">{{ verbrauchsdiagramm.von }}</text>
+      <text x="{{ verbrauchsdiagramm.rechts_x }}" y="{{ verbrauchsdiagramm.grundlinie + 18 }}"
+            class="achsentext" text-anchor="end">{{ verbrauchsdiagramm.bis }}</text>
+
+      {% for linie in verbrauchsdiagramm.linien %}
+      <polyline points="{{ linie.pfad }}" class="kfz-linie kfz-linie-{{ linie.nr }}"/>
+        {% for p in linie.punkte %}
+        <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3" class="kfz-punkt kfz-linie-{{ linie.nr }}">
+          <title>{{ linie.name }} · {{ p.datum }}: {{ p.wert }} {{ linie.einheit }}/100 km</title>
+        </circle>
+        {% endfor %}
+      {% endfor %}
+    </svg>
+  </div>
+  <div class="legende">
+    {% for linie in verbrauchsdiagramm.linien %}
+    <span><span class="strich kfz-linie-{{ linie.nr }}"></span>{{ linie.name }}
+      <span class="leise zahlen">Ø {{ linie.schnitt }} {{ linie.einheit }}/100 km</span></span>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="leer">{{ t("kfz.verbrauch_leer") }}</p>
+  {% endif %}
+</section>
+
+{# --- Fahrzeugvergleich ---------------------------------------------------- #}
+{% if je_fahrzeug | length > 0 %}
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Fahrzeuge im Vergleich</h2>
+    <p class="klein leise">{{ zeitraum_wort }}</p>
+  </div>
+
+  <div class="tabellenrolle">
+    <table class="liste kfz-vergleich">
+      <thead>
+        <tr>
+          <th>Fahrzeug</th>
+          <th class="num">Km-Stand</th>
+          <th class="num">gefahren</th>
+          <th class="num">Verbrauch</th>
+          <th class="num">Kosten</th>
+          <th class="num">je km</th>
+          <th class="balkenzelle">Anteil</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% set hoechste = je_fahrzeug | map(attribute='kosten') | max %}
+      {% for r in je_fahrzeug %}
+        <tr>
+          <td>
+            <a class="stark" href="/fuhrpark?fahrzeug={{ r.id }}">{{ r.name }}</a>
+            {% if r.kennzeichen %}<br><span class="klein leise">{{ r.kennzeichen }}</span>{% endif %}
+          </td>
+          <td class="num zahlen">{{ r.stand | km }}</td>
+          <td class="num zahlen">{{ r.strecke | km if r.strecke else "—" }}</td>
+          <td class="num zahlen">
+            {%- if r.verbrauch %}{{ komma(r.verbrauch) }} {{ r.einheit }}
+              <span class="klein leise kuerzel">{{ r.messungen }}
+                {{ 'Messung' if r.messungen == 1 else 'Messungen' }}</span>
+            {%- else %}<span class="leise">—</span>{% endif %}
+          </td>
+          <td class="num zahlen stark betrag">{{ r.kosten | euro }}</td>
+          <td class="num zahlen">
+            {%- if r.je_km %}{{ "%.2f" | format(r.je_km) | replace(".", ",") }} €
+            {%- else %}<span class="leise">—</span>{% endif %}
+          </td>
+          <td class="balkenzelle">
+            <span class="balkenspur">
+              <span class="balken" style="width: {{ (r.kosten / hoechste * 100) | round | int if hoechste else 0 }}%"></span>
+            </span>
+            {# Erst sammeln, dann verbinden: mit loop.last stünde hinter
+               dem letzten Posten ein Trennpunkt zu viel, sobald die
+               hinteren Kategorien bei diesem Fahrzeug leer sind. #}
+            {% set posten = [] %}
+            {% for a in je_art %}{% if r.je_art[a.art] %}
+              {%- set _ = posten.append(
+                   '<span class="punkt kfz-p-' ~ a.art ~ '" title="' ~ a.wort ~
+                   '"></span> ' ~ (r.je_art[a.art] | euro)) %}
+            {%- endif %}{% endfor %}
+            {# safe ist hier vertretbar: a.art und a.wort stammen aus der
+               festen Liste kfz.ARTEN, der Betrag kommt aus dem Filter
+               "euro". Es fließt nichts aus einer Eingabe ein. #}
+            <span class="standfuss zahlen">{{ posten | join(" · ") | safe }}</span>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="klein leise felderklaerung">{{ t("kfz.vergleich_hinweis") }}</p>
+</section>
+{% endif %}
+
+{# --- Letzte Aktivitäten --------------------------------------------------- #}
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Zuletzt erfasst</h2>
+    <p class="klein leise">{{ zeitraum_wort }}</p>
+  </div>
+
+  {% if letzte %}
+  <ul class="kfz-aktivitaeten">
+    {% for z in letzte %}
+    <li>
+      <span class="kfz-aktivitaet-symbol kfz-a-{{ z.art }}">{{ kfz_zeichen(z.art) }}</span>
+      <span class="kfz-aktivitaet-text">
+        <a class="stark" href="/fuhrpark?fahrzeug={{ z.fahrzeug_id }}">{{ bezeichnung(z) }}</a>
+        <span class="leise">·</span> {{ ereignistitel(z) }}
+        {%- if z.beschreibung %} <span class="leise">– {{ z.beschreibung }}</span>{% endif %}
+      </span>
+      <span class="kfz-aktivitaet-zahlen zahlen klein">
+        {% if z.km %}{{ z.km | km }}{% endif %}
+      </span>
+      <span class="kfz-aktivitaet-betrag zahlen stark betrag">
+        {{ z.kosten | euro if z.kosten else '' }}</span>
+      <span class="kfz-aktivitaet-datum zahlen klein leise">{{ z.datum | deutsch }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="leer">{{ t("kfz.aktivitaeten_leer", zeitraum=zeitraum_wort) }}</p>
+  {% endif %}
+</section>
+
+<script>
+  // Schnellwahl und eigener Zeitraum schließen einander aus. Ein Klick auf
+  // eine Pille räumt die beiden Datumsfelder ab, damit die Wahl sofort
+  // greift; ein eingetragenes Datum nimmt umgekehrt die Hervorhebung von
+  // den Pillen. Ohne Skript bleibt beides bedienbar – der Server richtet
+  // sich in jedem Fall nach derselben Regel: ein Datum gewinnt.
+  (function () {
+    var pillen = document.querySelectorAll('.zeitraumpille input'),
+        eigen  = document.querySelector('.zeitraumeigen'),
+        felder = eigen ? eigen.querySelectorAll('input[type=date]') : [];
+    if (!eigen) return;
+
+    pillen.forEach(function (p) {
+      p.addEventListener('change', function () {
+        felder.forEach(function (f) { f.value = ''; });
+        eigen.classList.remove('gilt');
+      });
+    });
+    felder.forEach(function (f) {
+      f.addEventListener('input', function () {
+        var etwas = [].some.call(felder, function (x) { return x.value; });
+        eigen.classList.toggle('gilt', etwas);
+        if (etwas) {
+          pillen.forEach(function (p) { p.checked = false; });
+        }
+      });
+    });
+  })();
+</script>
+
+{% endif %}
+{% endblock %}

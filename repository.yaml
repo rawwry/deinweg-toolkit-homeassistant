@@ -1,0 +1,6 @@
+# Beschreibung dieses Add-on-Repositories für Home Assistant.
+# Der Supervisor liest diese Datei, sobald das Repository unter
+# Einstellungen -> Add-ons -> Add-on-Store -> Repositories eingetragen ist.
+name: Dein Weg Toolkit
+url: https://github.com/rawwry/deinweg-toolkit-homeassistant
+maintainer: Timo Vorwald

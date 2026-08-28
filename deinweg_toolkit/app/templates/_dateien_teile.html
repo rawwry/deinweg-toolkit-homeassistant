@@ -1,0 +1,193 @@
+{# Bausteine der Dateiverwaltung. Ausgelagert, weil sich der Baum selbst
+   aufruft - ein Jinja-Makro darf das, eine eingebettete Schleife nicht.
+   Aufbau bewusst genauso wie im Wiki (_wiki_teile.html): dieselbe
+   Bedienung an zwei Stellen soll auch gleich aussehen. #}
+
+{% macro dateisymbol(art) -%}
+<svg class="wiki-symbol" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+{%- if art == "ordner" %}
+  <path d="M3.5 7.5c0-1.1.9-2 2-2h3.2l1.8 2h8c1.1 0 2 .9 2 2v8.5c0 1.1-.9 2-2 2H5.5c-1.1 0-2-.9-2-2v-10.5Z"
+        stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+{%- elif art == "bild" %}
+  <rect x="3.5" y="5" width="17" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/>
+  <circle cx="9" cy="10" r="1.6" stroke="currentColor" stroke-width="1.4"/>
+  <path d="M4.5 17l4.5-4.2 3.2 3 2.8-2.4 4.5 3.9" stroke="currentColor"
+        stroke-width="1.5" stroke-linejoin="round"/>
+{%- elif art == "tabelle" %}
+  <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/>
+  <path d="M4 9.5h16M4 15h16M10 9.5V20" stroke="currentColor" stroke-width="1.4"/>
+{%- elif art == "praesentation" %}
+  <rect x="3.5" y="4.5" width="17" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/>
+  <path d="M12 15.5V20M8.5 20h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+{%- elif art == "pdf" %}
+  <path d="M7 3.5h7L19 8v12a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5A1.5 1.5 0 0 1 7 3.5Z"
+        stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M13.5 3.5V8H19" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M9 16.5h1.4a1.1 1.1 0 0 0 0-2.2H9v4.4" stroke="currentColor" stroke-width="1.3"
+        stroke-linecap="round" stroke-linejoin="round"/>
+{%- elif art == "unbekannt" %}
+  <path d="M7 3.5h7L19 8v12a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5A1.5 1.5 0 0 1 7 3.5Z"
+        stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"
+        stroke-dasharray="3 2.2"/>
+{%- else %}
+  <path d="M7 3.5h7L19 8v12a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5A1.5 1.5 0 0 1 7 3.5Z"
+        stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M13.5 3.5V8H19" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M9 13h6M9 16.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+{%- endif %}
+</svg>
+{%- endmacro %}
+
+
+{% macro zweig(knoten, aktuell) %}
+<ul class="wiki-liste">
+  {% for k in knoten %}
+    {% if k.art == "ordner" %}
+      <li>
+        <details class="wiki-ordner"
+                 {{ 'open' if aktuell == k.pfad or aktuell.startswith(k.pfad ~ '/') }}>
+          <summary class="wiki-knoten {{ 'hier' if aktuell == k.pfad }}"
+                   draggable="true" data-pfad="{{ k.pfad }}" data-art="ordner"
+                   data-ziel="{{ k.pfad }}" title="{{ k.pfad }}">
+            {{ dateisymbol("ordner") }}
+            <a href="/dateien?ordner={{ k.pfad | urlencode }}">{{ k.name }}</a>
+          </summary>
+          {{ zweig(k.kinder, aktuell) }}
+        </details>
+      </li>
+    {% else %}
+      <li>
+        <span class="wiki-knoten wiki-seitenknoten dateiknoten {{ 'unbekannt' if not k.bekannt }}"
+              draggable="true" data-pfad="{{ k.pfad }}" data-art="datei"
+              title="{{ k.pfad }}{{ ' – Dateiart wird nicht unterstützt' if not k.bekannt }}">
+          {{ dateisymbol(k.art) }}
+          <span>{{ k.name }}</span>
+        </span>
+      </li>
+    {% endif %}
+  {% endfor %}
+</ul>
+{% endmacro %}
+
+
+{# Die Knöpfe zu einer Datei. Stehen in beiden Ansichten - deshalb an
+   einer Stelle. #}
+{% macro dateiknoepfe(d, ordner) %}
+{% if d.bekannt %}
+<a class="knopf-icon" href="{{ d.adresse }}" target="_blank" rel="noopener"
+   title="Öffnen" aria-label="„{{ d.name }}“ öffnen">
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M14 4h6v6M20 4l-8.5 8.5" stroke="currentColor" stroke-width="1.7"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M18 14.5V19a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 19V8a1.5 1.5 0 0 1 1.5-1.5H10"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </svg>
+</a>
+<button class="knopf-icon kopieren" type="button" data-schnipsel="{{ d.schnipsel }}"
+        title="Markdown für das Wiki kopieren"
+        aria-label="Markdown für „{{ d.name }}“ kopieren">
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M15 5.5A1.5 1.5 0 0 0 13.5 4h-8A1.5 1.5 0 0 0 4 5.5v8A1.5 1.5 0 0 0 5.5 15"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </svg>
+</button>
+{% endif %}
+<button class="knopf-icon" type="button" data-umbenennen="{{ d.pfad }}"
+        title="Umbenennen oder verschieben"
+        aria-label="„{{ d.name }}“ umbenennen oder verschieben">
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </svg>
+</button>
+<form class="inline" action="/dateien/loeschen" method="post"
+      onsubmit="return confirm('„{{ d.name }}“ endgültig löschen? Verweise darauf im Wiki laufen danach ins Leere.')">
+  <input type="hidden" name="pfad" value="{{ d.pfad }}">
+  <input type="hidden" name="ordner" value="{{ ordner }}">
+  <button class="knopf-icon warn" type="submit" title="Löschen"
+          aria-label="„{{ d.name }}“ löschen">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+            stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </svg>
+  </button>
+</form>
+{% endmacro %}
+
+
+{# Die Knöpfe zu einem Ordner. Bewusst dieselben drei wie bei einer
+   Datei, nur ohne „Öffnen“ - dafür ist der Ordnername selbst der Link. #}
+{% macro ordnerknoepfe(o, ordner) %}
+<button class="knopf-icon kopieren" type="button" data-schnipsel="{{ o.schnipsel }}"
+        title="Markdown für das Wiki kopieren"
+        aria-label="Markdown für Ordner „{{ o.name }}“ kopieren">
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M15 5.5A1.5 1.5 0 0 0 13.5 4h-8A1.5 1.5 0 0 0 4 5.5v8A1.5 1.5 0 0 0 5.5 15"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </svg>
+</button>
+<button class="knopf-icon" type="button" data-umbenennen="{{ o.pfad }}"
+        title="Umbenennen oder verschieben"
+        aria-label="Ordner „{{ o.name }}“ umbenennen oder verschieben">
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </svg>
+</button>
+<form class="inline" action="/dateien/loeschen" method="post"
+      onsubmit="return confirm({% if o.anzahl %}'Ordner „{{ o.name }}“ mit {{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträgen' }} endgültig löschen? Der gesamte Inhalt geht mit.'{% else %}'Ordner „{{ o.name }}“ entfernen?'{% endif %})">
+  <input type="hidden" name="pfad" value="{{ o.pfad }}">
+  <input type="hidden" name="ordner" value="{{ ordner }}">
+  <button class="knopf-icon warn" type="submit" title="Ordner löschen"
+          aria-label="Ordner „{{ o.name }}“ löschen">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+            stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </svg>
+  </button>
+</form>
+{% endmacro %}
+
+
+{# Umbenennen/Verschieben plus der Markdown-Schnipsel. Steht zugeklappt
+   unter dem Eintrag und wird per Skript aufgeklappt. Trägt beides:
+   Dateien wie Ordner. #}
+{% macro dateidetails(d, ordner, ordner_auswahl) %}
+<div class="dateidetails" data-formular="{{ d.pfad }}">
+  {% if d.schnipsel %}
+  <label class="dateischnipsel">
+    <span>Markdown fürs Wiki</span>
+    <input type="text" readonly value="{{ d.schnipsel }}" onfocus="this.select()">
+  </label>
+  {% else %}
+  <p class="klein leise">{{ t("dateien.unbekannt") }}</p>
+  {% endif %}
+  <form action="/dateien/umbenennen" method="post">
+    <input type="hidden" name="pfad" value="{{ d.pfad }}">
+    <input type="hidden" name="ordner" value="{{ ordner }}">
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Name</span>
+        <input type="text" name="name" value="{{ d.name }}" required autocomplete="off">
+      </label>
+      <label class="feld">
+        <span>Ordner</span>
+        <select name="ziel_ordner">
+          {% for o in ordner_auswahl %}
+          <option value="{{ o.pfad }}" {{ 'selected' if o.pfad == ordner }}>{{ o.anzeige }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="knopfreihe">
+      <button class="knopf klein" type="submit">Speichern</button>
+    </div>
+  </form>
+</div>
+{% endmacro %}

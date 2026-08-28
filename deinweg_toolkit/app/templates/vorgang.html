@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% from "_vorgang_teile.html" import statusmarke, priomarke, frist, werwahl, werskript, logzeile,
+   logtag with context %}
+{% block titel %} – {{ v.titel }}{% endblock %}
+{% block inhalt %}
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+<p class="statuszeile klein leise">
+  <a href="/vorgaenge">Aufgaben</a> ›
+  <a href="/vorgaenge/person?name={{ v.klient | urlencode }}">{{ v.klient }}</a> ›
+  Vorgang #{{ v.id }}
+</p>
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h1>{{ v.titel }}</h1>
+    <p class="nowrap">{{ statusmarke(v.status) }} {{ priomarke(v.prioritaet) }}</p>
+  </div>
+
+  <dl class="systemliste breit">
+    <dt>Betreute Person</dt>
+    <dd><a href="/vorgaenge/person?name={{ v.klient | urlencode }}">{{ v.klient }}</a>
+      {% if andere %}<span class="klein leise">· {{ andere }} weitere{{ 'r' if andere == 1 }} offene{{ 'r' if andere == 1 }} Vorgang{{ '' if andere == 1 else 'e' }}</span>{% endif %}
+    </dd>
+    <dt>Vorgangsart</dt><dd>{{ v.art }}</dd>
+    <dt>Zuständig</dt><dd>{{ v.zustaendig }}</dd>
+    {% if v.beteiligte %}<dt>Weitere Beteiligte</dt><dd>{{ v.beteiligte }}</dd>{% endif %}
+    <dt>Frist / Wiedervorlage</dt><dd class="zahlen">{{ frist(v, lage) }}</dd>
+    <dt>Angelegt</dt>
+    <dd class="zahlen">{{ v.angelegt_am | zeitpunkt }} <span class="klein leise">von {{ v.angelegt_von }}</span></dd>
+    {% if v.geaendert_am %}
+    <dt>Letzte Änderung</dt><dd class="zahlen">{{ v.geaendert_am | zeitpunkt }}</dd>
+    {% endif %}
+    {% if v.datum_eingereicht %}<dt>Eingereicht</dt><dd class="zahlen">{{ v.datum_eingereicht | deutsch }}</dd>{% endif %}
+    {% if v.datum_eingang %}<dt>Eingang</dt><dd class="zahlen">{{ v.datum_eingang | deutsch }}</dd>{% endif %}
+    {% if v.datum_rueckmeldung %}<dt>Rückmeldung</dt><dd class="zahlen">{{ v.datum_rueckmeldung | deutsch }}</dd>{% endif %}
+    {% if v.datum_erledigt %}<dt>Erledigt</dt><dd class="zahlen">{{ v.datum_erledigt | deutsch }}</dd>{% endif %}
+    {% if v.dateiverweis %}<dt>Dokument</dt><dd><code>{{ v.dateiverweis }}</code></dd>{% endif %}
+  </dl>
+
+  {% if v.beschreibung %}
+  <h2 class="unterkopf">Beschreibung</h2>
+  <p class="ideentext">{{ v.beschreibung }}</p>
+  {% endif %}
+</section>
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Verlauf dieses Vorgangs</h2>
+    <p class="klein leise">{{ verlauf | length }} Einträge · neueste oben</p>
+  </div>
+  {% if verlauf %}
+  {% for gruppe in verlauf_tage %}
+    {{ logtag(gruppe.wort) }}
+    <ul class="logliste">
+      {% for e in gruppe.zeilen %}{{ logzeile(e, false) }}{% endfor %}
+    </ul>
+    {% endfor %}
+  {% else %}
+  <p class="leer">{{ t("vorgaenge.verlauf_leer") }}</p>
+  {% endif %}
+</section>
+
+<section class="raster gleich buendig">
+  <div class="karte">
+    <h2>Stand ändern</h2>
+    <p class="klein leise felderklaerung">{{ t("vorgaenge.stand_hinweis") }}</p>
+    <form action="/vorgaenge/{{ v.id }}/status" method="post">
+      <div class="feldreihe">
+        <label class="feld">
+          <span>Neuer Status</span>
+          <select name="status">
+            {% for s in V_STATUS %}<option value="{{ s }}" {{ 'selected' if s == v.status }}>{{ s }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="feld">
+          <span>Wiedervorlage <span class="leise">– optional</span></span>
+          <input type="date" name="frist" value="" min="2020-01-01">
+        </label>
+        {{ werwahl(leute) }}
+      </div>
+      <label class="feld">
+        <span>Was wurde getan? <span class="leise">– landet im Logbuch</span></span>
+        <textarea name="notiz" rows="2"
+                  placeholder="z. B. Fortschreibung mit allen Anlagen beim LWL eingereicht"></textarea>
+      </label>
+      <div class="knopfreihe">
+        <button class="knopf haupt" type="submit">Status speichern</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="karte">
+    <h2>Zuständigkeit übergeben</h2>
+    <form action="/vorgaenge/{{ v.id }}/zustaendig" method="post">
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Neue zuständige Person</span>
+          <select name="zustaendig" required>
+            {% for m in leute %}<option value="{{ m }}" {{ 'selected' if m == v.zustaendig }}>{{ m }}</option>{% endfor %}
+          </select>
+        </label>
+        {{ werwahl(leute) }}
+      </div>
+      <label class="feld">
+        <span>Notiz <span class="leise">– optional</span></span>
+        <input type="text" name="notiz" maxlength="400" placeholder="z. B. Übergabe wegen Urlaub">
+      </label>
+      <div class="knopfreihe">
+        <button class="knopf" type="submit">Übergeben</button>
+      </div>
+    </form>
+
+    <h2 class="unterkopf">Notiz nachtragen</h2>
+    <form action="/vorgaenge/{{ v.id }}/notiz" method="post">
+      <div class="feldreihe zwei">
+        {{ werwahl(leute) }}
+      </div>
+      <label class="feld">
+        <span>Eintrag für das Logbuch</span>
+        <textarea name="notiz" rows="2" required
+                  placeholder="z. B. telefonisch nachgefragt, Sachbearbeitung bittet um Geduld"></textarea>
+      </label>
+      <div class="knopfreihe">
+        <button class="knopf" type="submit">In den Verlauf schreiben</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="karte">
+  <details>
+    <summary class="aufklapp">Angaben zum Vorgang bearbeiten</summary>
+    <p class="klein leise felderklaerung">{{ t("vorgaenge.bearbeiten_hinweis") }}</p>
+    <form action="/vorgaenge/{{ v.id }}/daten" method="post">
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Titel</span>
+          <input type="text" name="titel" value="{{ v.titel }}" required maxlength="160">
+        </label>
+        <label class="feld">
+          <span>Vorgangsart</span>
+          <select name="art">
+            {% for a in V_ARTEN %}<option value="{{ a }}" {{ 'selected' if a == v.art }}>{{ a }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+      <label class="feld">
+        <span>Beschreibung</span>
+        <textarea name="beschreibung" rows="3">{{ v.beschreibung or "" }}</textarea>
+      </label>
+      <div class="feldreihe">
+        <label class="feld">
+          <span>Priorität</span>
+          <select name="prioritaet">
+            {% for p in V_PRIO %}<option value="{{ p }}" {{ 'selected' if p == v.prioritaet }}>{{ p }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="feld">
+          <span>Weitere Beteiligte</span>
+          <input type="text" name="beteiligte" value="{{ v.beteiligte or '' }}" maxlength="200">
+        </label>
+        <label class="feld">
+          <span>Dokumentenverweis</span>
+          <input type="text" name="dateiverweis" value="{{ v.dateiverweis or '' }}" maxlength="300">
+        </label>
+      </div>
+      <div class="feldreihe">
+        <label class="feld"><span>Eingereicht am</span>
+          <input type="date" name="datum_eingereicht" value="{{ v.datum_eingereicht or '' }}"></label>
+        <label class="feld"><span>Eingang am</span>
+          <input type="date" name="datum_eingang" value="{{ v.datum_eingang or '' }}"></label>
+        <label class="feld"><span>Rückmeldung am</span>
+          <input type="date" name="datum_rueckmeldung" value="{{ v.datum_rueckmeldung or '' }}"></label>
+        <label class="feld"><span>Erledigt am</span>
+          <input type="date" name="datum_erledigt" value="{{ v.datum_erledigt or '' }}"></label>
+      </div>
+      <div class="feldreihe zwei">
+        {{ werwahl(leute) }}
+      </div>
+      <div class="knopfreihe">
+        <button class="knopf haupt" type="submit">Änderungen speichern</button>
+        <a class="knopf leise" href="/vorgaenge/{{ v.id }}">Abbrechen</a>
+      </div>
+    </form>
+  </details>
+</section>
+
+<section class="karte">
+  <h2>Vorgang löschen</h2>
+  <p class="klein leise felderklaerung">{{ t("vorgaenge.loeschen_hinweis") }}</p>
+  <form action="/vorgaenge/{{ v.id }}/loeschen" method="post"
+        onsubmit="return confirm('Vorgang „{{ v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
+    <input type="hidden" name="zurueck" value="/vorgaenge/person?name={{ v.klient | urlencode }}">
+    <button class="knopf warn" type="submit">Vorgang endgültig löschen</button>
+  </form>
+</section>
+
+{{ werskript() }}
+{% endblock %}

@@ -1,0 +1,1194 @@
+{% extends "base.html" %}
+{% block titel %} – Einstellungen{% endblock %}
+{% block inhalt %}
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+<div class="einstellungsseite">
+
+{# Elf Punkte in einer flachen Liste ließen sich nicht überfliegen. Sie
+   stehen jetzt in fünf Gruppen, die nach der Frage sortiert sind, mit der
+   man herkommt: Wie sieht es aus? Wer und was gehört zur Einrichtung?
+   Was steht in den Auswahlfeldern? Wer darf was? Was macht der Server? #}
+<aside class="seitenmenue">
+  <span class="seitenmenue-titel">Einstellungen</span>
+
+  <span class="seitenmenue-gruppe">Darstellung</span>
+  <a href="/einstellungen?bereich=oberflaeche" class="{{ 'aktiv' if bereich=='oberflaeche' }}">Oberfläche</a>
+  <a href="/einstellungen?bereich=quotes" class="{{ 'aktiv' if bereich=='quotes' }}">Sprüche</a>
+
+  <span class="seitenmenue-gruppe">Stammdaten</span>
+  <a href="/einstellungen?bereich=betreute" class="{{ 'aktiv' if bereich=='betreute' }}">Betreute Personen</a>
+  <a href="/einstellungen?bereich=mitarbeiter" class="{{ 'aktiv' if bereich=='mitarbeiter' }}">Mitarbeiter</a>
+  <a href="/einstellungen?bereich=kfz" class="{{ 'aktiv' if bereich=='kfz' }}">Fahrzeuge</a>
+
+  <span class="seitenmenue-gruppe">Auswahllisten</span>
+  <a href="/einstellungen?bereich=vorgangsarten" class="{{ 'aktiv' if bereich=='vorgangsarten' }}">Aufgabenarten</a>
+  <a href="/einstellungen?bereich=leistungen" class="{{ 'aktiv' if bereich=='leistungen' }}">Leistungsbeschreibungen</a>
+
+  {% if ist_admin %}
+  <span class="seitenmenue-gruppe">Konten und E-Mail</span>
+  <a href="/einstellungen?bereich=benutzer" class="{{ 'aktiv' if bereich=='benutzer' }}">Benutzerverwaltung</a>
+  <a href="/einstellungen?bereich=email" class="{{ 'aktiv' if bereich=='email' }}">E-Mail-Versand</a>
+  <a href="/einstellungen?bereich=vorlagen" class="{{ 'aktiv' if bereich=='vorlagen' }}">E-Mail-Vorlagen</a>
+  {% endif %}
+
+  <span class="seitenmenue-gruppe">Wartung</span>
+  <a href="/einstellungen?bereich=system" class="{{ 'aktiv' if bereich=='system' }}">System und Sicherung</a>
+</aside>
+
+<div class="einstellungsinhalt">
+
+{% if bereich == "oberflaeche" %}
+<section class="karte" id="oberflaeche">
+  <h1>Oberfläche</h1>
+  <p class="lead">{{ t("einst.oberflaeche_lead") }}</p>
+
+  <div class="optionsliste">
+    <div class="optionszeile">
+      <div>
+        <span class="stark">Darkmode</span>
+        <p class="klein leise">{{ t("einst.ansicht") }}</p>
+      </div>
+      <div class="schalter">
+        <span class="thema-text">Dunkel</span>
+        <button type="button" class="thema-knopf" role="switch" aria-checked="false"
+                aria-label="Zwischen dunkler und heller Ansicht wechseln"></button>
+      </div>
+    </div>
+
+    <div class="optionszeile">
+      <div>
+        <span class="stark">Inhaltsbreite</span>
+        <p class="klein leise">{{ t("einst.breite") }}</p>
+      </div>
+      <div class="schalter">
+        <span class="breite-text">Volle Breite</span>
+        <button type="button" class="breite-knopf" role="switch" aria-checked="false"
+                aria-label="Zwischen voller und begrenzter Inhaltsbreite wechseln"></button>
+      </div>
+    </div>
+
+    <div class="optionszeile">
+      <div>
+        <span class="stark">Wiki-Ansicht</span>
+        <p class="klein leise">{{ t("einst.wikiliste") }}</p>
+      </div>
+      <div class="schalter">
+        <span class="wikiliste-text">Kacheln</span>
+        <button type="button" class="wikiliste-knopf" role="switch" aria-checked="false"
+                aria-label="Zwischen Kachel- und Listenansicht im Wiki wechseln"></button>
+      </div>
+    </div>
+
+    <div class="optionszeile">
+      <div>
+        <span class="stark">Dateien-Ansicht</span>
+        <p class="klein leise">{{ t("einst.dateiliste") }}</p>
+      </div>
+      <div class="schalter">
+        <span class="dateiliste-text">Liste</span>
+        <button type="button" class="dateiliste-knopf" role="switch" aria-checked="false"
+                aria-label="Zwischen Listen- und Kachelansicht in der Dateiverwaltung wechseln"></button>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if bereich == "quotes" %}
+<section class="karte" id="quotes">
+  <h1>Quotemanager</h1>
+  <p class="lead">{{ t("einst.sprueche_lead") }}</p>
+
+  <form action="/einstellungen/spruch" method="post">
+    <label class="feld">
+      <span>Text <span class="leise">– ohne Anführungszeichen</span></span>
+      <textarea name="text" rows="3" required
+                placeholder="Nur den Wortlaut – Anführungszeichen kommen automatisch"></textarea>
+    </label>
+    <label class="feld">
+      <span>Quelle <span class="leise">– darf leer bleiben</span></span>
+      <input type="text" name="quelle" autocomplete="off"
+             placeholder="z. B. Swetlana (21.01.2026)">
+    </label>
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Spruch hinzufügen</button>
+    </div>
+  </form>
+
+  {% if sprueche %}
+  <ul class="ideenreihen spruchreihen">
+    {% for s in sprueche %}
+    <li class="ideenreihe {{ 'wirdbearbeitet' if spruch_bearbeiten == s.nr }}">
+      {% if spruch_bearbeiten == s.nr %}
+        <form action="/einstellungen/spruch/{{ s.nr }}/bearbeiten" method="post"
+              class="ideenformular">
+          <label class="feld">
+            <span>Text <span class="leise">– ohne Anführungszeichen</span></span>
+            <textarea name="text" rows="3" required>{{ s.text }}</textarea>
+          </label>
+          <label class="feld">
+            <span>Quelle <span class="leise">– darf leer bleiben</span></span>
+            <input type="text" name="quelle" value="{{ s.quelle }}" autocomplete="off">
+          </label>
+          <div class="knopfreihe">
+            <button class="knopf haupt" type="submit">Änderung speichern</button>
+            <a class="knopf leise" href="/einstellungen?bereich=quotes">Abbrechen</a>
+          </div>
+        </form>
+      {% else %}
+        <div class="ideeninhalt">
+          {# Mit gesetzten Anführungszeichen, also genau so, wie der
+             Spruch später auf der Startseite steht. Im Bearbeitungsfeld
+             darüber steht der blanke Wortlaut. #}
+          <p class="ideentext">„{{ s.text }}“</p>
+          {% if s.quelle %}<p class="klein leise" style="margin: 4px 0 0;">– {{ s.quelle }}</p>{% endif %}
+        </div>
+        <div class="ideenaktionen">
+          <a class="knopf-icon"
+             href="/einstellungen?bereich=quotes&spruch_bearbeiten={{ s.nr }}"
+             title="Bearbeiten" aria-label="Bearbeiten">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </a>
+          <form class="inline" action="/einstellungen/spruch/{{ s.nr }}/loeschen" method="post"
+                onsubmit="return confirm('Diesen Spruch endgültig entfernen?')">
+            <button class="knopf-icon warn" type="submit" title="Entfernen" aria-label="Entfernen">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="leer">{{ t("einst.sprueche_leer") }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if bereich == "betreute" %}
+<section class="raster buendig" id="betreute">
+  <div class="karte hochkant">
+    <h1>Betreute Personen</h1>
+    <p class="lead">{{ t("einst.betreute_lead") }}</p>
+
+    <form action="/einstellungen/person" method="post">
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Name</span>
+          <input type="text" name="name" required autocomplete="off"
+                 placeholder="genau wie in den Listen geschrieben">
+        </label>
+        <label class="feld">
+          <span>Stunden pro Woche</span>
+          <input type="text" name="wochenstunden" inputmode="decimal"
+                 placeholder="z. B. 7,5" autocomplete="off">
+        </label>
+        <label class="feld">
+          <span>Stundensatz in €</span>
+          <input type="text" name="stundensatz" inputmode="decimal"
+                 placeholder="z. B. 52,80" autocomplete="off">
+        </label>
+      </div>
+      <label class="feld">
+        <span>Abrechenbar</span>
+        <label class="ankreuz">
+          <input type="checkbox" name="abrechenbar" value="1" checked>
+          <span>Zeiten dieser Person zählen als abrechenbar</span>
+        </label>
+      </label>
+      <div class="knopfreihe unten">
+        <button class="knopf haupt" type="submit">Person anlegen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="karte schmal">
+    <h2>So wird gerechnet</h2>
+    <p class="klein leise">{{ t("einst.rechnung") }}</p>
+    <p class="klein leise">{{ t("einst.schreibweise_betreute") }}</p>
+    <p class="klein leise">{{ t("einst.stundensatz") }}</p>
+    <a class="knopf leise" href="/auswertung">Zur Auswertung</a>
+  </div>
+</section>
+
+{% if ungepflegt %}
+<section class="karte">
+  <h2>In den Zeiten vorhanden, hier noch nicht angelegt</h2>
+  <p class="klein leise" style="margin-top: -6px;">{{ t("einst.ungepflegt") }}</p>
+  <div class="namensliste">
+    {% for name in ungepflegt %}
+    <form action="/einstellungen/person" method="post" class="inline">
+      <input type="hidden" name="name" value="{{ name }}">
+      <input type="hidden" name="wochenstunden" value="0">
+      <input type="hidden" name="abrechenbar" value="1">
+      <button class="knopf klein" type="submit">+ {{ name }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="karte">
+  <h2>Angelegte Personen</h2>
+  {% if personen %}
+  <table class="liste">
+    <thead>
+      <tr><th>Name</th><th>Std/Woche</th><th>Stundensatz in €</th>
+          <th class="mitte">Abrechenbar</th><th class="mitte">Aktiv</th>
+          <th>Bisher erfasst</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for p in personen %}
+      <tr class="{{ '' if p.aktiv else 'stillgelegt' }}">
+        <form action="/einstellungen/person/{{ p.id }}" method="post" id="person-{{ p.id }}"></form>
+        <td><input class="mini" type="text" name="name" value="{{ p.name }}"
+                   form="person-{{ p.id }}"></td>
+        <td><input class="mini kurz" type="text" name="wochenstunden" inputmode="decimal"
+                   value="{{ p.wochenstunden | round(2) | string | replace('.0', '') | replace('.', ',') }}"
+                   form="person-{{ p.id }}"></td>
+        <td><input class="mini kurz" type="text" name="stundensatz" inputmode="decimal"
+                   value="{{ ('%.2f' % p.stundensatz) | replace('.', ',') if p.stundensatz else '' }}"
+                   placeholder="0,00" form="person-{{ p.id }}"></td>
+        <td class="mitte">
+          <input type="checkbox" name="abrechenbar" value="1" {{ 'checked' if p.abrechenbar }}
+                 form="person-{{ p.id }}">
+        </td>
+        <td class="mitte">
+          <input type="checkbox" name="aktiv" value="1" {{ 'checked' if p.aktiv }}
+                 form="person-{{ p.id }}">
+        </td>
+        <td class="zahlen leise">
+          {{ p.minuten | hhmm }} Std<br><span class="klein">{{ p.eintraege }} Einheiten</span>
+        </td>
+        <td class="rechts nowrap">
+          <button class="knopf klein" type="submit" form="person-{{ p.id }}">speichern</button>
+          <form class="inline" action="/einstellungen/person/{{ p.id }}/loeschen" method="post"
+                onsubmit="return confirm('{{ p.name }} aus den Stammdaten entfernen? Erfasste Zeiten bleiben erhalten.')">
+            <button class="knopf klein warn" type="submit">entfernen</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="klein leise" style="margin-bottom: 8px;">{{ t("einst.abrechenbar") }}</p>
+  <p class="klein leise" style="margin-bottom: 0;">{{ t("einst.stillgelegt") }}</p>
+  {% else %}
+  <p class="leer">{{ t("einst.keine_person") }}</p>
+  {% endif %}
+</section>
+
+{% endif %}
+
+{% if bereich == "mitarbeiter" %}
+<section class="raster buendig">
+  <div class="karte hochkant">
+    <h1>Mitarbeiter</h1>
+    <p class="lead">{{ t("einst.team_lead") }}</p>
+
+    <form action="/einstellungen/mitarbeiter" method="post">
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Name</span>
+          <input type="text" name="name" required autocomplete="off"
+                 placeholder="genau wie in den Listen geschrieben">
+        </label>
+        <label class="feld">
+          <span>Notiz <span class="leise">– optional</span></span>
+          <input type="text" name="notiz" autocomplete="off"
+                 placeholder="z. B. Teilzeit, Springer">
+        </label>
+      </div>
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Arbeitszeit Std/Monat <span class="leise">– 0 = kein Soll</span></span>
+          <input type="text" name="monatsstunden" value="0" inputmode="decimal"
+                 autocomplete="off" placeholder="z. B. 160">
+        </label>
+        <label class="feld">
+          <span>Urlaubstage pro Jahr <span class="leise">– 0 = keiner</span></span>
+          <input type="text" name="urlaubstage" value="0" inputmode="decimal"
+                 autocomplete="off" placeholder="z. B. 30">
+        </label>
+      </div>
+      <label class="ankreuz">
+        <input type="checkbox" name="abgabepflicht" value="1" checked>
+        <span>Gibt monatlich Zeiten ab</span>
+      </label>
+      <div class="knopfreihe unten">
+        <button class="knopf haupt" type="submit">Mitarbeiter aufnehmen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="karte schmal">
+    <h2>Zur Schreibweise</h2>
+    <p class="klein leise">{{ t("einst.schreibweise_team") }}</p>
+    <p class="klein leise">{{ t("einst.inaktiv") }}</p>
+    <p class="klein leise">{{ t("einst.ohne_pflicht") }}</p>
+    <p class="klein leise">{{ t("einst.monatsstunden") }}</p>
+    <p class="klein leise">{{ t("einst.urlaubstage") }}</p>
+  </div>
+</section>
+
+{% if team_offen %}
+<section class="karte">
+  <h2>Namen aus den Daten, die noch nicht im Team stehen</h2>
+  <p class="klein leise" style="margin-top: -6px;">{{ t("einst.team_offen") }}</p>
+  <div class="namensliste">
+    {% for name in team_offen %}
+    <form action="/einstellungen/mitarbeiter" method="post" class="inline">
+      <input type="hidden" name="name" value="{{ name }}">
+      <input type="hidden" name="abgabepflicht" value="1">
+      <button class="knopf klein" type="submit">+ {{ name }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="karte">
+  <h2>Team{% if team %} · {{ team | length }}{% endif %}</h2>
+  {% if team %}
+  <table class="liste">
+    <thead>
+      <tr><th>Name</th><th>Std/Monat</th><th>Urlaub/Jahr</th><th class="mitte">Gibt ab</th>
+          <th class="mitte">Aktiv</th><th>Erfasst</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for m in team %}
+      <tr class="{{ '' if m.aktiv else 'stillgelegt' }}">
+        <form action="/einstellungen/mitarbeiter/{{ m.id }}" method="post" id="ma-{{ m.id }}"></form>
+        <td><input class="mini" type="text" name="name" value="{{ m.name }}" form="ma-{{ m.id }}"></td>
+        <input type="hidden" name="notiz" value="{{ m.notiz or '' }}" form="ma-{{ m.id }}">
+        <td><input class="mini kurz" type="text" name="monatsstunden" inputmode="decimal"
+                   value="{{ m.monatsstunden | round(2) | string | replace('.0', '') | replace('.', ',') }}"
+                   placeholder="0" form="ma-{{ m.id }}"></td>
+        <td><input class="mini kurz" type="text" name="urlaubstage" inputmode="decimal"
+                   value="{{ m.urlaubstage | round(2) | string | replace('.0', '') | replace('.', ',') }}"
+                   placeholder="0" form="ma-{{ m.id }}"></td>
+        <td class="mitte"><input type="checkbox" name="abgabepflicht" value="1"
+                                 {{ 'checked' if m.abgabepflicht }} form="ma-{{ m.id }}"></td>
+        <td class="mitte"><input type="checkbox" name="aktiv" value="1"
+                                 {{ 'checked' if m.aktiv }} form="ma-{{ m.id }}"></td>
+        <td class="zahlen leise klein">
+          {{ m.eintraege }} Datensätze
+          {%- if m.letzter_monat %}<br>zuletzt {{ m.letzter_monat }}{% endif %}
+        </td>
+        <td class="rechts nowrap">
+          <button class="knopf klein" type="submit" form="ma-{{ m.id }}">speichern</button>
+          <form class="inline" action="/einstellungen/mitarbeiter/{{ m.id }}/loeschen" method="post"
+                onsubmit="return confirm('{{ m.name }} aus dem Team entfernen? Erfasste Zeiten bleiben erhalten.')">
+            <button class="knopf klein warn" type="submit">entfernen</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="leer">{{ t("einst.kein_team") }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if bereich == "vorgangsarten" %}
+<section class="raster buendig">
+  <div class="karte hochkant">
+    <h1>Aufgabenarten</h1>
+    <p class="lead">{{ t("einst.vorgangsarten_lead") }}</p>
+
+    <form action="/einstellungen/vorgangsart" method="post">
+      <label class="feld">
+        <span>Neue Vorgangsart</span>
+        <input type="text" name="name" required autocomplete="off"
+               placeholder="z. B. Umzugsantrag gestellt">
+      </label>
+      <div class="knopfreihe unten">
+        <button class="knopf haupt" type="submit">Vorgangsart anlegen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="karte schmal">
+    <h2>Zur Pflege</h2>
+    <p class="klein leise">{{ t("einst.vorgangsarten_stillgelegt") }}</p>
+    <a class="knopf leise" href="/vorgaenge">Zu den Aufgaben</a>
+  </div>
+</section>
+
+{% if arten_offen %}
+<section class="karte">
+  <h2>An Vorgängen vorhanden, hier noch nicht angelegt</h2>
+  <p class="klein leise" style="margin-top: -6px;">{{ t("einst.vorgangsarten_offen") }}</p>
+  <div class="namensliste">
+    {% for name in arten_offen %}
+    <form action="/einstellungen/vorgangsart" method="post" class="inline">
+      <input type="hidden" name="name" value="{{ name }}">
+      <button class="knopf klein" type="submit">+ {{ name }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="karte">
+  <h2>Vorgangsarten{% if vorgangsarten %} · {{ vorgangsarten | length }}{% endif %}</h2>
+  {% if vorgangsarten %}
+  <table class="liste">
+    <thead>
+      <tr><th>Bezeichnung</th><th class="mitte">Aktiv</th><th>Verwendet</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for a in vorgangsarten %}
+      <tr class="{{ '' if a.aktiv else 'stillgelegt' }}">
+        <form action="/einstellungen/vorgangsart/{{ a.id }}" method="post" id="va-{{ a.id }}"></form>
+        <td><input class="mini breit" type="text" name="name" value="{{ a.name }}"
+                   form="va-{{ a.id }}"></td>
+        <td class="mitte">
+          <input type="checkbox" name="aktiv" value="1" {{ 'checked' if a.aktiv }}
+                 form="va-{{ a.id }}">
+        </td>
+        <td class="zahlen leise klein">
+          {{ a.verwendungen }} Vorgang{{ '' if a.verwendungen == 1 else 'e' }}
+        </td>
+        <td class="rechts nowrap">
+          <button class="knopf klein" type="submit" form="va-{{ a.id }}">speichern</button>
+          <form class="inline" action="/einstellungen/vorgangsart/{{ a.id }}/loeschen" method="post"
+                onsubmit="return confirm('{{ a.name }} endgültig entfernen?{% if a.verwendungen %} Bestehende Vorgänge behalten die Bezeichnung dennoch.{% endif %}')">
+            <button class="knopf klein warn" type="submit">entfernen</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="klein leise" style="margin-bottom: 0;">{{ t("einst.vorgangsarten_stillgelegt") }}</p>
+  {% else %}
+  <p class="leer">{{ t("einst.vorgangsarten_keine") }}</p>
+  {% endif %}
+</section>
+
+{% endif %}
+
+{% if bereich == "leistungen" %}
+<section class="raster buendig">
+  <div class="karte hochkant">
+    <h1>Leistungsbeschreibungen</h1>
+    <p class="lead">{{ t("einst.leistungen_lead") }}</p>
+
+    <form action="/einstellungen/leistung" method="post">
+      <label class="feld">
+        <span>Neue Leistungsbeschreibung</span>
+        <input type="text" name="name" required autocomplete="off" maxlength="160"
+               placeholder="z. B. Begleitung zu einem Amtstermin">
+      </label>
+      <div class="knopfreihe unten">
+        <button class="knopf haupt" type="submit">Beschreibung anlegen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="karte schmal">
+    <h2>Zur Pflege</h2>
+    <p class="klein leise">{{ t("einst.leistungen_stillgelegt") }}</p>
+    <a class="knopf leise" href="/">Zur Zeiterfassung</a>
+  </div>
+</section>
+
+{% if leistungen_offen %}
+<section class="karte">
+  <h2>In den erfassten Zeiten vorhanden, hier noch nicht angelegt</h2>
+  <p class="klein leise" style="margin-top: -6px;">{{ t("einst.leistungen_offen") }}</p>
+  <div class="namensliste">
+    {% for name in leistungen_offen %}
+    <form action="/einstellungen/leistung" method="post" class="inline">
+      <input type="hidden" name="name" value="{{ name }}">
+      <button class="knopf klein" type="submit">+ {{ name }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="karte">
+  <h2>Leistungsbeschreibungen{% if leistungen %} · {{ leistungen | length }}{% endif %}</h2>
+  {% if leistungen %}
+  <table class="liste">
+    <thead>
+      <tr><th>Bezeichnung</th><th class="mitte">Aktiv</th><th>Verwendet</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for l in leistungen %}
+      <tr class="{{ '' if l.aktiv else 'stillgelegt' }}">
+        <form action="/einstellungen/leistung/{{ l.id }}" method="post" id="lb-{{ l.id }}"></form>
+        <td><input class="mini breit" type="text" name="name" value="{{ l.name }}"
+                   maxlength="160" form="lb-{{ l.id }}"></td>
+        <td class="mitte">
+          <input type="checkbox" name="aktiv" value="1" {{ 'checked' if l.aktiv }}
+                 form="lb-{{ l.id }}">
+        </td>
+        <td class="zahlen leise klein">
+          {{ l.verwendungen }} Eintrag{{ '' if l.verwendungen == 1 else 'e' }}
+        </td>
+        <td class="rechts nowrap">
+          <button class="knopf klein" type="submit" form="lb-{{ l.id }}">speichern</button>
+          <form class="inline" action="/einstellungen/leistung/{{ l.id }}/loeschen" method="post"
+                onsubmit="return confirm('{{ l.name }} aus der Auswahl entfernen? Bereits erfasste Zeiten behalten ihre Beschreibung.')">
+            <button class="knopf klein warn" type="submit">entfernen</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="klein leise" style="margin-bottom: 0;">{{ t("einst.leistungen_stillgelegt") }}</p>
+  {% else %}
+  <p class="leer">{{ t("einst.leistungen_keine") }}</p>
+  {% endif %}
+</section>
+
+{% endif %}
+
+{% if bereich == "kfz" %}
+{% macro fahrzeugfelder(f) %}
+{# Die Stammdatenfelder eines Fahrzeugs. Eine Stelle fuer das Anlege- und
+   das Bearbeiten-Formular, damit beide nie auseinanderlaufen. #}
+<div class="feldreihe zwei">
+  <label class="feld">
+    <span>Kennzeichen</span>
+    <input type="text" name="kennzeichen" required maxlength="20" autocomplete="off"
+           placeholder="z. B. ST-DW 123" value="{{ f.kennzeichen if f else '' }}"
+           {% if f %}form="fz-{{ f.id }}"{% endif %}>
+  </label>
+  <label class="feld">
+    <span>Marke</span>
+    <input type="text" name="marke" maxlength="60" autocomplete="off"
+           placeholder="z. B. BMW" value="{{ f.marke if f else '' }}"
+           {% if f %}form="fz-{{ f.id }}"{% endif %}>
+  </label>
+  <label class="feld">
+    <span>Modell</span>
+    <input type="text" name="modell" maxlength="80" autocomplete="off"
+           placeholder="z. B. 320d" value="{{ f.modell if f else '' }}"
+           {% if f %}form="fz-{{ f.id }}"{% endif %}>
+  </label>
+  <label class="feld">
+    <span>Farbe</span>
+    <input type="text" name="farbe" maxlength="40" autocomplete="off"
+           placeholder="z. B. Silber" value="{{ f.farbe if f else '' }}"
+           {% if f %}form="fz-{{ f.id }}"{% endif %}>
+  </label>
+</div>
+
+<div class="feldreihe">
+  <label class="feld">
+    <span>Baujahr</span>
+    <input type="number" name="baujahr" min="1900" max="2100" step="1"
+           placeholder="z. B. 2019" value="{{ f.baujahr if f and f.baujahr else '' }}"
+           {% if f %}form="fz-{{ f.id }}"{% endif %}>
+  </label>
+  <label class="feld">
+    <span>Erstzulassung</span>
+    <input type="date" name="erstzulassung"
+           value="{{ f.erstzulassung if f and f.erstzulassung else '' }}"
+           {% if f %}form="fz-{{ f.id }}"{% endif %}>
+  </label>
+  <label class="feld">
+    <span>Kilometerstand zu Beginn</span>
+    <input type="number" name="km_start" min="0" step="1" placeholder="0"
+           value="{{ f.km_start if f else '' }}" {% if f %}form="fz-{{ f.id }}"{% endif %}>
+  </label>
+</div>
+
+<div class="feldreihe">
+  <label class="feld">
+    <span>Kraftstoffart</span>
+    <select name="kraftstoff" {% if f %}form="fz-{{ f.id }}"{% endif %}>
+      <option value="">– ohne Angabe –</option>
+      {% for k in KFZ_KRAFTSTOFFE %}
+      <option value="{{ k }}" {{ 'selected' if f and f.kraftstoff == k }}>{{ k }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="feld">
+    <span>Getriebe</span>
+    <select name="getriebe" {% if f %}form="fz-{{ f.id }}"{% endif %}>
+      <option value="">– ohne Angabe –</option>
+      {% for g in KFZ_GETRIEBE %}
+      <option value="{{ g }}" {{ 'selected' if f and f.getriebe == g }}>{{ g }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="feld">
+    <span>Leistung <span class="leise">– in kW</span></span>
+    <input type="number" name="leistung" min="0" max="2000" step="1" placeholder="z. B. 140"
+           value="{{ f.leistung if f and f.leistung else '' }}" {% if f %}form="fz-{{ f.id }}"{% endif %}>
+  </label>
+  <label class="feld">
+    <span>Hubraum <span class="leise">– in cm³</span></span>
+    <input type="number" name="hubraum" min="0" max="20000" step="1" placeholder="z. B. 1995"
+           value="{{ f.hubraum if f and f.hubraum else '' }}" {% if f %}form="fz-{{ f.id }}"{% endif %}>
+  </label>
+</div>
+
+<label class="feld">
+  <span>Notiz <span class="leise">– darf leer bleiben</span></span>
+  <input type="text" name="notiz" maxlength="200" autocomplete="off"
+         placeholder="z. B. Dienstwagen Tagesstruktur"
+         value="{{ f.notiz if f and f.notiz else '' }}" {% if f %}form="fz-{{ f.id }}"{% endif %}>
+</label>
+{% endmacro %}
+
+<section class="karte">
+  <h1>KFZ</h1>
+  <p class="lead">{{ t("einst.kfz_lead") }}</p>
+  <div class="knopfreihe">
+    <a class="knopf" href="/fuhrpark">Zur Erfassung</a>
+    <a class="knopf leise" href="/fuhrpark/auswertung">Zur Auswertung</a>
+  </div>
+</section>
+
+<section class="karte">
+  <h2>Fahrzeug anlegen</h2>
+  <form action="/einstellungen/fahrzeug" method="post">
+    {{ fahrzeugfelder(none) }}
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Fahrzeug anlegen</button>
+    </div>
+  </form>
+</section>
+
+{% set aktive = fahrzeuge | selectattr("aktiv") | list %}
+{% set archiv = fahrzeuge | rejectattr("aktiv") | list %}
+
+<section class="karte">
+  <h2>Fuhrpark{% if aktive %} · {{ aktive | length }}{% endif %}</h2>
+  {% if aktive %}
+  {% for f in aktive %}
+  <div class="fahrzeugkarte">
+    {# Das Formular steht leer daneben, die Felder haengen ueber form=
+       daran - sonst laege ein Formular im anderen (siehe index.html). #}
+    <form action="/einstellungen/fahrzeug/{{ f.id }}" method="post" id="fz-{{ f.id }}"></form>
+    <div class="kopfzeile">
+      <h3 class="fahrzeugtitel">{{ kfz_bezeichnung(f) }}
+        <span class="leise">· {{ f.kennzeichen }}</span></h3>
+      <p class="klein leise zahlen">
+        {{ km_staende.get(f.id) | km }} · {{ f.eintraege }}
+        {{ 'Eintrag' if f.eintraege == 1 else 'Einträge' }}
+        {%- if f.zuletzt %} · zuletzt {{ f.zuletzt | deutsch }}{% endif %}
+      </p>
+    </div>
+
+    {{ fahrzeugfelder(f) }}
+    <input type="hidden" name="aktiv" value="1" form="fz-{{ f.id }}">
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit" form="fz-{{ f.id }}">Speichern</button>
+      <a class="knopf leise" href="/fuhrpark?fahrzeug={{ f.id }}">Historie</a>
+      <form class="inline" action="/einstellungen/fahrzeug/{{ f.id }}/archivieren" method="post">
+        <button class="knopf" type="submit">archivieren</button>
+      </form>
+      <form class="inline" action="/einstellungen/fahrzeug/{{ f.id }}/loeschen" method="post"
+            onsubmit="return confirm('{{ kfz_bezeichnung(f) }} endgültig löschen? Damit verschwinden auch die {{ f.eintraege }} Einträge der Historie. Zum Ausmustern reicht „archivieren“.')">
+        <button class="knopf warn" type="submit">löschen</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  <p class="klein leise" style="margin-bottom: 0;">{{ t("einst.kfz_archiv_hinweis") }}</p>
+  {% else %}
+  <p class="leer">{{ t("einst.kfz_keine") }}</p>
+  {% endif %}
+</section>
+
+{% if archiv %}
+<section class="karte">
+  <h2>Archiv · {{ archiv | length }}</h2>
+  <p class="klein leise" style="margin-top: -6px;">{{ t("einst.kfz_archiv") }}</p>
+  <table class="liste">
+    <thead>
+      <tr><th>Fahrzeug</th><th>Kennzeichen</th><th class="num">Kilometer</th>
+          <th class="num">Historie</th><th class="num">Aktion</th></tr>
+    </thead>
+    <tbody>
+    {% for f in archiv %}
+      <tr class="stillgelegt">
+        <td class="stark">{{ kfz_bezeichnung(f) }}</td>
+        <td>{{ f.kennzeichen }}</td>
+        <td class="num zahlen">{{ km_staende.get(f.id) | km }}</td>
+        <td class="num zahlen leise">{{ f.eintraege }}</td>
+        <td class="num nowrap">
+          <form class="inline" action="/einstellungen/fahrzeug/{{ f.id }}/archivieren" method="post">
+            <input type="hidden" name="aktiv" value="1">
+            <button class="knopf klein" type="submit">zurückholen</button>
+          </form>
+          <form class="inline" action="/einstellungen/fahrzeug/{{ f.id }}/loeschen" method="post"
+                onsubmit="return confirm('{{ kfz_bezeichnung(f) }} endgültig löschen? Damit verschwinden auch die {{ f.eintraege }} Einträge der Historie.')">
+            <button class="knopf klein warn" type="submit">löschen</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% endif %}
+
+{% if bereich == "benutzer" %}
+<section class="karte">
+  <h1>Benutzerverwaltung</h1>
+  <p class="lead">{{ t("einst.benutzer_lead") }}</p>
+</section>
+
+<section class="karte hochkant">
+  <h2>Neues Konto anlegen</h2>
+  <form action="/einstellungen/benutzer" method="post">
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Benutzername</span>
+        <input type="text" name="benutzername" required autocomplete="off" maxlength="80">
+      </label>
+      <label class="feld">
+        <span>Passwort</span>
+        <input type="password" name="passwort" required autocomplete="new-password">
+      </label>
+    </div>
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Rolle</span>
+        <select name="rolle">
+          <option value="benutzer">Benutzer</option>
+          <option value="admin">Administrator</option>
+        </select>
+      </label>
+      <label class="feld">
+        <span>E-Mail-Adresse <span class="leise">– optional, Empfänger für Erinnerungen</span></span>
+        <input type="email" name="email" autocomplete="off">
+      </label>
+    </div>
+    <label class="feld">
+      <span>Gehört zu Mitarbeiter <span class="leise">– optional</span></span>
+      <select name="mitarbeiter">
+        <option value="">keine Zuordnung</option>
+        {% for m in team %}<option value="{{ m.name }}">{{ m.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <p class="klein leise felderklaerung">{{ t("einst.benutzer_mitarbeiter_hinweis") }}</p>
+    <fieldset class="feld bereichsfeld">
+      <span>Zugriff auf</span>
+      <p class="klein leise felderklaerung">{{ t("einst.benutzer_bereiche_hinweis") }}</p>
+      <div class="bereichsraster">
+        {% for schluessel, name in BEREICHE.items() %}
+        <label class="bereich-kachel"><input type="checkbox" name="bereiche" value="{{ schluessel }}" checked> {{ name }}</label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    {# Zwei Rechte, die keine eigenen Bereiche sind, sondern eine Grenze
+       innerhalb eines Bereichs ziehen. Deshalb stehen sie hier getrennt. #}
+    <fieldset class="feld bereichsfeld">
+      <span>Zusätzliche Rechte</span>
+      <p class="klein leise felderklaerung">{{ t("einst.benutzer_rechte_hinweis") }}</p>
+      <div class="bereichsraster">
+        <label class="bereich-kachel">
+          <input type="checkbox" name="fremde_bearbeiten" value="1">
+          Einträge anderer bearbeiten
+        </label>
+        <label class="bereich-kachel">
+          <input type="checkbox" name="fremde_loeschen" value="1">
+          Einträge anderer löschen
+        </label>
+        <label class="bereich-kachel">
+          <input type="checkbox" name="wiki_schreiben" value="1" checked>
+          Wiki bearbeiten
+        </label>
+      </div>
+    </fieldset>
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Konto anlegen</button>
+    </div>
+  </form>
+</section>
+
+<section class="karte">
+  <h2>Bestehende Konten{% if benutzerliste %} · {{ benutzerliste | length }}{% endif %}</h2>
+  {% if benutzerliste %}
+  {% for b in benutzerliste %}
+  {% set erlaubt = b.berechtigungen.split(",") if b.berechtigungen else None %}
+  <div class="benutzerkarte {{ '' if b.aktiv else 'stillgelegt' }}">
+    <form action="/einstellungen/benutzer/{{ b.id }}" method="post" id="bn-{{ b.id }}"></form>
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Benutzername</span>
+        <input type="text" name="benutzername" value="{{ b.benutzername }}" form="bn-{{ b.id }}"
+               required maxlength="80">
+      </label>
+      <label class="feld">
+        <span>E-Mail-Adresse</span>
+        <input type="email" name="email" value="{{ b.email or '' }}" form="bn-{{ b.id }}">
+      </label>
+    </div>
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Gehört zu Mitarbeiter</span>
+        <select name="mitarbeiter" form="bn-{{ b.id }}">
+          <option value="">keine Zuordnung</option>
+          {% for m in team %}
+          <option value="{{ m.name }}" {{ 'selected' if b.mitarbeiter == m.name }}>{{ m.name }}</option>
+          {% endfor %}
+          {% if b.mitarbeiter and b.mitarbeiter not in team | map(attribute='name') | list %}
+          <option value="{{ b.mitarbeiter }}" selected>{{ b.mitarbeiter }} (nicht mehr im Team)</option>
+          {% endif %}
+        </select>
+      </label>
+      <div class="feld zuordnungsstand">
+        <span>&nbsp;</span>
+        {% if b.mitarbeiter and b.email %}
+          <span class="marke-status gut">erhält Erinnerungen als {{ b.mitarbeiter }}</span>
+        {% elif b.email %}
+          <span class="marke-status offen">nur über Namensgleichheit</span>
+        {% else %}
+          <span class="marke-status weg">keine E-Mail hinterlegt</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="feldreihe">
+      <label class="feld">
+        <span>Rolle</span>
+        <select name="rolle" form="bn-{{ b.id }}">
+          <option value="benutzer" {{ 'selected' if b.rolle == 'benutzer' }}>Benutzer</option>
+          <option value="admin" {{ 'selected' if b.rolle == 'admin' }}>Administrator</option>
+        </select>
+      </label>
+      <label class="feld">
+        <span>Neues Passwort <span class="leise">– leer lassen für unverändert</span></span>
+        <input type="password" name="neues_passwort" form="bn-{{ b.id }}"
+               autocomplete="new-password">
+      </label>
+      <label class="feld ankreuz-feld">
+        <span>&nbsp;</span>
+        <label class="ankreuz">
+          <input type="checkbox" name="aktiv" value="1" {{ 'checked' if b.aktiv }} form="bn-{{ b.id }}">
+          Konto aktiv
+        </label>
+      </label>
+    </div>
+    <fieldset class="feld bereichsfeld">
+      <span>Zugriff auf <span class="leise">– ohne Wirkung, solange die Rolle „Administrator“ ist</span></span>
+      <div class="bereichsraster">
+        {% for schluessel, name in BEREICHE.items() %}
+        <label class="bereich-kachel">
+          <input type="checkbox" name="bereiche" value="{{ schluessel }}" form="bn-{{ b.id }}"
+                 {{ 'checked' if not erlaubt or schluessel in erlaubt }}> {{ name }}
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+    <fieldset class="feld bereichsfeld">
+      <span>Zusätzliche Rechte <span class="leise">– ohne Wirkung bei der Rolle „Administrator“</span></span>
+      <div class="bereichsraster">
+        <label class="bereich-kachel">
+          <input type="checkbox" name="fremde_bearbeiten" value="1" form="bn-{{ b.id }}"
+                 {{ 'checked' if b.fremde_bearbeiten }}>
+          Einträge anderer bearbeiten
+        </label>
+        <label class="bereich-kachel">
+          <input type="checkbox" name="fremde_loeschen" value="1" form="bn-{{ b.id }}"
+                 {{ 'checked' if b.fremde_loeschen }}>
+          Einträge anderer löschen
+        </label>
+        <label class="bereich-kachel">
+          <input type="checkbox" name="wiki_schreiben" value="1" form="bn-{{ b.id }}"
+                 {{ 'checked' if b.wiki_schreiben }}>
+          Wiki bearbeiten
+        </label>
+      </div>
+    </fieldset>
+    <div class="knopfreihe">
+      <button class="knopf" type="submit" form="bn-{{ b.id }}">speichern</button>
+      {% if b.id != eigene_id %}
+      <form class="inline" action="/einstellungen/benutzer/{{ b.id }}/loeschen" method="post"
+            onsubmit="return confirm('Konto „{{ b.benutzername }}“ endgültig löschen?')">
+        <button class="knopf warn" type="submit">löschen</button>
+      </form>
+      {% else %}
+      <span class="klein leise" style="align-self: center;">{{ t("einst.benutzer_selbst") }}</span>
+      {% endif %}
+      {% if b.letzter_login %}
+      <span class="klein leise" style="align-self: center; margin-left: auto;">
+        letzte Anmeldung: {{ b.letzter_login | zeitpunkt }}
+      </span>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="leer">{{ t("einst.benutzer_keine") }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if bereich == "email" %}
+<section class="karte">
+  <h1>E-Mail-Versand</h1>
+  <p class="lead">{{ t("einst.email_lead") }}</p>
+
+  <form action="/einstellungen/email" method="post">
+    <label class="ankreuz" style="margin-bottom: 18px;">
+      <input type="checkbox" name="mail_aktiv" value="1"
+             {{ 'checked' if mailkonfig.mail_aktiv == '1' }}>
+      <span>Automatischen Versand einschalten</span>
+    </label>
+
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Absenderadresse</span>
+        <input type="email" name="smtp_absender" value="{{ mailkonfig.smtp_absender }}" required>
+      </label>
+      <label class="feld">
+        <span>Absendername <span class="leise">– erscheint beim Empfänger</span></span>
+        <input type="text" name="smtp_absendername" value="{{ mailkonfig.smtp_absendername }}">
+      </label>
+    </div>
+
+    <div class="feldreihe">
+      <label class="feld">
+        <span>Postausgangsserver</span>
+        <input type="text" name="smtp_server" value="{{ mailkonfig.smtp_server }}" required>
+      </label>
+      <label class="feld">
+        <span>Port</span>
+        <input type="text" name="smtp_port" value="{{ mailkonfig.smtp_port }}">
+      </label>
+      <label class="feld">
+        <span>Verschlüsselung</span>
+        <select name="smtp_sicherheit">
+          <option value="ssl" {{ 'selected' if mailkonfig.smtp_sicherheit == 'ssl' }}>SSL/TLS (Port 465)</option>
+          <option value="starttls" {{ 'selected' if mailkonfig.smtp_sicherheit == 'starttls' }}>STARTTLS (Port 587)</option>
+          <option value="keine" {{ 'selected' if mailkonfig.smtp_sicherheit == 'keine' }}>keine</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Benutzername</span>
+        <input type="text" name="smtp_benutzer" value="{{ mailkonfig.smtp_benutzer }}" autocomplete="off">
+      </label>
+      <label class="feld">
+        <span>Passwort
+          <span class="leise">– {% if passwort_gesetzt %}hinterlegt, leer lassen für unverändert{% else %}noch nicht hinterlegt{% endif %}</span>
+        </span>
+        <input type="password" name="smtp_passwort" autocomplete="new-password"
+               placeholder="{{ '••••••••' if passwort_gesetzt else 'Passwort eintragen' }}">
+      </label>
+    </div>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Zugangsdaten speichern</button>
+    </div>
+  </form>
+</section>
+
+<section class="raster gleich buendig">
+  <div class="karte">
+    <h2>Testnachricht senden</h2>
+    <p class="klein leise felderklaerung">{{ t("einst.email_test_hinweis") }}</p>
+    <form action="/einstellungen/email/test" method="post">
+      <label class="feld">
+        <span>Empfänger <span class="leise">– leer: die eigene Adresse</span></span>
+        <input type="email" name="empfaenger" placeholder="test@example.de">
+      </label>
+      <div class="knopfreihe">
+        <button class="knopf" type="submit">Testnachricht verschicken</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="karte">
+    <h2>Sofort prüfen</h2>
+    <p class="klein leise felderklaerung">{{ t("einst.email_pruefen_hinweis") }}</p>
+    <form action="/einstellungen/email/pruefen" method="post">
+      <div class="knopfreihe">
+        <button class="knopf" type="submit">Jetzt auf Erinnerungen prüfen</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="karte">
+  <h2>Zuletzt verschickt</h2>
+  <p class="klein leise felderklaerung">{{ t("einst.email_verlauf_hinweis") }}</p>
+  {% if letzte_mails %}
+  <div class="tabellenrolle">
+  <table class="liste dicht">
+    <thead>
+      <tr><th>Zeitpunkt</th><th>Anlass</th><th>Empfänger</th><th>Ergebnis</th></tr>
+    </thead>
+    <tbody>
+      {% for m in letzte_mails %}
+      <tr>
+        <td class="zahlen nowrap">{{ m.gesendet_am }}</td>
+        <td class="leise klein">{{ "Frist überfällig" if m.art == "frist" else "Abgabe fehlt" }}</td>
+        <td>{{ m.empfaenger }}</td>
+        <td>
+          {% if m.erfolg %}<span class="marke-status gut">gesendet</span>
+          {% else %}<span class="marke-status dopp" title="{{ m.meldung }}">Fehler</span>
+            <span class="klein leise">{{ m.meldung | truncate(70) }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="leer">{{ t("einst.email_keine") }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if bereich == "vorlagen" %}
+<section class="karte">
+  <h1>E-Mail-Vorlagen</h1>
+  <p class="lead">{{ t("einst.vorlagen_lead") }}</p>
+</section>
+
+<form action="/einstellungen/vorlagen" method="post">
+<section class="karte">
+  <h2>Überfällige Frist</h2>
+  <p class="klein leise felderklaerung">{{ t("einst.vorlage_frist_hinweis") }}</p>
+  <label class="feld">
+    <span>Betreff</span>
+    <input type="text" name="vorlage_frist_betreff" value="{{ mailkonfig.vorlage_frist_betreff }}" required>
+  </label>
+  <label class="feld">
+    <span>Text</span>
+    <textarea name="vorlage_frist_text" rows="12" required>{{ mailkonfig.vorlage_frist_text }}</textarea>
+  </label>
+  <p class="klein leise">Platzhalter: <code>{name}</code> <code>{klient}</code>
+    <code>{titel}</code> <code>{art}</code> <code>{status}</code>
+    <code>{frist}</code> <code>{tage}</code> <code>{beschreibung}</code></p>
+</section>
+
+<section class="karte">
+  <h2>Fehlende Abgabe zum Monatsanfang</h2>
+  <p class="klein leise felderklaerung">{{ t("einst.vorlage_abgabe_hinweis") }}</p>
+  <label class="feld">
+    <span>Betreff</span>
+    <input type="text" name="vorlage_abgabe_betreff" value="{{ mailkonfig.vorlage_abgabe_betreff }}" required>
+  </label>
+  <label class="feld">
+    <span>Text</span>
+    <textarea name="vorlage_abgabe_text" rows="10" required>{{ mailkonfig.vorlage_abgabe_text }}</textarea>
+  </label>
+  <p class="klein leise">Platzhalter: <code>{name}</code> <code>{monat}</code>
+    <code>{monat_kurz}</code></p>
+
+  <div class="knopfreihe" style="margin-top: 20px;">
+    <button class="knopf haupt" type="submit">Vorlagen speichern</button>
+  </div>
+</section>
+</form>
+
+<section class="karte">
+  <h2>Zurücksetzen</h2>
+  <p class="klein leise felderklaerung">{{ t("einst.vorlagen_zuruecksetzen") }}</p>
+  <form action="/einstellungen/vorlagen/zuruecksetzen" method="post"
+        onsubmit="return confirm('Beide Vorlagen auf den Auslieferungsstand zurücksetzen? Deine Änderungen gehen dabei verloren.')">
+    <button class="knopf warn" type="submit">Auf Auslieferungsstand zurücksetzen</button>
+  </form>
+</section>
+{% endif %}
+
+{% if bereich == "system" %}
+<section class="karte" id="system">
+  <h1>System</h1>
+  <p class="lead">{{ t("einst.system_lead") }}</p>
+
+  <div class="systemraster">
+    <div class="systemblock">
+      <h2>Bestand</h2>
+      <dl class="systemliste">
+        <dt>Datensätze</dt><dd>{{ system.datensaetze }}</dd>
+        <dt>Erfasste Zeit</dt><dd>{{ system.stunden | gesamtstunden }}</dd>
+        <dt>Zeitraum</dt><dd>{{ system.zeitraum }}</dd>
+        <dt>Betreute Personen</dt><dd>{{ system.klienten }} in Daten · {{ system.personen }} angelegt</dd>
+        <dt>Mitarbeiter</dt><dd>{{ system.mitarbeiter }}</dd>
+        <dt>Importe</dt><dd>{{ system.importe }}{% if system.offen %} · {{ system.offen }} Zeilen in Vorschau{% endif %}</dd>
+      </dl>
+    </div>
+
+    <div class="systemblock">
+      <h2>Anwendung</h2>
+      <dl class="systemliste">
+        <dt>Version</dt><dd>{{ system.version }} · <a href="/changelog">Changelog</a></dd>
+        <dt>Datenbank</dt><dd>{{ system.db_groesse }}</dd>
+        <dt>E-Mail-Wecker</dt><dd>{{ system.wecker }}</dd>
+        <dt>Anmeldung</dt><dd>{{ system.anmeldung }}</dd>
+        <dt>Upload-Grenze</dt><dd>{{ system.max_upload }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <h2 style="margin-top: 22px;">Pfade im Container</h2>
+  <dl class="systemliste breit">
+    <dt>Datenbank</dt><dd><code>{{ system.db_pfad }}</code></dd>
+    {% for name, pfad, stand in system.dateien %}
+    <dt>{{ name }}</dt>
+    <dd><code>{{ pfad }}</code>
+      <span class="marke-status {{ 'gut' if stand.startswith('vorhanden (') else 'offen' }}">{{ stand }}</span>
+    </dd>
+    {% endfor %}
+  </dl>
+</section>
+
+{% if ist_admin %}
+<section class="raster gleich buendig">
+  <div class="karte hochkant">
+    <h2>Sicherung herunterladen</h2>
+    <p class="klein leise felderklaerung">{{ t("einst.sicherung_export") }}</p>
+    <div class="knopfreihe unten">
+      <a class="knopf haupt" href="/einstellungen/sicherung">Datenbank herunterladen</a>
+    </div>
+  </div>
+
+  <div class="karte hochkant">
+    <h2>Sicherung einspielen</h2>
+    <p class="klein leise felderklaerung">{{ t("einst.sicherung_import") }}</p>
+    <form action="/einstellungen/sicherung" method="post" enctype="multipart/form-data"
+          onsubmit="return confirm('Der gesamte aktuelle Datenbestand wird durch die hochgeladene Sicherung ersetzt. Wirklich fortfahren?')">
+      <label class="feld">
+        <span>Sicherungsdatei (.db)</span>
+        <input type="file" name="datei" accept=".db,.sqlite,.sqlite3" required>
+      </label>
+      <label class="ankreuz">
+        <input type="checkbox" name="bestaetigt" value="1" required>
+        <span>Mir ist klar, dass der aktuelle Datenbestand dabei ersetzt wird.</span>
+      </label>
+      <div class="knopfreihe unten">
+        <button class="knopf warn" type="submit">Sicherung einspielen</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endif %}
+
+</div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% from "_vorgang_teile.html" import statusmarke, priomarke, frist, werskript, logzeile, logtag with context %}
+{% block titel %} – {{ name }}{% endblock %}
+{% block inhalt %}
+
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+<p class="statuszeile klein leise">
+  <a href="/vorgaenge">Aufgaben</a> › {{ name }}
+</p>
+
+{# Kopfkarte in drei Bändern: Name, Kennzahlen, Aktionen. Vorher standen
+   die drei Blöcke ohne Trennung direkt übereinander und klebten
+   aneinander. Dieselbe Formensprache wie die Fahrzeugkarte im Fuhrpark:
+   dünne Linie plus großzügiger Abstand statt bloßer Absatzabstände. #}
+<section class="karte personenkopf">
+  <div class="kopfzeile">
+    <h1>{{ name }}</h1>
+    <p class="summe">{{ offene | length }} <span>· offen{% if erledigte %} · {{ erledigte | length }} abgeschlossen{% endif %}</span></p>
+  </div>
+
+  <dl class="personenzahlen">
+    {% if stamm %}
+    <div>
+      <dt>Wochenkontingent</dt>
+      <dd>{{ stamm.wochenstunden }} Std{% if not stamm.aktiv %}
+        <span class="marke-status weg">stillgelegt</span>{% endif %}</dd>
+    </div>
+    {% endif %}
+    <div>
+      <dt>Erfasste Zeiten</dt>
+      <dd>{{ eintraege.n }} Datensätze · {{ eintraege.m | gesamtstunden }}</dd>
+    </div>
+    {% if eintraege.von %}
+    <div>
+      <dt>Zeitraum</dt>
+      <dd>{{ eintraege.von | deutsch }} – {{ eintraege.bis | deutsch }}</dd>
+    </div>
+    {% endif %}
+  </dl>
+
+  <div class="knopfreihe personenaktionen">
+    <a class="knopf haupt" href="/vorgaenge?neu=1&amp;klient={{ name | urlencode }}#neu">Vorgang für {{ name }} anlegen</a>
+    <a class="knopf" href="/eintraege?klient={{ name | urlencode }}">Zeiten ansehen</a>
+    <a class="knopf leise" href="/vorgaenge/logbuch?klient={{ name | urlencode }}">nur das Logbuch</a>
+  </div>
+
+  {% if not bekannt %}
+  <p class="meldung offen-hinweis personenhinweis">
+    Zu diesem Namen liegen derzeit keine erfassten Zeiten vor. Die Vorgänge
+    bleiben erhalten, der Name taucht aber nur noch hier auf.
+  </p>
+  {% endif %}
+</section>
+
+<section class="karte">
+  <h2>Laufende Vorgänge</h2>
+  {% if offene %}
+  <div class="tabellenrolle">
+  <table class="liste dicht">
+    <thead>
+      <tr><th>Frist</th><th>Vorgang</th><th>Art</th><th>Status</th>
+          <th>Zuständig</th><th>Priorität</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for z in offene %}
+      <tr class="{{ 'zeile-ueberfaellig' if z.lage == 'ueberfaellig' }}">
+        <td class="zahlen nowrap">{{ frist(z.v, z.lage) }}</td>
+        <td><a class="stark" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}</a></td>
+        <td class="leise klein">{{ z.v.art }}</td>
+        <td class="nowrap links">{{ statusmarke(z.v.status) }}</td>
+        <td class="leise">{{ z.v.zustaendig }}</td>
+        <td class="nowrap">{{ priomarke(z.v.prioritaet) }}</td>
+        <td class="rechts nowrap">
+          <a class="knopf-icon" href="/vorgaenge/{{ z.v.id }}" title="Öffnen" aria-label="Öffnen">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"
+                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
+            </svg>
+          </a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="leer">{{ t("vorgaenge.person_keine_offenen", name=name) }}</p>
+  {% endif %}
+</section>
+
+<section class="karte">
+  <h2>Erledigt und archiviert</h2>
+  <p class="klein leise felderklaerung">{{ t("vorgaenge.archiv_hinweis") }}</p>
+  {% if erledigte %}
+  <div class="tabellenrolle">
+  <table class="liste dicht">
+    <thead>
+      <tr><th>Abschluss</th><th>Vorgang</th><th>Art</th><th>Status</th>
+          <th>Zuständig</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for v in erledigte %}
+      <tr class="zeile-zu">
+        <td class="zahlen nowrap">{{ (v.datum_erledigt | deutsch) if v.datum_erledigt else (v.geaendert_am or "")[:10] | deutsch }}</td>
+        <td><a href="/vorgaenge/{{ v.id }}">{{ v.titel }}</a></td>
+        <td class="leise klein">{{ v.art }}</td>
+        <td class="nowrap links">{{ statusmarke(v.status) }}</td>
+        <td class="leise">{{ v.zustaendig }}</td>
+        <td class="rechts nowrap">
+          <a class="knopf-icon" href="/vorgaenge/{{ v.id }}" title="Öffnen" aria-label="Öffnen">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"
+                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
+            </svg>
+          </a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="leer">{{ t("vorgaenge.person_keine_archiviert") }}</p>
+  {% endif %}
+</section>
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Logbuch</h2>
+    <p class="klein leise">{{ verlauf | length }} Einträge · neueste oben</p>
+  </div>
+  {% if verlauf %}
+  {% for gruppe in verlauf_tage %}
+    {{ logtag(gruppe.wort) }}
+    <ul class="logliste">
+      {% for e in gruppe.zeilen %}{{ logzeile(e, false) }}{% endfor %}
+    </ul>
+    {% endfor %}
+  {% else %}
+  <p class="leer">{{ t("vorgaenge.person_kein_logbuch") }}</p>
+  {% endif %}
+</section>
+
+{{ werskript() }}
+{% endblock %}

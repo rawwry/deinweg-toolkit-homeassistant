@@ -1,0 +1,2656 @@
+/* Dein Weg: Timetool – Dark Mode ist Standard, Hell per Schalter */
+
+:root,
+[data-thema="dunkel"] {
+  --grund:      #131416;
+  --flaeche:    #1c1e21;
+  --flaeche-2:  #232629;
+  --tinte:      #eceef0;
+  --tinte-2:    #c2c8cf;
+  --leise:      #949ba3;
+  --linie:      #2e3237;
+  --linie-fein: #26292d;
+  --linie-stark:#454c55;
+  --akzent:     #f285b6;
+  --akzent-satt:#f9a8cd;
+  /* Vier Stufen derselben Farbe für die Überschriften einer Wiki-Seite.
+     Die erste Ebene trägt den kräftigsten Ton, nach unten wird er immer
+     heller. Nicht durch Grautöne ersetzen und die Richtung nicht
+     umdrehen - die Rangfolge soll an der Farbe ablesbar sein. */
+  --ueber-1:    #ef6ea8;
+  --ueber-2:    #f48fbd;
+  --ueber-3:    #f7abd0;
+  --ueber-4:    #f8c4de;
+  --akzent-weich:#2c2026;
+  --warn:       #e3b262;
+  --warn-weich: #2e2718;
+  --dopp:       #e98a7a;
+  --dopp-weich: #331f1b;
+  --gut:        #7fd3ae;
+  --zebra:      #202225;
+  --schatten:   0 1px 2px rgba(0,0,0,.4);
+  /* Eigene Farbreihe fuer die Kostenkategorien des Fuhrparks. Sie muss
+     acht unterscheidbare Toene liefern - die Akzentfarbe allein reicht
+     dafuer nicht, und Grautoene waeren in einem Ringdiagramm nicht mehr
+     auseinanderzuhalten. Bewusst gedaempft, damit die Seite nicht bunt
+     wird. */
+  --kfz-tanken:    #6fb3d9;
+  --kfz-inspektion:#7fd3ae;
+  --kfz-wartung:   #b6cf7a;
+  --kfz-reparatur: #e98a7a;
+  --kfz-reifen:    #b79ce0;
+  --kfz-tuev:      #e3b262;
+  --kfz-sonstiges: #94a3ad;
+  --kfz-km:        #6d7379;
+}
+
+[data-thema="hell"] {
+  --grund:      #f2f3f4;
+  --flaeche:    #ffffff;
+  --flaeche-2:  #f7f8f9;
+  --tinte:      #272827;
+  --tinte-2:    #4c525a;
+  --leise:      #6d7379;
+  --linie:      #e0e3e6;
+  --linie-fein: #eef0f2;
+  --linie-stark:#c3c9d0;
+  --akzent:     #c2417e;
+  --akzent-satt:#a83568;
+  --ueber-1:    #a12d5c;
+  --ueber-2:    #ba3b74;
+  --ueber-3:    #c4588c;
+  --ueber-4:    #c0709b;
+  --akzent-weich:#fdeef5;
+  --warn:       #8a5a06;
+  --warn-weich: #fbf3e2;
+  --dopp:       #a83f2e;
+  --dopp-weich: #fbeae6;
+  --gut:        #1e7a58;
+  --zebra:      #fafbfc;
+  --schatten:   0 1px 2px rgba(20,25,30,.06);
+  --kfz-tanken:    #2f7ea8;
+  --kfz-inspektion:#1e7a58;
+  --kfz-wartung:   #6f8a2a;
+  --kfz-reparatur: #a83f2e;
+  --kfz-reifen:    #6f52a8;
+  --kfz-tuev:      #8a5a06;
+  --kfz-sonstiges: #5b666f;
+  --kfz-km:        #8b9198;
+}
+
+:root { --abstand: 18px; --radius: 12px; color-scheme: dark;
+        --marke-liste: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1' y='2' width='14' height='2' rx='1'/><rect x='1' y='7' width='10' height='2' rx='1'/><rect x='1' y='12' width='6' height='2' rx='1'/></svg>"); }
+[data-thema="hell"] { color-scheme: light; }
+
+* { box-sizing: border-box; }
+
+html {
+  /* Letzte Absicherung gegen einen seitlichen Scrollbalken über die ganze
+     Seite: egal welches Element im Zweifel doch minimal zu breit wird,
+     hier wird nichts über den sichtbaren Bereich hinaus verschoben.
+     Einzelne bewusst breite Inhalte (z.B. Tabellen) scrollen weiterhin
+     innerhalb ihres eigenen Kastens (siehe .tabellenrolle/.karte). */
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--grund);
+  color: var(--tinte);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+/* Flex-Kinder von body (Kopfzeile, Hauptbereich, Fusszeile) muessen sich
+   ebenfalls unter ihre jeweilige Inhaltsbreite verkleinern duerfen -
+   sonst reicht ein einzelnes zu breites Element irgendwo auf der Seite,
+   um die ganze Seite (und damit body) breiter als den Viewport zu
+   schieben. Ergaenzt den bereits vorhandenen Fix fuer die Kinder von
+   main weiter unten. */
+body > * { min-width: 0; }
+
+/* --- Kopfzeile ------------------------------------------------------ */
+
+/* Die Kopfzeile bleibt beim Rollen oben stehen. Auf den langen Seiten -
+   Logbuch, Wiki, Dateien, Übersicht - musste man sonst erst wieder ganz
+   nach oben, nur um den Bereich zu wechseln. Die Höhe steht als Variable
+   dabei, weil die Seitenleisten von Wiki und Dateien darunter ebenfalls
+   kleben und ihren Abstand daran ausrichten müssen. */
+:root { --kopfhoehe: 64px; }
+.kopf {
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  padding: 12px 26px;
+  background: var(--flaeche);
+  border-bottom: 1px solid var(--linie);
+  position: sticky; top: 0; z-index: 40;
+}
+
+.marke {
+  display: flex; align-items: center;
+  text-decoration: none; margin-right: 2px; flex-shrink: 0;
+}
+.marke img { height: 34px; width: auto; display: block; }
+[data-thema="dunkel"] .nur-hell,
+[data-thema="hell"]   .nur-dunkel { display: none; }
+
+.kopf nav { display: flex; gap: 2px; flex-wrap: wrap; }
+.kopf nav a {
+  position: relative;
+  color: var(--leise); text-decoration: none; padding: 8px 14px;
+  border-radius: 9px; font-size: 14px; font-weight: 500;
+}
+.kopf nav a:hover { background: var(--flaeche-2); color: var(--tinte); }
+.kopf nav a.aktiv { background: var(--akzent-weich); color: var(--akzent);
+                    font-weight: 600; }
+/* Ein schmaler Strich unter dem aktiven Punkt. Die Farbfläche allein
+   trägt bei fünf gleich aussehenden Punkten zu wenig - der Strich sagt
+   auch bei flüchtigem Blick, wo man steht. */
+.kopf nav a.aktiv::after {
+  content: ""; position: absolute; left: 14px; right: 14px; bottom: -13px;
+  height: 2px; border-radius: 2px; background: var(--akzent);
+}
+
+.schalter { margin-left: auto; display: flex; align-items: center; gap: 9px;
+            color: var(--leise); font-size: 12.5px; }
+.schalter button {
+  position: relative; width: 46px; height: 25px; padding: 0; cursor: pointer;
+  border: 1px solid var(--linie); border-radius: 20px; background: var(--flaeche-2);
+}
+.schalter button::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 19px; height: 19px;
+  border-radius: 50%; background: var(--akzent);
+  transition: transform .18s ease;
+}
+/* Jeder Schalter bewegt sich anhand seines eigenen Zustands */
+[data-thema="hell"] .thema-knopf::after,
+[data-breite="begrenzt"] .breite-knopf::after { transform: translateX(21px); }
+.schalter button:hover { border-color: var(--akzent); }
+
+/* Auch die "volle" Breite bleibt gedeckelt statt komplett unbegrenzt -
+   auf sehr breiten Monitoren wuerden sich Karten sonst so weit dehnen,
+   dass Erklaertexte mit ihrer bewusst lesbaren Zeilenlaenge (siehe .lead)
+   wie ein Layoutfehler wirken, weil rundherum so viel Leerraum entsteht. */
+main, footer p { max-width: 1800px; margin-left: auto; margin-right: auto; }
+[data-breite="begrenzt"] main,
+[data-breite="begrenzt"] footer p { max-width: 1400px; }
+
+main { width: 100%; margin-top: 0; margin-bottom: 0; padding: var(--abstand) 26px 48px;
+       flex: 1 0 auto;
+       display: flex; flex-direction: column; gap: var(--abstand); }
+/* Ohne das wuerde ein Flex-Kind sich nie unter seine intrinsische
+   Inhaltsbreite verkleinern (z.B. eine breite Tabelle mit nowrap-Zellen)
+   und die ganze Seite minimal breiter als den Viewport druecken - mit
+   seitlichem Scrollbalken auf der gesamten Seite statt nur im betroffenen
+   Kasten. */
+main > * { min-width: 0; }
+
+/* Jede Sprungmarke im Dokument braucht Abstand zur klebenden
+   Kopfzeile - sonst landet das Ziel darunter und ist unsichtbar. */
+[id] { scroll-margin-top: calc(var(--kopfhoehe) + 14px); }
+
+/* --- Flaechen ------------------------------------------------------- */
+
+.raster { display: grid; grid-template-columns: 1fr; gap: var(--abstand); min-width: 0; }
+.raster > * { min-width: 0; }
+@media (min-width: 900px) {
+  .raster { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+}
+.spalte { display: flex; flex-direction: column; gap: var(--abstand); }
+@media (min-width: 900px) {
+  .raster.buendig { align-items: stretch; }
+}
+.karte.hochkant { display: flex; flex-direction: column; }
+.karte.hochkant form { display: flex; flex-direction: column; flex: 1; }
+.knopfreihe.unten { margin-top: auto; padding-top: 4px; }
+
+.zeitspanne { display: inline-flex; gap: 7px; white-space: nowrap; }
+.zeitspanne .bis { opacity: .72; }
+
+.karte {
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin: 0;
+  overflow-x: auto;
+  box-shadow: var(--schatten);
+}
+
+h1 { font-size: 21px; margin: 0 0 6px; letter-spacing: -0.3px; }
+h2 { font-size: 12.5px; margin: 0 0 14px; text-transform: uppercase;
+     letter-spacing: .09em; color: var(--leise); font-weight: 700; }
+/* Erklärende Texte tragen ein kleines Informationszeichen davor, damit
+   sie sich auf einen Blick von Daten und Ergebnissen unterscheiden. Das
+   Zeichen ist eine SVG-Maske als data:-URI - also nichts, was nachgeladen
+   werden müsste - und nimmt über "background: currentColor" die Farbe des
+   Absatzes an, in Hell wie Dunkel.
+
+   Über Flexbox statt ::before im Textfluss, damit mehrzeilige Texte
+   sauber unter dem ersten Wort weiterlaufen und nicht unter dem Zeichen. */
+.lead, .felderklaerung {
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.lead::before, .felderklaerung::before {
+  content: ""; flex: 0 0 auto; width: 15px; height: 15px; margin-top: .18em;
+  background: currentColor; opacity: .75;
+  -webkit-mask: var(--infozeichen) center / contain no-repeat;
+          mask: var(--infozeichen) center / contain no-repeat;
+}
+:root {
+  --infozeichen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9.2'/%3E%3Cpath d='M12 11v5.4'/%3E%3Cpath d='M12 7.6v.1'/%3E%3C/svg%3E");
+}
+
+/* ⚠️ Alle erklärenden Texte sehen gleich aus: 12,5px, gedämpfte Farbe,
+   Informationszeichen davor. Vorbild ist der Hinweis unter Einstellungen
+   → System. Vorher liefen .lead (15px, geerbt vom Fließtext) und
+   .felderklaerung (12,5px über .klein) auseinander, was auf derselben
+   Seite wie zwei verschiedene Textsorten aussah. Beim Anlegen eines
+   neuen Erklärabsatzes also einfach eine der beiden Klassen nehmen und
+   NICHT zusätzlich eine Schriftgröße setzen. */
+.lead, .felderklaerung { font-size: 12.5px; color: var(--leise); }
+.lead { margin: 0 0 18px; }
+
+/* Erklärende Absätze bekommen überall eine feste Lesebreite, unabhängig davon,
+   wie breit die umgebende Karte durch den Fullwidth-Modus geworden ist. */
+/* Erklaertexte laufen ueber die volle Kartenbreite - die frueheren
+   Lesebreiten liessen daneben zu viel Leerraum stehen. */
+.klein { font-size: 12.5px; }
+.leise { color: var(--leise); }
+.stark { font-weight: 600; }
+.num, .rechts { text-align: right; }
+.mitte { text-align: center; }
+.links { text-align: left; }
+.nowrap { white-space: nowrap; }
+.zahlen { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+.kopfzeile { display: flex; justify-content: space-between; align-items: baseline;
+             flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.summe { margin: 0; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
+         color: var(--akzent); }
+.summe span { font-size: 13px; font-weight: 400; color: var(--leise); }
+
+.zahl { font-size: 34px; font-weight: 700; margin: 0; color: var(--akzent);
+        font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+.zahl .einheit { font-size: 17px; font-weight: 500; letter-spacing: 0; margin-left: 3px; }
+.zahl-label { margin: 3px 0 16px; color: var(--leise); font-size: 13px; }
+
+/* Ein Element mit dem hidden-Attribut soll unsichtbar bleiben, auch wenn
+   eine Klassenregel ihm ein display gibt. Das [hidden] des Browsers ist
+   schwach und verliert sonst gegen jede .knopf-Regel - genau daran blieb
+   der Absenden-Knopf der Dateiverwaltung sichtbar, obwohl das Skript ihn
+   längst auf hidden gesetzt hatte. */
+[hidden] { display: none !important; }
+
+/* --- Formulare ------------------------------------------------------ */
+
+.feld { display: block; margin-bottom: 14px; }
+.feld > span { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+input[type=text], input[type=search], input[type=file], input[type=password],
+input[type=email], input[type=tel], input[type=number], select {
+  width: 100%; padding: 9px 11px; font: inherit;
+  border: 1px solid var(--linie); border-radius: 8px;
+  background: var(--flaeche-2); color: inherit;
+  min-height: 40px;
+}
+
+/* Das Dateifeld trägt seinen eigenen Knopf im Inneren. Mit der normalen
+   Polsterung wird es dadurch höher als ein Auswahlfeld daneben – genau
+   das war im Listenimport zu sehen. Deshalb hier keine senkrechte
+   Polsterung, sondern eine Zeilenhöhe, die zusammen mit den Rahmen
+   dieselben 40px ergibt wie bei allen anderen Feldern. Der Knopf sitzt
+   auf dieser Zeile und wächst nicht darüber hinaus. */
+input[type=file] { padding-top: 0; padding-bottom: 0; line-height: 38px; }
+input[type=file]::file-selector-button {
+  font: inherit; font-size: 13px; margin-right: 10px; padding: 3px 11px;
+  line-height: normal; cursor: pointer;
+  border: 1px solid var(--linie); border-radius: 6px;
+  background: var(--flaeche); color: var(--tinte);
+}
+input:focus, select:focus, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--akzent); outline-offset: 1px;
+}
+.ankreuz { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 16px;
+           font-size: 13.5px; color: var(--leise); }
+.ankreuz input { margin-top: 2px; accent-color: var(--akzent); }
+
+/* Filterleiste. Bis 2.5 ein Raster mit repeat(auto-fit, minmax(130px, 1fr)).
+   Das sah auf breiten Bildschirmen aus, als hoerten die Felder auf halber
+   Strecke auf: die Knopfreihe darunter spannt sich ueber alle Spalten
+   (grid-column: 1 / -1), damit galt keine Spalte mehr als leer und
+   auto-fit konnte die ueberzaehligen Spalten nicht einklappen - rechts
+   blieben zwei leere Rasterspalten stehen. Mit Flexbox waechst stattdessen
+   jedes Feld in den vorhandenen Platz hinein, egal wie viele es sind. */
+.filter { display: flex; flex-wrap: wrap; gap: 12px;
+          align-items: end; padding-bottom: 16px; border-bottom: 1px solid var(--linie);
+          margin-bottom: 16px; }
+.filter > label { flex: 1 1 150px; min-width: 0; }
+.filter label > span { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.filter .ankreuz { margin-bottom: 0; }
+
+/* Filter-Umschalter (z.B. "nur abrechenbare Zeiten") als Pille statt
+   nacktem Haekchen mit Text - gleiche Optik wie die Bereichs-Kacheln in
+   der Benutzerverwaltung, damit sich beide Checkbox-Stile im ganzen
+   Programm konsistent anfuehlen. */
+.filter-umschalter {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-radius: 20px; align-self: end;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+  font-size: 13.5px; cursor: pointer; white-space: nowrap;
+}
+/* Die Pille traegt ihre Beschriftung im Text und soll deshalb genau so
+   breit sein wie diese - nicht mitwachsen wie die Auswahlfelder. */
+.filter > .filter-umschalter { flex: 0 0 auto; width: fit-content; }
+.filter-umschalter input { accent-color: var(--akzent); margin: 0; }
+.filter-umschalter:has(input:checked) {
+  border-color: var(--akzent); background: var(--akzent-weich); color: var(--akzent);
+}
+.filter-umschalter:hover { border-color: var(--akzent); }
+
+.filter-knoepfe { display: flex; gap: 8px; flex: 1 0 100%;
+                  justify-content: flex-start; padding-top: 2px; }
+
+.knopf {
+  display: inline-block; padding: 9px 16px; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; text-decoration: none;
+  border: 1px solid var(--linie); background: var(--flaeche-2); color: var(--tinte);
+}
+.knopf:hover { border-color: var(--akzent); color: var(--akzent); }
+.knopf.haupt { background: var(--akzent); border-color: var(--akzent); color: #1a1113; }
+.knopf.haupt:hover { background: var(--akzent-satt); border-color: var(--akzent-satt); color: #1a1113; }
+[data-thema="hell"] .knopf.haupt { color: #fff; }
+[data-thema="hell"] .knopf.haupt:hover { color: #fff; }
+.knopf.leise { color: var(--leise); }
+.knopf.klein { padding: 5px 10px; font-size: 12.5px; font-weight: 500; }
+.knopf.warn { color: var(--dopp); }
+.knopf.warn:hover { border-color: var(--dopp); color: var(--dopp); }
+
+/* Kompakte quadratische Buttons mit Icon statt Text, z.B. fuer
+   "anzeigen"/"zurücknehmen" in der Import-Liste - gleiche Grundoptik wie
+   .knopf, aber ohne Textbreite. */
+.knopf-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--linie); background: var(--flaeche-2); color: var(--tinte);
+  vertical-align: middle;
+}
+.knopf-icon svg { width: 16px; height: 16px; }
+.knopf-icon:hover { border-color: var(--akzent); color: var(--akzent); }
+.knopf-icon.warn { color: var(--dopp); }
+.knopf-icon.warn:hover { border-color: var(--dopp); color: var(--dopp); }
+.knopf-icon + .knopf-icon, .knopf-icon + form.inline { margin-left: 6px; }
+.knopfreihe { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+.knopfreihe form { margin: 0; }
+form.inline { display: inline; }
+
+/* --- Tabellen ------------------------------------------------------- */
+
+.liste { width: 100%; border-collapse: collapse; font-size: 14px; }
+.liste th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--leise); font-weight: 700; padding: 0 10px 8px;
+  border-bottom: 1px solid var(--linie); white-space: nowrap;
+}
+.liste td { padding: 9px 10px; border-bottom: 1px solid var(--linie-fein); vertical-align: top; }
+.liste tbody tr:nth-child(even) { background: var(--zebra); }
+.liste tbody tr:hover, .liste tbody tr:nth-child(even):hover { background: var(--flaeche-2); }
+.liste.dicht td { padding: 6px 10px; font-size: 13.5px; }
+.liste td form { margin: 0; }
+.liste a { color: var(--akzent); }
+
+.liste tbody tr.dublette, .liste tbody tr.dublette:nth-child(even) { background: var(--dopp-weich); }
+.liste tbody tr.warnung,  .liste tbody tr.warnung:nth-child(even)  { background: var(--warn-weich); }
+
+.marke-status {
+  display: inline-block; padding: 2px 8px; border-radius: 20px;
+  font-size: 11.5px; font-weight: 600; white-space: nowrap;
+}
+.marke-status.gut  { background: var(--akzent-weich); color: var(--gut); }
+.marke-status.offen{ background: var(--warn-weich);  color: var(--warn); }
+.marke-status.dopp { background: var(--dopp-weich);  color: var(--dopp); }
+.marke-status.weg  { background: var(--flaeche-2);   color: var(--leise); }
+
+.balkenzelle { width: 168px; padding-top: 11px !important; }
+.balkenspur { display: block; height: 7px; border-radius: 4px;
+              background: var(--flaeche-2); border: 1px solid var(--linie-fein);
+              overflow: hidden; }
+.balken { display: block; height: 100%; border-radius: 4px; min-width: 2px;
+          background: linear-gradient(90deg, var(--akzent), var(--akzent-satt)); }
+.balken.knapp { background: linear-gradient(90deg, var(--warn), #d9b877); }
+.balken.ueber { background: linear-gradient(90deg, var(--dopp), #f0a493); }
+.prozent { display: block; margin-top: 4px; font-size: 11.5px; font-weight: 700;
+           text-align: right; font-variant-numeric: tabular-nums; color: var(--gut); }
+.prozent.knapp { color: var(--warn); }
+.prozent.ueber { color: var(--dopp); }
+
+.meldung { padding: 11px 14px; border-radius: 9px; font-size: 14px; margin: 0;
+           border: 1px solid transparent; }
+.meldung.fehler { background: var(--dopp-weich); color: var(--dopp); border-color: var(--dopp); }
+.meldung.hinweis { background: var(--akzent-weich); color: var(--akzent); }
+.meldung.offen-hinweis { background: var(--warn-weich); color: var(--warn); border-color: var(--warn); }
+.leer { color: var(--leise); padding: 18px 0; margin: 0; }
+.blaettern {
+  display: flex; gap: 12px 16px; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; margin-top: 16px; padding: 13px 15px;
+  border: 1px solid var(--linie); border-radius: 11px; background: var(--flaeche-2);
+}
+.blaettern-stand { font-size: 12.5px; color: var(--leise);
+                   font-variant-numeric: tabular-nums; }
+.blaettern-stand strong { color: var(--tinte); font-weight: 600; }
+.seitenzahlen { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
+.seitenknopf {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 30px; padding: 0 7px; border-radius: 8px;
+  border: 1px solid transparent; background: transparent;
+  color: var(--leise); text-decoration: none;
+  font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.seitenknopf:hover { background: var(--flaeche); border-color: var(--linie);
+                     color: var(--tinte); }
+.seitenknopf.hier {
+  background: var(--akzent-weich); border-color: var(--akzent);
+  color: var(--akzent); cursor: default;
+}
+.seitenknopf.pfeil { font-size: 16px; line-height: 1; padding-bottom: 2px;
+                     border-color: var(--linie); background: var(--flaeche); }
+.seitenknopf.pfeil:hover { border-color: var(--akzent); color: var(--akzent); }
+.seitenknopf.aus { opacity: .28; pointer-events: none; }
+.seitenluecke { padding: 0 2px; color: var(--leise); font-size: 13px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .seitenknopf { transition: background .13s ease, border-color .13s ease,
+                             color .13s ease; }
+}
+
+.pfad, code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+              background: var(--flaeche-2); border-radius: 5px; }
+.pfad { display: block; word-break: break-all; padding: 6px 9px; margin: 0 0 10px;
+        font-size: 12px; color: var(--leise); }
+code { padding: 1px 5px; font-size: .92em; }
+.statuszeile { margin: 0 0 10px; }
+
+footer { flex: 0 0 auto; text-align: center; color: var(--leise); font-size: 12.5px;
+         padding: 34px 26px 0; }
+footer img { height: 66px; width: auto; opacity: .55; display: block; margin: 0 auto 52px;
+             transition: opacity .3s ease, transform .35s cubic-bezier(.34,1.5,.5,1); }
+footer img:hover { opacity: 1; transform: translateY(-3px) scale(1.03); }
+/* margin muss "auto" bleiben, sonst ueberschreibt die Kurzschreibweise die
+   weiter oben gesetzte Zentrierung (margin-left/right: auto zu max-width).
+   Genau das war der Grund, warum die Fusszeile auf sehr breiten Fenstern
+   links klebte, waehrend das Logo darueber mittig blieb. Der seitliche
+   Abstand kommt jetzt aus dem padding der Fusszeile. */
+footer p { margin: 0 auto;
+           border-top: 1px solid var(--linie); padding: 18px 0 22px; }
+footer a { color: var(--akzent); text-decoration: none; border-bottom: 1px solid transparent; }
+footer a:hover { border-bottom-color: var(--akzent); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .knopf, .liste tbody tr, .kopf nav a { transition: background .13s ease, border-color .13s ease, color .13s ease; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .schalter button::after { transition: none; }
+}
+
+/* --- Formularreihen im Bearbeiten-Dialog ---------------------------- */
+
+.schmal-mitte { max-width: 720px; width: 100%; margin: 0 auto; }
+.feldreihe { display: grid; gap: 16px; margin-bottom: 18px;
+             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.feldreihe.zwei { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.feldreihe .feld { margin-bottom: 0; }
+.felderklaerung { margin: 8px 0 18px; }
+input[type=date], input[type=time] {
+  width: 100%; padding: 8px 11px; font: inherit;
+  border: 1px solid var(--linie); border-radius: 8px;
+  background: var(--flaeche-2); color: inherit;
+}
+[data-thema="dunkel"] input[type=date]::-webkit-calendar-picker-indicator,
+[data-thema="dunkel"] input[type=time]::-webkit-calendar-picker-indicator {
+  filter: invert(.75);
+}
+
+/* --- Bewegung ------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+
+  /* Karten kommen beim Laden gestaffelt hoch */
+  @keyframes auftauchen {
+    from { opacity: 0; transform: translateY(14px) scale(.985); }
+    60%  { opacity: 1; transform: translateY(-3px) scale(1.004); }
+    to   { opacity: 1; transform: none; }
+  }
+  main > * {
+    animation: auftauchen .5s cubic-bezier(.34, 1.42, .5, 1) backwards;
+  }
+  main > *:nth-child(1) { animation-delay: .02s; }
+  main > *:nth-child(2) { animation-delay: .09s; }
+  main > *:nth-child(3) { animation-delay: .16s; }
+  main > *:nth-child(4) { animation-delay: .23s; }
+  main > *:nth-child(n+5) { animation-delay: .3s; }
+
+  /* Knöpfe federn kurz nach */
+  .knopf { transition: background .15s ease, border-color .15s ease, color .15s ease,
+                       transform .22s cubic-bezier(.34, 1.56, .46, 1), box-shadow .2s ease; }
+  .knopf:hover { transform: translateY(-2px); }
+  .knopf.haupt:hover { box-shadow: 0 5px 16px -6px var(--akzent); }
+  .knopf:active { transform: translateY(0) scale(.96); transition-duration: .07s; }
+
+  /* Tabellenzeilen rücken beim Überfahren leicht ein */
+  .liste tbody tr { transition: background .15s ease, transform .2s cubic-bezier(.34,1.4,.5,1); }
+  .liste tbody tr:hover { transform: translateX(3px); }
+
+  /* Balken der Auswertung wachsen von links */
+  @keyframes wachsen { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .balken { transform-origin: left center;
+            animation: wachsen .8s .25s cubic-bezier(.22, 1.3, .36, 1) backwards; }
+
+  /* Die große Bestandszahl wippt einmal rein */
+  @keyframes zahl-rein {
+    from { opacity: 0; transform: translateY(10px) scale(.9); }
+    65%  { opacity: 1; transform: translateY(0) scale(1.06); }
+    to   { opacity: 1; transform: none; }
+  }
+  .zahl { animation: zahl-rein .62s .18s cubic-bezier(.3, 1.5, .5, 1) backwards; }
+
+  /* Meldungen kippen kurz herein */
+  @keyframes meldung-rein {
+    from { opacity: 0; transform: translateY(-10px); }
+    70%  { opacity: 1; transform: translateY(2px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .meldung { animation: meldung-rein .42s cubic-bezier(.3, 1.5, .5, 1) backwards; }
+
+  /* Statuspillen atmen einmal auf, wenn etwas offen ist */
+  @keyframes pochen {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.07); }
+  }
+  .marke-status.offen { animation: pochen 2.4s ease-in-out 3; }
+
+  /* Navigation und Logo */
+  .kopf nav a { transition: background .15s ease, color .15s ease,
+                            transform .2s cubic-bezier(.34,1.5,.5,1); }
+  .kopf nav a:hover { transform: translateY(-1px); }
+  .marke img { transition: transform .3s cubic-bezier(.34, 1.6, .48, 1); }
+  .marke:hover img { transform: scale(1.045) rotate(-.6deg); }
+
+  /* Der Themenschalter federt */
+  .schalter button::after { transition: transform .32s cubic-bezier(.5, 1.75, .45, 1),
+                                        background .2s ease; }
+
+  /* Eingabefelder heben sich beim Fokus leicht an */
+  input, select { transition: border-color .15s ease, background .15s ease,
+                              box-shadow .2s ease; }
+  input:focus, select:focus { box-shadow: 0 0 0 4px var(--akzent-weich); }
+}
+
+/* --- Bewegung, zweite Schicht --------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+
+  /* Themenwechsel sanft ausblenden statt hart umschalten */
+  body, .karte, .kopf, .liste td, .liste th, .knopf, input, select {
+    transition-property: background-color, border-color, color, box-shadow, transform;
+    transition-duration: .28s;
+    transition-timing-function: ease;
+  }
+
+  /* Karten heben sich leicht, wenn die Maus drauf liegt */
+  .karte { transition: box-shadow .3s ease, border-color .3s ease, transform .3s cubic-bezier(.34,1.3,.5,1); }
+  .karte:hover { border-color: var(--linie); box-shadow: 0 6px 22px -14px rgba(0,0,0,.65); }
+
+  /* Das Logo oben kommt beim Laden einmal herein */
+  @keyframes marke-rein {
+    from { opacity: 0; transform: translateX(-12px) scale(.96); }
+    70%  { opacity: 1; transform: translateX(2px) scale(1.01); }
+    to   { opacity: 1; transform: none; }
+  }
+  .marke img { animation: marke-rein .55s cubic-bezier(.3, 1.5, .5, 1) backwards; }
+
+  /* Navigation bekommt einen mitwachsenden Unterstrich */
+  .kopf nav a { position: relative; }
+  .kopf nav a::after {
+    content: ""; position: absolute; left: 13px; right: 13px; bottom: 3px; height: 2px;
+    border-radius: 2px; background: var(--akzent);
+    transform: scaleX(0); transform-origin: left center;
+    transition: transform .26s cubic-bezier(.3, 1.4, .5, 1);
+  }
+  .kopf nav a:hover::after { transform: scaleX(1); }
+  .kopf nav a.aktiv::after { transform: scaleX(1); }
+
+  /* Statuspillen wippen beim Überfahren */
+  .marke-status { transition: transform .22s cubic-bezier(.34, 1.6, .5, 1); }
+  .liste tbody tr:hover .marke-status { transform: scale(1.06); }
+
+  /* Der Balken in der Auswertung leuchtet beim Überfahren kurz auf */
+  .balken { transition: filter .25s ease, transform .3s cubic-bezier(.34,1.4,.5,1); }
+  .liste tbody tr:hover .balken { filter: brightness(1.18); transform: scaleY(1.4); }
+
+  /* Auswahlfelder und Dateifeld reagieren beim Drüberfahren */
+  input[type=file]::file-selector-button { transition: border-color .18s ease, color .18s ease,
+                                                       transform .2s cubic-bezier(.34,1.6,.5,1); }
+  input[type=file]:hover::file-selector-button { border-color: var(--akzent); color: var(--akzent);
+                                                 transform: translateY(-1px); }
+
+  /* Die Fußzeile blendet zuletzt ein */
+  @keyframes fuss-rein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  footer { animation: fuss-rein .6s .34s ease backwards; }
+}
+
+
+/* --- Manuelle Zeiterfassung ----------------------------------------- */
+
+.erfasser { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; }
+.erfasser .feld { margin-bottom: 0; flex: 1 1 280px; max-width: 380px; }
+.erfasser-status { margin: 0 0 9px; font-size: 12.5px; color: var(--leise); }
+
+.erfassreihe { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
+
+/* Mehrere Einträge auf einmal. Eine Zeile ist der Normalfall und sieht
+   genauso aus wie früher; erst ab der zweiten bekommt jede Zeile einen
+   Kopf mit Nummer und Entfernen-Knopf. Die Klasse "mehrere" setzt das
+   Skript – ohne Skript gibt es nur die eine Zeile, und dann wäre ein
+   Kopf mit „Eintrag 1“ nur Lärm. */
+.erfassliste { display: flex; flex-direction: column; gap: 4px; }
+.erfasszeile-kopf { display: none; }
+.erfassliste.mehrere .erfasszeile {
+  padding: 12px 14px 4px; border-radius: 10px;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+}
+.erfassliste.mehrere { gap: 10px; }
+.erfassliste.mehrere .erfasszeile-kopf {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 10px;
+}
+.erfasszeile-nr {
+  font-size: 11px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--leise);
+}
+.erfassreihe-text { margin-top: 2px; }
+.erfassreihe .dauer-anzeige { display: flex; flex-direction: column; }
+.dauer-anzeige > span { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+.dauer-anzeige output {
+  display: block; padding: 8px 11px; border-radius: 8px;
+  border: 1px dashed var(--linie); background: transparent;
+  font-size: 17px; font-weight: 700; color: var(--leise);
+  font-variant-numeric: tabular-nums; text-align: center;
+}
+.dauer-anzeige output.gut { color: var(--akzent); border-style: solid;
+                            border-color: var(--akzent); background: var(--akzent-weich); }
+.dauer-anzeige output.achtung { color: var(--warn); border-style: solid;
+                                border-color: var(--warn); background: var(--warn-weich); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .dauer-anzeige output { transition: color .2s ease, background .25s ease,
+                                      border-color .25s ease,
+                                      transform .3s cubic-bezier(.34, 1.6, .5, 1); }
+  .dauer-anzeige output.gut { transform: scale(1.03); }
+}
+
+@media (max-width: 620px) {
+  .kopf nav { gap: 0; }
+  .kopf nav a { padding: 7px 9px; font-size: 13px; }
+}
+
+/* --- Einstellungen -------------------------------------------------- */
+
+.namensliste { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.namensliste form { margin: 0; }
+tr.stillgelegt { opacity: .5; }
+tr.stillgelegt:hover { opacity: .85; }
+.liste td input.mini { margin: 0; }
+
+/* --- Stand Betreuungsstunden ---------------------------------------- */
+
+.standliste { list-style: none; margin: 0; padding: 0;
+              display: flex; flex-direction: column; gap: 15px; }
+.standkopf { display: flex; justify-content: space-between; align-items: baseline;
+             gap: 10px; margin-bottom: 5px; font-size: 13.5px; }
+.standkopf .prozent { margin: 0; }
+.standfuss { display: block; margin-top: 4px; font-size: 11.5px; color: var(--leise); }
+
+/* --- Spruch ganz oben ----------------------------------------------- */
+
+.spruch {
+  margin: 20px auto 26px; padding: 0 16px; max-width: 86ch;
+  text-align: center; color: var(--leise); opacity: .88;
+}
+.spruch blockquote {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+               Georgia, "Times New Roman", serif;
+  font-style: italic; font-size: 21px; line-height: 1.5;
+  letter-spacing: .01em; text-wrap: balance;
+  white-space: pre-line;   /* Zeilenumbrüche aus quotes.txt bleiben stehen */
+}
+.spruch figcaption {
+  margin-top: 9px;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+               Georgia, serif;
+  font-size: 13px; letter-spacing: .04em; opacity: .72;
+}
+.spruch figcaption::before { content: "— "; }
+
+@media (max-width: 620px) {
+  .spruch blockquote { font-size: 18px; }
+}
+
+.version { font-variant-numeric: tabular-nums; opacity: .8; }
+
+.betrag { white-space: nowrap; }
+.betrag.gross { font-size: 16px; color: var(--akzent); }
+.liste tfoot td { border-top: 1px solid var(--linie); border-bottom: none;
+                  padding-top: 10px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes spruch-rein { from { opacity: 0; } to { opacity: .88; } }
+  .spruch { animation: spruch-rein .8s ease backwards; }
+}
+
+.boxumfang {
+  margin: -8px 0 16px; padding-bottom: 13px;
+  border-bottom: 1px solid var(--linie-fein);
+  font-size: 12.5px; line-height: 1.5; color: var(--leise);
+}
+.boxumfang strong { color: var(--tinte); font-weight: 600; }
+
+/* --- Anzeige aktiver Filter ----------------------------------------- */
+
+.filterstand {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin: 28px 0; padding: 12px 14px; border-radius: 9px;
+  background: var(--warn-weich); border: 1px solid var(--warn);
+}
+.filterstand-marke {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--warn); margin-right: 0;
+  flex-shrink: 0;
+}
+.filterchip {
+  display: inline-block; padding: 4px 11px; border-radius: 20px;
+  background: var(--flaeche); border: 1px solid var(--linie);
+  font-size: 12.5px; font-weight: 600; flex-shrink: 0;
+}
+.filterstand .knopf { margin-left: auto; flex-shrink: 0; }
+
+@media (max-width: 600px) {
+  .filterstand {
+    flex-direction: column; align-items: flex-start; gap: 8px; margin: 22px 0;
+  }
+  .filterstand-marke { margin-bottom: 3px; }
+  .filterstand .knopf { margin-left: 0; width: 100%; }
+}
+
+.boxumfang {
+  margin: -8px 0 16px; padding-bottom: 13px;
+  border-bottom: 1px solid var(--linie-fein);
+  font-size: 12.5px; line-height: 1.5; color: var(--leise);
+}
+.boxumfang strong { color: var(--tinte); font-weight: 600; }
+
+/* --- Ideen ----------------------------------------------------------- */
+
+textarea {
+  display: block; width: 100%; box-sizing: border-box;
+  padding: 9px 11px; font: inherit; line-height: 1.55;
+  border: 1px solid var(--linie); border-radius: 8px;
+  background: var(--flaeche-2); color: inherit;
+  resize: vertical; min-height: 190px;
+}
+.feld textarea { max-width: none; }
+textarea:focus { border-color: var(--akzent); }
+
+.ideenliste { list-style: none; margin: 0; padding: 0;
+              display: grid; gap: 12px;
+              grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+.ideeneintrag {
+  border: 1px solid var(--linie); border-radius: 10px;
+  padding: 12px 14px; background: var(--flaeche-2);
+}
+.ideenkopf { display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+             margin-bottom: 8px; font-size: 13px; }
+.ideenkopf .zahlen { margin-left: auto; }
+.ideentext { margin: 0; white-space: pre-line; font-size: 14px; line-height: 1.55; }
+
+/* --- Changelog ------------------------------------------------------- */
+
+.verlauf { list-style: none; margin: 0; padding: 0 0 0 22px;
+           border-left: 2px solid var(--linie); }
+.verlauf > li { position: relative; padding: 0 0 22px 0; }
+.verlauf > li:last-child { padding-bottom: 0; }
+.verlauf > li::before {
+  content: ""; position: absolute; left: -29px; top: 5px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--flaeche); border: 2px solid var(--linie);
+}
+.verlauf > li.jetzt::before { background: var(--akzent); border-color: var(--akzent); }
+.verlaufkopf { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+               margin-bottom: 7px; }
+.verlauftitel { font-size: 13.5px; color: var(--leise); }
+.verlauf > li.jetzt .verlauftitel { color: var(--tinte); }
+.verlaufversion { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.verlauf > li.jetzt .verlaufversion { color: var(--akzent); }
+.verlaufpunkte { margin: 0; padding-left: 19px; }
+.verlaufpunkte li { font-size: 14px; line-height: 1.55; margin-bottom: 3px;
+                    color: var(--leise); }
+
+/* --- Einstellungsseite mit Abschnitten -------------------------------- */
+
+.einstellungsseite { display: grid; gap: var(--abstand); grid-template-columns: 1fr; }
+@media (min-width: 900px) {
+  .einstellungsseite { grid-template-columns: 210px minmax(0, 1fr); }
+}
+.einstellungsinhalt { display: flex; flex-direction: column; gap: var(--abstand);
+                      min-width: 0; }
+
+.seitenmenue {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 16px 14px; border: 1px solid var(--linie); border-radius: var(--radius);
+  background: var(--flaeche); align-self: start; box-shadow: var(--schatten);
+}
+@media (min-width: 900px) {
+  .seitenmenue { position: sticky; top: calc(var(--kopfhoehe) + 16px); }
+}
+.seitenmenue-titel {
+  font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--leise); margin-bottom: 8px; padding: 0 8px;
+}
+/* Gruppenüberschrift innerhalb der Navigation. Leiser als der Titel und
+   mit Trennlinie darüber - sie soll gliedern, nicht mit den Punkten
+   selbst um Aufmerksamkeit ringen. */
+.seitenmenue-gruppe {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--leise); opacity: .72;
+  margin: 14px 0 4px; padding: 10px 8px 0;
+  border-top: 1px solid var(--linie-fein);
+}
+.seitenmenue-titel + .seitenmenue-gruppe {
+  margin-top: 0; padding-top: 0; border-top: none;
+}
+.seitenmenue a {
+  padding: 8px 10px; border-radius: 8px; text-decoration: none;
+  color: var(--leise); font-size: 14px; font-weight: 500;
+  border-left: 2px solid transparent;
+}
+.seitenmenue a:hover { background: var(--flaeche-2); color: var(--tinte);
+                       border-left-color: var(--akzent); }
+
+.optionsliste { display: flex; flex-direction: column; }
+.optionszeile {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap; padding: 15px 0;
+  border-top: 1px solid var(--linie-fein);
+}
+.optionszeile:first-child { border-top: none; padding-top: 4px; }
+.optionszeile p { margin: 3px 0 0; }
+.optionszeile .schalter { margin-left: 0; }
+
+.systemraster { display: grid; gap: 20px 34px;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.systemblock h2 { margin-bottom: 10px; }
+.systemliste {
+  display: grid; grid-template-columns: auto 1fr; gap: 7px 16px;
+  margin: 0; font-size: 13.5px; align-items: baseline;
+}
+.systemliste.breit { grid-template-columns: 150px 1fr; }
+.systemliste dt { color: var(--leise); }
+.systemliste dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.systemliste dd code { font-weight: 400; }
+.systemliste dd .marke-status { margin-left: 7px; font-weight: 600; }
+
+/* --- Symbolgruppe rechts in der Kopfzeile ---------------------------- */
+
+.werkzeuge {
+  margin-left: auto; display: flex; align-items: center; gap: 4px;
+  padding-left: 12px; border-left: 1px solid var(--linie); flex-shrink: 0;
+}
+.werkzeug {
+  position: relative; display: inline-flex; align-items: center;
+  justify-content: center; width: 38px; height: 38px;
+  border-radius: 10px; color: var(--leise); text-decoration: none;
+  border: 1px solid transparent;
+}
+.werkzeug svg { width: 20px; height: 20px; }
+.werkzeug:hover { color: var(--tinte); background: var(--flaeche-2);
+                  border-color: var(--linie); }
+.werkzeug.aktiv { color: var(--akzent); background: var(--akzent-weich); }
+
+/* Beschriftung erscheint als kleine Sprechblase darunter */
+.werkzeug-text {
+  position: absolute; top: calc(100% + 7px); left: 50%;
+  transform: translateX(-50%) translateY(-3px);
+  padding: 4px 9px; border-radius: 7px; white-space: nowrap;
+  background: var(--tinte); color: var(--grund);
+  font-size: 11.5px; font-weight: 600; letter-spacing: .01em;
+  opacity: 0; pointer-events: none; z-index: 20;
+}
+.werkzeug:hover .werkzeug-text, .werkzeug:focus-visible .werkzeug-text {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+/* Die Sprechblase des letzten Symbols ragte über den rechten Bildschirm-
+   rand hinaus: sie ist unter ihrem Symbol zentriert, breiter als dieses,
+   und das letzte Symbol steht am Rand. Sichtbar war davon nichts (sie ist
+   ohne Mauszeiger durchsichtig) – sie machte die Seite aber ein bis zwei
+   Pixel breiter als das Fenster und erzeugte damit einen seitlichen
+   Scrollbalken auf jeder Seite. Deshalb hängt die letzte Blase rechts
+   bündig statt mittig. */
+.werkzeuge > *:last-child .werkzeug-text {
+  left: auto; right: 0; transform: translateX(0) translateY(-3px);
+}
+.werkzeuge > *:last-child .werkzeug:hover .werkzeug-text,
+.werkzeuge > *:last-child .werkzeug:focus-visible .werkzeug-text,
+.werkzeuge > *:last-child.werkzeug:hover .werkzeug-text,
+.werkzeuge > *:last-child.werkzeug:focus-visible .werkzeug-text {
+  transform: translateX(0) translateY(0);
+}
+
+.seitenmenue a.aktiv {
+  background: var(--akzent-weich); color: var(--akzent);
+  border-left-color: var(--akzent); font-weight: 600;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .werkzeug { transition: background .14s ease, color .14s ease,
+                          border-color .14s ease, transform .22s cubic-bezier(.34,1.5,.5,1); }
+  .werkzeug:hover { transform: translateY(-2px); }
+  .werkzeug.zahnrad svg { transition: transform .5s cubic-bezier(.2,.9,.3,1.3); }
+  .werkzeug.zahnrad:hover svg { transform: rotate(75deg); }
+  .werkzeug.zahnrad.aktiv svg { transform: rotate(45deg); }
+  .werkzeug-text { transition: opacity .16s ease, transform .2s ease; }
+}
+
+@media (max-width: 760px) {
+  .werkzeuge { padding-left: 6px; }
+  .werkzeug { width: 34px; height: 34px; }
+}
+
+
+/* --- Abgaben, kompakte Box in der Seitenspalte ------------------------ */
+
+.kastenkopf { display: flex; align-items: center; justify-content: space-between;
+              gap: 10px; margin-bottom: 12px; }
+.kastenkopf h2 { margin: 0; }
+.monatswechsel { display: flex; align-items: center; gap: 5px; }
+.kastenmonat { font-size: 11.5px; color: var(--leise); white-space: nowrap;
+               font-variant-numeric: tabular-nums; }
+.minipfeil {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 21px; height: 21px; border-radius: 6px; text-decoration: none;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+  color: var(--leise); font-size: 13px; line-height: 1;
+}
+.minipfeil:hover { border-color: var(--akzent); color: var(--akzent); }
+
+.abgabekompakt { gap: 11px; }
+.abgabekompakt li {
+  padding-left: 11px; border-left: 2px solid var(--linie);
+}
+.abgabekompakt li.da { border-left-color: var(--gut); }
+.abgabekompakt li.fehlt { border-left-color: var(--dopp); }
+.abgabekompakt li.ohnepflicht { border-left-color: var(--linie); opacity: .58; }
+.abgabekompakt .standkopf {
+  margin-bottom: 2px;
+  /* Eigene Spaltenaufteilung statt der geerbten flex-space-between-Basis:
+     Name und Status/Zeit sollen wie zwei feste Tabellenspalten wirken.
+     Der Name bleibt links, Status/Zeit ist zentriert in der zweiten
+     Spalte statt mit variablem Abstand an den rechten Rand gedrueckt. */
+  display: grid; grid-template-columns: minmax(0, 1fr) 104px;
+  justify-content: normal; gap: 8px;
+}
+.abgabekompakt .standkopf > *:last-child { justify-self: center; text-align: center; }
+.abgabekompakt li.da .standkopf .zahlen { color: var(--gut); font-weight: 600; }
+.abgabekompakt .standfuss { margin-top: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .abgabekompakt li { transition: border-color .2s ease, transform .2s ease; }
+  .abgabekompakt li:hover { transform: translateX(2px); }
+  .minipfeil { transition: border-color .14s ease, color .14s ease; }
+}
+
+.importkasten {
+  margin-top: 20px; padding: 14px 16px; border-radius: 11px;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+}
+.importkasten .kastenkopf { margin-bottom: 8px; }
+.importkasten form { margin: 0; }
+
+/* --- Menü für schmale Bildschirme ------------------------------------ */
+
+.burger { display: none; }
+.menue-schliessen { display: none; }
+.menuehuelle { display: contents; }
+
+@media (max-width: 860px) {
+  .kopf { position: relative; gap: 12px; padding: 12px 18px; }
+  .marke img { height: 30px; }
+
+  .burger {
+    display: flex; flex-direction: column; justify-content: center; gap: 5px;
+    margin-left: auto; width: 42px; height: 42px; padding: 0 10px;
+    border: 1px solid var(--linie); border-radius: 10px;
+    background: var(--flaeche-2); cursor: pointer;
+  }
+  .burger span {
+    display: block; height: 2px; border-radius: 2px; background: var(--tinte);
+    transition: transform .28s cubic-bezier(.4,1.4,.5,1), opacity .18s ease;
+  }
+  .menue-offen .burger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .menue-offen .burger span:nth-child(2) { opacity: 0; }
+  .menue-offen .burger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* Die Schublade selbst – fährt von oben herein */
+  .menuehuelle {
+    display: flex; flex-direction: column; gap: 6px;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+    max-height: 100dvh; padding: 20px 20px 26px;
+    background: var(--flaeche); border-bottom: 1px solid var(--linie);
+    border-radius: 0 0 18px 18px;
+    box-shadow: 0 22px 50px -20px rgba(0,0,0,.7);
+    transform: translateY(-100%); visibility: hidden;
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+  .menue-offen .menuehuelle { transform: none; visibility: visible; }
+
+  .menue-schliessen {
+    position: absolute; top: 14px; right: 14px;
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 10px;
+    border: 1px solid var(--linie); background: var(--flaeche-2);
+    color: var(--leise); cursor: pointer;
+  }
+  .menue-schliessen svg { width: 18px; height: 18px; }
+  .menue-schliessen:hover { color: var(--tinte); border-color: var(--akzent); }
+
+  .menuehuelle nav {
+    flex-direction: column; gap: 3px; margin-top: 34px;
+  }
+  .menuehuelle nav a { padding: 12px 14px; font-size: 16px; border-radius: 10px; }
+  .kopf nav a::after { display: none; }
+
+  .werkzeuge {
+    margin: 12px 0 0; padding: 14px 0 0; flex-direction: column;
+    align-items: stretch; gap: 3px;
+    border-left: none; border-top: 1px solid var(--linie);
+  }
+  .werkzeug {
+    width: auto; height: auto; justify-content: flex-start; gap: 12px;
+    padding: 12px 14px; border-radius: 10px; font-size: 16px; font-weight: 500;
+  }
+  .werkzeug .werkzeug-text {
+    position: static; opacity: 1; transform: none; padding: 0;
+    background: none; color: inherit; font-size: 16px; font-weight: 500;
+  }
+  .werkzeug:hover { transform: none; }
+
+  .schalter { margin: 14px 0 0; padding: 14px 4px 0; justify-content: space-between;
+              border-top: 1px solid var(--linie); font-size: 14px; }
+
+  .menueschatten {
+    position: fixed; inset: 0; z-index: 55;
+    background: rgba(0,0,0,.5); backdrop-filter: blur(2px);
+  }
+
+  main { padding: var(--abstand) 16px 40px; }
+  footer { padding-left: 16px; padding-right: 16px; }
+  .menue-offen { overflow: hidden; }
+}
+
+@media (max-width: 860px) and (prefers-reduced-motion: no-preference) {
+  .menuehuelle { transition: transform .32s cubic-bezier(.22,1.1,.36,1), visibility .32s; }
+  .menueschatten { animation: schatten-rein .25s ease backwards; }
+  @keyframes schatten-rein { from { opacity: 0; } to { opacity: 1; } }
+}
+
+/* --- Ideen: Liste statt Kacheln --------------------------------------- */
+
+.ideenreihen { list-style: none; margin: 0; padding: 0;
+               display: flex; flex-direction: column; }
+.ideenreihe {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 4px; border-top: 1px solid var(--linie-fein);
+}
+.ideenreihen li:first-child { border-top: none; padding-top: 4px; }
+.ideenart { flex-shrink: 0; margin-top: 1px; }
+.ideeninhalt { flex: 1; min-width: 0; }
+.ideenzeile1 { display: flex; align-items: baseline; gap: 10px; margin-bottom: 3px; }
+.ideentext { margin: 0; white-space: pre-line; font-size: 14px; line-height: 1.55; }
+.ideenaktionen { display: flex; gap: 6px; flex-shrink: 0; align-self: flex-start; }
+.ideenaktionen form { margin: 0; }
+.ideenreihe.wirdbearbeitet { flex-direction: column; border-color: transparent; }
+.ideenformular { width: 100%; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ideenreihe { transition: background .15s ease; }
+  .ideenreihe:not(.wirdbearbeitet):hover { background: var(--flaeche-2); }
+}
+
+@media (max-width: 560px) {
+  .ideenreihe { flex-wrap: wrap; }
+  .ideenaktionen { margin-left: auto; }
+}
+
+/* --- Verwaltungsvorgänge ---------------------------------------------- */
+
+/* Zusatzfarben nur für dieses Modul, damit Status unterscheidbar bleiben */
+:root, [data-thema="dunkel"] {
+  --info:       #86b6e8;
+  --info-weich: #1b2530;
+  --gut-weich:  #17281f;
+}
+[data-thema="hell"] {
+  --info:       #245c94;
+  --info-weich: #e9f1fa;
+  --gut-weich:  #e7f4ee;
+}
+
+/* zwei gleich breite Karten nebeneinander */
+@media (min-width: 900px) {
+  .raster.gleich { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.unterkopf { margin-top: 24px; }
+
+/* Kennzahlen oben auf der Übersicht */
+.kennzahlen { display: grid; gap: 10px;
+              grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
+.kennzahl {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 14px; border-radius: 10px; text-decoration: none;
+  border: 1px solid var(--linie); background: var(--flaeche-2); color: var(--tinte);
+}
+.kennzahl:hover { border-color: var(--akzent); }
+.kzahl { font-size: 26px; font-weight: 700; line-height: 1.1;
+         font-variant-numeric: tabular-nums; color: var(--leise); }
+.klabel { font-size: 11.5px; color: var(--leise); }
+.kennzahl.hat.k-ueberfaellig { border-color: var(--dopp); background: var(--dopp-weich); }
+.kennzahl.hat.k-ueberfaellig .kzahl { color: var(--dopp); }
+.kennzahl.hat.k-heute { border-color: var(--warn); background: var(--warn-weich); }
+.kennzahl.hat.k-heute .kzahl { color: var(--warn); }
+.kennzahl.hat.k-bald .kzahl { color: var(--tinte); }
+.kennzahl.hat.k-wartend { background: var(--info-weich); }
+.kennzahl.hat.k-wartend .kzahl { color: var(--info); }
+
+/* Statusmarken */
+.marke-status.vs-offen        { background: var(--flaeche-2);  color: var(--tinte); }
+.marke-status.vs-arbeit       { background: var(--akzent-weich); color: var(--akzent); }
+.marke-status.vs-eingereicht  { background: var(--info-weich); color: var(--info); }
+.marke-status.vs-warten       { background: var(--warn-weich); color: var(--warn); }
+.marke-status.vs-rueckfrage   { background: var(--dopp-weich); color: var(--dopp); }
+.marke-status.vs-erledigt     { background: var(--gut-weich);  color: var(--gut); }
+.marke-status.vs-abgebrochen  { background: var(--flaeche-2);  color: var(--leise);
+                                text-decoration: line-through; }
+
+/* Marke im Logbuch für einen gelöschten Vorgang. Bewusst NICHT
+   vs-abgebrochen: das trägt einen Durchstrich, und ein durchgestrichenes
+   „gelöscht“ liest sich wie das Gegenteil. */
+.marke-status.vorgang-weg     { background: var(--dopp-weich); color: var(--dopp); }
+
+/* Priorität */
+.prio { font-size: 11.5px; font-weight: 700; letter-spacing: .02em; }
+.prio.vp-niedrig  { color: var(--leise); font-weight: 500; }
+.prio.vp-hoch     { color: var(--warn); }
+.prio.vp-dringend { color: var(--dopp); }
+
+/* Fristen */
+.fristmarke { font-variant-numeric: tabular-nums; }
+.fristmarke.f-ueberfaellig { color: var(--dopp); font-weight: 700; }
+.fristmarke.f-heute { color: var(--warn); font-weight: 700; }
+.fristmarke.f-bald { font-weight: 600; }
+.fristwort { display: block; margin-top: 1px; }
+.fristwort.f-ueberfaellig { color: var(--dopp); }
+.fristwort.f-heute { color: var(--warn); }
+.fristwort.f-bald { color: var(--leise); }
+
+.liste tbody tr.zeile-ueberfaellig,
+.liste tbody tr.zeile-ueberfaellig:nth-child(even) { background: var(--dopp-weich); }
+.liste tbody tr.zeile-zu,
+.liste tbody tr.zeile-zu:nth-child(even) { background: var(--gut-weich); }
+.kuerzel { display: block; margin-top: 2px; }
+.tabellenrolle { overflow-x: clip; }
+
+/* Kopfkarte der Betreutenansicht. Drei Bänder mit eigener Luft statt
+   drei aneinanderklebender Blöcke: Name, dann die Kennzahlen, dann die
+   Aktionen. Die Trennlinien sind dieselbe Idee wie bei .kfz-stammzeile. */
+.personenkopf .kopfzeile { margin-bottom: 0; }
+.personenzahlen {
+  display: flex; flex-wrap: wrap; gap: 4px 40px; margin: 0;
+  padding: 16px 0; border-top: 1px solid var(--linie-fein);
+  border-bottom: 1px solid var(--linie-fein);
+}
+.personenzahlen > div { display: flex; flex-direction: column; gap: 3px; }
+.personenzahlen dt { font-size: 11px; font-weight: 700; letter-spacing: .07em;
+                     text-transform: uppercase; color: var(--leise); }
+.personenzahlen dd { margin: 0; font-size: 15px; font-weight: 600; }
+.personenzahlen dd .marke-status { margin-left: 6px; }
+.knopfreihe.personenaktionen { margin-top: 18px; margin-bottom: 0; }
+.personenhinweis { margin: 18px 0 0; }
+
+/* --- Dateiverwaltung -------------------------------------------------
+   Aufbau bewusst wie das Wiki: links die Struktur, rechts der Inhalt.
+   Deshalb teilt sich die Seite dessen Raster (.wiki, .wiki-seitenleiste,
+   .wiki-haupt) und den Baum (.wiki-knoten, .wiki-liste) - dieselbe
+   Bedienung soll auch gleich aussehen, und zwei parallele Baum-Stile
+   würden früher oder später auseinanderlaufen.
+
+   Zwei Ansichten, umgeschaltet über data-dateiliste am <html>: dieselbe
+   Technik wie bei Hell/Dunkel, damit beim Laden nichts aufblitzt.
+   Standard ist hier die LISTE, nicht die Kacheln - sie zeigt mehr auf
+   einmal und trägt Größe und Datum in eigenen Spalten. */
+.dateien-kachelansicht { display: none; }
+[data-dateiliste="kacheln"] .dateien-listenansicht { display: none; }
+[data-dateiliste="kacheln"] .dateien-kachelansicht { display: grid; }
+
+/* Der Knopf des Umschalters bewegt sich mit dem Zustand - für die beiden
+   Listen-Schalter fehlte diese Regel bisher. */
+[data-wikiliste="liste"] .wikiliste-knopf::after,
+[data-dateiliste="kacheln"] .dateiliste-knopf::after { transform: translateX(21px); }
+
+/* Werkzeugleiste der Seitenleiste: Hochladen und Ordner anlegen. Das
+   Dateifeld selbst ist versteckt, sein Label ist der Symbolknopf. */
+.dateiwerkzeuge { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.dateiwerkzeuge .inline { display: flex; align-items: center; gap: 6px; }
+.dateifeld-versteckt {
+  position: absolute; width: 1px; height: 1px; opacity: 0;
+  overflow: hidden; clip-path: inset(50%);
+}
+label.knopf-icon { cursor: pointer; }
+.ordnerform { margin-bottom: 12px; }
+.ordnerform .feld { margin-bottom: 8px; }
+.ordnerform .knopfreihe { margin: 0; }
+/* Kopfzeile der Dateiseite: Zählung und Ansichtsschalter nebeneinander,
+   damit man nicht für einen Blickwechsel in die Einstellungen muss. */
+.dateikopf-rechts { display: flex; align-items: center; gap: 16px;
+                    flex-wrap: wrap; justify-content: flex-end; }
+.schalter.dateiansicht { margin-left: 0; }
+@media (max-width: 560px) {
+  .dateikopf-rechts { width: 100%; justify-content: space-between; }
+}
+
+.dateiablage { margin: 12px 0 6px; padding-top: 12px;
+               border-top: 1px solid var(--linie); }
+.dateiablage code { overflow-wrap: anywhere; }
+
+/* Ein Eintrag, dessen Dateiart wir nicht ausliefern. Er wird trotzdem
+   gezeigt - wer selbst etwas in den Ordner legt, soll es wiederfinden. */
+.dateiknoten.unbekannt, .dateizeile.unbekannt td { color: var(--leise); }
+.dateiknoten.unbekannt .wiki-symbol { opacity: .5; }
+
+/* Listenansicht. Die Spaltenbreiten stehen in Pixeln, nur "Name" bleibt
+   frei - dieselbe Entscheidung wie beim Wiki-Verzeichnis, aus demselben
+   Grund: mit Prozentangaben staucht table-layout:fixed die Aktionsspalte,
+   sobald die Summe die Tabelle überschreitet. */
+/* Alles linksbündig - Überschriften wie Inhalt. Größe und Datum sind
+   hier keine Rechenwerte, die man untereinander vergleicht, sondern
+   Angaben zur Zeile; rechtsbündig rissen sie nur Löcher in die Tabelle. */
+.dateiverzeichnis th, .dateiverzeichnis td { text-align: left; }
+
+/* ⚠️ Die Selektoren tragen bewusst zusätzlich ".liste". Die Tabelle
+   trägt auch die Klasse .wiki-verzeichnis, deren Spaltenbreiten weiter
+   unten im Stylesheet stehen; bei gleicher Spezifität gewinnt die
+   spätere Regel, und die Aktionsspalte bekam dadurch die 118px des
+   Wikis statt der hier gebrauchten 168px. Der vierte Knopf (Löschen)
+   rutschte damit aus der Zelle und war unsichtbar - vorhanden, aber
+   nicht erreichbar. Beim Ändern also das ".liste" stehen lassen.
+
+   Die Mindestbreite kommt dazu, weil table-layout:fixed nur den
+   VORHANDENEN Platz nach Verhältnissen verteilt: wird die Tabelle
+   schmaler als die Summe der Spalten, staucht der Browser alles
+   gleichmäßig und der letzte Knopf verschwindet wieder. Darunter rollt
+   die .tabellenrolle - dieselbe Lösung wie bei den Fuhrpark-Tabellen. */
+.liste.dateiverzeichnis { min-width: 660px; }
+.liste.dateiverzeichnis th:nth-child(3) { width: 78px; }
+.liste.dateiverzeichnis th:nth-child(4) { width: 92px; }
+.liste.dateiverzeichnis th:nth-child(5) { width: 118px; }
+.liste.dateiverzeichnis th:last-child { width: 170px; padding-right: 6px; }
+.tabellenrolle .liste.dateiverzeichnis td:last-child { white-space: nowrap; }
+.dateizeile[draggable="true"] { cursor: grab; }
+.dateizeile.ziel-aktiv td { background: var(--akzent-weich); }
+
+/* Kachelansicht. Bei Bildern ist die Vorschau die eigentliche
+   Information, deshalb hier ein Raster statt der Tabelle. */
+.dateiliste {
+  list-style: none; margin: 0; padding: 0; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+}
+.dateikachel {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--linie); border-radius: 12px;
+  background: var(--flaeche-2); overflow: hidden;
+}
+.dateikachel:hover { border-color: var(--linie-stark); }
+.dateikachel.ziel-aktiv { border-color: var(--akzent); background: var(--akzent-weich); }
+.dateikachel-flaeche {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 12px 8px; text-decoration: none; color: var(--tinte); min-width: 0;
+}
+.dateikachel-bild {
+  display: grid; place-items: center; height: 118px; margin: -10px -12px 8px;
+  background: var(--grund); overflow: hidden; color: var(--leise);
+}
+.dateikachel-bild img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dateikachel-bild .wiki-symbol { width: 38px; height: 38px; opacity: 1; }
+.dateikachel-wort {
+  font-size: 15px; font-weight: 800; letter-spacing: .07em;
+  color: var(--ton, var(--leise));
+}
+.dateikachel-name { font-size: 13px; font-weight: 600; line-height: 1.3;
+                    overflow-wrap: anywhere; }
+.dateikachel-zeile { font-size: 11.5px; color: var(--leise); }
+.dateikachel-flaeche:hover .dateikachel-name { color: var(--akzent); }
+.dateikachel.k-unbekannt .dateikachel-name { color: var(--leise); }
+
+/* Farbton je Dateiart. Wie im Fuhrpark sitzt die Farbe im Zeichen, nicht
+   im Rahmen. */
+.dateikachel.k-pdf           { --ton: var(--dopp); }
+.dateikachel.k-tabelle       { --ton: var(--gut); }
+.dateikachel.k-text          { --ton: var(--kfz-tanken); }
+.dateikachel.k-praesentation { --ton: var(--warn); }
+.dateikachel.k-video         { --ton: var(--kfz-reifen); }
+.dateikachel.k-grafik        { --ton: var(--kfz-inspektion); }
+.ordnerkachel .dateikachel-bild.ordner { color: var(--akzent); }
+
+.dateikachel-knoepfe {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  padding: 0 8px 8px; margin-top: auto;
+}
+.knopf-icon.hat-kopiert { color: var(--gut); border-color: var(--gut); }
+
+/* Umbenennen und der Markdown-Schnipsel. Steht zugeklappt unter dem
+   Eintrag - in beiden Ansichten dasselbe Stück HTML. */
+.dateidetails { padding: 10px 2px 4px; }
+.dateikachel-detail .dateidetails { padding: 10px; border-top: 1px solid var(--linie-fein); }
+.dateidetails .feld { margin-bottom: 8px; }
+.dateidetails .knopfreihe { margin: 0; }
+.dateischnipsel { display: block; margin-bottom: 10px; }
+.dateischnipsel > span { display: block; font-size: 12px; font-weight: 600;
+                         margin-bottom: 4px; }
+.dateischnipsel input {
+  font-size: 11.5px; padding: 6px 9px; min-height: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--leise);
+}
+.dateidetailzeile td { padding-top: 0; }
+
+.visuell-versteckt {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+/* Logbuch
+   ------------------------------------------------------------------
+   Zwei Spalten je Eintrag: links wann und wer, rechts was. Das Datum
+   steht nicht mehr in jeder Zeile, sondern einmal als Tagesüberschrift
+   darüber - vorher wiederholte es sich in jeder Zeile und stand dabei
+   auch noch an der auffälligsten Stelle ganz links.
+
+   Die Aktionsmarke trägt jetzt eine Farbe je Art (siehe
+   vorgaenge.LOG_KLASSE). Sie ist die einzige Stelle, an der auf einen
+   Blick steht, WAS passiert ist. */
+.logtag {
+  display: flex; align-items: center; gap: 12px;
+  margin: 26px 0 4px; font-size: 11px; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--leise);
+}
+.logtag::after { content: ""; flex: 1; height: 1px; background: var(--linie); }
+.logbuchkarte > .logtag:first-child,
+.karte > .logtag:first-of-type { margin-top: 2px; }
+
+.logliste { list-style: none; margin: 0; padding: 0;
+            display: flex; flex-direction: column; }
+.logeintrag {
+  display: grid; grid-template-columns: 88px minmax(0, 1fr);
+  gap: 0 18px; padding: 11px 2px;
+}
+.logeintrag + .logeintrag { border-top: 1px solid var(--linie-fein); }
+
+.logzeit { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.loguhr { font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.logwer { font-size: 11.5px; line-height: 1.35; color: var(--leise);
+          overflow-wrap: anywhere; }
+
+/* Die senkrechte Linie trennt die beiden Spalten. Über mehrere Einträge
+   hinweg liest sie sich als durchgehende Zeitachse - dieselbe Idee wie
+   die Führungslinien im Wiki, nur eine Stufe leiser. */
+.loginhalt { min-width: 0; border-left: 1px solid var(--linie);
+             padding-left: 18px; }
+
+.logkopf { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.logaktion { font-size: 10.5px; letter-spacing: .03em; }
+.logaktion.la-neu       { background: var(--akzent-weich); color: var(--akzent); }
+.logaktion.la-aenderung { background: var(--info-weich);   color: var(--info); }
+.logaktion.la-gut       { background: var(--gut-weich);    color: var(--gut); }
+.logaktion.la-weg       { background: var(--dopp-weich);   color: var(--dopp); }
+.logaktion.la-notiz     { background: var(--flaeche-2);    color: var(--leise); }
+
+.logbezug { text-decoration: none; font-weight: 600; font-size: 13.5px;
+            color: var(--tinte); overflow-wrap: anywhere; }
+a.logbezug:hover { color: var(--akzent); }
+.logbezug.weg { color: var(--leise); }
+.logperson { font-size: 12px; color: var(--leise); text-decoration: none;
+             border-bottom: 1px solid var(--linie-stark); }
+.logperson:hover { color: var(--akzent); border-bottom-color: currentColor; }
+
+.logtext { margin: 5px 0 0; font-size: 13.5px; line-height: 1.55;
+           color: var(--tinte-2); white-space: pre-line;
+           overflow-wrap: anywhere; }
+
+/* Auf dem Telefon reicht die Breite für zwei Spalten nicht mehr. Dann
+   rutscht die Zeitspalte über den Inhalt und die Trennlinie entfällt. */
+@media (max-width: 560px) {
+  .logeintrag { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+  .logzeit { flex-direction: row; align-items: baseline; gap: 9px; }
+  .loginhalt { border-left: none; padding-left: 0; }
+}
+
+/* Aufklappbare Formularkarten */
+.aufklapp {
+  cursor: pointer; font-size: 12.5px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--leise); margin-bottom: 14px;
+}
+.aufklapp:hover { color: var(--akzent); }
+details[open] > .aufklapp { margin-bottom: 18px; }
+
+/* Kurze Textfelder in den Vorgangsformularen brauchen nicht die
+   Mindesthöhe der Ideenseite. */
+textarea[rows="2"], textarea[rows="3"] { min-height: 0; }
+
+/* --- Login-Seite ------------------------------------------------------- */
+/* Eigene, schlanke Seite ohne Navigation - body/main-Regeln oben gelten
+   dort nicht (kein "main" mit .kopf/.footer als Geschwister), daher
+   eigene Selektoren statt der allgemeinen main-Regel. */
+
+/* --- Anmeldeseite -----------------------------------------------------
+   Die einzige Seite ohne Kopfzeile und Navigation. Sie darf deshalb
+   ruhiger und großzügiger sein als der Rest: Marke oben, Formular
+   darunter, sonst nichts.
+
+   Der Schein hinter der Karte ist ein Farbverlauf, kein Bild - nichts
+   nachzuladen, und er passt sich Hell und Dunkel über die Farbvariablen
+   von selbst an. */
+body.anmeldeseite {
+  display: flex; min-height: 100vh; margin: 0;
+  position: relative; overflow-x: hidden;
+}
+.anmelde-schein {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(60% 45% at 50% 0%, var(--akzent-weich) 0%, transparent 70%),
+    radial-gradient(45% 35% at 85% 100%, var(--akzent-weich) 0%, transparent 65%);
+}
+.anmelde-huelle {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 32px 24px; width: 100%; position: relative; z-index: 1;
+}
+.anmelde-saeule {
+  width: 100%; max-width: 400px;
+  display: flex; flex-direction: column; align-items: center;
+}
+
+.anmelde-marke {
+  display: block; margin-bottom: 30px; position: relative;
+  perspective: 900px;
+}
+.anmelde-marke img { height: 92px; width: auto; display: block; }
+
+/* --- Der Auftritt beim Laden ------------------------------------------
+   Ausdrücklich die Ausnahme von "keine übertriebenen Animationen"
+   (Abschnitt 13): die Anmeldeseite sieht man einmal am Tag, eine
+   Tabellenzeile hundertmal. Überall sonst gilt die Regel weiter.
+
+   Der Ablauf in vier Zügen, zusammen 2,6 Sekunden:
+     0,0-1,0  das Logo kippt aus der Tiefe herein, unscharf, und
+              schärft sich dabei
+     0,3-1,3  eine schräge Kante wischt es von links nach rechts frei
+     1,2-2,0  ein Glanzlicht läuft einmal darüber
+     1,3-2,6  Karte, Fußzeile und ein einmaliges Leuchten hinter dem
+              Zeichen kommen nach
+   Alles endet und bleibt stehen ("both"), nichts springt zurück. */
+@keyframes anmelde-logo {
+  0%   { opacity: 0; filter: blur(16px);
+         transform: rotateX(38deg) translateY(26px) scale(.72); }
+  45%  { opacity: 1; }
+  62%  { filter: blur(0); }
+  78%  { transform: rotateX(0) translateY(0) scale(1.055); }
+  90%  { transform: rotateX(0) translateY(0) scale(.988); }
+  100% { opacity: 1; filter: blur(0);
+         transform: rotateX(0) translateY(0) scale(1); }
+}
+
+/* Die Kante läuft schräg durch - deshalb Werte über 100%, damit sie an
+   den Ecken sauber durchzieht statt dort hängen zu bleiben. */
+@keyframes anmelde-wisch {
+  0%   { clip-path: polygon(-25% 0, -8% 0, -25% 100%, -42% 100%); }
+  100% { clip-path: polygon(-25% 0, 135% 0, 135% 100%, -42% 100%); }
+}
+
+/* Das Glanzlicht ist ein schmaler heller Streifen, der einmal über das
+   Logo zieht. plus-lighter statt Deckkraft, damit er auf dunklem wie auf
+   hellem Grund als Licht wirkt und nicht als grauer Schleier. */
+@keyframes anmelde-glanz {
+  0%   { opacity: 0; transform: translateX(-140%) skewX(-18deg); }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(140%) skewX(-18deg); }
+}
+
+/* Ein einziger Lichtstoß hinter dem Zeichen, wenn alles steht. */
+@keyframes anmelde-leuchten {
+  0%, 100% { opacity: 0; transform: scale(.6); }
+  45%      { opacity: .5; transform: scale(1); }
+}
+
+@keyframes anmelde-karte {
+  from { opacity: 0; transform: translateY(22px) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes anmelde-schein-auf {
+  from { opacity: 0; transform: scale(1.3); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes anmelde-fuss {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Die Karte bekommt einen kräftigeren Schatten als sonst im Programm und
+   eine feine Lichtkante oben - auf einer leeren Seite trägt sie sich
+   sonst nicht. */
+.anmeldekarte {
+  width: 100%; padding: 30px 28px 26px; border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .34);
+  position: relative; overflow: hidden;
+}
+.anmeldekarte::before {
+  content: ""; position: absolute; top: 0; left: 14%; right: 14%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--akzent), transparent);
+  opacity: .7;
+}
+.anmeldekarte h1 { text-align: center; margin-bottom: 6px; }
+/* Auf der Anmeldekarte steht der Satz mittig und ohne Informationszeichen:
+   er erklärt nichts, er sagt, was zu tun ist - und ein Zeichen links
+   bräche die Mittelachse. */
+.anmeldekarte .lead { display: block; }
+.anmeldekarte .lead::before { content: none; }
+.anmeldekarte .lead {
+  text-align: center; margin: 0 auto 22px; max-width: 30ch;
+}
+.anmeldekarte .feld { margin-bottom: 16px; }
+.anmeldekarte .knopfreihe { margin-top: 22px; margin-bottom: 0; }
+.anmelde-knopf { width: 100%; justify-content: center; padding: 11px 16px; }
+
+.anmelde-fuss {
+  margin: 22px 0 0; font-size: 12px; color: var(--leise); text-align: center;
+}
+
+/* Die Bewegung steckt in einem eigenen Block, damit sie sich mit einer
+   einzigen Regel abschalten lässt - wer "Bewegung reduzieren" eingestellt
+   hat, bekommt die Seite sofort fertig zu sehen. */
+@media (prefers-reduced-motion: no-preference) {
+  .anmelde-marke {
+    animation: anmelde-logo 1s cubic-bezier(.2, .9, .25, 1) both,
+               anmelde-wisch 1s cubic-bezier(.65, 0, .35, 1) .3s both;
+  }
+  /* Glanzlicht über dem Logo */
+  .anmelde-marke::after {
+    content: ""; position: absolute; inset: -6% -12%; pointer-events: none;
+    background: linear-gradient(90deg, transparent 38%,
+                rgba(255, 255, 255, .82) 50%, transparent 62%);
+    mix-blend-mode: plus-lighter; opacity: 0;
+    animation: anmelde-glanz .8s ease-in-out 1.2s both;
+  }
+  /* Leuchten dahinter, ganz zum Schluss */
+  .anmelde-marke::before {
+    content: ""; position: absolute; z-index: -1;
+    left: -14%; right: -14%; top: -34%; bottom: -34%;
+    background: radial-gradient(closest-side, var(--akzent), transparent 72%);
+    opacity: 0; filter: blur(16px); pointer-events: none;
+    animation: anmelde-leuchten 1.3s ease-out 1.3s both;
+  }
+  .anmeldekarte   { animation: anmelde-karte .7s cubic-bezier(.2, .9, .25, 1) 1.3s both; }
+  .anmelde-schein { animation: anmelde-schein-auf 1.6s ease-out both; }
+  .anmelde-fuss   { animation: anmelde-fuss .6s ease-out 2s both; }
+  .anmeldekarte::before { animation: anmelde-fuss .7s ease-out 1.9s both; }
+}
+
+@media (max-width: 420px) {
+  .anmelde-marke img { height: 44px; }
+  .anmeldekarte { padding: 24px 20px 22px; }
+}
+
+/* --- Benutzerverwaltung ------------------------------------------------- */
+
+.benutzerkarte {
+  border: 1px solid var(--linie); border-radius: 10px;
+  padding: 18px 18px 4px; margin-bottom: 16px; background: var(--flaeche-2);
+}
+.benutzerkarte:last-child { margin-bottom: 0; }
+.benutzerkarte.stillgelegt { opacity: .6; }
+
+fieldset.feld {
+  border: none; padding: 0; margin: 0 0 14px;
+}
+fieldset.feld > span {
+  display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px;
+}
+.bereichsraster {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.bereich-kachel {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 12px; border-radius: 20px;
+  border: 1px solid var(--linie); background: var(--flaeche);
+  font-size: 13px; cursor: pointer;
+}
+.bereich-kachel input { accent-color: var(--akzent); margin: 0; }
+.bereich-kachel:has(input:checked) {
+  border-color: var(--akzent); background: var(--akzent-weich); color: var(--akzent);
+}
+.ankreuz-feld { display: flex; flex-direction: column; }
+.ankreuz-feld .ankreuz { margin-bottom: 0; align-items: center; }
+
+/* Statusanzeige neben der Mitarbeiter-Zuordnung in der Benutzerverwaltung */
+.zuordnungsstand { display: flex; flex-direction: column; justify-content: flex-end; }
+.zuordnungsstand .marke-status { align-self: flex-start; padding: 6px 11px; }
+
+/* --- Persönlicher Bereich ---------------------------------------------- */
+
+.saldo-plus  { color: var(--gut); }
+.saldo-minus { color: var(--dopp); }
+.zahl.saldo-plus, .zahl.saldo-minus { letter-spacing: -1px; }
+.liste tbody tr.zeile-laufend,
+.liste tbody tr.zeile-laufend:nth-child(even) { background: var(--warn-weich); }
+.liste tbody tr.zeile-laufend .marke-status { margin-left: 7px; }
+
+/* --- Stundendiagramm im persönlichen Bereich --------------------------- */
+
+.diagrammhuelle { width: 100%; overflow: hidden; }
+.stundendiagramm { display: block; width: 100%; height: auto; }
+
+.stundendiagramm .achse { stroke: var(--linie); stroke-width: 1; }
+.stundendiagramm .solllinie {
+  stroke: var(--akzent); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .85;
+}
+.stundendiagramm .saldolinie {
+  fill: none; stroke: var(--warn); stroke-width: 2.5;
+  stroke-linejoin: round; stroke-linecap: round; opacity: .9;
+}
+.stundendiagramm .achsentext { fill: var(--leise); font-size: 11px; }
+.stundendiagramm .balkenwert {
+  fill: var(--leise); font-size: 10.5px; font-variant-numeric: tabular-nums;
+}
+.stundendiagramm rect { transition: opacity .15s ease; }
+.stundendiagramm rect:hover { opacity: .75; }
+
+/* Balkenfarben – auch als Punkte in der Legende verwendet */
+.balken-gut     { fill: var(--gut); }
+.balken-unter   { fill: var(--dopp); opacity: .75; }
+.balken-laufend { fill: var(--warn); opacity: .7; }
+.balken-neutral { fill: var(--akzent); opacity: .8; }
+
+.legende {
+  display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px;
+  font-size: 12px; color: var(--leise);
+}
+.legende span { display: inline-flex; align-items: center; gap: 7px; }
+.legende .punkt {
+  width: 11px; height: 11px; border-radius: 3px; display: inline-block;
+}
+.legende .strich {
+  width: 16px; height: 0; display: inline-block;
+  border-top: 2px solid currentColor;
+}
+/* In der Legende sind es HTML-Elemente, dort wirkt fill nicht */
+.legende .punkt.balken-gut     { background: var(--gut); }
+.legende .punkt.balken-unter   { background: var(--dopp); opacity: .75; }
+.legende .punkt.balken-laufend { background: var(--warn); opacity: .7; }
+.legende .strich.solllinie {
+  border-top-style: dashed; color: var(--akzent);
+}
+.legende .strich.saldolinie { color: var(--warn); border-top-width: 3px; }
+
+/* Monatstabelle kompakt halten, damit sie nicht seitlich scrollt */
+.monatstabelle td, .monatstabelle th { padding-left: 8px; padding-right: 8px; }
+
+/* Urlaubsbalken im persönlichen Bereich */
+.urlaubsspur {
+  display: block; height: 10px; border-radius: 6px; margin-top: 4px;
+  background: var(--flaeche-2); border: 1px solid var(--linie); overflow: hidden;
+}
+.urlaubsfuellung {
+  display: block; height: 100%; border-radius: 5px;
+  background: var(--akzent); transition: width .4s ease;
+}
+.urlaubsfuellung.voll { background: var(--dopp); }
+
+/* --- Scrollbalken in Karten mit Tabellen ------------------------------- */
+/* .karte hat selbst overflow-x:auto, damit Tabellen ohne eigene Hülle
+   notfalls scrollen können. Steckt die Tabelle bereits in einer
+   .tabellenrolle, gäbe das zwei ineinander liegende Scroll-Container -
+   und schon eine minimale Überbreite lässt aussen einen Balken
+   aufblitzen. In dem Fall scrollt nur noch die innere Hülle. */
+.karte:has(.tabellenrolle) { overflow-x: clip; }
+/* Ohne eigene Regel fiele die Wiki-Karte auf .karte { overflow-x: auto }
+   zurück, sobald ihr Inhalt auch nur ein Pixel zu breit ist - und zeigte
+   einen Rollbalken quer über die ganze Karte. Sie klemmt stattdessen ab;
+   Tabellen und Codeblöcke bringen ihren eigenen Rollbalken mit.
+   Bewusst ohne :has(), damit es auch in älteren Browsern greift. */
+.karte.wiki-blatt, .wiki-haupt > .karte { overflow-x: clip; }
+
+/* Zellen dürfen umbrechen, statt die Tabelle breiter zu machen als die
+   Karte. Betrifft vor allem lange Beschreibungen und Vorgangsarten. */
+/* Feste Tabellenaufteilung: damit kann die Tabelle rechnerisch nie breiter
+   werden als ihre Karte. Ohne das reichte ein einziges Pixel Ueberbreite,
+   damit macOS einen Scrollbalken samt Gummiband-Effekt einblendet. Weil
+   nichts mehr ueberlaufen kann, ist die Huelle auf clip statt auto
+   gestellt - es gibt also gar keinen Scrollbereich mehr. */
+.tabellenrolle .liste { width: 100%; table-layout: fixed; }
+.tabellenrolle .liste td, .tabellenrolle .liste th { overflow-wrap: anywhere; }
+/* nowrap wuerde bei fester Aufteilung aus der Zelle herauslaufen, statt
+   die Tabelle zu verbreitern - in diesen Tabellen daher aufgehoben. */
+.tabellenrolle .liste td.nowrap, .tabellenrolle .liste th.nowrap {
+  white-space: normal;
+}
+.tabellenrolle .liste td.zahlen { overflow-wrap: normal; }
+/* Statusmarken sind Pillen mit white-space: nowrap. Bei fester
+   Spaltenaufteilung lief eine lange Marke ("Warten auf Rückmeldung")
+   dadurch aus ihrer Zelle heraus und legte sich über die Nachbarspalte.
+   In diesen Tabellen darf sie stattdessen umbrechen. */
+.tabellenrolle .liste .marke-status { white-space: normal; }
+
+/* Spaltenaufteilung der Vorgangsliste – die Spalte „Vorgang“ trägt die
+   eigentliche Information (Titel und Notiz) und bekommt deshalb mit
+   Abstand den meisten Platz. „Status“ ist breit genug für die längste
+   Bezeichnung, die Aktionsspalte so schmal wie die beiden Knöpfe. */
+.vorgangstabelle th:nth-child(1) { width: 9%; }
+.vorgangstabelle th:nth-child(2) { width: 12%; }
+.vorgangstabelle th:nth-child(3) { width: 33%; }
+.vorgangstabelle th:nth-child(4) { width: 11%; }
+.vorgangstabelle th:nth-child(5) { width: 12.5%; }
+.vorgangstabelle th:nth-child(6) { width: 9%; }
+.vorgangstabelle th:nth-child(7) { width: 7%; }
+/* Feste Breite statt Prozent: hier stehen zwei Icon-Knöpfe, die bei einer
+   prozentualen Breite auf schmalen Bildschirmen aus der Zelle laufen würden. */
+.vorgangstabelle th:nth-child(8) { width: 74px; text-align: right; padding-right: 6px; }
+/* Knöpfe und Abstände in dieser einen Spalte etwas enger, damit sie mit
+   74 statt 82 Pixeln auskommt. */
+.vorgangstabelle td:last-child { white-space: nowrap; padding-left: 6px; padding-right: 6px; }
+.vorgangstabelle td:last-child .knopf-icon { width: 28px; height: 28px; }
+.vorgangstabelle td:last-child .knopf-icon + form.inline { margin-left: 5px; }
+
+/* Mehrfachauswahl in der Datensatzliste */
+.massenleiste {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 12px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--linie);
+}
+.massenstand { font-size: 13px; color: var(--leise); }
+.massenstand.hat { color: var(--tinte); font-weight: 600; }
+.massenleiste .knopf[disabled] { opacity: .45; cursor: not-allowed; }
+.massenleiste .knopf[disabled]:hover { border-color: var(--linie); color: var(--dopp); }
+.liste th.wahlspalte, .liste td.wahlspalte { width: 34px; padding-right: 0; }
+.liste td.wahlspalte { vertical-align: middle; }
+.liste .wahlspalte input { accent-color: var(--akzent); margin: 0; cursor: pointer; }
+
+/* Monatsübersicht: erste Spalte breiter, Zahlen schmal */
+.monatstabelle th:first-child { width: 30%; }
+
+/* Abstand unter dem Urlaubsbalken – der Text klebte vorher daran */
+.urlaubsspur { margin-bottom: 16px; }
+.urlaubsspur + .klein { margin-top: 0; }
+
+/* Dreimonats-Trend im persönlichen Bereich */
+.unterkopf.klein { margin-top: 20px; font-size: 11px; }
+.trendreihe { list-style: none; margin: 0 0 10px; padding: 0; }
+.trendreihe li {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--linie-fein);
+  font-variant-numeric: tabular-nums; font-size: 13.5px;
+}
+.trendreihe li:last-child { border-bottom: none; }
+.trendmonat { color: var(--leise); }
+
+/* "übrig" stand zu dicht an der grossen Zahl */
+.zahl .einheit.weit { margin-left: 10px; }
+
+/* --- Wiki ------------------------------------------------------------- */
+/*
+   Zweispaltig wie die Einstellungsseite: links die Ordnerstruktur als
+   Baum, rechts der Inhalt. Unter 900px liegt der Baum über dem Inhalt.
+   Der Inhalt einer Wiki-Seite kommt aus Markdown und bringt seine
+   eigenen Überschriften mit - die globalen h1/h2-Regeln (klein,
+   versalisiert, grau) passen dort nicht und werden deshalb innerhalb
+   von .wiki-inhalt überschrieben.
+*/
+
+.wiki { display: grid; gap: var(--abstand); grid-template-columns: 1fr; }
+@media (min-width: 900px) {
+  .wiki { grid-template-columns: 320px minmax(0, 1fr); align-items: start; }
+  /* Unter der klebenden Kopfzeile beginnen, nicht dahinter verschwinden */
+  .wiki-seitenleiste { position: sticky; top: calc(var(--kopfhoehe) + 16px);
+                       max-height: calc(100vh - var(--kopfhoehe) - 32px);
+                       overflow-y: auto; }
+}
+.wiki-haupt { display: flex; flex-direction: column; gap: var(--abstand);
+              min-width: 0; }
+.wiki-seitenleiste { padding: 16px 14px; align-self: start;
+                     overflow-x: clip; }
+
+.wiki-suche { display: flex; gap: 6px; margin-bottom: 14px; }
+.wiki-suche input { flex: 1 1 auto; min-width: 0; padding: 7px 10px; font-size: 13.5px; }
+.wiki-suche .knopf-icon { flex: 0 0 auto; }
+
+.wiki-baum { font-size: 13.5px; }
+.wiki-liste { list-style: none; margin: 0; padding: 0 0 0 13px; }
+.wiki-baum > .wiki-liste { padding-left: 0; }
+.wiki-liste .wiki-liste { border-left: 1px solid var(--linie-stark); margin-left: 8px; }
+
+.wiki-knoten {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 8px; border-radius: 7px; text-decoration: none;
+  color: var(--leise); cursor: pointer;
+  border: 1px solid transparent;
+}
+.wiki-knoten a { color: inherit; text-decoration: none; flex: 1 1 auto;
+                 min-width: 0; overflow-wrap: anywhere; }
+.wiki-knoten span { overflow-wrap: anywhere; }
+.wiki-knoten:hover { background: var(--flaeche-2); color: var(--tinte); }
+.wiki-knoten.hier { background: var(--akzent-weich); color: var(--akzent); font-weight: 600; }
+.wiki-symbol { width: 15px; height: 15px; flex: 0 0 auto; opacity: .75; }
+.wiki-wurzel { margin-bottom: 6px; font-weight: 600; }
+
+/* Ordner und Seiten auf einen Blick auseinanderhalten. Drei Merkmale
+   zusammen, damit es auch dann trägt, wenn eines wegfällt (Farbfehl-
+   sichtigkeit, sehr kleine Schrift): das Ordnersymbol ist ausgefüllt und
+   trägt die Akzentfarbe, die Beschriftung ist halbfett, die Seiten
+   darunter stehen dagegen leicht eingerückt in normaler Stärke. */
+.wiki-ordner > summary { font-weight: 600; color: var(--tinte); }
+.wiki-ordner > summary .wiki-symbol { color: var(--akzent); opacity: 1; }
+.wiki-seitenknoten { font-weight: 400; padding-left: 12px; }
+.wiki-seitenknoten .wiki-symbol { width: 13.5px; height: 13.5px; opacity: .55; }
+.wiki-seitenknoten.hier .wiki-symbol { opacity: 1; }
+/* Etwas Luft vor jedem neuen Ordner - so bilden Ordner samt Inhalt
+   sichtbare Gruppen statt einer durchlaufenden Reihe. */
+.wiki-liste > li + li:has(> .wiki-ordner) { margin-top: 3px; }
+
+/* Ordner: das Dreieck der Zusammenfassung stört im Raster, der Pfeil
+   wird deshalb selbst gezeichnet. */
+.wiki-ordner > summary { list-style: none; }
+.wiki-ordner > summary::-webkit-details-marker { display: none; }
+.wiki-ordner > summary::after {
+  content: "›"; margin-left: auto; font-size: 15px; line-height: 1;
+  opacity: .6; transform: rotate(0deg);
+}
+.wiki-ordner[open] > summary::after { transform: rotate(90deg); }
+@media (prefers-reduced-motion: no-preference) {
+  .wiki-ordner > summary::after { transition: transform .15s ease; }
+}
+
+/* Ziehen und Ablegen */
+.wiki-knoten.wird-gezogen { opacity: .45; }
+.wiki-knoten.ziel-aktiv,
+.wiki-wurzel.ziel-aktiv {
+  border-color: var(--akzent); background: var(--akzent-weich); color: var(--akzent);
+}
+.wiki-ziehhinweis { margin: 12px 0 0; }
+
+.wiki-anlegen { margin-top: 14px; border-top: 1px solid var(--linie); padding-top: 12px; }
+.wiki-anlegen > summary { cursor: pointer; font-size: 13px; font-weight: 600;
+                          color: var(--leise); }
+.wiki-anlegen > summary:hover { color: var(--akzent); }
+.wiki-neuform { margin-top: 12px; }
+.wiki-neuform .feld { margin-bottom: 10px; }
+.wiki-neuform input, .wiki-neuform select { padding: 7px 10px; font-size: 13.5px; }
+
+/* Pfadleiste */
+/* Die Pfadangabe stand bis 0.7.2 in der rechten Spalte und schob deren
+   Karte nach unten - Seitenleiste und Inhalt begannen dadurch auf
+   verschiedenen Höhen. Jetzt steht sie über beiden Spalten, gehört damit
+   sichtbar zur ganzen Seite und beide Karten fangen oben gleich an. */
+.wiki-krumen { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline;
+               font-size: 13px; color: var(--leise);
+               margin-bottom: calc(var(--abstand) * -0.5); }
+.wiki-krumen a { color: var(--leise); text-decoration: none; }
+.wiki-krumen a:hover { color: var(--akzent); }
+.wiki-krumen .hier { color: var(--tinte); font-weight: 600; }
+.wiki-krumen-teiler { opacity: .5; }
+
+.wiki-werkzeugleiste {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 16px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--linie);
+}
+.wiki-werkzeugleiste h1 { margin: 0; }
+.wiki-fuss { margin: 22px 0 0; padding-top: 12px; border-top: 1px solid var(--linie-fein); }
+
+/* --- Der gerenderte Seiteninhalt --- */
+
+/*
+   Der Fließtext einer Wiki-Seite folgt der Vorgabe aus wikidarstellung/
+   darstellungsziel.png: viel Luft zwischen den Abschnitten, damit man
+   die Gliederung schon beim Überfliegen sieht, und eine dünne senkrechte
+   Linie an jeder Einrückungsebene einer Liste. Gerade bei Stammblättern
+   mit drei Ebenen (Krankenkasse -> Ärztliche Anbindung -> Hausarzt ->
+   Adresse) ist ohne diese Linien nicht mehr zu erkennen, was zu wem
+   gehört. Die Abstände sind bewusst großzügig: die Überschrift gehört
+   sichtbar zu dem, was unter ihr steht, nicht zu dem, was darüber endet.
+*/
+/* Lange Pfade und Adressen müssen umbrechen dürfen. "anywhere" kennen
+   ältere Browser nicht - dann greift der Vorgänger "break-word", sonst
+   stünde ein Wort wie 05_klienten_stammdaten/HINWEIS_DATENSCHUTZ.md aus
+   seiner Spalte heraus und machte die Seite breiter als das Fenster. */
+.wiki-inhalt { line-height: 1.65; word-break: break-word;
+               overflow-wrap: break-word; overflow-wrap: anywhere; }
+.wiki-inhalt > *:first-child { margin-top: 0; }
+.wiki-inhalt > *:last-child { margin-bottom: 0; }
+.wiki-inhalt h1, .wiki-inhalt h2, .wiki-inhalt h3,
+.wiki-inhalt h4, .wiki-inhalt h5, .wiki-inhalt h6 {
+  text-transform: none; letter-spacing: -0.2px; color: var(--tinte);
+  font-weight: 700; line-height: 1.3;
+}
+/* Vier Stufen aus den Farben des Themes: die Seitenüberschrift trägt die
+   Akzentfarbe (genau einmal pro Seite), darunter volle Textfarbe, dann
+   die Zwischenstufe, ganz unten die leise Farbe. Zusammen mit Größe und
+   Laufweite ergibt das eine Rangfolge, die man auch beim Überfliegen
+   erkennt - ohne dass die Seite bunt wird. */
+.wiki-inhalt h1 { font-size: 26px; margin: 0 0 16px; color: var(--ueber-1); }
+/* Kein Unterstrich mehr unter h2 - im Vorbild trennt der Abstand, und
+   wo eine Linie hingehört, steht im Markdown ein --- (siehe hr). */
+.wiki-inhalt h2 { font-size: 20.5px; margin: 44px 0 22px; color: var(--ueber-2); }
+.wiki-inhalt h3 { font-size: 17px; margin: 32px 0 14px; color: var(--ueber-3); }
+.wiki-inhalt h4, .wiki-inhalt h5, .wiki-inhalt h6 {
+  font-size: 13.5px; color: var(--ueber-4); margin: 26px 0 10px;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.wiki-inhalt p { margin: 0 0 14px; }
+/* Links im Fließtext werden nicht unterstrichen - der Unterstrich zerhackt
+   bei den vielen Pfadangaben im Wiki das Schriftbild. Kenntlich sind sie
+   über die Akzentfarbe und eine etwas kräftigere Strichstärke; erst beim
+   Überfahren kommt der Unterstrich dazu. */
+.wiki-inhalt a { color: var(--akzent); text-decoration: none; font-weight: 500; }
+.wiki-inhalt a:hover, .wiki-inhalt a:focus-visible {
+  color: var(--akzent-satt); text-decoration: underline; text-underline-offset: 3px;
+}
+.wiki-inhalt a code { color: inherit; border-color: var(--akzent-weich); }
+.wiki-inhalt ul, .wiki-inhalt ol { margin: 0 0 16px; padding-left: 26px; }
+.wiki-inhalt li { margin-bottom: 8px; }
+.wiki-inhalt li:last-child { margin-bottom: 0; }
+.wiki-inhalt li > p { margin-bottom: 8px; }
+.wiki-inhalt li > p:last-child { margin-bottom: 0; }
+
+/* Die Führungslinie einer Einrückungsebene. Sie sitzt über das negative
+   linke Außenmaß genau dort, wo der Aufzählungspunkt der übergeordneten
+   Zeile steht, und läuft über die volle Höhe der eingerückten Gruppe. */
+.wiki-inhalt li > ul, .wiki-inhalt li > ol {
+  margin: 9px 0 6px -12px;
+  padding-left: 40px;
+  border-left: 1px solid var(--linie-stark);
+}
+/* Auf jeder Ebene derselbe Punkt. Die Ebene erkennt man an der
+   Führungslinie, nicht an der Form des Aufzählungszeichens. */
+.wiki-inhalt ul { list-style-type: disc; }
+.wiki-inhalt li.aufgabe { list-style: none; margin-left: -24px; padding-left: 0; }
+/* Das Kästchen einer Aufgabe - im Fließtext ("[x] Aktiv | [ ] Pausiert")
+   genauso wie in einer Aufzählung. Ein abgeschaltetes <input> malen die
+   Browser grau, deshalb ist es hier ein eigenes Element und trägt die
+   Akzentfarbe. */
+.wiki-haken {
+  display: inline-block; position: relative;
+  width: 15px; height: 15px; vertical-align: -2px; margin-right: 1px;
+  border: 1.5px solid var(--linie-stark); border-radius: 4.5px;
+  background: var(--flaeche-2);
+}
+.wiki-haken.an { background: var(--akzent); border-color: var(--akzent); }
+.wiki-haken.an::after {
+  content: ""; position: absolute; left: 4.5px; top: 1px;
+  width: 3px; height: 7.5px;
+  border: solid var(--grund); border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.wiki-inhalt hr { border: none; border-top: 1px solid var(--linie-stark);
+                  margin: 40px 0 34px; }
+.wiki-inhalt code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.8px; padding: 1px 5px; border-radius: 5px;
+  background: var(--flaeche-2); border: 1px solid var(--linie-fein);
+}
+.wiki-inhalt pre {
+  background: var(--flaeche-2); border: 1px solid var(--linie);
+  border-radius: 9px; padding: 13px 15px; overflow-x: auto; margin: 0 0 18px;
+}
+.wiki-inhalt pre code { background: none; border: none; padding: 0; font-size: 12.8px; }
+.wiki-inhalt blockquote {
+  margin: 0 0 18px; padding: 3px 0 3px 16px;
+  border-left: 3px solid var(--akzent); color: var(--leise);
+}
+.wiki-inhalt blockquote p:last-child { margin-bottom: 0; }
+/* Bilder im Wiki-Text: höchstens 68% der Textbreite. Über die volle
+   Breite gezogen erschlägt ein Screenshot den Text um ihn herum, und ein
+   Foto in einer Wissensseite ist eine Beilage, keine Titelseite. 68%
+   lässt rechts genug Rand stehen, dass das Bild als eingefügt erkennbar
+   bleibt.
+
+   Zwei Dinge, die zusammengehören: "max-width" statt "width" heißt, dass
+   ein kleines Bild in seiner echten Größe bleibt und NIE hochskaliert
+   wird - hochgerechnete Bilder sind unscharf. Und "height: auto" hält
+   das Seitenverhältnis. Auf schmalen Fenstern darf es die volle Breite
+   nehmen, dort ist ohnehin kein Platz daneben. */
+.wiki-inhalt img { max-width: 68%; height: auto; border-radius: 8px; }
+@media (max-width: 700px) {
+  .wiki-inhalt img { max-width: 100%; }
+}
+/* Tabellen im Wiki-Text sind bewusst NICHT die Programmtabelle (.liste):
+   die ist für Datenlisten gedacht, mit versalisierten Spaltentiteln und
+   fester Spaltenaufteilung. Im Fließtext will man das Gegenteil - eine
+   ruhige Karte, in der die Spalten so breit werden, wie ihr Inhalt es
+   braucht. Deshalb ein eigener, in sich geschlossener Satz Regeln. */
+.wiki-tabellenrolle {
+  margin: 8px 0 22px;
+  border: 1px solid var(--linie);
+  border-radius: 12px;
+  background: var(--flaeche);
+  box-shadow: var(--schatten);
+  /* Beschneidet den Inhalt an den runden Ecken; eine zu breite Tabelle
+     rollt in diesem Kasten statt die Seite zu verbreitern. */
+  overflow-x: auto;
+}
+.wiki-tabelle {
+  width: 100%; border-collapse: collapse;
+  font-size: 14px; line-height: 1.55;
+}
+.wiki-tabelle th {
+  text-align: left; font-weight: 600; font-size: 12.5px;
+  letter-spacing: .05em; text-transform: uppercase;
+  color: var(--leise); background: var(--flaeche-2);
+  padding: 12px 18px; white-space: nowrap;
+  border-bottom: 1px solid var(--linie);
+}
+/* Feiner Farbstrich unter der Kopfzeile - genug, um sie als Kopf zu
+   lesen, zu wenig, um vom Inhalt abzulenken. */
+.wiki-tabelle thead { box-shadow: inset 0 -2px 0 var(--akzent-weich); }
+.wiki-tabelle td {
+  padding: 12px 18px; border-bottom: 1px solid var(--linie-fein);
+  vertical-align: top; color: var(--tinte-2);
+}
+.wiki-tabelle tbody tr:last-child td { border-bottom: none; }
+/* Keine Zebrastreifen: bei zwei, drei Spalten wirken sie unruhig. Die
+   Zeile hebt sich beim Überfahren hervor, das reicht zum Verfolgen. */
+.wiki-tabelle tbody tr:hover { background: var(--flaeche-2); }
+/* Die erste Spalte trägt meist den Schlüssel der Zeile. */
+.wiki-tabelle td:first-child { color: var(--tinte); font-weight: 500; }
+.wiki-tabelle td > code { background: var(--grund); }
+.wiki-tabelle th.rechts, .wiki-tabelle td.rechts { text-align: right; }
+.wiki-tabelle th.mitte, .wiki-tabelle td.mitte { text-align: center; }
+
+/* "Auf dieser Seite" - erscheint nur bei mindestens drei Abschnitten,
+   siehe wiki._seite().
+
+   Ab 1240px steht es als eigene, mitlaufende Spalte rechts: dort ist es
+   immer greifbar und nimmt dem Text nichts weg. Darunter wird daraus ein
+   zugeklapptes Menü über dem Inhalt - gerade bei einer tief
+   verschachtelten Seite soll es nicht als Block im Weg stehen.
+   Aufgeklappt wird es nur auf breiten Fenstern, siehe das kurze Skript
+   in wiki.html. */
+.wiki-abschnitte {
+  /* Gehört zur selben Familie wie die Navigationskarte links, ist aber
+     eigenständiger gebaut: ein abgesetzter Kopfstreifen, darunter die
+     Abschnitte. Bewusst OHNE senkrechte Führungslinien - im Fließtext
+     tragen sie die Gliederung, in einer so kurzen Liste machten sie den
+     Kasten nur unruhig. Die Ebene steht stattdessen in der Einrückung
+     und in der Punktmarke davor. */
+  border: 1px solid var(--linie); border-radius: var(--radius);
+  background: var(--flaeche); box-shadow: var(--schatten);
+  align-self: start;
+  /* Damit der Kopfstreifen die runden Ecken mitnimmt. */
+  overflow: hidden;
+}
+.wiki-abschnitte > summary {
+  display: flex; align-items: center; gap: 9px; cursor: pointer;
+  padding: 11px 14px; list-style: none;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--leise);
+  background: var(--flaeche-2);
+  border-bottom: 1px solid transparent;
+}
+.wiki-abschnitte[open] > summary { border-bottom-color: var(--linie); }
+.wiki-abschnitte > summary::-webkit-details-marker { display: none; }
+.wiki-abschnitte > summary::before {
+  content: ""; width: 13px; height: 13px; flex: 0 0 auto; opacity: .85;
+  background: currentColor;
+  /* Drei Striche, wie sie ein Inhaltsverzeichnis andeutet. */
+  -webkit-mask: var(--marke-liste) center / contain no-repeat;
+  mask: var(--marke-liste) center / contain no-repeat;
+}
+.wiki-abschnitte > summary::after {
+  content: "›"; margin-left: auto; font-size: 15px; line-height: 1; opacity: .7;
+}
+.wiki-abschnitte[open] > summary::after { transform: rotate(90deg); }
+.wiki-abschnitte > summary:hover { color: var(--akzent); }
+@media (prefers-reduced-motion: no-preference) {
+  .wiki-abschnitte > summary::after { transition: transform .15s ease; }
+  .wiki-abschnitte a::before { transition: background .15s ease,
+                                           box-shadow .15s ease; }
+}
+.wiki-abschnitte ul {
+  list-style: none; margin: 0; padding: 8px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.wiki-abschnitte li { margin: 0; line-height: 1.4; }
+.wiki-abschnitte a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px; border-radius: 8px;
+  color: var(--leise); text-decoration: none;
+  font-size: 13.5px; font-weight: 500; overflow-wrap: anywhere;
+}
+/* Punktmarke statt Führungslinie: gefüllt auf der obersten Ebene, hohl
+   auf den tieferen - so bleibt die Gliederung ablesbar, ohne dass eine
+   Linie durch den Kasten läuft. */
+.wiki-abschnitte a::before {
+  content: ""; flex: 0 0 auto;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--linie-stark);
+}
+.wiki-abschnitte li.stufe-3 a { padding-left: 22px; font-size: 13px; font-weight: 400; }
+.wiki-abschnitte li.stufe-4 a, .wiki-abschnitte li.stufe-5 a,
+.wiki-abschnitte li.stufe-6 a { padding-left: 34px; font-size: 12.5px;
+                                font-weight: 400; }
+.wiki-abschnitte li.stufe-3 a::before, .wiki-abschnitte li.stufe-4 a::before,
+.wiki-abschnitte li.stufe-5 a::before, .wiki-abschnitte li.stufe-6 a::before {
+  width: 4px; height: 4px; background: transparent;
+  box-shadow: inset 0 0 0 1px var(--linie-stark);
+}
+.wiki-abschnitte a:hover { background: var(--flaeche-2); color: var(--tinte); }
+.wiki-abschnitte a:hover::before { background: var(--leise); box-shadow: none; }
+/* Der Abschnitt, in dem man gerade liest - gesetzt vom Skript in
+   wiki.html. */
+.wiki-abschnitte a.hier {
+  background: var(--akzent-weich); color: var(--akzent); font-weight: 600;
+}
+.wiki-abschnitte a.hier::before { background: var(--akzent); box-shadow: none; }
+
+@media (min-width: 900px) and (max-width: 1239px) {
+  .wiki.mit-abschnitten {
+    grid-template-areas: "leiste abschnitte" "leiste inhalt";
+    align-content: start;
+  }
+  .wiki.mit-abschnitten > .wiki-seitenleiste { grid-area: leiste; }
+  .wiki.mit-abschnitten > .wiki-abschnitte { grid-area: abschnitte; }
+  .wiki.mit-abschnitten > .wiki-haupt { grid-area: inhalt; }
+}
+@media (min-width: 1240px) {
+  .wiki.mit-abschnitten {
+    grid-template-columns: 320px minmax(0, 1fr) 252px;
+    grid-template-areas: "leiste inhalt abschnitte";
+  }
+  .wiki.mit-abschnitten > .wiki-seitenleiste { grid-area: leiste; }
+  .wiki.mit-abschnitten > .wiki-haupt { grid-area: inhalt; }
+  .wiki.mit-abschnitten > .wiki-abschnitte {
+    grid-area: abschnitte; position: sticky;
+    top: calc(var(--kopfhoehe) + 16px);
+    max-height: calc(100vh - 32px); overflow-y: auto;
+  }
+  /* Bei einer langen Gliederung rollt die Liste im Kasten - die
+     Beschriftung bleibt dabei oben stehen. */
+  .wiki.mit-abschnitten > .wiki-abschnitte > summary {
+    position: sticky; top: 0; z-index: 1;
+  }
+}
+/* Beim Sprung auf einen Abschnitt soll die Überschrift nicht am oberen
+   Rand kleben. */
+/* Sprungmarken müssen unter der klebenden Kopfzeile landen, sonst
+   verschwindet die angesprungene Überschrift dahinter. */
+.wiki-inhalt :is(h1, h2, h3, h4, h5, h6)[id] {
+  scroll-margin-top: calc(var(--kopfhoehe) + 18px);
+}
+
+.wiki-einleitung { padding-bottom: 6px; }
+
+/* Ordneransicht */
+.wiki-kacheln { list-style: none; margin: 4px 0 0; padding: 0;
+                display: grid; gap: 12px;
+                grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.wiki-kachel {
+  display: flex; flex-direction: column; gap: 4px; height: 100%;
+  padding: 13px 15px; border: 1px solid var(--linie); border-radius: 10px;
+  background: var(--flaeche-2); text-decoration: none; color: var(--tinte);
+}
+.wiki-kachel:hover { border-color: var(--akzent); }
+.wiki-kachel-art { font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+                   text-transform: uppercase; color: var(--leise); }
+.wiki-kachel.ordner .wiki-kachel-art { color: var(--akzent); }
+.wiki-kachel-titel { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.wiki-kachel-fuss { font-size: 11.5px; color: var(--leise); margin-top: auto;
+                    padding-top: 4px; overflow-wrap: anywhere; }
+
+/* Zweite Darstellung der Ordneransicht: Liste statt Kacheln, umschaltbar
+   unter Einstellungen -> Oberfläche. Beide Fassungen stehen im HTML, hier
+   wird nur eine davon gezeigt - so blitzt beim Laden nichts auf, was
+   gleich wieder verschwindet (dieselbe Technik wie bei Hell/Dunkel). */
+.wiki-listenansicht { display: none; }
+[data-wikiliste="liste"] .wiki-listenansicht { display: block; }
+[data-wikiliste="liste"] .wiki-kacheln { display: none; }
+
+.wiki-verzeichnis { margin-top: 4px; }
+/* Feste Spaltenaufteilung wie bei der Vorgangsliste: die Tabellen in
+   .tabellenrolle stehen auf table-layout: fixed, ohne eigene Breiten
+   bekäme jede Spalte gleich viel Platz - der Titel würde dreizeilig
+   umbrechen, während "Größe" die Hälfte davon leer stehen lässt. */
+.wiki-verzeichnis th.artspalte, .wiki-verzeichnis td.artspalte {
+  width: 26px; padding-right: 0;
+}
+/* Alle Spalten außer "Name" bekommen eine feste Breite in Pixeln, "Name"
+   nimmt den Rest. Mit Prozentangaben passte es nur bei genau einer
+   Fensterbreite: sobald die Summe aus Prozenten und Pixelspalten breiter
+   wurde als die Tabelle, staucht table-layout: fixed alles gleichmäßig
+   zusammen - und die drei Knöpfe brachen um. */
+.wiki-verzeichnis th:nth-child(3) { width: 92px; }
+.wiki-verzeichnis th:nth-child(4) { width: 142px; }
+.wiki-verzeichnis th:last-child { width: 118px; padding-right: 6px; }
+.wiki-verzeichnis td.artspalte { vertical-align: middle; line-height: 0; }
+.wiki-verzeichnis td.artspalte .wiki-symbol { width: 15px; height: 15px;
+                                              color: var(--leise); opacity: .6; }
+.wiki-verzeichnis td.artspalte .wiki-symbol.ordner { color: var(--akzent); opacity: 1; }
+.wiki-verzeichnis td { vertical-align: middle; }
+.wiki-verzeichnis a { text-decoration: none; font-weight: 500; }
+.wiki-verzeichnis a:hover { text-decoration: underline; }
+/* Die Aktionsspalte darf nicht umbrechen, sonst rutscht der dritte Knopf
+   in eine zweite Zeile. Der Selektor ist bewusst so lang: die Regel
+   ".tabellenrolle .liste td.nowrap { white-space: normal }" weiter oben
+   hebt nowrap in genau diesen Tabellen wieder auf (damit lange Texte
+   umbrechen statt aus der Zelle zu laufen) und wäre sonst spezifischer
+   als diese hier. */
+.tabellenrolle .liste.wiki-verzeichnis td:last-child {
+  white-space: nowrap; padding-left: 6px;
+}
+.wiki-verzeichnis .knopf-icon { width: 28px; height: 28px; }
+
+/* Die drei Knöpfe einer Seite (bearbeiten, herunterladen, löschen) */
+.wiki-aktionen { display: flex; align-items: center; gap: 6px; }
+.wiki-aktionen form { margin: 0; }
+.wiki-aktionen .knopf-icon + form.inline { margin-left: 0; }
+
+/* Suchergebnisse */
+.wiki-treffer { list-style: none; margin: 0; padding: 0; }
+.wiki-treffer li { padding: 12px 0; border-bottom: 1px solid var(--linie-fein); }
+.wiki-treffer li:last-child { border-bottom: none; }
+.wiki-treffer-titel { display: inline-block; font-weight: 600; margin-right: 8px;
+                      color: var(--akzent); text-decoration: none; }
+.wiki-treffer-stelle { margin: 5px 0 0; font-size: 13px; color: var(--leise);
+                       overflow-wrap: anywhere; }
+
+/* Bearbeitungsmodus */
+.wiki-editor textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13.5px; line-height: 1.6; tab-size: 2;
+}
+.wiki-spick { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--linie); }
+.wiki-spick > summary { cursor: pointer; font-size: 13px; font-weight: 600;
+                        color: var(--leise); }
+.wiki-spick > summary:hover { color: var(--akzent); }
+.wiki-spick .tabellenrolle { margin-top: 12px; }
+.wiki-spick code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                   font-size: 12.5px; }
+
+/* Auf schmalen Bildschirmen steht der Baum über dem Inhalt (wie das
+   Seitenmenü der Einstellungen). Damit man sich nicht durch das ganze
+   Verzeichnis scrollen muss, bevor der Text kommt, ist er dort in der
+   Höhe gedeckelt und rollt in sich selbst. */
+@media (max-width: 899px) {
+  .wiki-baum { max-height: 45vh; overflow-y: auto; }
+}
+
+/* Abmelden steht seit 0.7.1 in "Mein Bereich" statt in der Kopfzeile –
+   dort war es ein Knopf neben lauter Navigationssymbolen und wurde
+   gelegentlich versehentlich getroffen. */
+/* „Mein Konto“: die Kopfzeile trägt margin-bottom 0, weil dort früher
+   nichts weiter folgte. Seit 0.8.5 steht darunter die Selbstbedienung –
+   der Einleitungssatz braucht darum seinen eigenen Abstand. */
+.abmeldekarte .kopfzeile { margin-bottom: 0; align-items: center; }
+.abmeldekarte .lead { margin-top: 14px; }
+.kontoform fieldset.feld { border: 0; padding: 0; margin: 0 0 4px; }
+.knopf.abmelden { display: inline-flex; align-items: center; gap: 8px; }
+.knopf.abmelden svg { width: 16px; height: 16px; }
+.knopf.abmelden:hover { border-color: var(--dopp); color: var(--dopp); }
+
+/* --- Fuhrpark ----------------------------------------------------------- */
+
+/* Die beiden Unterpunkte des Menüpunkts „Fuhrpark“. Bewusst dieselbe
+   Formensprache wie die Navigation in der Kopfzeile – es ist dieselbe
+   Art von Auswahl, nur eine Ebene tiefer. Kein Aufklappmenü in der
+   Kopfzeile: das gibt es sonst nirgends im Programm. */
+.unternavigation {
+  display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: var(--abstand);
+  padding: 5px; border-radius: var(--radius);
+  border: 1px solid var(--linie); background: var(--flaeche);
+  box-shadow: var(--schatten);
+}
+.unternavigation a {
+  padding: 8px 15px; border-radius: 8px; text-decoration: none;
+  font-size: 14px; font-weight: 600; color: var(--leise);
+}
+.unternavigation a:hover { background: var(--flaeche-2); color: var(--tinte); }
+.unternavigation a.aktiv { background: var(--akzent-weich); color: var(--akzent); }
+
+/* Zeitraum in der Fuhrpark-Auswertung: eine Reihe Schnellwahl-Pillen und
+   daneben der eigene Zeitraum. Beide schließen einander aus, deshalb
+   stehen sie in einem gemeinsamen Feld mit Beschriftung darüber – und
+   nicht als drei gleichrangige Auswahlfelder nebeneinander, bei denen
+   nicht zu sehen war, welche Angabe gerade gilt. */
+.zeitraumfeld {
+  flex: 1 0 100%; border: 1px solid var(--linie); border-radius: 10px;
+  margin: 0; padding: 4px 14px 14px; min-width: 0;
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+}
+.zeitraumfeld > legend {
+  font-size: 12px; font-weight: 600; padding: 0 6px; color: var(--tinte);
+}
+.zeitraumwahl { display: flex; flex-wrap: wrap; gap: 7px; }
+.zeitraumpille {
+  display: inline-flex; align-items: center; padding: 8px 14px;
+  border-radius: 20px; border: 1px solid var(--linie);
+  background: var(--flaeche-2); font-size: 13.5px; cursor: pointer;
+  white-space: nowrap;
+}
+/* Der Punkt selbst wäre in einer Reihe kurzer Beschriftungen nur Unruhe.
+   Er bleibt bedienbar und für Vorlesesoftware da, ist aber nicht zu
+   sehen; die Pille zeigt den Zustand. */
+.zeitraumpille input {
+  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+}
+.zeitraumpille:hover { border-color: var(--akzent); }
+.zeitraumpille:has(input:checked) {
+  border-color: var(--akzent); background: var(--akzent-weich); color: var(--akzent);
+  font-weight: 600;
+}
+.zeitraumpille:has(input:focus-visible) {
+  outline: 2px solid var(--akzent); outline-offset: 1px;
+}
+
+.zeitraumeigen {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-left: auto; font-size: 13px; color: var(--leise);
+}
+.zeitraumeigen input[type=date] { width: auto; min-width: 140px; }
+.zeitraumeigen-bis { display: inline-flex; align-items: center; gap: 8px; }
+/* Gilt gerade der eigene Zeitraum, ist keine Pille hervorgehoben –
+   dann muss man hier sehen, dass diese beiden Felder die Auswertung
+   bestimmen. */
+.zeitraumeigen.gilt .zeitraumeigen-wort { color: var(--akzent); font-weight: 600; }
+.zeitraumeigen.gilt input[type=date] { border-color: var(--akzent); }
+
+@media (max-width: 860px) {
+  .zeitraumeigen { margin-left: 0; }
+}
+
+/* Fahrzeugwahl auf der Erfassungsseite */
+.kfz-wahl { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+            margin-bottom: 16px; }
+.kfz-wahl .feld { margin-bottom: 0; flex: 1 1 280px; max-width: 460px; }
+
+/* Stammdaten des gewählten Fahrzeugs als schmale Zeile über der Erfassung */
+.kfz-stammzeile {
+  display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0;
+  padding-top: 14px; border-top: 1px solid var(--linie-fein);
+  font-size: 13px;
+}
+.kfz-stammzeile dt { color: var(--leise); }
+.kfz-stammzeile dt::after { content: ":"; }
+.kfz-stammzeile dd { margin: 0 0 0 -14px; font-weight: 600; }
+
+/* Die Auswahl hinter „Was möchtest du erfassen?“.
+
+   Zwei Gruppen statt eines Rasters: oben die beiden Handgriffe, die
+   ständig vorkommen (Tanken, Kilometerstand), darunter die sechs
+   Gelegenheiten. 2 und 6 gehen bei zwei wie bei drei Spalten ohne Rest
+   auf – das frühere Raster mit einer 2×2-Kachel ging nur bei genau vier
+   Spalten auf und ließ sonst Lücken.
+
+   Jeder Eintrag trägt den Farbton seiner Kategorie (--kfz-*) – denselben,
+   den auch die Diagramme und die Marken in der Historie benutzen. Der Ton
+   sitzt nur im Symbol, nicht in Schrift oder Rahmen: acht kräftig
+   gerahmte Felder nebeneinander wären wieder unruhig. */
+.kfz-arten { display: flex; flex-direction: column; gap: 10px;
+             margin-bottom: 18px; }
+.kfz-arten-haupt,
+.kfz-arten-weitere { display: grid; gap: 10px;
+                    grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.kfz-art {
+  --ton: var(--linie-stark);
+  display: flex; align-items: center; gap: 11px;
+  padding: 12px 13px; border-radius: 12px; text-decoration: none;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+  color: var(--tinte); min-width: 0;
+}
+.kfz-art:hover { border-color: var(--linie-stark); background: var(--flaeche); }
+.kfz-art.aktiv { border-color: var(--akzent); background: var(--akzent-weich); }
+
+/* Das Symbol sitzt in einer eigenen Mulde. --grund liegt in beiden
+   Ansichten hinter der Karte und wirkt darum hell wie dunkel vertieft. */
+.kfz-art-zeichen {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 36px; height: 36px; border-radius: 9px;
+  background: var(--grund); color: var(--ton);
+}
+.kfz-art-zeichen svg { width: 21px; height: 21px; display: block; }
+.kfz-art.aktiv .kfz-art-zeichen { background: var(--flaeche); }
+
+.kfz-art-wort { font-size: 13.5px; font-weight: 600; line-height: 1.25;
+                overflow-wrap: anywhere; }
+
+/* Die beiden Hauptwege: eine Stufe größer, kräftigerer Rahmen. Der
+   Unterschied kommt aus Platz und Kontrast, nicht mehr aus einer
+   Sonderrolle im Raster. */
+.kfz-art.haupt { padding: 16px 15px; gap: 13px;
+                      border-color: var(--linie-stark); }
+.kfz-art.haupt .kfz-art-zeichen { width: 46px; height: 46px;
+                                       border-radius: 11px; }
+.kfz-art.haupt .kfz-art-zeichen svg { width: 27px; height: 27px; }
+.kfz-art.haupt .kfz-art-wort { font-size: 16px; }
+
+.kfz-a-tanken     { --ton: var(--kfz-tanken); }
+.kfz-a-inspektion { --ton: var(--kfz-inspektion); }
+.kfz-a-wartung    { --ton: var(--kfz-wartung); }
+.kfz-a-reparatur  { --ton: var(--kfz-reparatur); }
+.kfz-a-reifen     { --ton: var(--kfz-reifen); }
+.kfz-a-tuev       { --ton: var(--kfz-tuev); }
+.kfz-a-sonstiges  { --ton: var(--kfz-sonstiges); }
+.kfz-a-km         { --ton: var(--kfz-km); }
+
+@media (min-width: 720px) {
+  .kfz-arten-weitere { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.kfz-formular { padding-top: 4px; border-top: 1px solid var(--linie-fein); }
+.kfz-formular .feldreihe { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+
+/* Fälligkeiten – dieselbe Liste auf beiden Fuhrparkseiten */
+.kfz-faelligkeiten { list-style: none; margin: 0; padding: 0;
+                     display: flex; flex-direction: column; gap: 8px; }
+.kfz-faellig {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; border-radius: 9px; font-size: 14px;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+  border-left-width: 3px;
+}
+.kfz-faellig.l-ueberfaellig { border-color: var(--dopp); background: var(--dopp-weich); }
+.kfz-faellig.l-bald { border-color: var(--warn); background: var(--warn-weich); }
+.kfz-faellig.l-hinweis { border-left-color: var(--warn); }
+.kfz-faellig-punkt {
+  flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
+  margin-top: 6px; background: var(--warn);
+}
+.kfz-faellig.l-ueberfaellig .kfz-faellig-punkt { background: var(--dopp); }
+.kfz-faellig.l-hinweis      .kfz-faellig-punkt { background: var(--leise); }
+.kfz-faellig-text { flex: 1 1 240px; min-width: 0; }
+.kfz-faellig-text a { color: inherit; text-decoration: none;
+                      border-bottom: 1px solid transparent; }
+.kfz-faellig-text a:hover { border-bottom-color: currentColor; }
+.kfz-faellig-wann { color: var(--leise); }
+.kfz-faellig.l-ueberfaellig .kfz-faellig-wann { color: var(--dopp); font-weight: 600; }
+.kfz-faellig.l-bald .kfz-faellig-wann { color: var(--warn); font-weight: 600; }
+.kfz-faellig-datum { flex: 0 0 auto; margin-left: auto; white-space: nowrap; }
+.kfz-handlungsbedarf.hat-alarm { border-color: var(--dopp); }
+
+/* Historie und Vergleich stehen auf fester Spaltenaufteilung – dieselbe
+   Entscheidung wie bei den Vorgangstabellen, damit die Tabelle nie
+   breiter wird als ihre Karte. Die Breiten stehen wie dort in Prozent;
+   nur die Aktionsspalte der Historie bekommt Pixel, weil dort zwei
+   Icon-Knöpfe stehen, die bei einer prozentualen Breite auf schmalen
+   Bildschirmen aus ihrer Zelle liefen. */
+.tabellenrolle .liste.kfz-historie,
+.tabellenrolle .liste.kfz-vergleich { table-layout: fixed; }
+.kfz-historie th:nth-child(1) { width: 14%; }
+.kfz-historie th:nth-child(2) { width: 15%; }
+.kfz-historie th:nth-child(3) { width: 40%; }
+.kfz-historie th:nth-child(4) { width: 12%; }
+.kfz-historie th:nth-child(5) { width: 11%; }
+/* Wie die Statusmarken der Vorgangsliste: die Pille trägt white-space:
+   nowrap und liefe bei fester Spaltenaufteilung aus ihrer Zelle heraus. */
+.tabellenrolle .liste .kfz-marke { white-space: normal; }
+.kfz-historie th:last-child { width: 74px; text-align: right; padding-right: 6px; }
+.tabellenrolle .liste.kfz-historie td:last-child {
+  white-space: nowrap; padding-left: 6px; padding-right: 6px;
+}
+.kfz-historie td:last-child .knopf-icon { width: 28px; height: 28px; }
+.kfz-historie td:last-child .knopf-icon + form.inline { margin-left: 5px; }
+
+.kfz-vergleich th:nth-child(1) { width: 21%; }
+.kfz-vergleich th:nth-child(2) { width: 14%; }
+.kfz-vergleich th:nth-child(3) { width: 13%; }
+.kfz-vergleich th:nth-child(4) { width: 15%; }
+.kfz-vergleich th:nth-child(5) { width: 13%; }
+.kfz-vergleich th:nth-child(6) { width: 8%; }
+.kfz-vergleich th:last-child { width: 16%; }
+
+/* Auf dem Telefon passen sechs bzw. sieben Spalten nicht mehr
+   nebeneinander. Feste Aufteilung staucht dann alles gleichmäßig – der
+   Fahrzeugname bricht Buchstabe für Buchstabe um, weil es in
+   „Mercedes C-Klasse“ keine Trennstelle gibt, die schmal genug wäre.
+   Statt die feste Aufteilung aufzugeben (sie hat die wiederkehrenden
+   Scrollbalken-Probleme gelöst) bekommt die Tabelle hier eine
+   Mindestbreite und rollt in ihrer eigenen Hülle. Das gilt ausdrücklich
+   nur unterhalb von 760px; auf dem Schreibtisch ändert sich nichts. */
+@media (max-width: 760px) {
+  .kfz-historie { min-width: 700px; }
+  .kfz-vergleich { min-width: 620px; }
+  .tabellenrolle:has(.kfz-historie),
+  .tabellenrolle:has(.kfz-vergleich) { overflow-x: auto; }
+}
+
+/* Marke der Erfassungsart in der Historie */
+.kfz-marke {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 600;
+  background: var(--flaeche-2); border: 1px solid var(--linie);
+}
+/* In der Marke steckt dasselbe Strichsymbol wie in der Auswahl, nur klein.
+   Es erbt seine Farbe über currentColor von .kfz-marke. */
+.kfz-symbol { display: inline-flex; line-height: 1; }
+.kfz-symbol svg { width: 13px; height: 13px; display: block; }
+
+/* Zuletzt erfasst */
+.kfz-aktivitaeten { list-style: none; margin: 0; padding: 0; }
+.kfz-aktivitaeten li {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 10px 2px; border-bottom: 1px solid var(--linie-fein); font-size: 14px;
+}
+.kfz-aktivitaeten li:last-child { border-bottom: none; }
+.kfz-aktivitaet-symbol { flex: 0 0 auto; display: inline-flex;
+                         color: var(--ton, var(--leise)); }
+.kfz-aktivitaet-symbol svg { width: 17px; height: 17px; display: block; }
+.kfz-aktivitaet-text { flex: 1 1 260px; min-width: 0; }
+.kfz-aktivitaet-text a { color: inherit; text-decoration: none;
+                         border-bottom: 1px solid transparent; }
+.kfz-aktivitaet-text a:hover { border-bottom-color: var(--akzent); }
+.kfz-aktivitaet-zahlen { flex: 0 0 auto; color: var(--leise); }
+.kfz-aktivitaet-betrag { flex: 0 0 auto; min-width: 86px; text-align: right; }
+.kfz-aktivitaet-datum { flex: 0 0 auto; min-width: 86px; text-align: right; }
+
+/* Diagramme – wieder handgebautes SVG, kein Zusatzpaket. */
+.kfz-diagramm { display: block; width: 100%; height: auto; }
+.kfz-diagramm .achse { stroke: var(--linie); stroke-width: 1; }
+.kfz-diagramm .achse.hilfslinie { stroke-dasharray: 4 4; opacity: .6; }
+.kfz-diagramm .achsentext { fill: var(--leise); font-size: 11px; }
+.kfz-diagramm .achsentext.klein { font-size: 9.5px; opacity: .8; }
+.kfz-diagramm rect { transition: opacity .15s ease; }
+.kfz-diagramm rect:hover { opacity: .72; }
+/* Der Selektor nennt das Element mit Absicht: die Farbregeln weiter
+   unten setzen fill und stroke gemeinsam (der Punkt braucht fill, die
+   Linie stroke) und stehen später in der Datei. Ohne das "polyline"
+   davor gewönne dort das fill und die Linie liefe als große gefüllte
+   Fläche unter sich zusammen. Ein fill="none" im SVG selbst hilft
+   nicht: ein Präsentationsattribut verliert gegen jede CSS-Regel. */
+polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
+                     stroke-linecap: round; }
+.kfz-punkt { stroke: none; }
+
+/* Ringdiagramm der Kostenverteilung */
+.kfz-ring { max-width: 190px; margin: 0 auto 16px; }
+.kfz-ring svg { display: block; width: 100%; height: auto; }
+/* Aus demselben Grund wie oben: sonst füllt jede Kategorie ihren Kreis
+   ganz aus und aus dem Ring wird eine Scheibe. */
+.kfz-ring circle { fill: none; }
+
+/* Kategoriefarben. fill für Flächen (Balken, Punkte im Ring), stroke für
+   Linien und den Ring selbst – deshalb steht beides in einer Regel. */
+.kfz-f-tanken     { fill: var(--kfz-tanken);     stroke: var(--kfz-tanken); }
+.kfz-f-inspektion { fill: var(--kfz-inspektion); stroke: var(--kfz-inspektion); }
+.kfz-f-wartung    { fill: var(--kfz-wartung);    stroke: var(--kfz-wartung); }
+.kfz-f-reparatur  { fill: var(--kfz-reparatur);  stroke: var(--kfz-reparatur); }
+.kfz-f-reifen     { fill: var(--kfz-reifen);     stroke: var(--kfz-reifen); }
+.kfz-f-tuev       { fill: var(--kfz-tuev);       stroke: var(--kfz-tuev); }
+.kfz-f-sonstiges  { fill: var(--kfz-sonstiges);  stroke: var(--kfz-sonstiges); }
+.kfz-f-km         { fill: var(--kfz-km);         stroke: var(--kfz-km); }
+
+/* Dieselben Farben als Punkt in Legende und Tabelle – dort sind es
+   HTML-Elemente, da wirkt fill nicht. */
+.punkt.kfz-p-tanken,     .kfz-marke.kfz-k-tanken     { --ton: var(--kfz-tanken); }
+.punkt.kfz-p-inspektion, .kfz-marke.kfz-k-inspektion { --ton: var(--kfz-inspektion); }
+.punkt.kfz-p-wartung,    .kfz-marke.kfz-k-wartung    { --ton: var(--kfz-wartung); }
+.punkt.kfz-p-reparatur,  .kfz-marke.kfz-k-reparatur  { --ton: var(--kfz-reparatur); }
+.punkt.kfz-p-reifen,     .kfz-marke.kfz-k-reifen     { --ton: var(--kfz-reifen); }
+.punkt.kfz-p-tuev,       .kfz-marke.kfz-k-tuev       { --ton: var(--kfz-tuev); }
+.punkt.kfz-p-sonstiges,  .kfz-marke.kfz-k-sonstiges  { --ton: var(--kfz-sonstiges); }
+.punkt.kfz-p-km,         .kfz-marke.kfz-k-km         { --ton: var(--kfz-km); }
+.punkt[class*="kfz-p-"] {
+  width: 11px; height: 11px; border-radius: 3px; display: inline-block;
+  background: var(--ton); vertical-align: -1px; margin-right: 4px;
+}
+.kfz-marke[class*="kfz-k-"] { border-color: var(--ton); color: var(--ton); }
+
+/* Die Linien des Verbrauchsdiagramms – bis zu fünf Fahrzeuge auf einmal */
+.kfz-linie-0 { stroke: var(--kfz-tanken);    fill: var(--kfz-tanken); }
+.kfz-linie-1 { stroke: var(--kfz-inspektion);fill: var(--kfz-inspektion); }
+.kfz-linie-2 { stroke: var(--kfz-reifen);    fill: var(--kfz-reifen); }
+.kfz-linie-3 { stroke: var(--kfz-tuev);      fill: var(--kfz-tuev); }
+.kfz-linie-4 { stroke: var(--kfz-reparatur); fill: var(--kfz-reparatur); }
+.legende .strich.kfz-linie-0 { color: var(--kfz-tanken); }
+.legende .strich.kfz-linie-1 { color: var(--kfz-inspektion); }
+.legende .strich.kfz-linie-2 { color: var(--kfz-reifen); }
+.legende .strich.kfz-linie-3 { color: var(--kfz-tuev); }
+.legende .strich.kfz-linie-4 { color: var(--kfz-reparatur); }
+
+/* Kennzahlen des Cockpits. Sie tragen Beträge und Kilometerangaben statt
+   blosser Stückzahlen - dafür brauchen die Kacheln etwas mehr Platz und
+   die Zahl eine Spur weniger Größe, sonst bricht "12.600 km" um. */
+.kfz-kpi { grid-template-columns: repeat(auto-fit, minmax(152px, 1fr)); }
+.kfz-kpi .kzahl { font-size: 22px; white-space: nowrap; }
+.kzahl .einheit { font-size: 14px; font-weight: 500; margin-left: 3px;
+                  color: var(--leise); }
+
+/* Fahrzeugstammdaten in den Einstellungen: eine Karte je Fahrzeug statt
+   einer Tabellenzeile – elf Felder passen in keine Zeile. Gleiche Optik
+   wie die Benutzerkarten. */
+.fahrzeugkarte {
+  border: 1px solid var(--linie); border-radius: 10px;
+  padding: 18px 18px 4px; margin-bottom: 16px; background: var(--flaeche-2);
+}
+.fahrzeugkarte:last-of-type { margin-bottom: 10px; }
+.fahrzeugkarte .kopfzeile { margin-bottom: 14px; }
+.fahrzeugtitel { font-size: 16px; margin: 0; font-weight: 700; }
+
+@media (max-width: 620px) {
+  .kfz-faellig-datum { margin-left: 0; }
+  .kfz-aktivitaet-betrag, .kfz-aktivitaet-datum { min-width: 0; }
+}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titel %} – Changelog{% endblock %}
+{% block inhalt %}
+
+<section class="karte">
+  <h1>Changelog</h1>
+  <p class="lead">{{ t("changelog.lead", version=VERSION) }}</p>
+</section>
+
+<section class="karte">
+  <ol class="verlauf">
+    {% for s in staende %}
+    <li class="{{ 'jetzt' if s.version == VERSION }}">
+      <div class="verlaufkopf">
+        <span class="verlaufversion">{{ s.version }}</span>
+        <span class="verlauftitel">{{ s.titel }}</span>
+        {% if s.version == VERSION %}<span class="marke-status gut">läuft hier</span>{% endif %}
+      </div>
+      {% if s.punkte %}
+      <ul class="verlaufpunkte">
+        {% for p in s.punkte %}<li>{{ p }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+
+{% endblock %}

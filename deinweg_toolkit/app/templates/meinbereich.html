@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block titel %} – Mein Bereich{% endblock %}
+{% block inhalt %}
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+{% if not person %}
+<section class="karte">
+  <h1>Mein Bereich</h1>
+  <p class="lead">{{ t("mein.keine_zuordnung") }}</p>
+</section>
+
+
+{% else %}
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h1>Mein Bereich</h1>
+    <p class="summe">{{ name }}</p>
+  </div>
+  <p class="lead">{{ t("mein.lead", name=name) }}</p>
+
+  {% if verwaist %}
+  <p class="meldung offen-hinweis">{{ t("mein.verwaist", name=name) }}</p>
+  {% endif %}
+
+  {% if not soll_std %}
+  <p class="meldung offen-hinweis">{{ t("mein.kein_soll") }}</p>
+  {% endif %}
+</section>
+
+{% if soll_std %}
+<section class="raster gleich buendig">
+  <div class="karte">
+    <h2>Letzter abgeschlossener Monat</h2>
+    {% if letzter %}
+    <p class="zahl {{ 'saldo-plus' if letzter.saldo > 0 else ('saldo-minus' if letzter.saldo < 0 else '') }}">
+      {{ letzter.saldo | gesamtstunden }}
+    </p>
+    <p class="zahl-label">
+      {% if letzter.saldo > 0 %}über dem Soll
+      {% elif letzter.saldo < 0 %}unter dem Soll
+      {% else %}punktgenau{% endif %}
+      · {{ letzter.wort }}
+    </p>
+    <dl class="systemliste">
+      <dt>Erfasst</dt><dd>{{ letzter.ist | gesamtstunden }}</dd>
+      <dt>Soll</dt><dd>{{ letzter.soll | gesamtstunden }}</dd>
+    </dl>
+
+    {% if trend %}
+    <h3 class="unterkopf klein">Die letzten {{ trend.monate }} Monate</h3>
+    <ul class="trendreihe">
+      {% for m in trend.reihe %}
+      <li>
+        <span class="trendmonat">{{ m.wort }}</span>
+        <span class="{{ 'saldo-plus' if m.saldo > 0 else ('saldo-minus' if m.saldo < 0 else 'leise') }}">
+          {{ m.saldo | hhmm }}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="klein leise felderklaerung">
+      Im Schnitt {{ trend.schnitt | gesamtstunden }} pro Monat –
+      {% if trend.saldo > 0 %}also regelmäßig über dem Soll.
+      {% elif trend.saldo < 0 %}also regelmäßig unter dem Soll.
+      {% else %}genau auf dem Soll.{% endif %}
+    </p>
+    {% endif %}
+    {% else %}
+    <p class="leer">{{ t("mein.kein_abgeschlossener") }}</p>
+    {% endif %}
+  </div>
+
+  <div class="karte">
+    <h2>Laufender Monat</h2>
+    {% if laufend %}
+    <p class="zahl">{{ laufend.ist | gesamtstunden }}</p>
+    <p class="zahl-label">von {{ laufend.soll | gesamtstunden }} · {{ laufend.wort }}</p>
+    <dl class="systemliste">
+      <dt>Noch offen</dt>
+      <dd>
+        {% if laufend.ist >= laufend.soll %}
+          <span class="marke-status gut">Soll erreicht</span>
+        {% else %}
+          {{ (laufend.soll - laufend.ist) | gesamtstunden }}
+        {% endif %}
+      </dd>
+      <dt>Einheiten</dt><dd>{{ laufend.n }}</dd>
+    </dl>
+    <p class="klein leise felderklaerung">{{ t("mein.laufend_hinweis") }}</p>
+    {% else %}
+    <p class="leer">{{ t("mein.kein_laufender") }}</p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% if offene_vorgaenge %}
+<section class="karte">
+  <h2>Meine Aufgaben</h2>
+  <p class="lead">
+    {{ offene_vorgaenge }} offene{{ 'r' if offene_vorgaenge == 1 }} Vorgang{{ '' if offene_vorgaenge == 1 else 'e' }}
+    {%- if ueberfaellig %}, davon <span class="stark saldo-minus">{{ ueberfaellig }} überfällig</span>{% endif %}.
+  </p>
+  <div class="knopfreihe">
+    <a class="knopf {{ 'haupt' if ueberfaellig else '' }}"
+       href="/vorgaenge?zustaendig={{ name | urlencode }}">Meine Vorgänge ansehen</a>
+  </div>
+</section>
+{% endif %}
+
+<section class="raster gleich buendig">
+  {% if diagramm %}
+  <div class="karte">
+    <div class="kopfzeile">
+      <h2>Verlauf</h2>
+      <p class="klein leise">{{ diagramm.balken | length }} Monate</p>
+    </div>
+
+    <div class="diagrammhuelle">
+      <svg class="stundendiagramm" viewBox="0 0 {{ diagramm.breite }} {{ diagramm.hoehe }}"
+           preserveAspectRatio="xMidYMid meet" role="img"
+           aria-label="Erfasste Stunden je Monat im Vergleich zum Monatssoll">
+
+        <line x1="{{ diagramm.links }}" y1="{{ diagramm.grundlinie }}"
+              x2="{{ diagramm.rechts_x }}" y2="{{ diagramm.grundlinie }}"
+              class="achse"/>
+
+        {% if diagramm.soll_y %}
+        <line x1="{{ diagramm.links }}" y1="{{ diagramm.soll_y }}"
+              x2="{{ diagramm.rechts_x }}" y2="{{ diagramm.soll_y }}"
+              class="solllinie"/>
+        <text x="{{ diagramm.links - 6 }}" y="{{ diagramm.soll_y + 4 }}"
+              class="achsentext" text-anchor="end">{{ diagramm.soll_wert }}</text>
+        {% endif %}
+
+        {% for b in diagramm.balken %}
+        <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.b }}" height="{{ b.h }}"
+              rx="3" class="{{ b.klasse }}">
+          <title>{{ b.wort }}: {{ b.wert }} Std</title>
+        </rect>
+        <text x="{{ b.mitte }}" y="{{ diagramm.grundlinie + 15 }}"
+              class="achsentext" text-anchor="middle">{{ b.kurz }}</text>
+        {% endfor %}
+
+        {% if diagramm.linie %}
+        <polyline points="{{ diagramm.linie }}" class="saldolinie"/>
+        {% endif %}
+      </svg>
+    </div>
+
+    <div class="legende">
+      <span><i class="punkt balken-gut"></i> Soll erreicht</span>
+      <span><i class="punkt balken-unter"></i> darunter</span>
+      {% if diagramm.linie %}<span><i class="strich saldolinie"></i> Saldoverlauf</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="karte">
+    <div class="kopfzeile">
+      <h2>Urlaub {{ urlaub.jahr }}</h2>
+      {% if urlaub.anspruch %}
+      <p class="klein leise">{{ urlaub.anteil }} % genommen</p>
+      {% endif %}
+    </div>
+
+    {% if urlaub.anspruch %}
+    <p class="zahl {{ 'saldo-minus' if urlaub.ueberzogen }}">
+      {{ urlaub.rest | tage }}<span class="einheit weit">übrig</span>
+    </p>
+    <p class="zahl-label">
+      {{ urlaub.genommen | tage }} von {{ urlaub.anspruch | tage }} genommen
+    </p>
+
+    <div class="urlaubsspur" role="img"
+         aria-label="{{ urlaub.genommen }} von {{ urlaub.anspruch }} Urlaubstagen genommen">
+      <span class="urlaubsfuellung {{ 'voll' if urlaub.ueberzogen }}"
+            style="width: {{ urlaub.anteil }}%;"></span>
+    </div>
+
+    {% if urlaub.ueberzogen %}
+    <p class="klein saldo-minus" style="margin-top: 10px;">
+      {{ (urlaub.genommen - urlaub.anspruch) | tage }} über dem Anspruch.
+    </p>
+    {% endif %}
+    {% else %}
+    <p class="zahl">{{ urlaub.genommen | tage }}</p>
+    <p class="zahl-label">in {{ urlaub.jahr }} genommen</p>
+    <p class="klein leise felderklaerung">{{ t("mein.kein_urlaubsanspruch") }}</p>
+    {% endif %}
+
+    {% if urlaub.vorjahre %}
+    <dl class="systemliste">
+      {% for j, t in urlaub.vorjahre %}
+      <dt>{{ j }}</dt><dd>{{ t | tage }}</dd>
+      {% endfor %}
+    </dl>
+    {% endif %}
+    <p class="klein leise felderklaerung">{{ t("mein.urlaub_hinweis") }}</p>
+  </div>
+</section>
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Monatsübersicht</h2>
+    {% if not alle and monate | length >= 13 %}
+    <a class="knopf klein leise" href="/meinbereich?alle=1">alle Monate anzeigen</a>
+    {% endif %}
+  </div>
+
+  {% if monate %}
+  <div class="tabellenrolle">
+  <table class="liste dicht monatstabelle">
+    <thead>
+      <tr><th>Monat</th><th class="rechts">Erfasst</th>{% if soll_std %}<th class="rechts">Soll</th><th class="rechts">Saldo</th>{% endif %}
+          <th class="rechts">Einh.</th></tr>
+    </thead>
+    <tbody>
+      {% for m in monate %}
+      <tr class="{{ 'zeile-laufend' if m.laufend }}">
+        <td class="stark nowrap">
+          {{ m.wort }}
+          {% if m.laufend %}<span class="marke-status offen">läuft</span>{% endif %}
+        </td>
+        <td class="zahlen rechts nowrap">{{ m.ist | hhmm }}</td>
+        {% if soll_std %}
+        <td class="zahlen rechts leise nowrap">{{ m.soll | hhmm }}</td>
+        <td class="zahlen rechts nowrap">
+          {% if m.laufend %}
+            <span class="leise">–</span>
+          {% else %}
+            <span class="{{ 'saldo-plus' if m.saldo > 0 else ('saldo-minus' if m.saldo < 0 else '') }}">
+              {{ m.saldo | hhmm }}
+            </span>
+          {% endif %}
+        </td>
+        {% endif %}
+        <td class="zahlen rechts leise">{{ m.n }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="klein leise felderklaerung">{{ t("mein.tabelle_hinweis") }}</p>
+  {% else %}
+  <p class="leer">{{ t("mein.keine_zeiten", name=name) }}</p>
+  {% endif %}
+</section>
+
+{% endif %}
+
+<section class="karte abmeldekarte">
+  <div class="kopfzeile">
+    <div>
+      <h2>Mein Konto</h2>
+      <p class="klein leise" style="margin: 0;">
+        Angemeldet als <span class="stark">{{ benutzer.benutzername }}</span>{% if benutzer.rolle == "admin" %} · Administrator{% endif %}
+      </p>
+    </div>
+    <form action="/logout" method="post">
+      <button type="submit" class="knopf abmelden">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h12"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Abmelden
+      </button>
+    </form>
+  </div>
+
+  <p class="lead">{{ t("mein.konto_lead") }}</p>
+
+  <form action="/meinbereich/konto" method="post" class="kontoform">
+    <label class="feld">
+      <span>E-Mail-Adresse <span class="leise">– für Erinnerungen</span></span>
+      <input type="email" name="email" value="{{ benutzer.email or '' }}"
+             autocomplete="email" placeholder="noch keine hinterlegt">
+    </label>
+
+    <fieldset class="feld">
+      <span>Passwort ändern <span class="leise">– leer lassen, wenn es bleiben soll</span></span>
+      <div class="feldreihe drei">
+        <label class="feld">
+          <span>Aktuelles Passwort</span>
+          <input type="password" name="passwort_alt" autocomplete="current-password">
+        </label>
+        <label class="feld">
+          <span>Neues Passwort</span>
+          <input type="password" name="passwort_neu" autocomplete="new-password">
+        </label>
+        <label class="feld">
+          <span>Neues Passwort wiederholen</span>
+          <input type="password" name="passwort_neu2" autocomplete="new-password">
+        </label>
+      </div>
+    </fieldset>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Speichern</button>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

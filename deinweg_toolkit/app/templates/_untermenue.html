@@ -1,0 +1,34 @@
+{# Die Reiterleiste unter einem Hauptmenüpunkt.
+
+   Bewusst kein Aufklappmenü in der Kopfzeile: das gäbe es sonst nirgends
+   im Programm und bräuchte Skript, Tastaturbedienung und einen eigenen
+   Zustand. Die Leiste steht stattdessen als erstes auf der Seite und
+   zeigt in derselben Formensprache wie die Kopfzeile, wo man gerade ist.
+
+   Erwartet eine Liste aus (Adresse, Beschriftung, ist_hier). Punkte, auf
+   die der angemeldete Mensch keinen Zugriff hat, lässt der Aufrufer weg. #}
+{% macro untermenue(punkte, beschriftung="Unterpunkte") %}
+{% if punkte | length > 1 %}
+<nav class="unternavigation" aria-label="{{ beschriftung }}">
+  {% for adresse, wort, hier in punkte %}
+  <a href="{{ adresse }}" class="{{ 'aktiv' if hier }}"
+     {{ 'aria-current=page' if hier }}>{{ wort }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+{% endmacro %}
+
+
+{# Die drei Seiten des Menüpunkts „Arbeitszeit“. Die Zeiterfassung ist
+   für jeden Angemeldeten erreichbar (siehe auth.BEREICH_PFADE), die
+   beiden anderen hängen an ihrem Bereich. #}
+{% macro arbeitszeit(seite) %}
+{% set punkte = [("/", "Zeiterfassung", seite == "zeiterfassung")] %}
+{% if hat_zugriff(request.state.benutzer, "datensaetze") %}
+  {% set _ = punkte.append(("/eintraege", "Übersicht", seite == "eintraege")) %}
+{% endif %}
+{% if hat_zugriff(request.state.benutzer, "auswertung") %}
+  {% set _ = punkte.append(("/auswertung", "Auswertung", seite == "auswertung")) %}
+{% endif %}
+{{ untermenue(punkte, "Arbeitszeit") }}
+{% endmacro %}

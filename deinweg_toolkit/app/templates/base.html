@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="de" data-thema="dunkel" data-breite="voll" data-wikiliste="kacheln"
+      data-dateiliste="liste">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#131416">
+<title>Dein Weg Toolkit{% block titel %}{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css?v={{ VERSION }}">
+<link rel="manifest" href="/static/manifest.json?v={{ VERSION }}">
+{# Die Versionsnummer haengt auch an den Symbolen: Browser merken sich ein
+   einmal geladenes Favicon sonst hartnaeckig, und auf dem iPhone bleibt
+   das alte Symbol auf dem Startbildschirm stehen. #}
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico?v={{ VERSION }}">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png?v={{ VERSION }}">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png?v={{ VERSION }}">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png?v={{ VERSION }}">
+<link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png?v={{ VERSION }}">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v={{ VERSION }}">
+<meta name="apple-mobile-web-app-title" content="Dein Weg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>
+  // vor dem ersten Rendern setzen, damit es nicht kurz aufblitzt
+  (function () {
+    try {
+      // Beim Umbenennen der App wurden die Schluessel umgestellt. Damit
+      // niemand seine Einstellung verliert, wird der alte Wert einmalig
+      // uebernommen und danach entfernt.
+      ["thema", "breite"].forEach(function (k) {
+        var alt = localStorage.getItem("timetool-" + k);
+        if (alt && !localStorage.getItem("toolkit-" + k)) {
+          localStorage.setItem("toolkit-" + k, alt);
+        }
+        if (alt) localStorage.removeItem("timetool-" + k);
+      });
+      var t = localStorage.getItem("toolkit-thema");
+      if (t === "hell" || t === "dunkel") document.documentElement.dataset.thema = t;
+      var b = localStorage.getItem("toolkit-breite");
+      if (b === "voll" || b === "begrenzt") document.documentElement.dataset.breite = b;
+      var w = localStorage.getItem("toolkit-wikiliste");
+      if (w === "kacheln" || w === "liste") document.documentElement.dataset.wikiliste = w;
+      var d = localStorage.getItem("toolkit-dateiliste");
+      if (d === "kacheln" || d === "liste") document.documentElement.dataset.dateiliste = d;
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+<header class="kopf">
+  {# In der Kopfzeile steht allein das Zeichen. Der vollständige
+     Schriftzug trägt eine Unterzeile, die in Kopfhöhe niemand mehr lesen
+     kann; er steht deshalb auf der Anmeldeseite und in der Fußzeile, wo
+     Platz dafür ist. #}
+  <a class="marke" href="/" title="Zur Startseite" aria-label="Zur Startseite">
+    <img class="nur-dunkel" src="/static/marke-fuer-dunkel.png?v={{ VERSION }}"
+         alt="Dein Weg Toolkit">
+    <img class="nur-hell"   src="/static/marke-fuer-hell.png?v={{ VERSION }}"
+         alt="Dein Weg Toolkit">
+  </a>
+  <button type="button" class="burger" id="burger" aria-expanded="false"
+          aria-controls="hauptmenue" aria-label="Menü öffnen">
+    <span></span><span></span><span></span>
+  </button>
+
+  <div class="menuehuelle" id="hauptmenue">
+  <button type="button" class="menue-schliessen" id="menue-schliessen" aria-label="Menü schließen">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </button>
+  <nav>
+    {# Zeiterfassung, Übersicht und Auswertung sind seit 0.8.1 der eine
+       Menüpunkt „Arbeitszeit“; die drei Seiten stehen darunter als
+       Unterpunkte (siehe _untermenue.html). Der Punkt selbst führt auf
+       die Zeiterfassung und ist wie diese für jeden Angemeldeten
+       erreichbar - die Unterpunkte prüfen ihre Bereiche einzeln. #}
+    <a href="/" class="{{ 'aktiv' if seite in ('zeiterfassung', 'eintraege', 'auswertung') }}">Arbeitszeit</a>
+    {% if hat_zugriff(request.state.benutzer, "verwaltungsvorgaenge") %}
+    <a href="/vorgaenge" class="{{ 'aktiv' if seite=='vorgaenge' }}">Aufgaben</a>
+    {% endif %}
+    {% if hat_zugriff(request.state.benutzer, "fuhrpark") %}
+    <a href="/fuhrpark" class="{{ 'aktiv' if seite=='fuhrpark' }}">Fuhrpark</a>
+    {% endif %}
+    {% if hat_zugriff(request.state.benutzer, "dateien") %}
+    <a href="/dateien" class="{{ 'aktiv' if seite=='dateien' }}">Dateien</a>
+    {% endif %}
+    {% if hat_zugriff(request.state.benutzer, "wiki") %}
+    <a href="/wiki" class="{{ 'aktiv' if seite=='wiki' }}">Wiki</a>
+    {% endif %}
+  </nav>
+
+  <div class="werkzeuge">
+    {% if hat_zugriff(request.state.benutzer, "ideen") %}
+    <a href="/ideen" class="werkzeug {{ 'aktiv' if seite=='ideen' }}"
+       title="Ideen und Rückmeldungen">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.5.4.8 1 .9 1.6l.1.6h5.2l.1-.6c.1-.6.4-1.2.9-1.6A6 6 0 0 0 12 3Z"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="werkzeug-text">Ideen</span>
+    </a>
+    {% endif %}
+
+    <a href="/changelog" class="werkzeug {{ 'aktiv' if seite=='changelog' }}"
+       title="Changelog">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M7 3h7.5L19 7.5V19a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
+              stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+        <path d="M14 3v5h5M8.5 12.5h7M8.5 16h4.5" stroke="currentColor"
+              stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="werkzeug-text">Changelog</span>
+    </a>
+
+    {% if hat_zugriff(request.state.benutzer, "einstellungen") %}
+    <a href="/einstellungen" class="werkzeug zahnrad {{ 'aktiv' if seite=='einstellungen' }}"
+       title="Einstellungen">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" stroke="currentColor" stroke-width="1.7"/>
+        <path d="M19.4 12.9c.04-.3.06-.6.06-.9s-.02-.6-.06-.9l1.86-1.45a.8.8 0 0 0 .19-1.02l-1.76-3.05a.8.8 0 0 0-.97-.35l-2.2.88a6.9 6.9 0 0 0-1.55-.9l-.33-2.34a.8.8 0 0 0-.79-.68h-3.52a.8.8 0 0 0-.79.68l-.33 2.34c-.56.22-1.08.53-1.55.9l-2.2-.88a.8.8 0 0 0-.97.35L2.61 8.63a.8.8 0 0 0 .19 1.02L4.66 11.1c-.04.3-.06.6-.06.9s.02.6.06.9L2.8 14.35a.8.8 0 0 0-.19 1.02l1.76 3.05c.2.35.62.5.97.35l2.2-.88c.47.37.99.68 1.55.9l.33 2.34c.06.4.4.68.79.68h3.52c.4 0 .73-.29.79-.68l.33-2.34c.56-.22 1.08-.53 1.55-.9l2.2.88c.35.14.77 0 .97-.35l1.76-3.05a.8.8 0 0 0-.19-1.02l-1.86-1.45Z"
+              stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      </svg>
+      <span class="werkzeug-text">Einstellungen</span>
+    </a>
+    {% endif %}
+
+    <a href="/meinbereich" class="werkzeug {{ 'aktiv' if seite=='meinbereich' }}"
+       title="Angemeldet als {{ request.state.benutzer.benutzername }} · Mein Bereich (hier auch abmelden)">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.7"/>
+        <path d="M4.5 20c0-3.6 3.4-5.8 7.5-5.8s7.5 2.2 7.5 5.8"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+      <span class="werkzeug-text">Mein Bereich</span>
+    </a>
+
+  </div>
+</header>
+
+<div class="menueschatten" id="menueschatten" hidden></div>
+
+<main>
+{% block inhalt %}{% endblock %}
+</main>
+
+<footer>
+  <img class="nur-dunkel" src="/static/logo-fuer-dunkel.png?v={{ VERSION }}" alt="Dein Weg">
+  <img class="nur-hell"   src="/static/logo-fuer-hell.png?v={{ VERSION }}"   alt="Dein Weg">
+  <p>{{ t("footer.text", version=VERSION) }}</p>
+</footer>
+
+<script>
+  (function () {
+    var wurzel = document.documentElement;
+
+    // Beide Schalter werden über Klassen gesucht, nicht über eine Kennung.
+    // So gehen sie auch dann nicht kaputt, wenn ein Schalter mehrfach vorkommt.
+    function aufbauen(klasse, speicher, standard, anders, beschriften) {
+      var knoepfe = document.querySelectorAll("." + klasse + "-knopf"),
+          texte   = document.querySelectorAll("." + klasse + "-text");
+
+      function anzeigen() {
+        var wert = wurzel.dataset[speicher] || standard;
+        texte.forEach(function (t) { t.textContent = beschriften(wert); });
+        knoepfe.forEach(function (k) {
+          k.setAttribute("aria-checked", wert === standard ? "false" : "true");
+        });
+        if (speicher === "thema") {
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.content = wert === "hell" ? "#f2f3f4" : "#131416";
+        }
+      }
+
+      knoepfe.forEach(function (k) {
+        k.addEventListener("click", function () {
+          var jetzt = wurzel.dataset[speicher] || standard;
+          wurzel.dataset[speicher] = jetzt === standard ? anders : standard;
+          try {
+            localStorage.setItem("toolkit-" + speicher, wurzel.dataset[speicher]);
+          } catch (e) {}
+          anzeigen();
+        });
+      });
+
+      anzeigen();
+    }
+
+    aufbauen("thema", "thema", "dunkel", "hell", function (w) {
+      return w === "hell" ? "Hell" : "Dunkel";
+    });
+    aufbauen("breite", "breite", "voll", "begrenzt", function (w) {
+      return w === "begrenzt" ? "Begrenzt" : "Volle Breite";
+    });
+    // Wiki: Kacheln oder Liste. Beide Darstellungen stehen im HTML, der
+    // Schalter blendet nur um - so ist beim Laden nichts zu sehen, was
+    // gleich wieder verschwindet.
+    aufbauen("wikiliste", "wikiliste", "kacheln", "liste", function (w) {
+      return w === "liste" ? "Liste" : "Kacheln";
+    });
+    // Dateiverwaltung: hier ist die Liste der Standard, nicht die Kacheln -
+    // sie zeigt mehr auf einmal und trägt Größe und Datum in Spalten.
+    aufbauen("dateiliste", "dateiliste", "liste", "kacheln", function (w) {
+      return w === "kacheln" ? "Kacheln" : "Liste";
+    });
+
+    // Menü für schmale Bildschirme
+    var burger   = document.getElementById("burger"),
+        huelle   = document.getElementById("hauptmenue"),
+        schatten = document.getElementById("menueschatten"),
+        schliessen = document.getElementById("menue-schliessen");
+
+    function menue(auf) {
+      document.body.classList.toggle("menue-offen", auf);
+      burger.setAttribute("aria-expanded", auf ? "true" : "false");
+      burger.setAttribute("aria-label", auf ? "Menü schließen" : "Menü öffnen");
+      if (schatten) schatten.hidden = !auf;
+    }
+
+    if (burger) {
+      burger.addEventListener("click", function () {
+        menue(!document.body.classList.contains("menue-offen"));
+      });
+      if (schatten) schatten.addEventListener("click", function () { menue(false); });
+      schliessen.addEventListener("click", function () { menue(false); });
+      huelle.addEventListener("click", function (e) {
+        // nach der Auswahl eines Punktes schließen
+        if (e.target.closest("a")) menue(false);
+      });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") menue(false);
+      });
+    }
+  })();
+</script>
+</body>
+</html>
