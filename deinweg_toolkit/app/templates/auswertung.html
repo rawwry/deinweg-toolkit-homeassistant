@@ -49,7 +49,10 @@
           <td class="zahlen">{{ r.n }}</td>
           <td class="zahlen stark">{{ r.m | hhmm }}</td>
           {% if soll_aktiv %}
-            <td class="zahlen leise">{{ r.soll | hhmm if r.soll else "—" }}</td>
+            <td class="zahlen leise">
+              {{ r.soll | hhmm if r.soll else "—" }}
+              {%- if r.stufen > 1 %} <span class="marke-status offen" title="Im Zeitraum galten {{ r.stufen }} verschiedene Wochenkontingente">gestaffelt</span>{% endif %}
+            </td>
             <td class="zahlen">
               {% if r.abweichung is not none %}
                 <span class="marke-status {{ 'gut' if r.abweichung >= 0 else 'dopp' }}">{{ '+' if r.abweichung >= 0 }}{{ r.abweichung | hhmm }}</span>
@@ -62,6 +65,9 @@
     </table>
     {% if soll_aktiv %}
     <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.soll_erklaerung") }}</p>
+    {% if gestaffelt %}
+    <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.gestaffelt") }}</p>
+    {% endif %}
     {% elif f.monat %}
     <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.soll_fehlt") }}</p>
     {% endif %}
@@ -105,7 +111,11 @@
           <tr>
             <td>
               <span class="stark">{{ r.klient }}</span><br>
-              <span class="klein leise zahlen">{{ r.m | hhmm }} × {{ r.satz | euro }}</span>
+              <span class="klein leise zahlen">
+                {{ r.m | hhmm }} ×
+                {% if r.satz is not none %}{{ r.satz | euro }}
+                {% else %}{{ r.saetze | length }} Sätze{% endif %}
+              </span>
             </td>
             <td class="num zahlen stark betrag">{{ r.betrag | euro }}</td>
           </tr>

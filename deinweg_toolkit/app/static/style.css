@@ -1639,6 +1639,38 @@ body.anmeldeseite {
 /* „Oberfläche“ lässt sich nicht abwählen und ist deshalb nur Anzeige. */
 .bereich-kachel.fest { cursor: default; opacity: .7; }
 
+/* --- Bewilligte Zeiträume je betreuter Person --------------------------- */
+
+/* Datumsfelder brauchen Platz für tt.mm.jjjj plus das Kalendersymbol des
+   Browsers - bei 130px wurde die Jahreszahl abgeschnitten. */
+.zeitraumtabelle th:nth-child(1),
+.zeitraumtabelle th:nth-child(2) { width: 155px; }
+.zeitraumtabelle th:nth-child(3),
+.zeitraumtabelle th:nth-child(4) { width: 100px; }
+.zeitraumtabelle th:last-child { width: 130px; text-align: right; }
+.tabellenrolle .liste.zeitraumtabelle td:last-child {
+  white-space: nowrap; padding-left: 6px; padding-right: 6px;
+}
+.zeitraumtabelle td:last-child .knopf-icon { width: 28px; height: 28px; }
+.zeitraumtabelle td:last-child .marke-status { margin-right: 6px; padding: 3px 8px; }
+/* Der gerade geltende Zeitraum wird abgesetzt – das ist die Zeile, nach
+   der man sucht, wenn man die Karte aufklappt. */
+.zeitraumtabelle tr.zeile-laufend td { background: var(--akzent-weich); }
+.zeitraumtabelle input.mini { min-width: 0; }
+
+/* Das Formular zum Anlegen sitzt unter der Liste und ist abgesetzt, damit
+   die vorhandenen Zeiträume und der neue nicht ineinanderlaufen. */
+.zeitraumneu {
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px dashed var(--linie-stark);
+}
+.zeitraumneu .knopfreihe { margin-bottom: 0; }
+
+@media (max-width: 760px) {
+  .zeitraumtabelle { min-width: 780px; }
+  .tabellenrolle:has(.zeitraumtabelle) { overflow-x: auto; }
+}
+
 @media (max-width: 700px) {
   .konto-rechte { margin-left: 0; text-align: left; width: 100%; }
 }

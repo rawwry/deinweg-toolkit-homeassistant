@@ -158,7 +158,7 @@ def spruch_loeschen(nr: int):
 @router.get("/einstellungen", response_class=HTMLResponse)
 def einstellungen(request: Request, bereich: str = "oberflaeche",
                   hinweis: str = "", fehler: str = "",
-                  spruch_bearbeiten: int = -1):
+                  spruch_bearbeiten: int = -1, offen: int = 0):
     ist_admin = request.state.benutzer["rolle"] == "admin"
     if bereich not in ("oberflaeche", "quotes", "betreute", "mitarbeiter",
                        "vorgangsarten", "leistungen", "kfz", "benutzer",
@@ -183,6 +183,12 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "(SELECT COUNT(*) FROM eintrag e WHERE e.klient = p.name) AS eintraege, "
             "(SELECT COALESCE(SUM(dauer_min),0) FROM eintrag e WHERE e.klient = p.name) AS minuten "
             "FROM person p ORDER BY p.aktiv DESC, p.name").fetchall()
+        # Die bewilligten Zeitraeume je Person, neueste zuerst - dieselbe
+        # Reihenfolge, in der main.kontingent_im_monat() sie auswertet.
+        zeitraeume: dict[int, list] = {}
+        for z in con.execute(
+                "SELECT * FROM person_zeitraum ORDER BY von DESC, id DESC"):
+            zeitraeume.setdefault(z["person_id"], []).append(z)
         bekannt = {p["name"] for p in personen}
         ungepflegt = [r["klient"] for r in con.execute(
             "SELECT klient, COUNT(*) c FROM eintrag GROUP BY klient ORDER BY c DESC")
@@ -308,9 +314,23 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
         ],
     }
 
+    # Welcher Zeitraum gilt heute? Nach derselben Regel wie in der
+    # Auswertung: der zuletzt begonnene, der heute noch laeuft. Bewusst
+    # hier und nicht in der Vorlage - dort muesste man ueber ein leeres
+    # "bis" stolpern, und die Regel stuende dann an zwei Stellen.
+    heute_wert = _u["heute"]()
+    aktuell = {}
+    for person_id, eintraege in zeitraeume.items():
+        for z in eintraege:
+            if z["von"] <= heute_wert and (not z["bis"] or z["bis"] >= heute_wert):
+                aktuell[person_id] = z
+                break
+
     return _u["templates"].TemplateResponse(
         request=request, name="einstellungen.html", context={
             "personen": personen, "ungepflegt": ungepflegt, "system": system,
+            "zeitraeume": zeitraeume, "zeitraum_aktuell": aktuell,
+            "offen": offen, "heute": heute_wert,
             "team": team, "team_offen": team_offen,
             "vorgangsarten": vorgangsarten, "arten_offen": arten_offen,
             "leistungen": leistungen, "leistungen_offen": leistungen_offen,
@@ -402,6 +422,112 @@ def person_speichern(person_id: int, name: str = Form(""),
             "abrechenbar=?, aktiv=? WHERE id=?",
             (name, stunden, satz, 1 if abrechenbar else 0, 1 if aktiv else 0, person_id))
     return einstellungen_zurueck(hinweis=f"{name} gespeichert.")
+
+
+# --- Bewilligte Zeitraeume je betreuter Person -------------------------------
+#
+# Der Kostentraeger sagt Wochenstunden und Stundensatz nur befristet zu.
+# Die beiden Felder an "person" bleiben daneben als Grundwert bestehen und
+# gelten fuer jeden Monat, den kein Zeitraum abdeckt - sonst haetten alle
+# bisher gepflegten Personen mit einem Schlag kein Kontingent mehr.
+# Gerechnet wird in main.kontingent_im_monat().
+
+def zeitraum_zurueck(person_id: int, **werte):
+    """Zurueck zur Personenliste, mit der bearbeiteten Person aufgeklappt."""
+    werte.setdefault("bereich", "betreute")
+    werte["offen"] = person_id
+    return RedirectResponse(
+        "/einstellungen?" + urlencode(werte) + f"#person-{person_id}",
+        status_code=303)
+
+
+def datum_lesen(wert: str) -> str | None:
+    """YYYY-MM-DD aus dem Datumsfeld, oder None wenn unbrauchbar."""
+    roh = str(wert or "").strip()
+    if not roh:
+        return None
+    try:
+        return dt.date.fromisoformat(roh).isoformat()
+    except ValueError:
+        return None
+
+
+def zeitraum_pruefen(von: str, bis: str, wochenstunden: str, stundensatz: str):
+    """Gemeinsame Pruefung fuers Anlegen und fuers Speichern.
+
+    Gibt entweder ``(werte, None)`` oder ``(None, Fehlertext)`` zurueck.
+    """
+    von_datum = datum_lesen(von)
+    if not von_datum:
+        return None, "Ohne Beginn geht es nicht – trag ein Datum ein."
+    bis_datum = datum_lesen(bis)
+    if bis and bis_datum is None:
+        return None, "Das Ende ist kein gültiges Datum."
+    if bis_datum and bis_datum < von_datum:
+        return None, "Das Ende liegt vor dem Beginn."
+    stunden = stunden_lesen(wochenstunden)
+    if stunden is None:
+        return None, "Die Wochenstunden müssen eine Zahl zwischen 0 und 168 sein."
+    satz = betrag_lesen(stundensatz)
+    if satz is None:
+        return None, "Der Stundensatz muss ein Betrag sein, zum Beispiel 65,00."
+    return (von_datum, bis_datum, stunden, satz), None
+
+
+@router.post("/einstellungen/person/{person_id}/zeitraum")
+def zeitraum_anlegen(person_id: int, von: str = Form(""), bis: str = Form(""),
+                     wochenstunden: str = Form("0"),
+                     stundensatz: str = Form("0"), notiz: str = Form("")):
+    werte, fehler = zeitraum_pruefen(von, bis, wochenstunden, stundensatz)
+    if fehler:
+        return zeitraum_zurueck(person_id, fehler=fehler)
+    von_datum, bis_datum, stunden, satz = werte
+    with db.db() as con:
+        person = con.execute("SELECT name FROM person WHERE id=?",
+                             (person_id,)).fetchone()
+        if not person:
+            return einstellungen_zurueck(fehler="Diese Person gibt es nicht mehr.")
+        con.execute(
+            "INSERT INTO person_zeitraum (person_id, von, bis, wochenstunden, "
+            "stundensatz, notiz, angelegt_am) VALUES (?,?,?,?,?,?,?)",
+            (person_id, von_datum, bis_datum, stunden, satz,
+             notiz.strip() or None, _u["jetzt"]()))
+    return zeitraum_zurueck(
+        person_id, hinweis=f"Zeitraum für {person['name']} angelegt.")
+
+
+@router.post("/einstellungen/person/zeitraum/{zeitraum_id}")
+def zeitraum_speichern(zeitraum_id: int, von: str = Form(""), bis: str = Form(""),
+                       wochenstunden: str = Form("0"),
+                       stundensatz: str = Form("0"), notiz: str = Form("")):
+    with db.db() as con:
+        satz_alt = con.execute("SELECT person_id FROM person_zeitraum WHERE id=?",
+                               (zeitraum_id,)).fetchone()
+    if not satz_alt:
+        return einstellungen_zurueck(fehler="Diesen Zeitraum gibt es nicht mehr.")
+    person_id = satz_alt["person_id"]
+    werte, fehler = zeitraum_pruefen(von, bis, wochenstunden, stundensatz)
+    if fehler:
+        return zeitraum_zurueck(person_id, fehler=fehler)
+    von_datum, bis_datum, stunden, satz = werte
+    with db.db() as con:
+        con.execute(
+            "UPDATE person_zeitraum SET von=?, bis=?, wochenstunden=?, "
+            "stundensatz=?, notiz=? WHERE id=?",
+            (von_datum, bis_datum, stunden, satz, notiz.strip() or None,
+             zeitraum_id))
+    return zeitraum_zurueck(person_id, hinweis="Zeitraum gespeichert.")
+
+
+@router.post("/einstellungen/person/zeitraum/{zeitraum_id}/loeschen")
+def zeitraum_loeschen(zeitraum_id: int):
+    with db.db() as con:
+        satz = con.execute("SELECT person_id FROM person_zeitraum WHERE id=?",
+                           (zeitraum_id,)).fetchone()
+        if not satz:
+            return einstellungen_zurueck(fehler="Diesen Zeitraum gibt es nicht mehr.")
+        con.execute("DELETE FROM person_zeitraum WHERE id=?", (zeitraum_id,))
+    return zeitraum_zurueck(satz["person_id"], hinweis="Zeitraum entfernt.")
 
 
 @router.post("/einstellungen/person/{person_id}/loeschen")

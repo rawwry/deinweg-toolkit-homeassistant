@@ -3,6 +3,17 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.3
+
+- Bewilligte Zeiträume je betreuter Person: eigene Wochenstunden und
+  Stundensätze mit Datum von/bis, beliebig viele je Person
+- Die Auswertung rechnet Soll und Verdienst Monat für Monat mit den
+  Werten, die im jeweiligen Monat galten
+- Die bisherigen Felder bleiben als Grundwert für Monate ohne Zeitraum —
+  bestehende Personen rechnen unverändert weiter
+- Betreute Personen als aufklappbare Liste statt als Tabelle
+- Verdienst wird auch ohne hinterlegte Wochenstunden gerechnet
+
 ## 1.2
 
 - Rechte je Konto bis in die Einstellungen hinein; „Oberfläche“ bleibt

@@ -36,7 +36,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.2"
+VERSION = "1.3"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -240,6 +240,24 @@ def euro(betrag) -> str:
 
 
 templates.env.filters["euro"] = euro
+
+
+def stunden(wert) -> str:
+    """7.5 wird zu '7,5', 4.0 zu '4' – für Eingabefelder und Anzeigen.
+
+    Bewusst ohne Einheit: der Wert steht mal in einem Feld, mal im Text.
+    Eine leere Ausgabe bei 0 waere hier falsch - in einem Eingabefeld soll
+    die Null sichtbar sein.
+    """
+    try:
+        zahl = float(wert or 0)
+    except (TypeError, ValueError):
+        return "0"
+    text = f"{zahl:.2f}".rstrip("0").rstrip(".")
+    return (text or "0").replace(".", ",")
+
+
+templates.env.filters["stunden"] = stunden
 
 
 def gesamtstunden(minuten) -> str:
@@ -671,6 +689,67 @@ def soll_zeitraum(wochenstunden: float, monate: list[str]) -> int | None:
         return None
     einzelsoll = soll_minuten(wochenstunden, monate[0])
     return einzelsoll * len(monate) if einzelsoll else None
+
+
+# --- Bewilligte Zeiträume je betreuter Person --------------------------------
+#
+# Der Kostentraeger sagt Wochenstunden und Stundensatz immer nur befristet
+# zu. "Michael Mueller" hat von 08/2024 bis 07/2025 vier Wochenstunden zu
+# 65 EUR, ab 08/2025 sieben zu 70 EUR. Eine Auswertung ueber beide
+# Zeitraeume muss deshalb Monat fuer Monat mit den Werten rechnen, die in
+# diesem Monat galten - ein einziger Wert fuer den ganzen Zeitraum waere
+# schlicht falsch.
+#
+# ⚠️ Gerechnet wird MONATSWEISE, obwohl die Zeitraeume taggenau erfasst
+# werden. Ein Zeitraum gilt fuer jeden Monat, den er beruehrt. Alles andere
+# waere Scheingenauigkeit: schon das Soll entsteht aus einem pauschalen
+# Faktor 4,33 Wochen je Monat, und die Auswertung kennt ohnehin nur Monate.
+
+def monatsgrenzen(monat: str) -> tuple[str, str]:
+    """Erster und letzter Tag eines Monats als YYYY-MM-DD."""
+    jahr, mon = int(monat[:4]), int(monat[5:7])
+    letzter = (dt.date(jahr + (mon == 12), (mon % 12) + 1, 1)
+               - dt.timedelta(days=1))
+    return f"{monat}-01", letzter.isoformat()
+
+
+def zeitraeume_lesen(con) -> dict[str, list]:
+    """Alle bewilligten Zeiträume, nach Personennamen gebündelt.
+
+    Sortiert nach ``von`` absteigend: der zuletzt begonnene Zeitraum steht
+    vorn und gewinnt damit bei Überschneidungen (siehe kontingent_im_monat).
+    """
+    je_person: dict[str, list] = {}
+    for r in con.execute(
+            "SELECT p.name, z.* FROM person_zeitraum z "
+            "JOIN person p ON p.id = z.person_id "
+            "ORDER BY z.von DESC, z.id DESC"):
+        je_person.setdefault(r["name"], []).append(r)
+    return je_person
+
+
+def kontingent_im_monat(monat: str, zeitraeume, grund_stunden: float,
+                        grund_satz: float) -> tuple[float, float, bool]:
+    """Welche Wochenstunden und welcher Stundensatz galten in diesem Monat?
+
+    Gibt ``(wochenstunden, stundensatz, aus_zeitraum)`` zurück. Greift kein
+    Zeitraum, gelten die Grundwerte der Person — so rechnen alle bisher
+    gepflegten Personen unverändert weiter.
+
+    ⚠️ **Überschneiden sich zwei Zeiträume, gewinnt der später begonnene.**
+    Das kommt in der Praxis vor, wenn ein Folgebescheid schon läuft,
+    während der alte formal noch nicht abgelaufen ist. Die Liste kommt
+    absteigend nach ``von`` herein, der erste Treffer ist also der
+    richtige.
+    """
+    anfang, ende = monatsgrenzen(monat)
+    for z in zeitraeume or []:
+        if z["von"] > ende:
+            continue
+        if z["bis"] and z["bis"] < anfang:
+            continue
+        return (z["wochenstunden"] or 0), (z["stundensatz"] or 0), True
+    return grund_stunden or 0, grund_satz or 0, False
 
 
 def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
@@ -1233,8 +1312,18 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
             f"GROUP_CONCAT(DISTINCT mitarbeiter) leute "
             f"FROM eintrag WHERE {filter_['wo']} GROUP BY klient ORDER BY klient",
             filter_["werte"]).fetchall()
+        # Zusaetzlich monatsweise: Wochenstunden und Stundensatz koennen sich
+        # innerhalb des Auswertungszeitraums geaendert haben, der Verdienst
+        # muss deshalb Monat fuer Monat gerechnet werden.
+        je_monat: dict[str, dict[str, int]] = {}
+        for r in con.execute(
+                f"SELECT klient, monat, SUM(dauer_min) m FROM eintrag "
+                f"WHERE {filter_['wo']} GROUP BY klient, monat",
+                filter_["werte"]):
+            je_monat.setdefault(r["klient"], {})[r["monat"]] = r["m"] or 0
         stamm = {r["name"]: r for r in con.execute(
             "SELECT name, wochenstunden, stundensatz FROM person WHERE aktiv=1")}
+        zeitraeume = zeitraeume_lesen(con)
         # Welche Monate deckt die Auswahl tatsächlich ab? Grundlage für das Soll.
         vorhandene = [r["monat"] for r in con.execute(
             f"SELECT DISTINCT monat FROM eintrag WHERE {filter_['wo']} ORDER BY monat",
@@ -1248,27 +1337,60 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         monate = vorhandene or [dt.date.today().strftime("%Y-%m")]
 
     je_klient, stand, verdienst, verdienst_gesamt = [], [], [], 0.0
+    gestaffelt = False
     for r in roh:
         namen = sorted({t.strip() for t in (r["leute"] or "").split(",") if t.strip()})
-        satz = stamm.get(r["klient"])
-        soll = soll_zeitraum(satz["wochenstunden"], monate) if satz else None
+        p = stamm.get(r["klient"])
+        zr = zeitraeume.get(r["klient"], [])
+        grund_std = p["wochenstunden"] if p else 0
+        grund_satz = p["stundensatz"] if p else 0
+
+        # Soll: Monat fuer Monat mit den Werten, die in diesem Monat galten.
+        # Fuer die Anzeige wird zusaetzlich festgehalten, welche
+        # Wochenstunden und Saetze dabei ueberhaupt vorkamen - stehen dort
+        # zwei verschiedene, waere eine einzelne Zahl in der Spalte
+        # irrefuehrend.
+        soll, std_stufen = 0, set()
+        for monat in monate:
+            std, _satz, _ = kontingent_im_monat(monat, zr, grund_std, grund_satz)
+            if std:
+                std_stufen.add(std)
+                soll += soll_minuten(std, monat) or 0
+        soll = soll or None
+
+        # Verdienst: die Minuten JEDES Monats mit dem Satz dieses Monats.
+        betrag, satz_stufen = 0.0, set()
+        for monat, minuten in (je_monat.get(r["klient"]) or {}).items():
+            _std, satz, _ = kontingent_im_monat(monat, zr, grund_std, grund_satz)
+            if satz and minuten:
+                satz_stufen.add(satz)
+                betrag += minuten / 60 * satz
+        if len(std_stufen) > 1 or len(satz_stufen) > 1:
+            gestaffelt = True
 
         je_klient.append({
             "klient": r["klient"], "n": r["n"], "m": r["m"],
             "leute": namen, "anzahl_leute": r["anzahl_leute"],
             "soll": soll,
             "abweichung": (r["m"] - soll) if soll else None,
+            "stufen": len(std_stufen),
         })
 
         # Beide Seitenboxen richten sich nach demselben Filter
         if soll:
             stand.append({"klient": r["klient"], "m": r["m"], "soll": soll,
-                          "prozent": round(r["m"] / soll * 100)})
-            if satz["stundensatz"]:
-                betrag = r["m"] / 60 * satz["stundensatz"]
-                verdienst_gesamt += betrag
-                verdienst.append({"klient": r["klient"], "m": r["m"],
-                                  "satz": satz["stundensatz"], "betrag": betrag})
+                          "prozent": round(r["m"] / soll * 100),
+                          "stufen": len(std_stufen)})
+        # Bewusst nicht mehr an das Soll geknuepft: mit gestaffelten
+        # Zeitraeumen kann ein Monat einen Stundensatz tragen, ohne dass
+        # fuer denselben Zeitraum Wochenstunden hinterlegt sind. Vorher
+        # fiel dieser Verdienst stillschweigend unter den Tisch.
+        if betrag:
+            verdienst_gesamt += betrag
+            verdienst.append({
+                "klient": r["klient"], "m": r["m"], "betrag": betrag,
+                "satz": min(satz_stufen) if len(satz_stufen) == 1 else None,
+                "saetze": sorted(satz_stufen)})
 
     stand.sort(key=lambda r: r["prozent"])
     verdienst.sort(key=lambda r: -r["betrag"])
@@ -1280,6 +1402,7 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         "monate_anzahl": len(monate),
         "gesamt": sum(r["m"] for r in je_klient),
         "soll_aktiv": any(r["soll"] for r in je_klient),
+        "gestaffelt": gestaffelt,
         "zeitraum_wort": filter_["wort"], "aktive_filter": filter_["aktive"],
         "f": filter_["f"], "seite": "auswertung", **zusatz})
 
@@ -1897,6 +2020,7 @@ from . import einstellungen as _einstellungen  # noqa: E402
 
 _einstellungen.setup(templates, {
     "jetzt": jetzt,
+    "heute": lambda: dt.date.today().isoformat(),
     "monat_wort": monat_wort,
     "VERSION": VERSION,
     "MAX_UPLOAD_MB": MAX_UPLOAD_MB,

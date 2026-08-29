@@ -79,6 +79,29 @@ CREATE TABLE IF NOT EXISTS person (
     angelegt_am    TEXT NOT NULL
 );
 
+-- Bewilligte Zeitraeume je betreuter Person. Der Kostentraeger sagt
+-- Wochenstunden und Stundensatz immer nur fuer einen befristeten Zeitraum
+-- zu; laeuft ein Bescheid aus, gelten ab dem naechsten andere Werte. Die
+-- beiden Felder an "person" bleiben daneben bestehen und sind der
+-- Grundwert fuer jeden Monat, den kein Zeitraum abdeckt - sonst haetten
+-- alle bisher gepflegten Personen mit einem Schlag kein Kontingent mehr.
+--
+-- Anders als bei eintrag.klient steht hier ein echter Fremdschluessel:
+-- ein Zeitraum entsteht im Programm zu einer angelegten Person, nicht
+-- aus einem Fremdexport mit abweichender Schreibweise.
+CREATE TABLE IF NOT EXISTS person_zeitraum (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id      INTEGER NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+    von            TEXT NOT NULL,          -- YYYY-MM-DD
+    bis            TEXT,                   -- YYYY-MM-DD, leer = bis auf Weiteres
+    wochenstunden  REAL NOT NULL DEFAULT 0,
+    stundensatz    REAL NOT NULL DEFAULT 0,
+    notiz          TEXT,
+    angelegt_am    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_pzeitraum_person ON person_zeitraum(person_id);
+
 -- das Team. Grundlage fuer die Abgabeuebersicht auf der Startseite
 CREATE TABLE IF NOT EXISTS mitarbeiter (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,

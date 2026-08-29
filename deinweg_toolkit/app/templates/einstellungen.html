@@ -221,12 +221,12 @@
                  placeholder="genau wie in den Listen geschrieben">
         </label>
         <label class="feld">
-          <span>Stunden pro Woche</span>
+          <span>Grundwert Std/Woche</span>
           <input type="text" name="wochenstunden" inputmode="decimal"
                  placeholder="z. B. 7,5" autocomplete="off">
         </label>
         <label class="feld">
-          <span>Stundensatz in €</span>
+          <span>Grundwert Stundensatz in €</span>
           <input type="text" name="stundensatz" inputmode="decimal"
                  placeholder="z. B. 52,80" autocomplete="off">
         </label>
@@ -238,6 +238,7 @@
           <span>Zeiten dieser Person zählen als abrechenbar</span>
         </label>
       </label>
+      <p class="klein leise felderklaerung">{{ t("einst.grundwert_hinweis") }}</p>
       <div class="knopfreihe unten">
         <button class="knopf haupt" type="submit">Person anlegen</button>
       </div>
@@ -271,48 +272,190 @@
 {% endif %}
 
 <section class="karte">
-  <h2>Angelegte Personen</h2>
+  <div class="kopfzeile">
+    <h2>Angelegte Personen{% if personen %} · {{ personen | length }}{% endif %}</h2>
+  </div>
   {% if personen %}
-  <table class="liste">
-    <thead>
-      <tr><th>Name</th><th>Std/Woche</th><th>Stundensatz in €</th>
-          <th class="mitte">Abrechenbar</th><th class="mitte">Aktiv</th>
-          <th>Bisher erfasst</th><th></th></tr>
-    </thead>
-    <tbody>
-    {% for p in personen %}
-      <tr class="{{ '' if p.aktiv else 'stillgelegt' }}">
-        <form action="/einstellungen/person/{{ p.id }}" method="post" id="person-{{ p.id }}"></form>
-        <td><input class="mini" type="text" name="name" value="{{ p.name }}"
-                   form="person-{{ p.id }}"></td>
-        <td><input class="mini kurz" type="text" name="wochenstunden" inputmode="decimal"
-                   value="{{ p.wochenstunden | round(2) | string | replace('.0', '') | replace('.', ',') }}"
-                   form="person-{{ p.id }}"></td>
-        <td><input class="mini kurz" type="text" name="stundensatz" inputmode="decimal"
-                   value="{{ ('%.2f' % p.stundensatz) | replace('.', ',') if p.stundensatz else '' }}"
-                   placeholder="0,00" form="person-{{ p.id }}"></td>
-        <td class="mitte">
-          <input type="checkbox" name="abrechenbar" value="1" {{ 'checked' if p.abrechenbar }}
-                 form="person-{{ p.id }}">
-        </td>
-        <td class="mitte">
-          <input type="checkbox" name="aktiv" value="1" {{ 'checked' if p.aktiv }}
-                 form="person-{{ p.id }}">
-        </td>
-        <td class="zahlen leise">
-          {{ p.minuten | hhmm }} Std<br><span class="klein">{{ p.eintraege }} Einheiten</span>
-        </td>
-        <td class="rechts nowrap">
-          <button class="knopf klein" type="submit" form="person-{{ p.id }}">speichern</button>
-          <form class="inline" action="/einstellungen/person/{{ p.id }}/loeschen" method="post"
-                onsubmit="return confirm('{{ p.name }} aus den Stammdaten entfernen? Erfasste Zeiten bleiben erhalten.')">
-            <button class="knopf klein warn" type="submit">entfernen</button>
-          </form>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+  {# Eine Zeile je Person, die sich zum Editor aufklappt - dieselbe Form
+     wie bei den Konten in der Benutzerverwaltung. Als flache Tabelle ging
+     es nicht mehr: zu jeder Person gehört jetzt eine eigene Liste
+     bewilligter Zeiträume, und die passt in keine Tabellenzelle. #}
+  <div class="kontoliste">
+  {% for p in personen %}
+  {% set liste = zeitraeume.get(p.id, []) %}
+  {% set gilt_heute = zeitraum_aktuell.get(p.id) %}
+  <details class="konto {{ '' if p.aktiv else 'stillgelegt' }}"
+           id="person-{{ p.id }}" {{ 'open' if offen == p.id }}>
+    <summary class="konto-kopf">
+      <span class="konto-name">
+        <span class="stark">{{ p.name }}</span>
+        {% if not p.aktiv %}<span class="marke-status weg">stillgelegt</span>{% endif %}
+        {% if not p.abrechenbar %}<span class="marke-status offen">nicht abrechenbar</span>{% endif %}
+      </span>
+      <span class="konto-daten">
+        {# Was gilt heute? Das ist die Frage, mit der man herkommt. #}
+        {% if gilt_heute %}
+          {{ gilt_heute.wochenstunden | stunden }} Std/Woche · {{ gilt_heute.stundensatz | euro }}
+        {% elif p.wochenstunden or p.stundensatz %}
+          <span class="leise">Grundwert:</span>
+          {{ p.wochenstunden | stunden }} Std/Woche · {{ p.stundensatz | euro }}
+        {% else %}
+          <span class="leise">kein Kontingent hinterlegt</span>
+        {% endif %}
+      </span>
+      <span class="konto-rechte">
+        {% if liste %}{{ liste | length }} Zeitraum{{ '' if liste | length == 1 else 'e' }}
+        {% else %}<span class="leise">ohne Zeiträume</span>{% endif %}
+        · {{ p.minuten | hhmm }} erfasst
+      </span>
+      <span class="konto-pfeil" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+    </summary>
+
+    <div class="konto-inhalt">
+    <form action="/einstellungen/person/{{ p.id }}" method="post" id="person-f-{{ p.id }}"></form>
+
+    <div class="konto-block">
+      <span class="konto-blocktitel">Stammdaten</span>
+      <div class="feldreihe">
+        <label class="feld">
+          <span>Name</span>
+          <input type="text" name="name" value="{{ p.name }}"
+                 form="person-f-{{ p.id }}" required>
+        </label>
+        <label class="feld">
+          <span>Grundwert Std/Woche</span>
+          <input type="text" name="wochenstunden" inputmode="decimal"
+                 value="{{ p.wochenstunden | stunden }}"
+                 form="person-f-{{ p.id }}">
+        </label>
+        <label class="feld">
+          <span>Grundwert Stundensatz in €</span>
+          <input type="text" name="stundensatz" inputmode="decimal"
+                 value="{{ ('%.2f' % p.stundensatz) | replace('.', ',') if p.stundensatz else '' }}"
+                 placeholder="0,00" form="person-f-{{ p.id }}">
+        </label>
+      </div>
+      <p class="klein leise felderklaerung">{{ t("einst.grundwert_hinweis") }}</p>
+      <div class="bereichsraster">
+        <label class="bereich-kachel">
+          <input type="checkbox" name="abrechenbar" value="1"
+                 {{ 'checked' if p.abrechenbar }} form="person-f-{{ p.id }}">
+          Zeiten sind abrechenbar
+        </label>
+        <label class="bereich-kachel">
+          <input type="checkbox" name="aktiv" value="1"
+                 {{ 'checked' if p.aktiv }} form="person-f-{{ p.id }}">
+          Person aktiv
+        </label>
+      </div>
+      <div class="knopfreihe">
+        <button class="knopf haupt" type="submit" form="person-f-{{ p.id }}">speichern</button>
+        <form class="inline" action="/einstellungen/person/{{ p.id }}/loeschen" method="post"
+              onsubmit="return confirm('{{ p.name }} aus den Stammdaten entfernen? Erfasste Zeiten bleiben erhalten, die hinterlegten Zeiträume nicht.')">
+          <button class="knopf warn" type="submit">entfernen</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="konto-block">
+      <span class="konto-blocktitel">Bewilligte Zeiträume</span>
+      <p class="klein leise felderklaerung">{{ t("einst.zeitraum_hinweis") }}</p>
+
+      {% if liste %}
+      <div class="tabellenrolle">
+      <table class="liste dicht zeitraumtabelle">
+        <thead>
+          <tr><th>Ab</th><th>Bis</th><th class="rechts">Std/Woche</th>
+              <th class="rechts">Satz in €</th><th>Notiz</th><th>Aktion</th></tr>
+        </thead>
+        <tbody>
+        {% for z in liste %}
+          {% set gilt = z.von <= heute and (not z.bis or z.bis >= heute) %}
+          <tr class="{{ 'zeile-laufend' if gilt }}">
+            <form action="/einstellungen/person/zeitraum/{{ z.id }}" method="post"
+                  id="zr-{{ z.id }}"></form>
+            <td><input class="mini" type="date" name="von" value="{{ z.von }}"
+                       form="zr-{{ z.id }}" required></td>
+            <td><input class="mini" type="date" name="bis" value="{{ z.bis or '' }}"
+                       form="zr-{{ z.id }}"></td>
+            <td><input class="mini kurz rechts" type="text" name="wochenstunden"
+                       inputmode="decimal" value="{{ z.wochenstunden | stunden }}"
+                       form="zr-{{ z.id }}"></td>
+            <td><input class="mini kurz rechts" type="text" name="stundensatz"
+                       inputmode="decimal"
+                       value="{{ ('%.2f' % z.stundensatz) | replace('.', ',') if z.stundensatz else '' }}"
+                       placeholder="0,00" form="zr-{{ z.id }}"></td>
+            <td><input class="mini" type="text" name="notiz" value="{{ z.notiz or '' }}"
+                       placeholder="z. B. Bescheid vom 12.07." form="zr-{{ z.id }}"></td>
+            <td class="rechts nowrap">
+              {% if gilt %}<span class="marke-status gut">gilt heute</span>{% endif %}
+              <button class="knopf-icon" type="submit" form="zr-{{ z.id }}"
+                      title="Speichern" aria-label="Speichern">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M5 12.5 10 17.5 19 7" stroke="currentColor" stroke-width="1.9"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <form class="inline" method="post"
+                    action="/einstellungen/person/zeitraum/{{ z.id }}/loeschen"
+                    onsubmit="return confirm('Diesen Zeitraum entfernen?')">
+                <button class="knopf-icon warn" type="submit"
+                        title="Entfernen" aria-label="Entfernen">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <p class="leer klein">{{ t("einst.zeitraum_leer") }}</p>
+      {% endif %}
+
+      <form class="zeitraumneu" action="/einstellungen/person/{{ p.id }}/zeitraum"
+            method="post">
+        <div class="feldreihe">
+          <label class="feld">
+            <span>Ab</span>
+            <input type="date" name="von" required>
+          </label>
+          <label class="feld">
+            <span>Bis <span class="leise">– leer = offen</span></span>
+            <input type="date" name="bis">
+          </label>
+          <label class="feld">
+            <span>Std/Woche</span>
+            <input type="text" name="wochenstunden" inputmode="decimal" placeholder="z. B. 4">
+          </label>
+          <label class="feld">
+            <span>Satz in €</span>
+            <input type="text" name="stundensatz" inputmode="decimal" placeholder="z. B. 65,00">
+          </label>
+          <label class="feld">
+            <span>Notiz <span class="leise">– optional</span></span>
+            <input type="text" name="notiz" placeholder="z. B. Bescheid vom 12.07.">
+          </label>
+        </div>
+        <div class="knopfreihe">
+          <button class="knopf" type="submit">Zeitraum hinzufügen</button>
+        </div>
+      </form>
+    </div>
+    </div>
+  </details>
+  {% endfor %}
+  </div>
   <p class="klein leise" style="margin-bottom: 8px;">{{ t("einst.abrechenbar") }}</p>
   <p class="klein leise" style="margin-bottom: 0;">{{ t("einst.stillgelegt") }}</p>
   {% else %}

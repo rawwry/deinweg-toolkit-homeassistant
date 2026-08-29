@@ -977,4 +977,29 @@ CHANGELOG = [
         "Fehler behoben: ein Rechteformular ohne einen einzigen Haken "
         "erteilte vollen Zugriff statt gar keinen",
     ]},
+    {"version": "1.3", "titel": "Bewilligte Zeiträume je betreuter Person", "punkte": [
+        "Zu jeder betreuten Person lassen sich jetzt beliebig viele "
+        "Zeiträume hinterlegen – je mit eigenen Wochenstunden, eigenem "
+        "Stundensatz und einer Notiz für das Aktenzeichen. Genau so, wie "
+        "der Kostenträger es bewilligt: 08/2024 bis 07/2025 vier Stunden "
+        "zu 65 €, ab 08/2025 sieben zu 70 €",
+        "Ein Zeitraum ohne Ende gilt bis auf Weiteres. Überschneiden sich "
+        "zwei, gewinnt der später begonnene – so wirkt ein Folgebescheid "
+        "sofort, auch wenn der alte formal noch läuft",
+        "Die Auswertung rechnet damit Monat für Monat: über einen Zeitraum "
+        "hinweg, in dem sich die Zusage geändert hat, stimmen Soll und "
+        "Verdienst jetzt. Vorher galt für den ganzen Zeitraum ein einziger "
+        "Wert und das Ergebnis war schlicht falsch",
+        "Wo gestaffelt gerechnet wurde, steht das auch da – in der Spalte "
+        "„Soll“ als Marke und unter der Tabelle als Hinweis",
+        "Die alten Felder bleiben als Grundwert bestehen und gelten für "
+        "jeden Monat, den kein Zeitraum abdeckt. Bestehende Personen "
+        "rechnen dadurch unverändert weiter",
+        "Betreute Personen stehen jetzt als aufklappbare Liste statt als "
+        "Tabelle – die Zeiträume passen in keine Tabellenzelle. Die Zeile "
+        "zeigt, was heute gilt",
+        "Der Verdienst hängt nicht mehr daran, dass auch Wochenstunden "
+        "hinterlegt sind. Ein Monat mit Stundensatz, aber ohne Kontingent "
+        "fiel vorher stillschweigend aus der Summe",
+    ]},
 ]

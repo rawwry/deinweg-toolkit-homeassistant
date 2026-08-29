@@ -28,6 +28,10 @@ TEXTE_STANDARD["auswertung.soll_erklaerung"] = (
     "Soll = Wochenkontingent × 4,33 je Monat, auf 15 Minuten gerundet. Gepflegt unter <a href=\"/einstellungen?bereich=betreute\">Betreute Personen</a>.")
 TEXTE_STANDARD["auswertung.soll_fehlt"] = (
     "Für einen Soll-Ist-Vergleich unter <a href=\"/einstellungen?bereich=betreute\">Betreute Personen</a> Wochenstunden hinterlegen.")
+TEXTE_STANDARD["auswertung.gestaffelt"] = (
+    "Bei mindestens einer Person haben sich Wochenstunden oder "
+    "Stundensatz innerhalb des Zeitraums geändert. Gerechnet wird dann "
+    "Monat für Monat mit den Werten, die im jeweiligen Monat galten.")
 TEXTE_STANDARD["auswertung.tabelle_leer"] = (
     "Für {zeitraum} sind keine Zeiten erfasst.")
 TEXTE_STANDARD["auswertung.verdienst_hinweis"] = (
@@ -91,7 +95,19 @@ TEXTE_STANDARD["einst.schreibweise_team"] = (
 TEXTE_STANDARD["einst.stillgelegt"] = (
     "Stillgelegte Personen bleiben in der Liste, werden bei der Soll-Rechnung aber übersprungen – praktisch, wenn eine Betreuung ausläuft.")
 TEXTE_STANDARD["einst.stundensatz"] = (
-    "Der Stundensatz wird gespeichert, aber noch nirgends verrechnet – er steht für spätere Abrechnungsauswertungen bereit.")
+    "Der Stundensatz geht in die Box „Verdienst“ der Auswertung ein – als rechnerischer Hinweis, nicht als Abrechnung. Ändert er sich zum Stichtag, gehört das als Zeitraum hinterlegt und nicht in den Grundwert.")
+TEXTE_STANDARD["einst.grundwert_hinweis"] = (
+    "Der Grundwert gilt für jeden Monat, für den kein Zeitraum hinterlegt "
+    "ist. Wer mit Bescheiden arbeitet, trägt alles unten als Zeitraum ein "
+    "und lässt den Grundwert auf 0.")
+TEXTE_STANDARD["einst.zeitraum_hinweis"] = (
+    "Was der Kostenträger jeweils zugesagt hat. Ein Zeitraum ohne Ende "
+    "gilt bis auf Weiteres. Überschneiden sich zwei, gewinnt der später "
+    "begonnene – so wirkt ein Folgebescheid sofort, auch wenn der alte "
+    "formal noch läuft. <strong>Gerechnet wird monatsweise:</strong> ein "
+    "Zeitraum gilt für jeden Monat, den er berührt.")
+TEXTE_STANDARD["einst.zeitraum_leer"] = (
+    "Noch kein Zeitraum hinterlegt – es gilt der Grundwert oben.")
 TEXTE_STANDARD["einst.abrechenbar"] = (
     "Legt fest, ob Zeiten dieser Person beim Filter „nur abrechenbare Zeiten“ auf den Seiten Datensätze und Auswertung mitgezählt werden. Betrifft nur diesen Filter, nicht die Soll-Rechnung oder sonstige Zahlen.")
 TEXTE_STANDARD["einst.system_lead"] = (

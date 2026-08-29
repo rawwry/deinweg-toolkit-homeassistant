@@ -1629,6 +1629,216 @@ def test_benutzerverwaltung_aufbau(client: TestClient) -> None:
     pruefe('id="bn-' in seite, "die Felder hängen an einem eigenen Formular")
 
 
+def test_kontingent_zeitraeume(client: TestClient) -> None:
+    """Bewilligte Zeiträume je betreuter Person (seit 1.3).
+
+    Der Kostenträger sagt Wochenstunden und Stundensatz nur befristet zu.
+    Geprüft wird beides: die Pflege in den Einstellungen und dass die
+    Auswertung Monat für Monat mit den Werten rechnet, die im jeweiligen
+    Monat galten.
+    """
+    abschnitt("Bewilligte Zeiträume")
+    from .main import kontingent_im_monat, monatsgrenzen, soll_minuten
+
+    # --- Die Regel selbst ---------------------------------------------------
+    pruefe(monatsgrenzen("2025-02") == ("2025-02-01", "2025-02-28"),
+           "Monatsgrenzen: Februar endet am 28.")
+    pruefe(monatsgrenzen("2024-02") == ("2024-02-01", "2024-02-29"),
+           "im Schaltjahr am 29.")
+    pruefe(monatsgrenzen("2025-12") == ("2025-12-01", "2025-12-31"),
+           "der Dezember schlägt korrekt ins Folgejahr um")
+
+    class Z(dict):
+        def __getitem__(self, k):
+            return dict.get(self, k)
+
+    erst = Z(von="2024-08-01", bis="2025-07-31", wochenstunden=4, stundensatz=65)
+    folge = Z(von="2025-08-01", bis="2025-12-31", wochenstunden=7, stundensatz=70)
+    # So kommt die Liste aus der Datenbank: neuester Beginn zuerst.
+    liste = [folge, erst]
+
+    pruefe(kontingent_im_monat("2024-09", liste, 0, 0) == (4, 65, True),
+           "mitten im ersten Zeitraum gelten dessen Werte")
+    pruefe(kontingent_im_monat("2024-08", liste, 0, 0) == (4, 65, True),
+           "der Anfangsmonat zählt dazu")
+    pruefe(kontingent_im_monat("2025-07", liste, 0, 0) == (4, 65, True),
+           "der Endmonat auch")
+    pruefe(kontingent_im_monat("2025-08", liste, 0, 0) == (7, 70, True),
+           "ab dem Folgebescheid gelten dessen Werte")
+    pruefe(kontingent_im_monat("2025-12", liste, 0, 0) == (7, 70, True),
+           "bis zu dessen letztem Monat")
+    pruefe(kontingent_im_monat("2026-01", liste, 3, 40) == (3, 40, False),
+           "danach greift wieder der Grundwert der Person")
+    pruefe(kontingent_im_monat("2024-07", liste, 3, 40) == (3, 40, False),
+           "und davor genauso")
+    pruefe(kontingent_im_monat("2025-05", [], 3, 40) == (3, 40, False),
+           "ohne jeden Zeitraum gilt immer der Grundwert")
+
+    offen = Z(von="2026-01-01", bis=None, wochenstunden=9, stundensatz=80)
+    pruefe(kontingent_im_monat("2030-06", [offen], 0, 0) == (9, 80, True),
+           "ein Zeitraum ohne Ende gilt bis auf Weiteres")
+
+    # Ueberschneidung: der spaeter begonnene gewinnt. Kommt vor, wenn ein
+    # Folgebescheid schon laeuft, waehrend der alte formal noch gilt.
+    ueberlappt = [Z(von="2025-08-01", bis="2025-12-31", wochenstunden=7, stundensatz=70),
+                  Z(von="2024-08-01", bis="2025-08-31", wochenstunden=4, stundensatz=65)]
+    pruefe(kontingent_im_monat("2025-08", ueberlappt, 0, 0) == (7, 70, True),
+           "bei Überschneidung gewinnt der später begonnene Zeitraum")
+
+    # --- Pflege in den Einstellungen ---------------------------------------
+    client.post("/einstellungen/person", data={
+        "name": "Michael Müller", "wochenstunden": "0", "stundensatz": "0",
+        "abrechenbar": "1"})
+    with db.db() as con:
+        pid = con.execute("SELECT id FROM person WHERE name='Michael Müller'"
+                          ).fetchone()["id"]
+
+    antwort = client.post(f"/einstellungen/person/{pid}/zeitraum", data={
+        "von": "2024-08-01", "bis": "2025-07-31", "wochenstunden": "4",
+        "stundensatz": "65", "notiz": "Erstbescheid"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "ein Zeitraum lässt sich anlegen")
+    pruefe(f"offen={pid}" in antwort.headers.get("location", ""),
+           "und die Person ist danach aufgeklappt")
+    client.post(f"/einstellungen/person/{pid}/zeitraum", data={
+        "von": "2025-08-01", "bis": "2025-12-31", "wochenstunden": "7",
+        "stundensatz": "70,00", "notiz": "Fortschreibung"})
+
+    with db.db() as con:
+        gespeichert = con.execute(
+            "SELECT * FROM person_zeitraum WHERE person_id=? ORDER BY von",
+            (pid,)).fetchall()
+    pruefe(len(gespeichert) == 2, "beide Zeiträume stehen in der Datenbank")
+    pruefe(gespeichert[0]["wochenstunden"] == 4
+           and gespeichert[0]["stundensatz"] == 65,
+           "mit den eingetragenen Werten")
+    pruefe(gespeichert[1]["stundensatz"] == 70,
+           "„70,00“ mit Komma wird als Betrag gelesen")
+
+    # Fehlerhafte Eingaben.
+    for daten, wort, was in (
+            ({"von": "", "bis": "", "wochenstunden": "4"},
+             "Ohne+Beginn", "ohne Beginn"),
+            ({"von": "2025-01-01", "bis": "quatsch", "wochenstunden": "4"},
+             "kein+g", "unlesbares Ende"),
+            ({"von": "2025-01-01", "bis": "2024-01-01", "wochenstunden": "4"},
+             "liegt+vor+dem+Beginn", "Ende vor Beginn"),
+            ({"von": "2025-01-01", "wochenstunden": "999"},
+             "Wochenstunden", "unmögliche Wochenstunden"),
+            ({"von": "2025-01-01", "wochenstunden": "4", "stundensatz": "abc"},
+             "Stundensatz", "unlesbarer Stundensatz")):
+        ort = client.post(f"/einstellungen/person/{pid}/zeitraum", data=daten,
+                          follow_redirects=False).headers.get("location", "")
+        pruefe("fehler=" in ort and wort in ort, f"abgewiesen: {was}")
+    with db.db() as con:
+        anzahl = con.execute("SELECT COUNT(*) c FROM person_zeitraum "
+                             "WHERE person_id=?", (pid,)).fetchone()["c"]
+    pruefe(anzahl == 2, "keine der fehlerhaften Eingaben wurde gespeichert")
+
+    # Ändern und Entfernen.
+    zid = gespeichert[0]["id"]
+    client.post(f"/einstellungen/person/zeitraum/{zid}", data={
+        "von": "2024-08-01", "bis": "2025-07-31", "wochenstunden": "4",
+        "stundensatz": "66,50", "notiz": "korrigiert"})
+    with db.db() as con:
+        geaendert = con.execute("SELECT * FROM person_zeitraum WHERE id=?",
+                                (zid,)).fetchone()
+    pruefe(geaendert["stundensatz"] == 66.5 and geaendert["notiz"] == "korrigiert",
+           "ein Zeitraum lässt sich ändern")
+    client.post(f"/einstellungen/person/zeitraum/{zid}", data={
+        "von": "2024-08-01", "bis": "2025-07-31", "wochenstunden": "4",
+        "stundensatz": "65", "notiz": "Erstbescheid"})
+
+    # --- Die Auswertung rechnet damit --------------------------------------
+    # Zwei Einheiten, je eine in einem der beiden Zeiträume.
+    with db.db() as con:
+        for datum, minuten, fp in (("2024-09-10", 120, "mm1"),
+                                   ("2025-09-10", 180, "mm2")):
+            con.execute(
+                "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+                "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+                "angelegt_am) VALUES ('pruefer',?,?, '09:00','11:00',"
+                "'Michael Müller','Hausbesuch',?,1,?,?)",
+                (datum, datum[:7], minuten, fp, datum + " 09:00"))
+
+    # Von Hand nachgerechnet: 12 Monate zu 4 Std/Woche plus 5 Monate zu 7.
+    soll_4 = soll_minuten(4, "2024-09")
+    soll_7 = soll_minuten(7, "2025-09")
+    erwartet_soll = soll_4 * 12 + soll_7 * 5
+    pruefe(soll_4 == 1035 and soll_7 == 1815,
+           f"Monatssoll je Stufe (ist: {soll_4} / {soll_7})")
+
+    seite = client.get("/auswertung?von_jahr=2024&von_monat=08"
+                       "&bis_jahr=2025&bis_monat=12").text
+    from .parser import hhmm as _hhmm
+    pruefe(_hhmm(erwartet_soll) in seite,
+           f"das Soll über beide Zeiträume stimmt ({_hhmm(erwartet_soll)})")
+    # 2 Std zu 65 EUR plus 3 Std zu 70 EUR.
+    pruefe("340,00 €" in seite,
+           "der Verdienst rechnet jeden Monat mit dem Satz dieses Monats")
+    pruefe("gestaffelt" in seite,
+           "die Auswertung weist auf die Staffelung hin")
+    pruefe("2 Sätze" in seite,
+           "und nennt statt eines Satzes deren Anzahl")
+
+    # Nur der erste Zeitraum: eine Stufe, ein Satz, kein Hinweis.
+    seite = client.get("/auswertung?von_jahr=2024&von_monat=08"
+                       "&bis_jahr=2025&bis_monat=07").text
+    pruefe(_hhmm(soll_4 * 12) in seite, "über einen Zeitraum allein stimmt es auch")
+    pruefe("130,00 €" in seite, "und der Verdienst ebenso")
+    pruefe("gestaffelt" not in seite, "dann steht dort auch kein Hinweis")
+
+    # --- Der Grundwert bleibt der Rückfall ---------------------------------
+    client.post("/einstellungen/person", data={
+        "name": "Ohne Zeitraum", "wochenstunden": "5", "stundensatz": "50",
+        "abrechenbar": "1"})
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2025-03-04','2025-03','09:00',"
+            "'13:00','Ohne Zeitraum','Besuch',240,1,'oz1','2025-03-04 09:00')")
+    seite = client.get("/auswertung?von_jahr=2025&von_monat=03"
+                       "&bis_jahr=2025&bis_monat=03").text
+    pruefe(_hhmm(soll_minuten(5, "2025-03")) in seite,
+           "eine Person ohne Zeiträume rechnet unverändert mit dem Grundwert")
+    pruefe("200,00 €" in seite, "auch beim Verdienst")
+
+    # --- Die Zeiträume hängen an der Person --------------------------------
+    seite = client.get("/einstellungen?bereich=betreute").text
+    pruefe('id="person-' in seite and "zeitraumtabelle" in seite,
+           "die Zeiträume stehen bei der Person in den Einstellungen")
+    pruefe("Fortschreibung" in seite, "mit ihrer Notiz")
+
+    client.post(f"/einstellungen/person/{pid}/loeschen")
+    with db.db() as con:
+        rest = con.execute("SELECT COUNT(*) c FROM person_zeitraum "
+                           "WHERE person_id=?", (pid,)).fetchone()["c"]
+    pruefe(rest == 0,
+           "mit der Person verschwinden auch ihre Zeiträume (Fremdschlüssel)")
+
+
+def test_zeitraum_rechte(client: TestClient) -> None:
+    """Die Zeitraum-Routen hängen am Einstellungspunkt „Betreute Personen“."""
+    abschnitt("Zeiträume: Zugriff")
+    client.post("/einstellungen/benutzer", data={
+        "benutzername": "ohnebetreute", "passwort": "ohnepasswort",
+        "rolle": "benutzer", "bereiche": ["einstellungen"],
+        "einst_bereiche": ["leistungen"]})
+    o = TestClient(app)
+    o.post("/login", data={"benutzername": "ohnebetreute",
+                           "passwort": "ohnepasswort"}, follow_redirects=False)
+    pruefe(o.post("/einstellungen/person/1/zeitraum",
+                  data={"von": "2025-01-01", "wochenstunden": "4"}
+                  ).status_code == 403,
+           "ohne den Punkt „Betreute Personen“ lässt sich kein Zeitraum anlegen")
+    pruefe(o.post("/einstellungen/person/zeitraum/1",
+                  data={"von": "2025-01-01", "wochenstunden": "4"}
+                  ).status_code == 403,
+           "und keiner ändern")
+    pruefe(o.post("/einstellungen/person/zeitraum/1/loeschen").status_code == 403,
+           "und keiner löschen")
+
+
 def test_versionen() -> None:
     """Die Versionszaehlung: beginnt bei 0.1, endet beim aktuellen Stand."""
     abschnitt("Versionen")
@@ -2343,6 +2553,8 @@ def _durchlauf(client: TestClient) -> None:
         test_einstellungspunkte(client)
         test_meine_zeiten(client)
         test_benutzerverwaltung_aufbau(client)
+        test_kontingent_zeitraeume(client)
+        test_zeitraum_rechte(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")
