@@ -1783,8 +1783,12 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
     # 2 Std zu 65 EUR plus 3 Std zu 70 EUR.
     pruefe("340,00 €" in seite,
            "der Verdienst rechnet jeden Monat mit dem Satz dieses Monats")
-    pruefe("gestaffelt" in seite,
+    # Der Hinweis unter der Tabelle. In den Zellen selbst steht seit 1.4.3
+    # keine Marke mehr - sie brach die Zeilen um.
+    pruefe("Monat für Monat mit den Werten" in seite,
            "die Auswertung weist auf die Staffelung hin")
+    pruefe("Grundwert</span>" not in seite,
+           "in den Zellen steht keine Marke „Grundwert“ mehr")
     pruefe("2 Sätze" in seite,
            "und nennt statt eines Satzes deren Anzahl")
 
@@ -1793,7 +1797,8 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
                        "&bis_jahr=2025&bis_monat=07").text
     pruefe(_hhmm(soll_4 * 12) in seite, "über einen Zeitraum allein stimmt es auch")
     pruefe("130,00 €" in seite, "und der Verdienst ebenso")
-    pruefe("gestaffelt" not in seite, "dann steht dort auch kein Hinweis")
+    pruefe("Monat für Monat mit den Werten" not in seite,
+           "dann steht dort auch kein Hinweis")
 
     # --- Der Grundwert bleibt der Rückfall ---------------------------------
     client.post("/einstellungen/person", data={
@@ -1932,6 +1937,15 @@ def test_monatsbloecke(client: TestClient) -> None:
            "jeder Block trägt seine Sprungmarke")
     pruefe("<h2>Bewilligt</h2>" in seite and "bescheidliste" in seite,
            "die zugrunde liegenden Bescheide stehen daneben")
+    # Maßangaben: einmal je Spalte im Kopf, nicht in jeder Zelle.
+    pruefe(seite.count('class="massangabe">Std<') >= 3,
+           "die Zeitspalten tragen ihre Einheit im Kopf")
+    pruefe('class="massangabe">€<' in seite,
+           "die Geldspalten ebenso")
+    pruefe('class="kmass">Std<' in seite,
+           "die Kennzahlen tragen ihre Einheit hinter der Zahl")
+    pruefe("Std</span></td>" not in seite,
+           "in den Zellen selbst steht die Einheit nicht")
     pruefe("01.08.2024" in seite and "31.07.2025" in seite,
            "mit ihrem Zeitraum")
     pruefe("4 Std/Woche" in seite, "und ihren Werten")

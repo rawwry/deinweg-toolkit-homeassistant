@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.4.3
+
+- Maßangaben („Std", „€") an Kennzahlen, Monatsköpfen und Seitenspalte;
+  in den Tabellen einmal im Spaltenkopf statt in jeder Zelle
+- Marken „Grundwert" und „gestaffelt" aus den Tabellenzellen entfernt —
+  sie brachen die Zeilen um
+- Dadurch kein seitlicher Rollbalken mehr bis hinunter zu 1300px
+
 ## 1.4.2
 
 - Auswertung wieder zweispaltig, diesmal über die ganze Seitenlänge — die

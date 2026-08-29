@@ -1064,4 +1064,24 @@ CHANGELOG = [
         "Spaltenbreiten der Tabellen so gesetzt, dass im engsten Fall "
         "jeder Spaltentitel und jeder Betrag in seine Zelle passt",
     ]},
+    {"version": "1.4.3", "titel": "Einheiten, keine Marken in den Zellen", "punkte": [
+        "Maßangaben an den Werten, an denen sie fehlten: „Std“ hinter den "
+        "Kennzahlen, in der Kopfzeile jedes Monatsblocks und in der "
+        "Seitenspalte. In den Tabellen steht die Einheit einmal im "
+        "Spaltenkopf statt in jeder Zelle – dort auf einer eigenen, "
+        "gedämpften Zeile, damit sie die Spalte nicht breiter macht",
+        "Die Marke „Grundwert“ in der Spalte „Bewilligt“ ist entfallen. Sie "
+        "brach jede zweite Zeile um und machte die Spalte unnötig breit. "
+        "Wo der Grundwert gegriffen hat, steht weiterhin in der "
+        "Seitenspalte unter „Bewilligt“ – einmal je Person statt einmal je "
+        "Zeile",
+        "Dasselbe für die Marke „gestaffelt“: dass mit mehreren Sätzen "
+        "gerechnet wurde, steht in der Spalte „Satz“ („2 Sätze“) und als "
+        "Hinweis unter der Tabelle",
+        "Damit passen die Tabellen wieder in ihre Spalte – der seitliche "
+        "Rollbalken ist bis hinunter zu einem 1300 Pixel breiten Fenster "
+        "weg. Die Summenzeile ist außerdem nicht mehr größer gesetzt als "
+        "der Rest; bei fünfstelligen Beträgen sprengte sie sonst ihre "
+        "Spalte",
+    ]},
 ]

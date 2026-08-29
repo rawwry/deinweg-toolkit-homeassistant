@@ -1756,18 +1756,22 @@ body.anmeldeseite {
    nicht mehr in Prozent. Feste Breiten, und die Tabelle rollt in ihrer
    Hülle, sobald es eng wird. */
 /* ⚠️ Die Breiten sind so gewählt, dass bei min-width (also im engsten
-   Fall, wenn die Tabelle rollt) jeder Spaltentitel und jeder Betrag in
+   Fall, wenn die Tabelle rollt) jeder Spaltentitel und jeder Wert in
    seine Zelle passt. Bei mehr Platz verteilt der Browser den Rest
-   proportional. Wer hier kürzt, muss die Titel mitkürzen. */
-.auswertungsblatt { min-width: 780px; }
-.auswertungsblatt th:nth-child(1) { width: 135px; }
-.auswertungsblatt th:nth-child(2) { width: 105px; }
-.auswertungsblatt th:nth-child(3) { width: 52px; }
-.auswertungsblatt th:nth-child(4) { width: 92px; }
-.auswertungsblatt th:nth-child(5) { width: 98px; }
-.auswertungsblatt th:nth-child(6) { width: 105px; }
-.auswertungsblatt th:nth-child(7) { width: 78px; }
-.auswertungsblatt th:last-child   { width: 105px; }
+   proportional. Wer hier kürzt, muss die Titel mitkürzen — und die
+   Maßangabe steht bewusst auf einer zweiten Zeile im Kopf, damit sie
+   die Spalte NICHT breiter macht (siehe th .massangabe). */
+.auswertungsblatt { min-width: 720px; }
+.auswertungsblatt th:nth-child(1) { width: 130px; }
+.auswertungsblatt th:nth-child(2) { width: 96px; }
+.auswertungsblatt th:nth-child(3) { width: 50px; }
+.auswertungsblatt th:nth-child(4) { width: 84px; }
+.auswertungsblatt th:nth-child(5) { width: 84px; }
+.auswertungsblatt th:nth-child(6) { width: 98px; }
+.auswertungsblatt th:nth-child(7) { width: 68px; }
+/* Breit genug für einen fünfstelligen Betrag: „43.247,27 €“ in der
+   Summenzeile lief bei 92px aus der Zelle. */
+.auswertungsblatt th:last-child   { width: 108px; }
 .tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }
 /* ⚠️ Die Spaltentitel dürfen hier umbrechen – aber nur an Leerzeichen.
    .tabellenrolle setzt sonst overflow-wrap: anywhere, und dann zerfiel
@@ -1777,17 +1781,36 @@ body.anmeldeseite {
 .tabellenrolle .liste.auswertungsblatt th {
   white-space: normal; overflow-wrap: normal; word-break: normal;
 }
-/* Die Marke selbst bricht nicht um, darf aber in ihrer Zelle auf eine
-   eigene Zeile rutschen. Sonst müsste die Spalte „Bewilligt“ Zeit UND
-   Marke nebeneinander fassen und die Tabelle passte nicht mehr in die
-   schmalere linke Spalte. Beträge bleiben ausdrücklich einzeilig -
-   „4.022,58 €“ über zwei Zeilen ist keine Zahl mehr. */
+/* In den Zellen steht seit 1.4.3 keine Marke mehr („Grundwert“,
+   „gestaffelt“): sie zwang jede zweite Zeile zum Umbruch und machte die
+   Spalte „Bewilligt“ unnötig breit. Nur die Abweichungspille bleibt, und
+   die passt. Beträge bleiben ausdrücklich einzeilig — „4.022,58 €“ über
+   zwei Zeilen ist keine Zahl mehr. */
 .tabellenrolle .liste.auswertungsblatt .marke-status { white-space: nowrap; }
-.auswertungsblatt td { white-space: normal; }
-.tabellenrolle .liste.auswertungsblatt td.betrag { white-space: nowrap; }
+.tabellenrolle .liste.auswertungsblatt td.betrag,
+.tabellenrolle .liste.auswertungsblatt td.zahlen { white-space: nowrap; }
+
+/* --- Maßangaben ---------------------------------------------------------
+   Einheiten sollen lesbar sein, aber nicht mit der Zahl um Aufmerksamkeit
+   ringen: klein, gedämpft, ohne Fettung.
+   ⚠️ Im Tabellenkopf steht die Angabe auf einer EIGENEN Zeile. Hinter dem
+   Titel hätte sie die Spalte um gut 25px verbreitert — bei acht Spalten
+   sind das 200px, und genau die fehlten dann und erzeugten den seitlichen
+   Rollbalken. Untereinander kostet sie nur Höhe. */
+.massangabe { font-size: .78em; font-weight: 500; opacity: .55; margin-left: .35em; }
+.liste th .massangabe {
+  display: block; margin-left: 0; margin-top: 1px;
+  font-size: 10px; letter-spacing: .04em;
+}
+/* Bei den Kennzahlen sitzt die Einheit direkt hinter der grossen Zahl. */
+.kmass { font-size: 14px; font-weight: 500; opacity: .5; margin-left: 4px; }
 .auswertungsblatt tfoot td {
   border-top: 1px solid var(--linie-stark); padding-top: 12px;
 }
+/* Die Summe steht in der Akzentfarbe, aber nicht größer als der Rest -
+   bei fünfstelligen Beträgen sprengte .betrag.gross (16px) sonst seine
+   Spalte und die ganze Tabelle brauchte einen Rollbalken. */
+.auswertungsblatt tfoot .betrag.gross { font-size: 14px; }
 /* Der Kontingentbalken sitzt unter dem Namen statt in einer eigenen
    Spalte – eine neunte Spalte hätte die Tabelle gesprengt, und so liest
    sich die Zeile als das, was sie ist: eine Person mit ihrem Stand. */

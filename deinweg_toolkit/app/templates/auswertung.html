@@ -43,18 +43,24 @@
 
   {% if je_klient %}
   <div class="kennzahlen kennzahlen-auswertung">
+    {# Die Einheit steht klein und gedämpft hinter der Zahl – sie soll
+       lesbar sein, aber nicht mit ihr um Aufmerksamkeit ringen. #}
     <div class="kennzahl">
-      <span class="kzahl">{{ zusammenfassung.ist | hhmm }}</span>
+      <span class="kzahl">{{ zusammenfassung.ist | hhmm }}<span class="kmass">Std</span></span>
       <span class="klabel">geleistet · {{ zusammenfassung.n }} Einheiten</span>
     </div>
     <div class="kennzahl">
-      <span class="kzahl">{{ zusammenfassung.soll | hhmm if zusammenfassung.soll else "—" }}</span>
+      <span class="kzahl">
+        {%- if zusammenfassung.soll -%}
+          {{ zusammenfassung.soll | hhmm }}<span class="kmass">Std</span>
+        {%- else -%}—{%- endif -%}
+      </span>
       <span class="klabel">bewilligt{% if zusammenfassung.prozent %} · {{ zusammenfassung.prozent }} % genutzt{% endif %}</span>
     </div>
     <div class="kennzahl {{ 'hat k-ueberfaellig' if zusammenfassung.abweichung is not none and zusammenfassung.abweichung < 0 }}">
       <span class="kzahl">
         {%- if zusammenfassung.abweichung is not none -%}
-          {{ '+' if zusammenfassung.abweichung >= 0 }}{{ zusammenfassung.abweichung | hhmm }}
+          {{ '+' if zusammenfassung.abweichung >= 0 }}{{ zusammenfassung.abweichung | hhmm }}<span class="kmass">Std</span>
         {%- else -%}—{%- endif -%}
       </span>
       <span class="klabel">Abweichung</span>
@@ -73,11 +79,11 @@
         <th>Betreute Person</th>
         <th>Mitarbeiter</th>
         <th>Einh.</th>
-        <th>Geleistet</th>
-        <th>Bewilligt</th>
-        <th>Abweichung</th>
-        <th>Satz</th>
-        <th>Verdienst</th>
+        <th>Geleistet <span class="massangabe">Std</span></th>
+        <th>Bewilligt <span class="massangabe">Std</span></th>
+        <th>Abweichung <span class="massangabe">Std</span></th>
+        <th>Satz <span class="massangabe">€</span></th>
+        <th>Verdienst <span class="massangabe">€</span></th>
       </tr>
     </thead>
     <tbody>
@@ -95,10 +101,10 @@
         </td>
         <td class="zahlen leise">{{ r.n }}</td>
         <td class="zahlen stark">{{ r.m | hhmm }}</td>
-        <td class="zahlen leise">
-          {{ r.soll | hhmm if r.soll else "—" }}
-          {%- if r.stufen > 1 %} <span class="marke-status offen" title="Im Zeitraum galten {{ r.stufen }} verschiedene Wochenkontingente">gestaffelt</span>{% endif %}
-        </td>
+        {# Keine Marke in der Zelle: sie zwang die Zeile zum Umbruch. Dass
+           gestaffelt gerechnet wurde, steht in der Spalte „Satz“ („2
+           Sätze“) und als Hinweis unter der Tabelle. #}
+        <td class="zahlen leise">{{ r.soll | hhmm if r.soll else "—" }}</td>
         <td class="zahlen">
           {% if r.abweichung is not none %}
             <span class="marke-status {{ 'gut' if r.abweichung >= 0 else 'dopp' }}">{{ '+' if r.abweichung >= 0 }}{{ r.abweichung | hhmm }}</span>
@@ -162,11 +168,13 @@
     <div class="monatswerte">
       <span class="mwert">
         <span class="mlabel">geleistet</span>
-        <span class="zahlen stark">{{ b.ist | hhmm }}</span>
+        <span class="zahlen stark">{{ b.ist | hhmm }}<span class="massangabe">Std</span></span>
       </span>
       <span class="mwert">
         <span class="mlabel">bewilligt</span>
-        <span class="zahlen leise">{{ b.soll | hhmm if b.soll else "—" }}</span>
+        <span class="zahlen leise">
+          {%- if b.soll %}{{ b.soll | hhmm }}<span class="massangabe">Std</span>{% else %}—{% endif -%}
+        </span>
       </span>
       {% if b.abweichung is not none %}
       <span class="marke-status {{ 'gut' if b.abweichung >= 0 else 'dopp' }}">
@@ -183,8 +191,11 @@
   <table class="liste dicht auswertungsblatt monatsblatt">
     <thead>
       <tr><th>Betreute Person</th><th>Mitarbeiter</th><th>Einh.</th>
-          <th>Geleistet</th><th>Bewilligt</th><th>Abweichung</th>
-          <th>Satz</th><th>Verdienst</th></tr>
+          <th>Geleistet <span class="massangabe">Std</span></th>
+          <th>Bewilligt <span class="massangabe">Std</span></th>
+          <th>Abweichung <span class="massangabe">Std</span></th>
+          <th>Satz <span class="massangabe">€</span></th>
+          <th>Verdienst <span class="massangabe">€</span></th></tr>
     </thead>
     <tbody>
       {% for z in b.zeilen %}
@@ -197,10 +208,10 @@
         </td>
         <td class="zahlen leise">{{ z.n or '—' }}</td>
         <td class="zahlen stark">{{ z.m | hhmm if z.m else '—' }}</td>
-        <td class="zahlen leise">
-          {{ z.soll | hhmm if z.soll else '—' }}
-          {%- if z.soll and not z.aus_zeitraum %} <span class="marke-status weg" title="Kein Zeitraum hinterlegt – es gilt der Grundwert der Person">Grundwert</span>{% endif %}
-        </td>
+        {# Ohne Marke: sie brach jede zweite Zeile um. Wo der Grundwert
+           gegriffen hat, steht gebündelt in der Seitenspalte unter
+           „Bewilligt“ – einmal je Person statt einmal je Zeile. #}
+        <td class="zahlen leise">{{ z.soll | hhmm if z.soll else '—' }}</td>
         <td class="zahlen">
           {% if z.abweichung is not none %}
           <span class="marke-status {{ 'gut' if z.abweichung >= 0 else 'dopp' }}">{{ '+' if z.abweichung >= 0 }}{{ z.abweichung | hhmm }}</span>
@@ -241,7 +252,7 @@
           <span class="balken {{ 'ueber' if r.prozent > 105 }}{{ ' knapp' if r.prozent < 90 }}"
                 style="width: {{ [r.prozent, 100] | min }}%"></span>
         </span>
-        <span class="standfuss zahlen">{{ r.m | hhmm }} von {{ r.soll | hhmm }}</span>
+        <span class="standfuss zahlen">{{ r.m | hhmm }} von {{ r.soll | hhmm }} Std</span>
       </li>
       {% endfor %}
     </ul>
@@ -263,7 +274,7 @@
         <a href="#monat-{{ b.monat }}" class="{{ 'leer' if b.leer }}">
           <span class="mspur-kopf">
             <span class="mspur-name">{{ b.wort }}</span>
-            <span class="zahlen mspur-wert">{{ b.ist | hhmm }}</span>
+            <span class="zahlen mspur-wert">{{ b.ist | hhmm }}<span class="massangabe">Std</span></span>
           </span>
           {% if b.soll %}
           <span class="balkenspur">
