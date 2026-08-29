@@ -5,9 +5,24 @@
 {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
 {% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
 
+{# „Abmelden“ steht seit 1.2 ganz oben in der ersten Karte und nicht mehr
+   klein unten bei „Mein Konto“. Es ist der eine Knopf, den man auf dieser
+   Seite sucht, wenn man sie überhaupt aufruft - und er muss auch dann da
+   sein, wenn das Konto keinem Mitarbeiter zugeordnet ist. #}
 {% if not person %}
 <section class="karte">
-  <h1>Mein Bereich</h1>
+  <div class="kopfzeile">
+    <h1>Mein Bereich</h1>
+  <form action="/logout" method="post" class="abmeldeform">
+    <button type="submit" class="knopf abmelden gross">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h12"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Abmelden
+    </button>
+  </form>
+  </div>
   <p class="lead">{{ t("mein.keine_zuordnung") }}</p>
 </section>
 
@@ -16,8 +31,19 @@
 
 <section class="karte">
   <div class="kopfzeile">
-    <h1>Mein Bereich</h1>
-    <p class="summe">{{ name }}</p>
+    <div>
+      <h1>Mein Bereich</h1>
+      <p class="summe">{{ name }}</p>
+    </div>
+  <form action="/logout" method="post" class="abmeldeform">
+    <button type="submit" class="knopf abmelden gross">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h12"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Abmelden
+    </button>
+  </form>
   </div>
   <p class="lead">{{ t("mein.lead", name=name) }}</p>
 
@@ -252,6 +278,85 @@
 
 {% endif %}
 
+{# Nur wenn das Konto einem Mitarbeiter zugeordnet ist - ohne diese
+   Zuordnung lässt sich gar nicht sagen, welche Zeiten die eigenen sind.
+   Die Karte oben sagt das in dem Fall auch. #}
+{% if person %}
+{# Die eigenen Zeiten - immer, unabhängig von jeder Bereichsberechtigung.
+   Wer den Bereich „Übersicht (Datensätze)“ nicht hat, kommt hier trotzdem
+   an seine eigenen Einträge und kann sie richtigstellen. Bearbeiten und
+   Löschen laufen über /meinbereich/eintrag/…; entschieden wird dort über
+   den Eintrag, nicht über den Pfad (siehe main.darf_eintrag_bearbeiten). #}
+<section class="karte" id="zeiten">
+  <div class="kopfzeile">
+    <h2>Meine Zeiten</h2>
+    <p class="summe">{{ eigene_zeiten | length }} Einträge · {{ zeiten_summe | hhmm }}</p>
+  </div>
+  <p class="lead">{{ t("mein.zeiten_lead") }}</p>
+
+  {% if zeitmonate %}
+  <div class="zeitmonate">
+    {% for m in zeitmonate[:14] %}
+    <a class="pille {{ 'aktiv' if zeiten_monat == m }}"
+       href="/meinbereich?zeiten={{ m }}#zeiten">{{ monat_wort(m) }}</a>
+    {% endfor %}
+    <a class="pille {{ 'aktiv' if zeiten_monat == 'alle' }}"
+       href="/meinbereich?zeiten=alle#zeiten">alle</a>
+  </div>
+  {% endif %}
+
+  {% if eigene_zeiten %}
+  {% if zeiten_gekappt %}
+  <p class="meldung offen-hinweis">{{ t("mein.zeiten_gekappt", max=zeiten_max) }}</p>
+  {% endif %}
+  <div class="tabellenrolle">
+  <table class="liste dicht zeitentabelle">
+    <thead>
+      <tr><th>Datum</th><th>Zeit</th><th>Betreute Person</th><th>Leistung</th>
+          <th class="rechts">Dauer</th><th>Aktion</th></tr>
+    </thead>
+    <tbody>
+      {% for z in eigene_zeiten %}
+      <tr>
+        <td class="zahlen nowrap">{{ z.datum | deutsch }}</td>
+        <td class="zahlen nowrap leise">
+          {% if z.start and z.ende %}{{ z.start }}–{{ z.ende }}{% else %}<span class="leise">–</span>{% endif %}
+        </td>
+        <td>{{ z.klient }}</td>
+        <td class="leise klein">{{ z.beschreibung }}</td>
+        <td class="zahlen rechts nowrap stark">{{ z.dauer_min | hhmm }}</td>
+        <td class="rechts nowrap">
+          <a class="knopf-icon" title="Bearbeiten" aria-label="Bearbeiten"
+             href="/meinbereich/eintrag/{{ z.id }}/bearbeiten?zurueck={{ ('/meinbereich?zeiten=' ~ zeiten_monat ~ '#zeiten') | urlencode }}">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z" stroke="currentColor"
+                    stroke-width="1.7" stroke-linejoin="round"/>
+              <path d="M14.5 6.5 17.5 9.5" stroke="currentColor" stroke-width="1.7"/>
+            </svg>
+          </a>
+          <form class="inline" action="/meinbereich/eintrag/{{ z.id }}/loeschen" method="post"
+                onsubmit="return confirm('Diesen Eintrag vom {{ z.datum | deutsch }} wirklich löschen?')">
+            <input type="hidden" name="zurueck" value="/meinbereich?zeiten={{ zeiten_monat }}#zeiten">
+            <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="leer">{{ t("mein.zeiten_leer") }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
 <section class="karte abmeldekarte">
   <div class="kopfzeile">
     <div>
@@ -260,15 +365,6 @@
         Angemeldet als <span class="stark">{{ benutzer.benutzername }}</span>{% if benutzer.rolle == "admin" %} · Administrator{% endif %}
       </p>
     </div>
-    <form action="/logout" method="post">
-      <button type="submit" class="knopf abmelden">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h12"
-                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Abmelden
-      </button>
-    </form>
   </div>
 
   <p class="lead">{{ t("mein.konto_lead") }}</p>

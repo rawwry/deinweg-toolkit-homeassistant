@@ -14,18 +14,39 @@
 <aside class="seitenmenue">
   <span class="seitenmenue-titel">Einstellungen</span>
 
+  {# Jeder Punkt ausser „Oberfläche“ lässt sich je Konto abschalten. Eine
+     Gruppenüberschrift steht nur da, wenn unter ihr auch etwas steht -
+     sonst bliebe eine leere Zwischenzeile stehen. #}
+  {% set b = request.state.benutzer %}
   <span class="seitenmenue-gruppe">Darstellung</span>
   <a href="/einstellungen?bereich=oberflaeche" class="{{ 'aktiv' if bereich=='oberflaeche' }}">Oberfläche</a>
+  {% if hat_einst_zugriff(b, "quotes") %}
   <a href="/einstellungen?bereich=quotes" class="{{ 'aktiv' if bereich=='quotes' }}">Sprüche</a>
+  {% endif %}
 
+  {% if hat_einst_zugriff(b, "betreute") or hat_einst_zugriff(b, "mitarbeiter")
+        or hat_einst_zugriff(b, "kfz") %}
   <span class="seitenmenue-gruppe">Stammdaten</span>
+  {% if hat_einst_zugriff(b, "betreute") %}
   <a href="/einstellungen?bereich=betreute" class="{{ 'aktiv' if bereich=='betreute' }}">Betreute Personen</a>
+  {% endif %}
+  {% if hat_einst_zugriff(b, "mitarbeiter") %}
   <a href="/einstellungen?bereich=mitarbeiter" class="{{ 'aktiv' if bereich=='mitarbeiter' }}">Mitarbeiter</a>
+  {% endif %}
+  {% if hat_einst_zugriff(b, "kfz") %}
   <a href="/einstellungen?bereich=kfz" class="{{ 'aktiv' if bereich=='kfz' }}">Fahrzeuge</a>
+  {% endif %}
+  {% endif %}
 
+  {% if hat_einst_zugriff(b, "vorgangsarten") or hat_einst_zugriff(b, "leistungen") %}
   <span class="seitenmenue-gruppe">Auswahllisten</span>
+  {% if hat_einst_zugriff(b, "vorgangsarten") %}
   <a href="/einstellungen?bereich=vorgangsarten" class="{{ 'aktiv' if bereich=='vorgangsarten' }}">Aufgabenarten</a>
+  {% endif %}
+  {% if hat_einst_zugriff(b, "leistungen") %}
   <a href="/einstellungen?bereich=leistungen" class="{{ 'aktiv' if bereich=='leistungen' }}">Leistungsbeschreibungen</a>
+  {% endif %}
+  {% endif %}
 
   {% if ist_admin %}
   <span class="seitenmenue-gruppe">Konten und E-Mail</span>
@@ -34,8 +55,10 @@
   <a href="/einstellungen?bereich=vorlagen" class="{{ 'aktiv' if bereich=='vorlagen' }}">E-Mail-Vorlagen</a>
   {% endif %}
 
+  {% if hat_einst_zugriff(b, "system") %}
   <span class="seitenmenue-gruppe">Wartung</span>
   <a href="/einstellungen?bereich=system" class="{{ 'aktiv' if bereich=='system' }}">System und Sicherung</a>
+  {% endif %}
 </aside>
 
 <div class="einstellungsinhalt">
@@ -70,6 +93,10 @@
       </div>
     </div>
 
+    {# Die beiden Ansichtsschalter regeln etwas, das ohne den jeweiligen
+       Bereich gar nicht sichtbar ist. Ohne ihn stehen sie deshalb auch
+       hier nicht. #}
+    {% if hat_zugriff(request.state.benutzer, "wiki") %}
     <div class="optionszeile">
       <div>
         <span class="stark">Wiki-Ansicht</span>
@@ -81,7 +108,9 @@
                 aria-label="Zwischen Kachel- und Listenansicht im Wiki wechseln"></button>
       </div>
     </div>
+    {% endif %}
 
+    {% if hat_zugriff(request.state.benutzer, "dateien") %}
     <div class="optionszeile">
       <div>
         <span class="stark">Dateien-Ansicht</span>
@@ -93,6 +122,7 @@
                 aria-label="Zwischen Listen- und Kachelansicht in der Dateiverwaltung wechseln"></button>
       </div>
     </div>
+    {% endif %}
   </div>
 </section>
 {% endif %}
@@ -750,9 +780,208 @@
 {% endif %}
 
 {% if bereich == "benutzer" %}
+{# Die Rechtevergabe ist über die Zeit von einer Liste auf drei Gruppen
+   gewachsen (Bereiche, Punkte in den Einstellungen, Einzelrechte). Alle
+   Konten gleichzeitig aufgeklappt waren dadurch nicht mehr zu überblicken:
+   man scrollte an fünfzig Kästchen vorbei, um einen Namen zu finden.
+   Jetzt steht je Konto eine Zeile mit dem Wichtigsten, und der Editor
+   klappt darunter auf. Bewusst <details> und kein Skript - das klappt
+   auch ohne JavaScript und merkt sich beim Nachladen nichts, was es
+   nicht soll. #}
 <section class="karte">
   <h1>Benutzerverwaltung</h1>
   <p class="lead">{{ t("einst.benutzer_lead") }}</p>
+</section>
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Konten{% if benutzerliste %} · {{ benutzerliste | length }}{% endif %}</h2>
+  </div>
+
+  {% if benutzerliste %}
+  <div class="kontoliste">
+  {% for b in benutzerliste %}
+  {% set erlaubt = b.berechtigungen.split(",") if b.berechtigungen else None %}
+  {% set e_erlaubt = b.einst_bereiche.split(",") if b.einst_bereiche else None %}
+  <details class="konto {{ '' if b.aktiv else 'stillgelegt' }}">
+    <summary class="konto-kopf">
+      <span class="konto-name">
+        <span class="stark">{{ b.benutzername }}</span>
+        {% if b.rolle == "admin" %}
+        <span class="marke-status dopp">Administrator</span>
+        {% endif %}
+        {% if not b.aktiv %}<span class="marke-status weg">stillgelegt</span>{% endif %}
+      </span>
+      <span class="konto-daten">
+        {% if b.mitarbeiter %}{{ b.mitarbeiter }}{% else %}<span class="leise">keine Zuordnung</span>{% endif %}
+      </span>
+      <span class="konto-rechte">
+        {% if b.rolle == "admin" %}
+          <span class="leise">voller Zugriff</span>
+        {% elif erlaubt %}
+          {{ erlaubt | length }} von {{ BEREICHE | length }} Bereichen
+        {% else %}
+          alle Bereiche
+        {% endif %}
+        {% if b.rolle != "admin" %}
+          ·
+          {% if e_erlaubt %}
+            {{ e_erlaubt | length }} von {{ EINST_BEREICHE | length }} Einstellungspunkten
+          {% else %}
+            alle Einstellungspunkte
+          {% endif %}
+        {% endif %}
+      </span>
+      <span class="konto-pfeil" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+    </summary>
+
+    <div class="konto-inhalt">
+    <form action="/einstellungen/benutzer/{{ b.id }}" method="post" id="bn-{{ b.id }}"></form>
+
+    <div class="konto-block">
+      <span class="konto-blocktitel">Konto</span>
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Benutzername</span>
+          <input type="text" name="benutzername" value="{{ b.benutzername }}" form="bn-{{ b.id }}"
+                 required maxlength="80">
+        </label>
+        <label class="feld">
+          <span>E-Mail-Adresse</span>
+          <input type="email" name="email" value="{{ b.email or '' }}" form="bn-{{ b.id }}">
+        </label>
+      </div>
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Gehört zu Mitarbeiter</span>
+          <select name="mitarbeiter" form="bn-{{ b.id }}">
+            <option value="">keine Zuordnung</option>
+            {% for m in team %}
+            <option value="{{ m.name }}" {{ 'selected' if b.mitarbeiter == m.name }}>{{ m.name }}</option>
+            {% endfor %}
+            {% if b.mitarbeiter and b.mitarbeiter not in team | map(attribute='name') | list %}
+            <option value="{{ b.mitarbeiter }}" selected>{{ b.mitarbeiter }} (nicht mehr im Team)</option>
+            {% endif %}
+          </select>
+        </label>
+        <div class="feld zuordnungsstand">
+          <span>&nbsp;</span>
+          {% if b.mitarbeiter and b.email %}
+            <span class="marke-status gut">erhält Erinnerungen als {{ b.mitarbeiter }}</span>
+          {% elif b.email %}
+            <span class="marke-status offen">nur über Namensgleichheit</span>
+          {% else %}
+            <span class="marke-status weg">keine E-Mail hinterlegt</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="feldreihe">
+        <label class="feld">
+          <span>Rolle</span>
+          <select name="rolle" form="bn-{{ b.id }}">
+            <option value="benutzer" {{ 'selected' if b.rolle == 'benutzer' }}>Benutzer</option>
+            <option value="admin" {{ 'selected' if b.rolle == 'admin' }}>Administrator</option>
+          </select>
+        </label>
+        <label class="feld">
+          <span>Neues Passwort <span class="leise">– leer lassen für unverändert</span></span>
+          <input type="password" name="neues_passwort" form="bn-{{ b.id }}"
+                 autocomplete="new-password">
+        </label>
+        <label class="feld ankreuz-feld">
+          <span>&nbsp;</span>
+          <label class="ankreuz">
+            <input type="checkbox" name="aktiv" value="1" {{ 'checked' if b.aktiv }} form="bn-{{ b.id }}">
+            Konto aktiv
+          </label>
+        </label>
+      </div>
+    </div>
+
+    <div class="konto-block {{ 'ohne-wirkung' if b.rolle == 'admin' }}">
+      <span class="konto-blocktitel">Rechte</span>
+      {% if b.rolle == "admin" %}
+      <p class="klein leise felderklaerung">{{ t("einst.benutzer_admin_hinweis") }}</p>
+      {% endif %}
+
+      <fieldset class="feld bereichsfeld">
+        <span>Bereiche</span>
+        <div class="bereichsraster">
+          {% for schluessel, name in BEREICHE.items() %}
+          <label class="bereich-kachel">
+            <input type="checkbox" name="bereiche" value="{{ schluessel }}" form="bn-{{ b.id }}"
+                   {{ 'checked' if not erlaubt or schluessel in erlaubt }}> {{ name }}
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <fieldset class="feld bereichsfeld">
+        <span>Punkte in den Einstellungen</span>
+        <p class="klein leise felderklaerung">{{ t("einst.benutzer_einstpunkte_hinweis") }}</p>
+        <div class="bereichsraster">
+          <label class="bereich-kachel fest">
+            <input type="checkbox" checked disabled> Oberfläche
+          </label>
+          {% for schluessel, name in EINST_BEREICHE.items() %}
+          <label class="bereich-kachel">
+            <input type="checkbox" name="einst_bereiche" value="{{ schluessel }}" form="bn-{{ b.id }}"
+                   {{ 'checked' if not e_erlaubt or schluessel in e_erlaubt }}> {{ name }}
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <fieldset class="feld bereichsfeld">
+        <span>Einzelrechte</span>
+        <div class="bereichsraster">
+          <label class="bereich-kachel">
+            <input type="checkbox" name="fremde_bearbeiten" value="1" form="bn-{{ b.id }}"
+                   {{ 'checked' if b.fremde_bearbeiten }}>
+            Einträge anderer bearbeiten
+          </label>
+          <label class="bereich-kachel">
+            <input type="checkbox" name="fremde_loeschen" value="1" form="bn-{{ b.id }}"
+                   {{ 'checked' if b.fremde_loeschen }}>
+            Einträge anderer löschen
+          </label>
+          <label class="bereich-kachel">
+            <input type="checkbox" name="wiki_schreiben" value="1" form="bn-{{ b.id }}"
+                   {{ 'checked' if b.wiki_schreiben }}>
+            Wiki bearbeiten
+          </label>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="knopfreihe konto-fuss">
+      <button class="knopf haupt" type="submit" form="bn-{{ b.id }}">speichern</button>
+      {% if b.id != eigene_id %}
+      <form class="inline" action="/einstellungen/benutzer/{{ b.id }}/loeschen" method="post"
+            onsubmit="return confirm('Konto „{{ b.benutzername }}“ endgültig löschen?')">
+        <button class="knopf warn" type="submit">löschen</button>
+      </form>
+      {% else %}
+      <span class="klein leise" style="align-self: center;">{{ t("einst.benutzer_selbst") }}</span>
+      {% endif %}
+      {% if b.letzter_login %}
+      <span class="klein leise" style="align-self: center; margin-left: auto;">
+        letzte Anmeldung: {{ b.letzter_login | zeitpunkt }}
+      </span>
+      {% endif %}
+    </div>
+    </div>
+  </details>
+  {% endfor %}
+  </div>
+  {% else %}
+  <p class="leer">{{ t("einst.benutzer_keine") }}</p>
+  {% endif %}
 </section>
 
 <section class="karte hochkant">
@@ -790,7 +1019,7 @@
     </label>
     <p class="klein leise felderklaerung">{{ t("einst.benutzer_mitarbeiter_hinweis") }}</p>
     <fieldset class="feld bereichsfeld">
-      <span>Zugriff auf</span>
+      <span>Bereiche</span>
       <p class="klein leise felderklaerung">{{ t("einst.benutzer_bereiche_hinweis") }}</p>
       <div class="bereichsraster">
         {% for schluessel, name in BEREICHE.items() %}
@@ -798,10 +1027,22 @@
         {% endfor %}
       </div>
     </fieldset>
+    <fieldset class="feld bereichsfeld">
+      <span>Punkte in den Einstellungen</span>
+      <p class="klein leise felderklaerung">{{ t("einst.benutzer_einstpunkte_hinweis") }}</p>
+      <div class="bereichsraster">
+        <label class="bereich-kachel fest">
+          <input type="checkbox" checked disabled> Oberfläche
+        </label>
+        {% for schluessel, name in EINST_BEREICHE.items() %}
+        <label class="bereich-kachel"><input type="checkbox" name="einst_bereiche" value="{{ schluessel }}" checked> {{ name }}</label>
+        {% endfor %}
+      </div>
+    </fieldset>
     {# Zwei Rechte, die keine eigenen Bereiche sind, sondern eine Grenze
        innerhalb eines Bereichs ziehen. Deshalb stehen sie hier getrennt. #}
     <fieldset class="feld bereichsfeld">
-      <span>Zusätzliche Rechte</span>
+      <span>Einzelrechte</span>
       <p class="klein leise felderklaerung">{{ t("einst.benutzer_rechte_hinweis") }}</p>
       <div class="bereichsraster">
         <label class="bereich-kachel">
@@ -822,123 +1063,6 @@
       <button class="knopf haupt" type="submit">Konto anlegen</button>
     </div>
   </form>
-</section>
-
-<section class="karte">
-  <h2>Bestehende Konten{% if benutzerliste %} · {{ benutzerliste | length }}{% endif %}</h2>
-  {% if benutzerliste %}
-  {% for b in benutzerliste %}
-  {% set erlaubt = b.berechtigungen.split(",") if b.berechtigungen else None %}
-  <div class="benutzerkarte {{ '' if b.aktiv else 'stillgelegt' }}">
-    <form action="/einstellungen/benutzer/{{ b.id }}" method="post" id="bn-{{ b.id }}"></form>
-    <div class="feldreihe zwei">
-      <label class="feld">
-        <span>Benutzername</span>
-        <input type="text" name="benutzername" value="{{ b.benutzername }}" form="bn-{{ b.id }}"
-               required maxlength="80">
-      </label>
-      <label class="feld">
-        <span>E-Mail-Adresse</span>
-        <input type="email" name="email" value="{{ b.email or '' }}" form="bn-{{ b.id }}">
-      </label>
-    </div>
-    <div class="feldreihe zwei">
-      <label class="feld">
-        <span>Gehört zu Mitarbeiter</span>
-        <select name="mitarbeiter" form="bn-{{ b.id }}">
-          <option value="">keine Zuordnung</option>
-          {% for m in team %}
-          <option value="{{ m.name }}" {{ 'selected' if b.mitarbeiter == m.name }}>{{ m.name }}</option>
-          {% endfor %}
-          {% if b.mitarbeiter and b.mitarbeiter not in team | map(attribute='name') | list %}
-          <option value="{{ b.mitarbeiter }}" selected>{{ b.mitarbeiter }} (nicht mehr im Team)</option>
-          {% endif %}
-        </select>
-      </label>
-      <div class="feld zuordnungsstand">
-        <span>&nbsp;</span>
-        {% if b.mitarbeiter and b.email %}
-          <span class="marke-status gut">erhält Erinnerungen als {{ b.mitarbeiter }}</span>
-        {% elif b.email %}
-          <span class="marke-status offen">nur über Namensgleichheit</span>
-        {% else %}
-          <span class="marke-status weg">keine E-Mail hinterlegt</span>
-        {% endif %}
-      </div>
-    </div>
-    <div class="feldreihe">
-      <label class="feld">
-        <span>Rolle</span>
-        <select name="rolle" form="bn-{{ b.id }}">
-          <option value="benutzer" {{ 'selected' if b.rolle == 'benutzer' }}>Benutzer</option>
-          <option value="admin" {{ 'selected' if b.rolle == 'admin' }}>Administrator</option>
-        </select>
-      </label>
-      <label class="feld">
-        <span>Neues Passwort <span class="leise">– leer lassen für unverändert</span></span>
-        <input type="password" name="neues_passwort" form="bn-{{ b.id }}"
-               autocomplete="new-password">
-      </label>
-      <label class="feld ankreuz-feld">
-        <span>&nbsp;</span>
-        <label class="ankreuz">
-          <input type="checkbox" name="aktiv" value="1" {{ 'checked' if b.aktiv }} form="bn-{{ b.id }}">
-          Konto aktiv
-        </label>
-      </label>
-    </div>
-    <fieldset class="feld bereichsfeld">
-      <span>Zugriff auf <span class="leise">– ohne Wirkung, solange die Rolle „Administrator“ ist</span></span>
-      <div class="bereichsraster">
-        {% for schluessel, name in BEREICHE.items() %}
-        <label class="bereich-kachel">
-          <input type="checkbox" name="bereiche" value="{{ schluessel }}" form="bn-{{ b.id }}"
-                 {{ 'checked' if not erlaubt or schluessel in erlaubt }}> {{ name }}
-        </label>
-        {% endfor %}
-      </div>
-    </fieldset>
-    <fieldset class="feld bereichsfeld">
-      <span>Zusätzliche Rechte <span class="leise">– ohne Wirkung bei der Rolle „Administrator“</span></span>
-      <div class="bereichsraster">
-        <label class="bereich-kachel">
-          <input type="checkbox" name="fremde_bearbeiten" value="1" form="bn-{{ b.id }}"
-                 {{ 'checked' if b.fremde_bearbeiten }}>
-          Einträge anderer bearbeiten
-        </label>
-        <label class="bereich-kachel">
-          <input type="checkbox" name="fremde_loeschen" value="1" form="bn-{{ b.id }}"
-                 {{ 'checked' if b.fremde_loeschen }}>
-          Einträge anderer löschen
-        </label>
-        <label class="bereich-kachel">
-          <input type="checkbox" name="wiki_schreiben" value="1" form="bn-{{ b.id }}"
-                 {{ 'checked' if b.wiki_schreiben }}>
-          Wiki bearbeiten
-        </label>
-      </div>
-    </fieldset>
-    <div class="knopfreihe">
-      <button class="knopf" type="submit" form="bn-{{ b.id }}">speichern</button>
-      {% if b.id != eigene_id %}
-      <form class="inline" action="/einstellungen/benutzer/{{ b.id }}/loeschen" method="post"
-            onsubmit="return confirm('Konto „{{ b.benutzername }}“ endgültig löschen?')">
-        <button class="knopf warn" type="submit">löschen</button>
-      </form>
-      {% else %}
-      <span class="klein leise" style="align-self: center;">{{ t("einst.benutzer_selbst") }}</span>
-      {% endif %}
-      {% if b.letzter_login %}
-      <span class="klein leise" style="align-self: center; margin-left: auto;">
-        letzte Anmeldung: {{ b.letzter_login | zeitpunkt }}
-      </span>
-      {% endif %}
-    </div>
-  </div>
-  {% endfor %}
-  {% else %}
-  <p class="leer">{{ t("einst.benutzer_keine") }}</p>
-  {% endif %}
 </section>
 {% endif %}
 

@@ -130,6 +130,9 @@ CREATE TABLE IF NOT EXISTS benutzer (
     fremde_loeschen  INTEGER NOT NULL DEFAULT 0,
     fremde_bearbeiten INTEGER NOT NULL DEFAULT 0,
     wiki_schreiben   INTEGER NOT NULL DEFAULT 1,
+    -- Kommaliste der erlaubten Punkte INNERHALB der Einstellungen, nach
+    -- derselben Regel wie berechtigungen: leer/NULL bedeutet "alle".
+    einst_bereiche TEXT,
     angelegt_am    TEXT NOT NULL,
     letzter_login  TEXT
 );
@@ -481,6 +484,12 @@ def init() -> dict | None:
         # Faehigkeit genommen.
         spalte_ergaenzen(con, "benutzer", "wiki_schreiben",
                          "INTEGER NOT NULL DEFAULT 1")
+        # Welche Punkte innerhalb der Einstellungen darf dieser Benutzer
+        # sehen? Leer/NULL heisst "alle" - genau wie bei berechtigungen und
+        # aus demselben Grund: bestehenden Konten soll die Migration nichts
+        # wegnehmen, und ein spaeter hinzukommender Punkt bleibt fuer sie
+        # erreichbar.
+        spalte_ergaenzen(con, "benutzer", "einst_bereiche", "TEXT")
         # Titel eines geloeschten Vorgangs, siehe Schema oben.
         spalte_ergaenzen(con, "vorgang_log", "vorgang_titel", "TEXT")
 

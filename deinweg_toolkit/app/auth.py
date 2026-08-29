@@ -66,6 +66,7 @@ def setup(templates, sitzung_tage: int) -> None:
     _umgebung["templates"] = templates
     _umgebung["sitzung_tage"] = sitzung_tage
     templates.env.globals["hat_zugriff"] = hat_zugriff
+    templates.env.globals["hat_einst_zugriff"] = hat_einst_zugriff
     templates.env.globals["darf_wiki_schreiben"] = darf_wiki_schreiben
     templates.env.globals["darf_fremde_loeschen"] = darf_fremde_loeschen
     templates.env.globals["darf_fremde_bearbeiten"] = darf_fremde_bearbeiten
@@ -89,6 +90,14 @@ BEREICHE = {
     "einstellungen": "Einstellungen",
 }
 
+# Was gespeichert wird, wenn NICHTS angehakt ist. Ein leerer String hiesse
+# nach der Regel oben "alles" - genau verkehrt herum. Der Strich ist kein
+# gueltiger Schluessel, passt also auf keinen Bereich und bedeutet damit
+# "nichts". Ohne ihn haette ein Formular ohne einen einzigen Haken vollen
+# Zugriff erteilt.
+KEINE = "-"
+
+
 # Pfadanfang -> Bereichs-Schluessel. Reihenfolge unwichtig, da Praefixe sich
 # hier nicht ueberschneiden. "/" (Startseite) ist bewusst NICHT gelistet: sie
 # zeigt die Abgabeuebersicht und dient als allgemeine Startseite nach dem
@@ -110,6 +119,86 @@ BEREICH_PFADE = [
     ("/vorschau", "listenimport"),
     ("/import", "listenimport"),
 ]
+
+# --- Punkte innerhalb der Einstellungen ---------------------------------------
+#
+# Eine zweite Ebene unter dem Bereich "einstellungen": wer die Einstellungen
+# ueberhaupt sehen darf, muss deshalb noch lange nicht jeden Punkt darin
+# sehen. Gespeichert in benutzer.einst_bereiche, nach derselben Regel wie
+# berechtigungen - leer/NULL heisst "alle".
+#
+# "oberflaeche" steht bewusst NICHT in dieser Liste: Darkmode und
+# Inhaltsbreite gehoeren jedem selbst und bleiben immer erreichbar. Sonst
+# koennte man ein Konto in den Einstellungen landen lassen, in denen es
+# nichts zu sehen gibt. Die drei Admin-Punkte (Benutzerverwaltung,
+# E-Mail-Versand, E-Mail-Vorlagen) fehlen ebenfalls - sie haengen an der
+# Rolle und nicht an dieser Liste.
+EINST_IMMER = "oberflaeche"
+
+EINST_BEREICHE = {
+    "quotes": "Sprüche",
+    "betreute": "Betreute Personen",
+    "mitarbeiter": "Mitarbeiter",
+    "kfz": "Fahrzeuge",
+    "vorgangsarten": "Aufgabenarten",
+    "leistungen": "Leistungsbeschreibungen",
+    "system": "System und Sicherung",
+}
+
+# Pfadanfang -> Punkt in den Einstellungen. Deckt die POST-Routen ab, damit
+# ein direkt abgeschicktes Formular genauso geprueft wird wie die Ansicht.
+# Die Ansicht selbst ist nur ein Abfrageparameter auf /einstellungen und
+# wird in einstellungen.py geprueft.
+EINST_PFADE = [
+    ("/einstellungen/spruch", "quotes"),
+    ("/einstellungen/person", "betreute"),
+    ("/einstellungen/mitarbeiter", "mitarbeiter"),
+    ("/einstellungen/fahrzeug", "kfz"),
+    ("/einstellungen/vorgangsart", "vorgangsarten"),
+    ("/einstellungen/leistung", "leistungen"),
+    ("/einstellungen/sicherung", "system"),
+]
+
+
+def einst_bereich_fuer_pfad(pfad: str) -> str | None:
+    for praefix, punkt in EINST_PFADE:
+        if pfad == praefix or pfad.startswith(praefix + "/"):
+            return punkt
+    return None
+
+
+def hat_einst_zugriff(benutzer, punkt: str) -> bool:
+    """True, wenn der Benutzer diesen Punkt in den Einstellungen sehen darf.
+
+    Setzt den Bereich "einstellungen" voraus - ohne den kommt man gar nicht
+    erst auf die Seite, das erledigt die Middleware eine Stufe hoeher.
+    """
+    if not benutzer:
+        return False
+    if punkt == EINST_IMMER:
+        return True
+    if benutzer["rolle"] == "admin":
+        return True
+    try:
+        roh = (benutzer["einst_bereiche"] or "").strip()
+    except (IndexError, KeyError, TypeError):
+        # Sitzung von vor der Migration: der sichere Rueckfall ist hier
+        # "alles", genau wie bei einem leeren Feld.
+        return True
+    if not roh:
+        return True
+    return punkt in {b.strip() for b in roh.split(",") if b.strip()}
+
+
+def einst_bereiche_speichern(gewaehlt: list[str]) -> str:
+    """Kommaliste der angeklickten Punkte - leer, wenn wirklich alle
+    angeklickt sind (das steht dann fuer "alle", siehe oben).
+    """
+    gewaehlt = [b for b in gewaehlt if b in EINST_BEREICHE]
+    if len(gewaehlt) >= len(EINST_BEREICHE):
+        return ""
+    return ",".join(gewaehlt) if gewaehlt else KEINE
+
 
 # Innerhalb von /einstellungen zusaetzlich admin-pflichtig, unabhaengig von
 # der allgemeinen "einstellungen"-Berechtigung - Benutzerverwaltung darf
@@ -209,7 +298,7 @@ def berechtigungen_speichern(gewaehlt: list[str]) -> str:
     gewaehlt = [b for b in gewaehlt if b in BEREICHE]
     if len(gewaehlt) >= len(BEREICHE):
         return ""
-    return ",".join(gewaehlt)
+    return ",".join(gewaehlt) if gewaehlt else KEINE
 
 
 def jetzt() -> str:
@@ -240,7 +329,8 @@ def sitzung_benutzer(con, token: str, sitzung_tage: int):
     zeile = con.execute(
         "SELECT s.erstellt_am, b.id, b.benutzername, b.rolle, "
         "b.berechtigungen, b.email, b.mitarbeiter, b.aktiv, "
-        "b.fremde_loeschen, b.fremde_bearbeiten, b.wiki_schreiben "
+        "b.fremde_loeschen, b.fremde_bearbeiten, b.wiki_schreiben, "
+        "b.einst_bereiche "
         "FROM sitzung s JOIN benutzer b ON b.id = s.benutzer_id "
         "WHERE s.token = ?", (token,)).fetchone()
     if not zeile or not zeile["aktiv"]:
@@ -284,6 +374,14 @@ class SessionAuth(BaseHTTPMiddleware):
             return Response(
                 f"Kein Zugriff auf diesen Bereich ({BEREICHE.get(bereich, bereich)}).",
                 status_code=403)
+
+        # Zweite Ebene innerhalb der Einstellungen. Greift erst, nachdem
+        # der Bereich "einstellungen" oben durchgelassen hat.
+        punkt = einst_bereich_fuer_pfad(pfad)
+        if punkt and not hat_einst_zugriff(benutzer, punkt):
+            return Response(
+                "Kein Zugriff auf diesen Punkt in den Einstellungen "
+                f"({EINST_BEREICHE.get(punkt, punkt)}).", status_code=403)
 
         # Schreibrecht im Wiki. Bewusst hier und nicht in wiki.py: es ist
         # dieselbe Stelle, an der auch die Bereiche durchgesetzt werden,

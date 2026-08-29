@@ -3,6 +3,19 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.2
+
+- Rechte je Konto bis in die Einstellungen hinein; „Oberfläche“ bleibt
+  immer sichtbar
+- Ansichtsschalter für Wiki und Dateien nur noch mit dem passenden Bereich
+- Benutzerverwaltung neu gestaltet: eine Zeile je Konto, Editor klappt auf
+- „Zur Übersicht“ nur mit dem Bereich „Übersicht (Datensätze)“
+- „Mein Bereich“ zeigt die eigenen Zeiten mit Bearbeiten und Löschen
+- „Abmelden“ als großer Knopf oben auf der Seite
+- Aufgabenliste am Handy rollt seitlich statt zu überlappen
+- Zwei Fehler behoben: zerfallende Erklärtexte, und ein Rechteformular
+  ohne Haken erteilte vollen Zugriff
+
 ## 1.1.2
 
 - Wiki: Zeilenumbrüche aus der Markdown-Datei erscheinen jetzt auch in

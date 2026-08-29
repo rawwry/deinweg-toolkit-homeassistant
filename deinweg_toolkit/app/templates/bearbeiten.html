@@ -8,7 +8,9 @@
   <h1>Eintrag bearbeiten</h1>
   <p class="lead">{{ t("bearbeiten.lead", zeitpunkt=z.angelegt_am) }}</p>
 
-  <form action="/eintraege/{{ z.id }}/bearbeiten" method="post">
+  {# Dieselbe Seite ist über zwei Wege erreichbar (Übersicht und Mein
+     Bereich). Sie schickt dorthin zurück, wo sie geöffnet wurde. #}
+  <form action="{{ request.url.path }}" method="post">
     <input type="hidden" name="zurueck" value="{{ zurueck }}">
 
     <div class="feldreihe">

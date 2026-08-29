@@ -36,7 +36,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.1.2"
+VERSION = "1.2"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -625,6 +625,9 @@ def monat_wort(monat: str) -> str:
     return f"{MONATSNAMEN.get(monat[5:7], monat[5:7])} {monat[:4]}"
 
 
+templates.env.globals["monat_wort"] = monat_wort
+
+
 def monatsliste(von: str, bis: str) -> list[str]:
     """Alle Monate von bis einschliesslich, als YYYY-MM."""
     try:
@@ -936,7 +939,14 @@ def eintraege_sammelloeschen(request: Request, ids: list[int] = Form([]),
     return zurueck_mit_hinweis(zurueck, text)
 
 
+# Dieselbe Route zusaetzlich unter /meinbereich: „Mein Bereich" haengt
+# an keiner Bereichsberechtigung, jeder soll dort seine eigenen Zeiten
+# aendern und loeschen koennen - auch ohne den Bereich „Übersicht
+# (Datensätze)". Die Pruefung bleibt dieselbe: darf_eintrag_loeschen
+# entscheidet ueber den Eintrag, nicht ueber den Pfad. Ein fremder
+# Eintrag wird hier also genauso abgewiesen wie dort.
 @app.post("/eintraege/{eintrag_id}/loeschen")
+@app.post("/meinbereich/eintrag/{eintrag_id}/loeschen")
 def eintrag_loeschen(request: Request, eintrag_id: int,
                      zurueck: str = Form("/eintraege")):
     benutzer = request.state.benutzer
@@ -955,6 +965,7 @@ def eintrag_loeschen(request: Request, eintrag_id: int,
 
 
 @app.get("/eintraege/{eintrag_id}/bearbeiten", response_class=HTMLResponse)
+@app.get("/meinbereich/eintrag/{eintrag_id}/bearbeiten", response_class=HTMLResponse)
 def eintrag_formular(request: Request, eintrag_id: int,
                      zurueck: str = "/eintraege", fehler: str = ""):
     with db.db() as con:
@@ -978,10 +989,13 @@ def eintrag_formular(request: Request, eintrag_id: int,
             "SELECT DISTINCT klient FROM eintrag ORDER BY 1")]
     return templates.TemplateResponse(request=request, name="bearbeiten.html", context={
         "z": z, "leute": leute, "klienten": klienten, "zurueck": zurueck,
-        "fehler": fehler, "seite": "eintraege"})
+        "fehler": fehler,
+        "seite": "meinbereich" if request.url.path.startswith("/meinbereich")
+                 else "eintraege"})
 
 
 @app.post("/eintraege/{eintrag_id}/bearbeiten")
+@app.post("/meinbereich/eintrag/{eintrag_id}/bearbeiten")
 def eintrag_speichern(request: Request, eintrag_id: int,
                       datum: str = Form(...), start: str = Form(""),
                       ende: str = Form(""), dauer: str = Form(""),
@@ -991,7 +1005,7 @@ def eintrag_speichern(request: Request, eintrag_id: int,
 
     def zurueck_mit_fehler(text: str):
         return RedirectResponse(
-            f"/eintraege/{eintrag_id}/bearbeiten?" +
+            request.url.path + "?" +
             urlencode({"zurueck": zurueck, "fehler": text}), status_code=303)
 
     try:
@@ -1304,9 +1318,15 @@ def mitarbeiter_zu_benutzer(con, benutzer):
         (benutzer["benutzername"],)).fetchone()
 
 
+# Wieviele eigene Zeiten "Mein Bereich" hoechstens auf einmal zeigt, wenn
+# kein Monat gewaehlt ist. Die Liste ist zum Nachbessern gedacht, nicht als
+# zweite Uebersicht - wer weiter zurueck will, waehlt den Monat.
+MEINE_ZEITEN_MAX = 300
+
+
 @app.get("/meinbereich", response_class=HTMLResponse)
 def meinbereich(request: Request, alle: str = "", hinweis: str = "",
-                fehler: str = ""):
+                fehler: str = "", zeiten: str = ""):
     benutzer = request.state.benutzer
     with db.db() as con:
         person = mitarbeiter_zu_benutzer(con, benutzer)
@@ -1340,6 +1360,33 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "SELECT substr(datum,1,4) jahr, COUNT(DISTINCT datum) tage "
             "FROM eintrag WHERE mitarbeiter=? AND beschreibung LIKE 'Urlaub%' "
             "GROUP BY jahr", (name,))}
+
+        # Die eigenen Zeiten. Bewusst ohne jede Bereichspruefung: sie
+        # gehoeren dem angemeldeten Konto, und "Mein Bereich" ist die eine
+        # Seite, die jeder sehen darf. Der Monatsfilter ist nur Bequem-
+        # lichkeit - "alle" zeigt alles, gedeckelt auf MEINE_ZEITEN_MAX.
+        zeitmonate = [r["monat"] for r in con.execute(
+            "SELECT DISTINCT monat FROM eintrag WHERE mitarbeiter=? "
+            "ORDER BY monat DESC", (name,))]
+        if zeiten == "alle":
+            gewaehlter_monat = "alle"
+        elif zeiten in zeitmonate:
+            gewaehlter_monat = zeiten
+        else:
+            gewaehlter_monat = zeitmonate[0] if zeitmonate else "alle"
+        if gewaehlter_monat == "alle":
+            eigene_zeiten = con.execute(
+                "SELECT * FROM eintrag WHERE mitarbeiter=? "
+                "ORDER BY datum DESC, start DESC, id DESC LIMIT ?",
+                (name, MEINE_ZEITEN_MAX + 1)).fetchall()
+        else:
+            eigene_zeiten = con.execute(
+                "SELECT * FROM eintrag WHERE mitarbeiter=? AND monat=? "
+                "ORDER BY datum DESC, start DESC, id DESC",
+                (name, gewaehlter_monat)).fetchall()
+        zeiten_gekappt = len(eigene_zeiten) > MEINE_ZEITEN_MAX
+        eigene_zeiten = list(eigene_zeiten[:MEINE_ZEITEN_MAX])
+        zeiten_summe = sum(z["dauer_min"] or 0 for z in eigene_zeiten)
 
     ist_je_monat = {r["monat"]: {"m": r["m"], "n": r["n"]} for r in zeilen}
     dieser_monat = dt.date.today().strftime("%Y-%m")
@@ -1484,6 +1531,9 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "diagramm": diagramm, "urlaub": urlaub,
             "letzter": letzter, "trend": trend,
             "offene_vorgaenge": offene_vorgaenge, "ueberfaellig": ueberfaellig,
+            "eigene_zeiten": eigene_zeiten, "zeitmonate": zeitmonate,
+            "zeiten_monat": gewaehlter_monat, "zeiten_gekappt": zeiten_gekappt,
+            "zeiten_summe": zeiten_summe, "zeiten_max": MEINE_ZEITEN_MAX,
             "verwaist": isinstance(person, dict) and person.get("verwaist")})
 
 

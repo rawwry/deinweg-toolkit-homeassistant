@@ -1380,6 +1380,24 @@ def test_marke(client: TestClient) -> None:
            "die Kopfzeile bleibt beim Rollen stehen")
     pruefe("--kopfhoehe" in stil,
            "ihre Höhe steht als Variable für die klebenden Seitenleisten")
+    # Der Erklaerabsatz war eine Flexbox - jedes <strong> darin wurde zu
+    # einer eigenen schmalen Spalte. Jetzt sitzt nur das Zeichen absolut.
+    einzeilig = stil.replace("\n", " ")
+    pruefe(".lead, .felderklaerung { position: relative" in einzeilig,
+           "der Erklärabsatz ist wieder ein normaler Textblock")
+    pruefe("display: flex; align-items: flex-start; gap: 8px; } .lead::before"
+           not in einzeilig,
+           "und keine Flexbox mehr, die Auszeichnungen zerlegt")
+    # Acht Spalten passen auf dem Telefon nicht nebeneinander; die Tabelle
+    # rollt dort in ihrer eigenen Huelle statt sich zu stauchen.
+    pruefe(".vorgangstabelle { min-width:" in einzeilig,
+           "die Aufgabenliste bekommt am Handy eine Mindestbreite")
+    pruefe(".tabellenrolle:has(.vorgangstabelle) { overflow-x: auto; }"
+           in einzeilig,
+           "und rollt dort seitlich, statt die Spalten zu stauchen")
+    pruefe(".tabellenrolle .liste.vorgangstabelle th { white-space: normal; }"
+           in einzeilig,
+           "ihre Spaltentitel dürfen dort umbrechen")
 
 
 def test_einstellungen_aufbau(client: TestClient) -> None:
@@ -1397,6 +1415,218 @@ def test_einstellungen_aufbau(client: TestClient) -> None:
                     "vorlagen", "system"):
         pruefe(client.get(f"/einstellungen?bereich={bereich}").status_code == 200,
                f"Bereich „{bereich}“ lädt")
+
+
+def test_einstellungspunkte(client: TestClient) -> None:
+    """Zweite Rechteebene innerhalb der Einstellungen (seit 1.2).
+
+    Wer den Bereich „Einstellungen" hat, muss deshalb noch lange nicht
+    jeden Punkt darin sehen. „Oberfläche" bleibt immer sichtbar.
+    """
+    abschnitt("Punkte in den Einstellungen")
+    from .auth import EINST_BEREICHE, EINST_IMMER
+
+    pruefe(EINST_IMMER not in EINST_BEREICHE,
+           "„Oberfläche“ steht nicht in der abschaltbaren Liste")
+    for schluessel in ("benutzer", "email", "vorlagen"):
+        pruefe(schluessel not in EINST_BEREICHE,
+               f"„{schluessel}“ hängt an der Rolle, nicht an dieser Liste")
+
+    client.post("/einstellungen/benutzer", data={
+        "benutzername": "punkt", "passwort": "punktpasswort",
+        "rolle": "benutzer",
+        # Alle Bereiche ausser Dateien - der Dateien-Schalter unter
+        # „Oberflaeche" muss damit verschwinden, der Wiki-Schalter bleiben.
+        "bereiche": ["listenimport", "manuelle_eintraege", "datensaetze",
+                     "auswertung", "verwaltungsvorgaenge", "fuhrpark",
+                     "wiki", "ideen", "einstellungen"],
+        "einst_bereiche": ["betreute", "leistungen"]})
+
+    p = TestClient(app)
+    p.post("/login", data={"benutzername": "punkt", "passwort": "punktpasswort"},
+           follow_redirects=False)
+
+    seite = p.get("/einstellungen").text
+    pruefe("bereich=oberflaeche" in seite, "„Oberfläche“ steht im Menü")
+    pruefe("bereich=betreute" in seite and "bereich=leistungen" in seite,
+           "die beiden erteilten Punkte stehen im Menü")
+    for weg in ("mitarbeiter", "kfz", "vorgangsarten", "quotes", "system"):
+        pruefe(f"bereich={weg}" not in seite,
+               f"„{weg}“ steht nicht mehr im Menü")
+    pruefe("Auswahllisten" in seite,
+           "die Gruppenüberschrift bleibt, weil darunter noch etwas steht")
+    pruefe("Wartung" not in seite,
+           "eine Gruppe ohne Inhalt fällt weg")
+
+    # Direkt eingegebene Adresse: fällt auf „Oberfläche“ zurück statt den
+    # gesperrten Punkt zu zeigen.
+    pruefe("<h1>Oberfläche</h1>" in p.get("/einstellungen?bereich=mitarbeiter").text,
+           "ein gesperrter Punkt fällt auf „Oberfläche“ zurück")
+    pruefe("<h1>Betreute Personen</h1>" in p.get("/einstellungen?bereich=betreute").text,
+           "ein erlaubter Punkt öffnet")
+
+    # Und die POST-Routen dahinter.
+    pruefe(p.post("/einstellungen/mitarbeiter",
+                  data={"name": "Schmuggel", "monatsstunden": "1"}
+                  ).status_code == 403,
+           "ein direkt abgeschicktes Formular des gesperrten Punktes wird abgewiesen")
+    pruefe(p.post("/einstellungen/fahrzeug",
+                  data={"kennzeichen": "XX-YY 1", "bezeichnung": "Test"}
+                  ).status_code == 403,
+           "das gilt auch für die Fahrzeugrouten im KFZ-Modul")
+    antwort = p.post("/einstellungen/person",
+                     data={"name": "Punktperson", "wochenstunden": "3"},
+                     follow_redirects=False)
+    pruefe(antwort.status_code == 303,
+           "der erlaubte Punkt lässt sich weiterhin speichern")
+
+    # Die Ansichtsschalter unter „Oberflaeche" haengen am jeweiligen Bereich.
+    seite = p.get("/einstellungen?bereich=oberflaeche").text
+    pruefe("wikiliste-knopf" in seite,
+           "der Wiki-Schalter steht da, der Bereich ist erteilt")
+    pruefe("dateiliste-knopf" not in seite,
+           "der Dateien-Schalter fehlt, der Bereich ist es nicht")
+    pruefe("thema-knopf" in seite and "breite-knopf" in seite,
+           "Darkmode und Breite bleiben für jeden")
+
+    # Kein einziger Haken heisst "nichts" - nicht "alles". Ohne den
+    # Rueckfall auf auth.KEINE haette ein leeres Formular vollen Zugriff
+    # erteilt, weil ein leeres Feld nach der Speicherregel "alles" meint.
+    from . import auth as _auth
+    pruefe(_auth.einst_bereiche_speichern([]) == _auth.KEINE,
+           "kein Haken bei den Einstellungspunkten heißt „nichts“")
+    pruefe(_auth.berechtigungen_speichern([]) == _auth.KEINE,
+           "und dasselbe bei den Bereichen")
+    pruefe(_auth.einst_bereiche_speichern(list(EINST_BEREICHE)) == "",
+           "alle Haken heißen weiterhin „alles“")
+
+    leer = {"rolle": "benutzer", "einst_bereiche": _auth.KEINE,
+            "berechtigungen": _auth.KEINE}
+    pruefe(_auth.hat_einst_zugriff(leer, "betreute") is False,
+           "und dann kommt man an keinen Punkt heran")
+    pruefe(_auth.hat_einst_zugriff(leer, _auth.EINST_IMMER) is True,
+           "„Oberfläche“ bleibt trotzdem erreichbar")
+    pruefe(_auth.hat_zugriff(leer, "wiki") is False,
+           "auch kein Bereich ist dann erreichbar")
+
+    # Ein Konto ohne jede Einschraenkung sieht weiterhin alles.
+    seite = client.get("/einstellungen").text
+    for punkt in EINST_BEREICHE:
+        pruefe(f"bereich={punkt}" in seite,
+               f"der Administrator sieht „{punkt}“ weiterhin")
+
+
+def test_meine_zeiten(client: TestClient) -> None:
+    """„Mein Bereich" zeigt die eigenen Zeiten - ausnahmslos, auch ohne
+    den Bereich „Übersicht (Datensätze)"."""
+    abschnitt("Eigene Zeiten in „Mein Bereich“")
+
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, "
+                    "abgabepflicht, monatsstunden, urlaubstage, angelegt_am) "
+                    "VALUES ('zeitler',1,1,100,30,'2026-01-01 08:00')")
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('zeitler','2026-04-06','2026-04','09:00',"
+            "'11:00','Testperson','Hausbesuch',120,1,'z1','2026-04-06 09:00')")
+        eigen = con.execute(
+            "SELECT id FROM eintrag WHERE fingerprint='z1'").fetchone()["id"]
+        fremd = con.execute(
+            "SELECT id FROM eintrag WHERE mitarbeiter='pruefer' "
+            "ORDER BY id LIMIT 1").fetchone()["id"]
+
+    client.post("/einstellungen/benutzer", data={
+        "benutzername": "zeitler", "passwort": "zeitpasswort",
+        "rolle": "benutzer", "mitarbeiter": "zeitler",
+        # Ausdruecklich OHNE den Bereich „Übersicht (Datensätze)".
+        "bereiche": ["manuelle_eintraege"]})
+
+    z = TestClient(app)
+    z.post("/login", data={"benutzername": "zeitler", "passwort": "zeitpasswort"},
+           follow_redirects=False)
+
+    pruefe(z.get("/eintraege").status_code == 403,
+           "die Übersicht bleibt gesperrt")
+    seite = z.get("/meinbereich").text
+    pruefe("Meine Zeiten" in seite, "„Meine Zeiten“ steht trotzdem da")
+    pruefe(f"/meinbereich/eintrag/{eigen}/bearbeiten" in seite,
+           "der eigene Eintrag lässt sich von dort aus bearbeiten")
+    pruefe(f"/meinbereich/eintrag/{eigen}/loeschen" in seite,
+           "und löschen")
+    pruefe("Hausbesuch" in seite, "der Eintrag steht mit seiner Leistung da")
+
+    # Der Knopf „Zur Übersicht" verschwindet ohne den Bereich.
+    pruefe("Zur Übersicht" not in z.get("/").text,
+           "„Zur Übersicht“ fehlt im Bestand, wenn der Bereich fehlt")
+    pruefe("Zur Übersicht" in client.get("/").text,
+           "mit dem Bereich steht er weiterhin da")
+
+    # Bearbeiten: der eigene ja, ein fremder nicht.
+    pruefe(z.get(f"/meinbereich/eintrag/{eigen}/bearbeiten").status_code == 200,
+           "das Formular zum eigenen Eintrag öffnet")
+    antwort = z.get(f"/meinbereich/eintrag/{fremd}/bearbeiten",
+                    follow_redirects=False)
+    pruefe(antwort.status_code == 303
+           and "nicht+dein+Eintrag" in antwort.headers.get("location", ""),
+           "ein fremder Eintrag öffnet nicht")
+
+    antwort = z.post(f"/meinbereich/eintrag/{eigen}/bearbeiten", data={
+        "datum": "2026-04-06", "start": "09:00", "ende": "12:00", "dauer": "",
+        "klient": "Testperson", "beschreibung": "Hausbesuch verlängert",
+        "mitarbeiter": "zeitler", "zurueck": "/meinbereich"},
+        follow_redirects=False)
+    pruefe(antwort.status_code == 303
+           and "gespeichert" in antwort.headers.get("location", ""),
+           "der eigene Eintrag lässt sich speichern")
+    pruefe("Hausbesuch verlängert" in z.get("/meinbereich").text,
+           "die Änderung steht danach in der Liste")
+
+    # Und er lässt sich nicht auf jemand anderen umschreiben.
+    antwort = z.post(f"/meinbereich/eintrag/{eigen}/bearbeiten", data={
+        "datum": "2026-04-06", "dauer": "03:00", "klient": "Testperson",
+        "beschreibung": "x", "mitarbeiter": "pruefer",
+        "zurueck": "/meinbereich"}, follow_redirects=False)
+    pruefe("umschreiben" in antwort.headers.get("location", ""),
+           "auf eine andere Person umschreiben geht nicht")
+
+    # Löschen: der fremde nicht, der eigene ja.
+    antwort = z.post(f"/meinbereich/eintrag/{fremd}/loeschen",
+                     data={"zurueck": "/meinbereich"}, follow_redirects=False)
+    pruefe("nicht+dein+Eintrag" in antwort.headers.get("location", ""),
+           "ein fremder Eintrag lässt sich nicht löschen")
+    z.post(f"/meinbereich/eintrag/{eigen}/loeschen",
+           data={"zurueck": "/meinbereich"}, follow_redirects=False)
+    with db.db() as con:
+        weg = con.execute("SELECT COUNT(*) c FROM eintrag WHERE id=?",
+                          (eigen,)).fetchone()["c"]
+    pruefe(weg == 0, "der eigene Eintrag ist danach weg")
+
+    # Abmelden steht oben in der ersten Karte, nicht mehr klein unten.
+    seite = z.get("/meinbereich").text
+    kopfkarte = seite.split("</section>")[0]
+    pruefe('action="/logout"' in kopfkarte,
+           "„Abmelden“ steht in der obersten Karte")
+    pruefe("abmelden gross" in seite, "und zwar als großer Knopf")
+    pruefe(seite.count('action="/logout"') == 1, "genau einmal")
+
+
+def test_benutzerverwaltung_aufbau(client: TestClient) -> None:
+    """Die Kontenliste klappt auf, statt alles gleichzeitig zu zeigen."""
+    abschnitt("Aufbau der Benutzerverwaltung")
+    seite = client.get("/einstellungen?bereich=benutzer").text
+    pruefe('<details class="konto' in seite,
+           "jedes Konto ist ein eigener aufklappbarer Block")
+    pruefe('class="konto-kopf"' in seite,
+           "die Zeile darüber trägt das Wichtigste")
+    pruefe("konto-rechte" in seite,
+           "und eine Zusammenfassung der Rechte")
+    pruefe('name="einst_bereiche"' in seite,
+           "die Punkte der Einstellungen lassen sich hier vergeben")
+    pruefe(seite.index("Konten") < seite.index("Neues Konto anlegen"),
+           "die vorhandenen Konten stehen über dem Anlegeformular")
+    # Der Editor haengt weiterhin am Formular ausserhalb des Rasters.
+    pruefe('id="bn-' in seite, "die Felder hängen an einem eigenen Formular")
 
 
 def test_versionen() -> None:
@@ -2110,6 +2340,9 @@ def _durchlauf(client: TestClient) -> None:
         test_menue_reihenfolge(client)
         test_marke(client)
         test_einstellungen_aufbau(client)
+        test_einstellungspunkte(client)
+        test_meine_zeiten(client)
+        test_benutzerverwaltung_aufbau(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")

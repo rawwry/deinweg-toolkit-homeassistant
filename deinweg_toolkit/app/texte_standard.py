@@ -179,6 +179,16 @@ TEXTE_STANDARD["einst.benutzer_bereiche_hinweis"] = (
     "gilt das als voller Zugriff und schließt auch später neu "
     "hinzukommende Bereiche automatisch mit ein. Bei der Rolle "
     "„Administrator“ hat diese Auswahl keine Wirkung.")
+TEXTE_STANDARD["einst.benutzer_einstpunkte_hinweis"] = (
+    "Eine Ebene unter dem Bereich „Einstellungen“: welche Punkte darin "
+    "sichtbar sind. Sind alle angehakt, gilt das als voller Zugriff und "
+    "schließt später hinzukommende Punkte mit ein. „Oberfläche“ bleibt "
+    "immer sichtbar – dort stehen nur Darkmode, Breite und die "
+    "Ansichtsschalter, die jeder für sich selbst einstellt.")
+TEXTE_STANDARD["einst.benutzer_admin_hinweis"] = (
+    "Die Rolle ist „Administrator“ – dieses Konto hat damit ohnehin "
+    "vollen Zugriff. Die Auswahl unten wird trotzdem gespeichert und "
+    "greift wieder, sobald die Rolle auf „Benutzer“ zurückgestellt wird.")
 TEXTE_STANDARD["einst.benutzer_rechte_hinweis"] = (
     "Drei Rechte, die keinen eigenen Bereich bilden, sondern innerhalb "
     "eines Bereichs eine Grenze ziehen. <strong>Einträge anderer "
@@ -242,6 +252,15 @@ TEXTE_STANDARD["einst.urlaubstage"] = (
     "Der Urlaubsanspruch in Tagen pro Kalenderjahr. Im persönlichen Bereich "
     "sieht jede Person davon ausgehend, wie viele Tage sie schon genommen "
     "hat und wie viele noch offen sind. 0 = kein Anspruch hinterlegt.")
+TEXTE_STANDARD["mein.zeiten_lead"] = (
+    "Alle Zeiten, die auf deinen Namen laufen. Hier stehen sie unabhängig "
+    "davon, ob du die Übersicht unter „Arbeitszeit“ nutzen darfst – deine "
+    "eigenen Einträge kannst du immer richtigstellen oder entfernen.")
+TEXTE_STANDARD["mein.zeiten_leer"] = (
+    "Für diesen Zeitraum ist nichts erfasst.")
+TEXTE_STANDARD["mein.zeiten_gekappt"] = (
+    "Es werden die neuesten {max} Einträge gezeigt. Für ältere wähle oben "
+    "einen Monat.")
 TEXTE_STANDARD["mein.tabelle_hinweis"] = (
     "Monate ohne erfasste Zeiten erscheinen mit dem vollen Soll im Minus – "
     "das ist Absicht, damit vergessene Abgaben auffallen. Urlaub, Krankheit "

@@ -950,4 +950,31 @@ CHANGELOG = [
         "„Changelog“ steht nicht mehr als Symbol in der Kopfzeile, "
         "sondern als Link in der Fußzeile hinter der Versionsnummer",
     ]},
+    {"version": "1.2", "titel": "Rechte bis in die Einstellungen, eigene Zeiten in „Mein Bereich“", "punkte": [
+        "Neu: für jedes Konto lässt sich einzeln festlegen, welche Punkte "
+        "es innerhalb der Einstellungen sehen darf. „Oberfläche“ bleibt "
+        "immer sichtbar – dort stehen nur Darkmode, Breite und die "
+        "Ansichtsschalter, die ohnehin jeder für sich selbst einstellt",
+        "Die Schalter für die Wiki- und die Dateien-Ansicht verschwinden, "
+        "wenn dem Konto der jeweilige Bereich fehlt",
+        "Benutzerverwaltung neu gestaltet: je Konto eine Zeile mit Name, "
+        "Rolle, Zuordnung und einer Zusammenfassung der Rechte. Der Editor "
+        "klappt darunter auf und ist in Konto und Rechte geteilt",
+        "„Zur Übersicht“ im Kasten „Bestand“ steht nur noch da, wenn das "
+        "Konto den Bereich „Übersicht (Datensätze)“ auch hat",
+        "„Mein Bereich“ zeigt jetzt die eigenen Zeiten – unabhängig von "
+        "jeder Bereichsberechtigung, mit Monatswahl, Bearbeiten und "
+        "Löschen. Fremde Einträge sind dort genauso geschützt wie in der "
+        "Übersicht",
+        "„Abmelden“ steht als großer Knopf oben in der ersten Karte statt "
+        "klein unten bei „Mein Konto“",
+        "Aufgabenliste am Handy: die acht Spalten wurden ineinander "
+        "geschoben und waren nicht mehr lesbar. Die Tabelle rollt dort "
+        "jetzt seitlich, statt sich zu stauchen",
+        "Fehler behoben: Erklärtexte mit Hervorhebungen zerfielen in "
+        "schmale Spalten nebeneinander – zu sehen bei „Einzelrechte“ in "
+        "der Benutzerverwaltung",
+        "Fehler behoben: ein Rechteformular ohne einen einzigen Haken "
+        "erteilte vollen Zugriff statt gar keinen",
+    ]},
 ]

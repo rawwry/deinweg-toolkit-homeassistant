@@ -209,7 +209,11 @@
       <h2>Bestand</h2>
       <p class="zahl">{{ summe.n }}<span class="einheit">Einträge</span></p>
       <p class="zahl-label">{{ summe.m | gesamtstunden }} insgesamt</p>
+      {# Ohne den Bereich „Übersicht (Datensätze)“ fuehrt der Knopf nur in
+         ein 403 - dann steht er hier gar nicht erst. #}
+      {% if hat_zugriff(request.state.benutzer, "datensaetze") %}
       <a class="knopf leise" href="/eintraege">Zur Übersicht</a>
+      {% endif %}
     </div>
 
     <div class="karte schmal">

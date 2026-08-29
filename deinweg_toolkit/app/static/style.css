@@ -222,11 +222,16 @@ h2 { font-size: 12.5px; margin: 0 0 14px; text-transform: uppercase;
 
    Über Flexbox statt ::before im Textfluss, damit mehrzeilige Texte
    sauber unter dem ersten Wort weiterlaufen und nicht unter dem Zeichen. */
-.lead, .felderklaerung {
-  display: flex; align-items: flex-start; gap: 8px;
-}
+/* ⚠️ Das Informationszeichen sitzt absolut, der Absatz bleibt ein
+   normaler Textblock. Als Flexbox (so war es bis 1.1.1) wurde jedes
+   Kind-Element zu einem eigenen Flex-Element: ein Text mit <strong> oder
+   einem Link zerfiel dadurch in schmale Spalten nebeneinander. Zu sehen
+   war das bei „Zusätzliche Rechte“ in der Benutzerverwaltung. Nicht auf
+   Flex zurückbauen. */
+.lead, .felderklaerung { position: relative; padding-left: 23px; }
 .lead::before, .felderklaerung::before {
-  content: ""; flex: 0 0 auto; width: 15px; height: 15px; margin-top: .18em;
+  content: ""; position: absolute; left: 0; top: .18em;
+  width: 15px; height: 15px;
   background: currentColor; opacity: .75;
   -webkit-mask: var(--infozeichen) center / contain no-repeat;
           mask: var(--infozeichen) center / contain no-repeat;
@@ -1593,6 +1598,51 @@ body.anmeldeseite {
 .benutzerkarte:last-child { margin-bottom: 0; }
 .benutzerkarte.stillgelegt { opacity: .6; }
 
+/* Ein Konto ist eine Zeile, die sich zum Editor aufklappt. Alle Konten
+   gleichzeitig offen waren mit drei Rechtegruppen nicht mehr zu
+   überblicken; die Zeile trägt deshalb das Wichtigste im Klartext, damit
+   man zum Nachsehen gar nicht erst aufklappen muss. */
+.kontoliste { display: flex; flex-direction: column; gap: 10px; }
+.konto {
+  border: 1px solid var(--linie); border-radius: 10px;
+  background: var(--flaeche-2); overflow: hidden;
+}
+.konto.stillgelegt { opacity: .6; }
+.konto[open] { border-color: var(--linie-stark); }
+.konto-kopf {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 13px 16px; cursor: pointer; list-style: none;
+  font-size: 13.5px;
+}
+/* Das Dreieck des Browsers wegräumen – wir zeichnen einen eigenen Pfeil. */
+.konto-kopf::-webkit-details-marker { display: none; }
+.konto-kopf::marker { content: ""; }
+.konto-kopf:hover { background: var(--flaeche); }
+.konto-name { display: inline-flex; align-items: center; gap: 8px; min-width: 170px; }
+.konto-name .marke-status { padding: 3px 9px; font-size: 11px; }
+.konto-daten { color: var(--tinte); }
+.konto-rechte { color: var(--leise); font-size: 12.5px; margin-left: auto; text-align: right; }
+.konto-pfeil { display: inline-flex; color: var(--leise); flex: 0 0 auto; }
+.konto-pfeil svg { width: 18px; height: 18px; transition: transform .15s ease; }
+.konto[open] .konto-pfeil svg { transform: rotate(180deg); }
+.konto-inhalt { padding: 4px 16px 16px; border-top: 1px solid var(--linie); }
+.konto-block { padding-top: 14px; }
+.konto-block + .konto-block { border-top: 1px solid var(--linie); margin-top: 4px; }
+.konto-blocktitel {
+  display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--leise); margin-bottom: 12px;
+}
+/* Bei der Rolle „Administrator“ greift die Auswahl nicht – sie bleibt
+   bedienbar, tritt aber zurück. */
+.konto-block.ohne-wirkung .bereichsraster { opacity: .55; }
+.konto-fuss { padding-top: 14px; border-top: 1px solid var(--linie); margin-top: 4px; }
+/* „Oberfläche“ lässt sich nicht abwählen und ist deshalb nur Anzeige. */
+.bereich-kachel.fest { cursor: default; opacity: .7; }
+
+@media (max-width: 700px) {
+  .konto-rechte { margin-left: 0; text-align: left; width: 100%; }
+}
+
 fieldset.feld {
   border: none; padding: 0; margin: 0 0 14px;
 }
@@ -1743,6 +1793,26 @@ fieldset.feld > span {
 .vorgangstabelle td:last-child { white-space: nowrap; padding-left: 6px; padding-right: 6px; }
 .vorgangstabelle td:last-child .knopf-icon { width: 28px; height: 28px; }
 .vorgangstabelle td:last-child .knopf-icon + form.inline { margin-left: 5px; }
+
+/* Acht Spalten passen auf dem Telefon nicht nebeneinander. Die feste
+   Aufteilung staucht sie dort gleichmäßig zusammen, bis Titel, Status und
+   Priorität ineinanderlaufen – lesbar ist dann nichts mehr. Dieselbe
+   Lösung wie bei den Fuhrpark-Tabellen: eine Mindestbreite, und die
+   Tabelle rollt in ihrer eigenen Hülle. Auf dem Schreibtisch ändert sich
+   nichts. */
+@media (max-width: 760px) {
+  .vorgangstabelle { min-width: 980px; }
+  .tabellenrolle:has(.vorgangstabelle) { overflow-x: auto; }
+  /* Und die Spaltentitel dürfen hier umbrechen. .liste th steht sonst auf
+     nowrap; „Betreute Person“ und „Priorität“ passten damit auch bei
+     980px nicht in ihre Spalte und schoben sich über die Nachbarspalte -
+     genau das Überlappen, das auf dem Telefon zu sehen war. Eine
+     zweizeilige Kopfzeile ist das kleinere Übel. */
+  .tabellenrolle .liste.vorgangstabelle th { white-space: normal; }
+  /* Die Frist trägt zwei Zeilen (Datum und „überfällig“) und braucht
+     deshalb eine feste Breite statt der 9 %. */
+  .vorgangstabelle th:nth-child(1) { width: 100px; }
+}
 
 /* Mehrfachauswahl in der Datensatzliste */
 .massenleiste {
@@ -2277,6 +2347,52 @@ fieldset.feld > span {
 .knopf.abmelden { display: inline-flex; align-items: center; gap: 8px; }
 .knopf.abmelden svg { width: 16px; height: 16px; }
 .knopf.abmelden:hover { border-color: var(--dopp); color: var(--dopp); }
+/* „Abmelden“ steht oben in der ersten Karte und ist der eine Knopf, den
+   man auf dieser Seite sucht - er darf deshalb größer sein als die
+   übrigen. Der Rahmen trägt schon die Warnfarbe, gefüllt wäre er der
+   auffälligste Knopf der ganzen Anwendung und das wäre zu viel. */
+.knopf.abmelden.gross {
+  font-size: 14px; padding: 11px 20px; font-weight: 600;
+  border-color: var(--dopp); color: var(--dopp);
+}
+.knopf.abmelden.gross svg { width: 18px; height: 18px; }
+.knopf.abmelden.gross:hover { background: var(--dopp-weich); }
+.abmeldeform { flex: 0 0 auto; }
+
+/* Monatswahl über der Liste der eigenen Zeiten. Dieselbe Form wie die
+   Schnellwahl im Fuhrpark-Filter, hier aber als Links - es gibt nichts
+   abzuschicken. */
+.zeitmonate { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 16px; }
+.zeitmonate a {
+  display: inline-flex; align-items: center; padding: 6px 13px;
+  border-radius: 20px; border: 1px solid var(--linie);
+  background: var(--flaeche-2); color: var(--tinte);
+  font-size: 12.5px; text-decoration: none; white-space: nowrap;
+}
+.zeitmonate a:hover { border-color: var(--akzent); }
+.zeitmonate a.aktiv {
+  border-color: var(--akzent); background: var(--akzent-weich); color: var(--akzent);
+  font-weight: 600;
+}
+
+/* Eigene Zeiten in „Mein Bereich“. Sechs Spalten - unterhalb von 760px
+   dieselbe Lösung wie bei Vorgangs- und Fuhrpark-Tabellen. */
+.zeitentabelle th:nth-child(1) { width: 11%; }
+.zeitentabelle th:nth-child(2) { width: 13%; }
+.zeitentabelle th:nth-child(3) { width: 20%; }
+.zeitentabelle th:nth-child(4) { width: 32%; }
+.zeitentabelle th:nth-child(5) { width: 10%; }
+.zeitentabelle th:last-child { width: 74px; text-align: right; padding-right: 6px; }
+.tabellenrolle .liste.zeitentabelle td:last-child {
+  white-space: nowrap; padding-left: 6px; padding-right: 6px;
+}
+.zeitentabelle td:last-child .knopf-icon { width: 28px; height: 28px; }
+.zeitentabelle td:last-child .knopf-icon + form.inline { margin-left: 5px; }
+
+@media (max-width: 760px) {
+  .zeitentabelle { min-width: 720px; }
+  .tabellenrolle:has(.zeitentabelle) { overflow-x: auto; }
+}
 
 /* --- Fuhrpark ----------------------------------------------------------- */
 

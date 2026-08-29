@@ -172,6 +172,11 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
     # nur ein Abfrageparameter auf derselben Route ist.
     if bereich in ("benutzer", "email", "vorlagen") and not ist_admin:
         bereich = "oberflaeche"
+    # Zweite Ebene: einzelne Punkte lassen sich je Konto abschalten.
+    # "oberflaeche" bleibt immer erreichbar - deshalb ist das hier auch
+    # der Rueckfall. Die POST-Routen deckt die Middleware ab.
+    if not auth.hat_einst_zugriff(request.state.benutzer, bereich):
+        bereich = auth.EINST_IMMER
     with db.db() as con:
         personen = con.execute(
             "SELECT p.*, "
@@ -312,7 +317,8 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "fahrzeuge": fahrzeuge, "km_staende": km_staende,
             "kfz_bezeichnung": kfz.bezeichnung,
             "benutzerliste": benutzerliste, "ist_admin": ist_admin,
-            "BEREICHE": auth.BEREICHE, "eigene_id": request.state.benutzer["id"],
+            "BEREICHE": auth.BEREICHE, "EINST_BEREICHE": auth.EINST_BEREICHE,
+            "eigene_id": request.state.benutzer["id"],
             "mailkonfig": mailkonfig, "passwort_gesetzt": passwort_gesetzt,
             "letzte_mails": letzte_mails,
             "sprueche": sprueche_lesen() if bereich == "quotes" else [],
@@ -639,7 +645,8 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
                      fremde_loeschen: str = Form(""),
                      fremde_bearbeiten: str = Form(""),
                      wiki_schreiben: str = Form(""),
-                     bereiche: list[str] = Form([])):
+                     bereiche: list[str] = Form([]),
+                     einst_bereiche: list[str] = Form([])):
     benutzername = benutzername.strip()
     email = email.strip()
     mitarbeiter = mitarbeiter.strip()
@@ -656,13 +663,14 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
         con.execute(
             "INSERT INTO benutzer (benutzername, passwort_hash, rolle, "
             "berechtigungen, email, mitarbeiter, fremde_loeschen, "
-            "fremde_bearbeiten, wiki_schreiben, angelegt_am) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "fremde_bearbeiten, wiki_schreiben, einst_bereiche, angelegt_am) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (benutzername, db.passwort_hashen(passwort), rolle,
              auth.berechtigungen_speichern(bereiche), email or None,
              mitarbeiter or None, 1 if fremde_loeschen else 0,
              1 if fremde_bearbeiten else 0,
-             1 if wiki_schreiben else 0, _u["jetzt"]()))
+             1 if wiki_schreiben else 0,
+             auth.einst_bereiche_speichern(einst_bereiche), _u["jetzt"]()))
     return benutzer_zurueck(hinweis=f"„{benutzername}“ angelegt.")
 
 
@@ -674,7 +682,8 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                        fremde_loeschen: str = Form(""),
                        fremde_bearbeiten: str = Form(""),
                        wiki_schreiben: str = Form(""),
-                       bereiche: list[str] = Form([])):
+                       bereiche: list[str] = Form([]),
+                       einst_bereiche: list[str] = Form([])):
     benutzername = benutzername.strip()
     email = email.strip()
     mitarbeiter = mitarbeiter.strip()
@@ -705,7 +714,8 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                   "fremde_loeschen": 1 if fremde_loeschen else 0,
                   "fremde_bearbeiten": 1 if fremde_bearbeiten else 0,
                   "wiki_schreiben": 1 if wiki_schreiben else 0,
-                  "berechtigungen": auth.berechtigungen_speichern(bereiche)}
+                  "berechtigungen": auth.berechtigungen_speichern(bereiche),
+                  "einst_bereiche": auth.einst_bereiche_speichern(einst_bereiche)}
         if neues_passwort:
             felder["passwort_hash"] = db.passwort_hashen(neues_passwort)
         satzstueck = ", ".join(f"{k}=?" for k in felder)
