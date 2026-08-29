@@ -319,17 +319,52 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
     # hier und nicht in der Vorlage - dort muesste man ueber ein leeres
     # "bis" stolpern, und die Regel stuende dann an zwei Stellen.
     heute_wert = _u["heute"]()
-    aktuell = {}
-    for person_id, eintraege in zeitraeume.items():
+    aktuell, lage = {}, {}
+    for p in personen:
+        eintraege = zeitraeume.get(p["id"], [])
+        laufend = None
         for z in eintraege:
             if z["von"] <= heute_wert and (not z["bis"] or z["bis"] >= heute_wert):
-                aktuell[person_id] = z
+                laufend = z
                 break
+        if laufend:
+            aktuell[p["id"]] = laufend
+        # Wie steht diese Person heute da? Genau das ist die Frage, mit
+        # der man auf die Seite kommt - eine ausgelaufene Bewilligung
+        # faellt sonst erst auf, wenn die Auswertung nicht stimmt.
+        if laufend:
+            lage[p["id"]] = {"art": "laufend", "zeitraum": laufend}
+        elif eintraege:
+            # Es gibt Bescheide, aber keiner gilt heute. Zwei Faelle:
+            # ausgelaufen oder erst in der Zukunft.
+            kuenftig = [z for z in eintraege if z["von"] > heute_wert]
+            vergangen = [z for z in eintraege
+                         if z["bis"] and z["bis"] < heute_wert]
+            if kuenftig:
+                naechster = min(kuenftig, key=lambda z: z["von"])
+                lage[p["id"]] = {"art": "kuenftig", "ab": naechster["von"],
+                                 "zeitraum": naechster}
+            else:
+                letzter = max(vergangen, key=lambda z: z["bis"]) if vergangen else None
+                lage[p["id"]] = {"art": "abgelaufen",
+                                 "seit": letzter["bis"] if letzter else "",
+                                 "zeitraum": letzter}
+        elif p["wochenstunden"] or p["stundensatz"]:
+            lage[p["id"]] = {"art": "grundwert"}
+        else:
+            lage[p["id"]] = {"art": "leer"}
+    # Fuer die Ueberschrift: wie viele aktive Personen stehen gerade ohne
+    # gueltige Bewilligung da?
+    ohne_bewilligung = sum(
+        1 for p in personen
+        if p["aktiv"] and lage.get(p["id"], {}).get("art") in
+        ("abgelaufen", "kuenftig", "leer"))
 
     return _u["templates"].TemplateResponse(
         request=request, name="einstellungen.html", context={
             "personen": personen, "ungepflegt": ungepflegt, "system": system,
             "zeitraeume": zeitraeume, "zeitraum_aktuell": aktuell,
+            "zeitraum_lage": lage, "ohne_bewilligung": ohne_bewilligung,
             "offen": offen, "heute": heute_wert,
             "team": team, "team_offen": team_offen,
             "vorgangsarten": vorgangsarten, "arten_offen": arten_offen,

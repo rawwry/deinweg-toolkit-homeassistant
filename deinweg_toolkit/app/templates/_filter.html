@@ -26,12 +26,33 @@
       {% for nr, wort in monatsnamen.items() %}<option value="{{ nr }}" {{ 'selected' if f.bis_monat==nr }}>{{ wort }}</option>{% endfor %}
     </select>
   </label>
-  <label><span>Betreute Person</span>
-    <select name="klient">
-      <option value="">alle</option>
-      {% for k in klienten %}<option value="{{ k }}" {{ 'selected' if f.klient==k }}>{{ k }}</option>{% endfor %}
-    </select>
-  </label>
+  {# Mehrere Betreute auf einmal: man wertet oft zwei oder drei zusammen
+     aus. Bewusst <details> mit Kästchen und kein <select multiple> - das
+     verlangt Strg-Klick und weiß niemand. Ohne Skript bleibt die Liste
+     offen stehen, bedienbar ist sie trotzdem; das Skript unten schließt
+     sie nur beim Klick daneben. #}
+  <div class="filterwahl {{ 'gesetzt' if f.klienten }}">
+    <span class="filterwahl-titel">Betreute Personen</span>
+    <details class="wahlliste">
+      <summary>
+        {%- if not f.klienten -%}alle
+        {%- elif f.klienten | length == 1 -%}{{ f.klienten[0] }}
+        {%- else -%}{{ f.klienten | length }} ausgewählt
+        {%- endif -%}
+      </summary>
+      <div class="wahlliste-panel">
+        {% for k in klienten %}
+        <label class="wahlzeile">
+          <input type="checkbox" name="klient" value="{{ k }}"
+                 {{ 'checked' if k in f.klienten }}>
+          <span>{{ k }}</span>
+        </label>
+        {% else %}
+        <p class="klein leise" style="margin: 6px 8px;">Noch keine Namen erfasst.</p>
+        {% endfor %}
+      </div>
+    </details>
+  </div>
   <label><span>Mitarbeiter</span>
     <select name="mitarbeiter">
       <option value="">alle</option>
@@ -44,17 +65,35 @@
            placeholder="Leistung, Person oder Mitarbeiter">
   </label>
   {% endif %}
-  {% if abrechenbar_zeigen %}
-  <label class="filter-umschalter">
-    <input type="checkbox" name="nur_abrechenbar" value="1" {{ 'checked' if f.nur_abrechenbar }}>
-    <span>nur abrechenbare Zeiten</span>
-  </label>
-  {% endif %}
-  <div class="filter-knoepfe">
-    <button class="knopf" type="submit">Filtern</button>
-    <a class="knopf leise" href="{{ ziel }}">Filter entfernen</a>
+  {# Schalter und Knöpfe stehen in einer eigenen Zeile unter den Feldern.
+     Zwischen den Auswahlfeldern sah die Pille wie ein vergessenes Feld
+     aus und stand mal am Zeilenende, mal mittendrin - je nachdem, wie
+     die Felder gerade umbrachen. #}
+  <div class="filter-fuss">
+    {% if abrechenbar_zeigen %}
+    <label class="filter-umschalter">
+      <input type="checkbox" name="nur_abrechenbar" value="1" {{ 'checked' if f.nur_abrechenbar }}>
+      <span>nur abrechenbare Zeiten</span>
+    </label>
+    {% endif %}
+    <div class="filter-knoepfe">
+      <button class="knopf haupt" type="submit">Filtern</button>
+      <a class="knopf leise" href="{{ ziel }}">Filter entfernen</a>
+    </div>
   </div>
 </form>
+
+<script>
+  // Klappt die Namensliste zu, wenn daneben geklickt wird. Reine
+  // Bequemlichkeit - ohne Skript bleibt sie offen und alles funktioniert.
+  (function () {
+    document.addEventListener("click", function (e) {
+      document.querySelectorAll("details.wahlliste[open]").forEach(function (d) {
+        if (!d.contains(e.target)) { d.open = false; }
+      });
+    });
+  })();
+</script>
 
 {% if aktive_filter %}
 <div class="filterstand">

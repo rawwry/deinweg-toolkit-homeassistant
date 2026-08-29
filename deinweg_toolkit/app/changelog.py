@@ -1099,4 +1099,34 @@ CHANGELOG = [
         "eingesparten Mitarbeiterspalte passt die Tabelle bis hinunter zu "
         "einem 1080 Pixel breiten Fenster ohne Rollen",
     ]},
+    {"version": "1.5", "titel": "Mehrere Betreute filtern, Bewilligungen im Blick", "punkte": [
+        "Der Filter der Auswertung nimmt jetzt mehrere betreute Personen "
+        "auf einmal: „Betreute Personen“ klappt eine Liste mit Kästchen "
+        "auf. Zugeklappt steht dort der Name oder die Zahl der Gewählten. "
+        "Übersicht und Export folgen derselben Auswahl",
+        "Filterbereich aufgeräumt: „nur abrechenbare Zeiten“ steht nicht "
+        "mehr zwischen den Auswahlfeldern, wo es je nach Umbruch mal am "
+        "Zeilenende und mal mittendrin landete, sondern in einer eigenen "
+        "Zeile darunter – links das Kriterium, rechts die Knöpfe",
+        "Einstellungen → Betreute Personen: jede Zeile sagt jetzt, wie die "
+        "Person heute dasteht – „gültig“, „Bewilligung ausgelaufen“ (mit "
+        "Datum), „gilt erst ab …“ oder „keine Bewilligung hinterlegt“. "
+        "Betroffene Zeilen sind rot markiert, und über der Liste steht, "
+        "wie viele es sind. Vorher stand dort nur „kein Kontingent "
+        "hinterlegt“, was auch eine ausgelaufene Bewilligung bedeuten "
+        "konnte",
+        "Im aufgeklappten Block steht der Hinweis noch einmal ausdrücklich "
+        "und sagt, was das für die Auswertung bedeutet",
+        "Die bewilligten Zeiträume stehen jetzt oben im Block, die "
+        "Stammdaten darunter – der Name ändert sich nie, die Bescheide "
+        "dauernd. Die Grundwerte sind als „Rückfall“ gekennzeichnet",
+        "„speichern“ und „entfernen“ stehen als eine Knopfzeile ganz unten, "
+        "„entfernen“ rechts abgesetzt – mitten in der Karte sahen sie aus "
+        "wie ein vergessener Rest",
+        "Der seitliche Rollbalken in der Auswertung ist endgültig weg: die "
+        "Tabelle rechnet ihre Spaltenbreiten jetzt selbst aus dem Inhalt, "
+        "statt auf von Hand gesetzten Pixelwerten zu stehen. Die waren "
+        "dreimal zu knapp geraten – zuletzt, weil dieselbe Schrift auf "
+        "einem anderen Rechner ein paar Pixel breiter läuft",
+    ]},
 ]

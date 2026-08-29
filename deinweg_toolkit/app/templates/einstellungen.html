@@ -274,6 +274,10 @@
 <section class="karte">
   <div class="kopfzeile">
     <h2>Angelegte Personen{% if personen %} · {{ personen | length }}{% endif %}</h2>
+    {% if ohne_bewilligung %}
+    <span class="marke-status dopp">{{ ohne_bewilligung }}
+      {{ "Person" if ohne_bewilligung == 1 else "Personen" }} ohne gültige Bewilligung</span>
+    {% endif %}
   </div>
   {% if personen %}
   {# Eine Zeile je Person, die sich zum Editor aufklappt - dieselbe Form
@@ -284,7 +288,9 @@
   {% for p in personen %}
   {% set liste = zeitraeume.get(p.id, []) %}
   {% set gilt_heute = zeitraum_aktuell.get(p.id) %}
-  <details class="konto {{ '' if p.aktiv else 'stillgelegt' }}"
+  {% set stand = zeitraum_lage.get(p.id, {}) %}
+  <details class="konto person {{ '' if p.aktiv else 'stillgelegt' }}
+                  {{ 'ohne-bewilligung' if p.aktiv and stand.art in ('abgelaufen', 'kuenftig', 'leer') }}"
            id="person-{{ p.id }}" {{ 'open' if offen == p.id }}>
     <summary class="konto-kopf">
       <span class="konto-name">
@@ -293,14 +299,21 @@
         {% if not p.abrechenbar %}<span class="marke-status offen">nicht abrechenbar</span>{% endif %}
       </span>
       <span class="konto-daten">
-        {# Was gilt heute? Das ist die Frage, mit der man herkommt. #}
-        {% if gilt_heute %}
+        {# Was gilt heute? Das ist die Frage, mit der man herkommt - und
+           eine ausgelaufene Bewilligung muss dabei sofort auffallen. #}
+        {% if stand.art == "laufend" %}
+          <span class="marke-status gut">gültig</span>
           {{ gilt_heute.wochenstunden | stunden }} Std/Woche · {{ gilt_heute.stundensatz | euro }}
-        {% elif p.wochenstunden or p.stundensatz %}
-          <span class="leise">Grundwert:</span>
+        {% elif stand.art == "abgelaufen" %}
+          <span class="marke-status dopp">Bewilligung ausgelaufen</span>
+          {% if stand.seit %}<span class="leise">seit {{ stand.seit | deutsch }}</span>{% endif %}
+        {% elif stand.art == "kuenftig" %}
+          <span class="marke-status offen">gilt erst ab {{ stand.ab | deutsch }}</span>
+        {% elif stand.art == "grundwert" %}
+          <span class="marke-status weg">nur Grundwert</span>
           {{ p.wochenstunden | stunden }} Std/Woche · {{ p.stundensatz | euro }}
         {% else %}
-          <span class="leise">kein Kontingent hinterlegt</span>
+          <span class="marke-status dopp">keine Bewilligung hinterlegt</span>
         {% endif %}
       </span>
       <span class="konto-rechte">
@@ -319,49 +332,28 @@
     <div class="konto-inhalt">
     <form action="/einstellungen/person/{{ p.id }}" method="post" id="person-f-{{ p.id }}"></form>
 
-    <div class="konto-block">
-      <span class="konto-blocktitel">Stammdaten</span>
-      <div class="feldreihe">
-        <label class="feld">
-          <span>Name</span>
-          <input type="text" name="name" value="{{ p.name }}"
-                 form="person-f-{{ p.id }}" required>
-        </label>
-        <label class="feld">
-          <span>Grundwert Std/Woche</span>
-          <input type="text" name="wochenstunden" inputmode="decimal"
-                 value="{{ p.wochenstunden | stunden }}"
-                 form="person-f-{{ p.id }}">
-        </label>
-        <label class="feld">
-          <span>Grundwert Stundensatz in €</span>
-          <input type="text" name="stundensatz" inputmode="decimal"
-                 value="{{ ('%.2f' % p.stundensatz) | replace('.', ',') if p.stundensatz else '' }}"
-                 placeholder="0,00" form="person-f-{{ p.id }}">
-        </label>
-      </div>
-      <p class="klein leise felderklaerung">{{ t("einst.grundwert_hinweis") }}</p>
-      <div class="bereichsraster">
-        <label class="bereich-kachel">
-          <input type="checkbox" name="abrechenbar" value="1"
-                 {{ 'checked' if p.abrechenbar }} form="person-f-{{ p.id }}">
-          Zeiten sind abrechenbar
-        </label>
-        <label class="bereich-kachel">
-          <input type="checkbox" name="aktiv" value="1"
-                 {{ 'checked' if p.aktiv }} form="person-f-{{ p.id }}">
-          Person aktiv
-        </label>
-      </div>
-      <div class="knopfreihe">
-        <button class="knopf haupt" type="submit" form="person-f-{{ p.id }}">speichern</button>
-        <form class="inline" action="/einstellungen/person/{{ p.id }}/loeschen" method="post"
-              onsubmit="return confirm('{{ p.name }} aus den Stammdaten entfernen? Erfasste Zeiten bleiben erhalten, die hinterlegten Zeiträume nicht.')">
-          <button class="knopf warn" type="submit">entfernen</button>
-        </form>
-      </div>
-    </div>
+    {# Auffällig oben, nicht klein am Rand: eine ausgelaufene Bewilligung
+       ist der Grund, warum eine Auswertung nicht mehr stimmt. #}
+    {% if p.aktiv and stand.art == "abgelaufen" %}
+    <p class="meldung fehler bewilligungswarnung">
+      Die Bewilligung ist am <strong>{{ stand.seit | deutsch }}</strong> ausgelaufen.
+      Bis ein neuer Zeitraum eingetragen ist, rechnet die Auswertung für
+      spätere Monate mit dem Grundwert unten – bei 0 also mit gar nichts.
+    </p>
+    {% elif p.aktiv and stand.art == "kuenftig" %}
+    <p class="meldung offen-hinweis bewilligungswarnung">
+      Der nächste Zeitraum beginnt erst am <strong>{{ stand.ab | deutsch }}</strong>.
+      Für die Zeit davor gilt der Grundwert unten.
+    </p>
+    {% elif p.aktiv and stand.art == "leer" %}
+    <p class="meldung fehler bewilligungswarnung">
+      Für diese Person ist nichts hinterlegt – weder ein Zeitraum noch ein
+      Grundwert. In der Auswertung erscheint sie damit ohne Soll und ohne
+      Verdienst.
+    </p>
+    {% endif %}
 
+    {# Die Bewilligungen stehen oben: sie sind der Kern, nicht der Name. #}
     <div class="konto-block">
       <span class="konto-blocktitel">Bewilligte Zeiträume</span>
       <p class="klein leise felderklaerung">{{ t("einst.zeitraum_hinweis") }}</p>
@@ -450,6 +442,55 @@
         <div class="knopfreihe">
           <button class="knopf" type="submit">Zeitraum hinzufügen</button>
         </div>
+      </form>
+    </div>
+
+    {# Stammdaten stehen bewusst UNTER den Bewilligungen: der Name ändert
+       sich nie, die Bescheide dauernd. Der Grundwert ist nur der
+       Rückfall für Monate ohne Zeitraum und tritt deshalb zurück. #}
+    <div class="konto-block">
+      <span class="konto-blocktitel">Stammdaten</span>
+      <div class="feldreihe">
+        <label class="feld">
+          <span>Name</span>
+          <input type="text" name="name" value="{{ p.name }}"
+                 form="person-f-{{ p.id }}" required>
+        </label>
+        <label class="feld">
+          <span>Grundwert Std/Woche <span class="leise">– Rückfall</span></span>
+          <input type="text" name="wochenstunden" inputmode="decimal"
+                 value="{{ p.wochenstunden | stunden }}"
+                 form="person-f-{{ p.id }}">
+        </label>
+        <label class="feld">
+          <span>Grundwert Satz in € <span class="leise">– Rückfall</span></span>
+          <input type="text" name="stundensatz" inputmode="decimal"
+                 value="{{ ('%.2f' % p.stundensatz) | replace('.', ',') if p.stundensatz else '' }}"
+                 placeholder="0,00" form="person-f-{{ p.id }}">
+        </label>
+      </div>
+      <p class="klein leise felderklaerung">{{ t("einst.grundwert_hinweis") }}</p>
+      <div class="bereichsraster">
+        <label class="bereich-kachel">
+          <input type="checkbox" name="abrechenbar" value="1"
+                 {{ 'checked' if p.abrechenbar }} form="person-f-{{ p.id }}">
+          Zeiten sind abrechenbar
+        </label>
+        <label class="bereich-kachel">
+          <input type="checkbox" name="aktiv" value="1"
+                 {{ 'checked' if p.aktiv }} form="person-f-{{ p.id }}">
+          Person aktiv
+        </label>
+      </div>
+    </div>
+
+    {# Eine Knopfzeile, ganz unten, und „entfernen“ rechts abgesetzt -
+       mitten in der Karte sah sie aus wie ein vergessener Rest. #}
+    <div class="knopfreihe konto-fuss">
+      <button class="knopf haupt" type="submit" form="person-f-{{ p.id }}">speichern</button>
+      <form class="inline entfernen-rechts" action="/einstellungen/person/{{ p.id }}/loeschen" method="post"
+            onsubmit="return confirm('{{ p.name }} aus den Stammdaten entfernen? Erfasste Zeiten bleiben erhalten, die hinterlegten Zeiträume nicht.')">
+        <button class="knopf warn" type="submit">entfernen</button>
       </form>
     </div>
     </div>

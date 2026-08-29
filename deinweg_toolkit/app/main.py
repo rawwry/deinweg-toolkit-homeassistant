@@ -18,7 +18,8 @@ import secrets
 import tempfile
 from urllib.parse import urlencode
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import (FastAPI, File, Form, HTTPException, Query, Request,
+                     UploadFile)
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -36,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.4.4"
+VERSION = "1.5"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -763,6 +764,18 @@ def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
     von_jahr, von_monat = str(von_jahr or "").strip(), str(von_monat or "").strip()
     bis_jahr, bis_monat = str(bis_jahr or "").strip(), str(bis_monat or "").strip()
 
+    # "klient" nimmt seit 1.5 mehrere Namen entgegen - man wertet oft zwei
+    # oder drei Betreute zusammen aus. Ein einzelner String kommt weiterhin
+    # an (alte Lesezeichen, Links aus anderen Seiten) und wird hier zur
+    # Liste mit einem Element.
+    if isinstance(klient, str):
+        klienten_filter = [klient.strip()] if klient.strip() else []
+    else:
+        klienten_filter = [str(k).strip() for k in (klient or []) if str(k).strip()]
+    # Reihenfolge stabil halten, Dubletten raus - sonst steht derselbe Name
+    # zweimal in der Chipleiste.
+    klienten_filter = list(dict.fromkeys(klienten_filter))
+
     # Teilangaben sinnvoll ergänzen: ein Jahr ohne Monat meint das ganze Jahr.
     von = f"{von_jahr}-{von_monat or '01'}" if von_jahr else ""
     bis = f"{bis_jahr}-{bis_monat or '12'}" if bis_jahr else ""
@@ -788,8 +801,10 @@ def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
         wo.append("substr(monat, 6, 2)<=?"); werte.append(nur_monate[1])
     if mitarbeiter:
         wo.append("mitarbeiter=?"); werte.append(mitarbeiter)
-    if klient:
-        wo.append("klient=?"); werte.append(klient)
+    if klienten_filter:
+        platzhalter = ",".join("?" * len(klienten_filter))
+        wo.append(f"klient IN ({platzhalter})")
+        werte += klienten_filter
     if import_id:
         wo.append("import_id=?"); werte.append(import_id)
     if nur_abrechenbar:
@@ -825,14 +840,21 @@ def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
 
     felder = {"von_jahr": von_jahr, "von_monat": von_monat,
               "bis_jahr": bis_jahr, "bis_monat": bis_monat,
-              "mitarbeiter": mitarbeiter, "klient": klient, "q": q,
+              "mitarbeiter": mitarbeiter,
+              # "klient" bleibt ein einzelner Wert (fuer Links und die
+              # alte Schreibweise), "klienten" ist die vollstaendige Liste.
+              "klient": klienten_filter[0] if len(klienten_filter) == 1 else "",
+              "klienten": klienten_filter, "q": q,
               "import_id": import_id or "", "nur_abrechenbar": nur_abrechenbar}
 
     aktive = []
     if von or bis or nur_monate[0] or nur_monate[1]:
         aktive.append(("Zeitraum", wort))
-    if klient:
-        aktive.append(("Betreute Person", klient))
+    if len(klienten_filter) == 1:
+        aktive.append(("Betreute Person", klienten_filter[0]))
+    elif klienten_filter:
+        aktive.append((f"{len(klienten_filter)} betreute Personen",
+                       ", ".join(klienten_filter)))
     if mitarbeiter:
         aktive.append(("Mitarbeiter", mitarbeiter))
     if q:
@@ -846,7 +868,13 @@ def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
         "wo": " AND ".join(wo), "werte": werte,
         "von": von, "bis": bis, "wort": wort, "nur_monate": nur_monate,
         "f": felder, "aktive": aktive,
-        "query": urlencode({k: v for k, v in felder.items() if v}),
+        # doseq, damit mehrere Namen als eigene klient=-Parameter
+        # herauskommen und nicht als ein String mit Kommas.
+        "query": urlencode(
+            {k: v for k, v in felder.items()
+             if v and k not in ("klient", "klienten")}
+            | ({"klient": klienten_filter} if klienten_filter else {}),
+            doseq=True),
     }
 
 
@@ -929,7 +957,7 @@ def darf_eintrag_bearbeiten(benutzer, eintrag_mitarbeiter: str,
 @app.get("/eintraege", response_class=HTMLResponse)
 def eintraege(request: Request, von_jahr: str = "", von_monat: str = "",
               bis_jahr: str = "", bis_monat: str = "", mitarbeiter: str = "",
-              klient: str = "", q: str = "", import_id: int = 0,
+              klient: list[str] = Query([]), q: str = "", import_id: int = 0,
               nur_abrechenbar: str = "", seite_nr: int = 1, hinweis: str = ""):
     filter_ = bereichsfilter(von_jahr, von_monat, bis_jahr, bis_monat,
                              mitarbeiter, klient, q, import_id, nur_abrechenbar)
@@ -1301,7 +1329,8 @@ def erfassung_speichern(mitarbeiter: str = Form(""),
 @app.get("/auswertung", response_class=HTMLResponse)
 def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
                bis_jahr: str = "", bis_monat: str = "", mitarbeiter: str = "",
-               klient: str = "", q: str = "", nur_abrechenbar: str = ""):
+               klient: list[str] = Query([]), q: str = "",
+               nur_abrechenbar: str = ""):
     filter_ = bereichsfilter(von_jahr, von_monat, bis_jahr, bis_monat,
                              mitarbeiter, klient, q, nur_abrechenbar=nur_abrechenbar)
 
@@ -2054,7 +2083,8 @@ def exportname(filter_: dict, endung: str) -> str:
 
 @app.get("/export.xlsx")
 def export_xlsx(von_jahr: str = "", von_monat: str = "", bis_jahr: str = "",
-                bis_monat: str = "", mitarbeiter: str = "", klient: str = "",
+                bis_monat: str = "", mitarbeiter: str = "",
+                klient: list[str] = Query([]),
                 q: str = "", import_id: int = 0, nur_abrechenbar: str = ""):
     filter_ = bereichsfilter(von_jahr, von_monat, bis_jahr, bis_monat,
                              mitarbeiter, klient, q, import_id, nur_abrechenbar)
@@ -2068,7 +2098,8 @@ def export_xlsx(von_jahr: str = "", von_monat: str = "", bis_jahr: str = "",
 
 @app.get("/export.csv")
 def export_csv(von_jahr: str = "", von_monat: str = "", bis_jahr: str = "",
-               bis_monat: str = "", mitarbeiter: str = "", klient: str = "",
+               bis_monat: str = "", mitarbeiter: str = "",
+               klient: list[str] = Query([]),
                q: str = "", import_id: int = 0, nur_abrechenbar: str = ""):
     import csv as csvmod
     filter_ = bereichsfilter(von_jahr, von_monat, bis_jahr, bis_monat,

@@ -346,8 +346,71 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
 }
 .filter-umschalter:hover { border-color: var(--akzent); }
 
-.filter-knoepfe { display: flex; gap: 8px; flex: 1 0 100%;
-                  justify-content: flex-start; padding-top: 2px; }
+/* Schalter und Knöpfe stehen in einer eigenen Zeile unter den Feldern,
+   durch eine feine Linie abgesetzt. Zwischen den Auswahlfeldern sah die
+   Pille wie ein vergessenes Feld aus und rutschte je nach Umbruch mal
+   ans Zeilenende, mal mittendrin. */
+.filter-fuss {
+  flex: 1 0 100%; display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 14px; margin-top: 2px; border-top: 1px solid var(--linie);
+}
+/* Links das Kriterium, rechts die Aktion. Der Schalter gehört inhaltlich
+   zu den Feldern darüber, die Knöpfe schließen das Formular ab. */
+.filter-knoepfe { display: flex; gap: 8px; margin-left: auto; }
+
+/* ⚠️ Die Filterkarte darf nicht klemmen: .karte steht auf
+   overflow-x: auto, und das macht (nach CSS-Regel) auch die senkrechte
+   Achse zu einem Scroll-Container - die aufgeklappte Namensliste wurde
+   dadurch abgeschnitten. Diese eine Karte trägt nichts Breites. */
+.karte:has(.filter) { overflow: visible; }
+
+/* --- Mehrfachauswahl im Filter ------------------------------------------
+   Mehrere Betreute auf einmal. Bewusst <details> mit Kästchen und kein
+   <select multiple>: das verlangt Strg-Klick und weiß niemand. Das Feld
+   sieht aus wie die Auswahlfelder daneben, damit die Zeile ruhig bleibt.
+*/
+.filterwahl { flex: 1 1 180px; min-width: 0; position: relative; }
+.filterwahl-titel {
+  display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px;
+}
+.wahlliste > summary {
+  list-style: none; cursor: pointer;
+  padding: 9px 30px 9px 11px; border-radius: 8px;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+  font-size: 14px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; position: relative;
+}
+.wahlliste > summary::-webkit-details-marker { display: none; }
+.wahlliste > summary::marker { content: ""; }
+/* Eigenes Pfeilchen, damit das Feld wie ein <select> aussieht. */
+.wahlliste > summary::after {
+  content: ""; position: absolute; right: 12px; top: 50%;
+  width: 7px; height: 7px; margin-top: -5px;
+  border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor;
+  transform: rotate(45deg); opacity: .55;
+}
+.wahlliste[open] > summary::after { margin-top: -2px; transform: rotate(225deg); }
+.wahlliste > summary:hover { border-color: var(--akzent); }
+.filterwahl.gesetzt .wahlliste > summary {
+  border-color: var(--akzent); color: var(--akzent);
+}
+/* Das Feld liegt über dem Inhalt statt ihn wegzuschieben – sonst
+   sprängen beim Aufklappen alle Felder daneben eine Zeile tiefer. */
+.wahlliste-panel {
+  position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px);
+  max-height: 300px; overflow-y: auto; padding: 6px;
+  border: 1px solid var(--linie-stark); border-radius: 10px;
+  background: var(--flaeche); box-shadow: 0 12px 28px rgba(0, 0, 0, .35);
+  min-width: 230px;
+}
+.wahlzeile {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 9px; border-radius: 7px; cursor: pointer; font-size: 13.5px;
+}
+.wahlzeile:hover { background: var(--flaeche-2); }
+.wahlzeile input { accent-color: var(--akzent); margin: 0; flex: 0 0 auto; }
+.wahlzeile:has(input:checked) { color: var(--akzent); font-weight: 600; }
 
 .knopf {
   display: inline-block; padding: 9px 16px; border-radius: 8px; cursor: pointer;
@@ -1755,43 +1818,42 @@ body.anmeldeseite {
 /* Die linke Spalte ist schmaler als die Seite – acht Spalten passen dort
    nicht mehr in Prozent. Feste Breiten, und die Tabelle rollt in ihrer
    Hülle, sobald es eng wird. */
-/* ⚠️ Die Breiten sind so gewählt, dass bei min-width (also im engsten
-   Fall, wenn die Tabelle rollt) jeder Spaltentitel und jeder Wert in
-   seine Zelle passt. Bei mehr Platz verteilt der Browser den Rest
-   proportional. Wer hier kürzt, muss die Titel mitkürzen — und die
-   Maßangabe steht bewusst auf einer zweiten Zeile im Kopf, damit sie
-   die Spalte NICHT breiter macht (siehe th .massangabe). */
-.auswertungsblatt { min-width: 656px; }
-.auswertungsblatt th:nth-child(1) { width: 140px; }
-.auswertungsblatt th:nth-child(2) { width: 56px; }
-.auswertungsblatt th:nth-child(3) { width: 86px; }
-.auswertungsblatt th:nth-child(4) { width: 86px; }
-.auswertungsblatt th:nth-child(5) { width: 100px; }
-.auswertungsblatt th:nth-child(6) { width: 70px; }
-/* ⚠️ Reichlich bemessen, und das mit Absicht: in der Summenzeile stehen
-   sechsstellige Beträge („178.980,66 €“). Passte der Betrag nicht in
-   seine Zelle, lief er darüber hinaus - und weil die Zelle nicht
-   umbrechen darf, wuchs damit die Rollbreite der ganzen Tabelle. Genau
-   daher kam der seitliche Rollbalken, der auch bei breitem Fenster
-   blieb. */
-.auswertungsblatt th:last-child   { width: 118px; }
+/* ⚠️ Diese eine Tabelle steht auf table-layout: AUTO, nicht auf fixed.
+   Das ist die Ausnahme im Programm und hat einen Grund: bei fixed muss
+   man jede Spaltenbreite in Pixeln raten, und rät man zu knapp, läuft
+   eine nicht umbrechende Zelle (ein Betrag, ein Spaltentitel) über ihren
+   Rand hinaus und vergrößert damit die Rollbreite der ganzen Tabelle -
+   ein seitlicher Rollbalken, der auch bei breitem Fenster bleibt. Genau
+   das ist hier dreimal passiert, zuletzt weil die Schrift auf einem
+   anderen Rechner ein paar Pixel breiter läuft als hier gemessen.
+   Mit auto rechnet der Browser die Breiten selbst aus dem Inhalt: die
+   Tabelle füllt ihre Karte, solange es geht, und rollt erst, wenn der
+   Inhalt wirklich nicht mehr hineinpasst. Kein Raten mehr.
+   Nur die Namensspalte bekommt einen Hinweis, damit sie sich nicht den
+   ganzen Platz nimmt. */
+.tabellenrolle .liste.auswertungsblatt { table-layout: auto; min-width: 0; }
+.auswertungsblatt th:first-child { width: 22%; }
+.auswertungsblatt th:nth-child(2) { width: 7%; }
 .tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }
-/* ⚠️ Die Spaltentitel dürfen hier umbrechen – aber nur an Leerzeichen.
-   .tabellenrolle setzt sonst overflow-wrap: anywhere, und dann zerfiel
-   „Abweichung“ in „ABWEICHU / NG“. Die Spaltenbreiten sind so gewählt,
-   dass jedes einzelne Wort in seine Spalte passt; nur „Betreute Person“
-   bricht absichtlich an seinem Leerzeichen um. */
-.tabellenrolle .liste.auswertungsblatt th {
+/* „Betreute Person“ darf als einziger Titel an seinem Leerzeichen
+   umbrechen - sonst nimmt die Spalte zu viel Breite. Innerhalb eines
+   Wortes wird nie getrennt („ABWEICHU / NG“ war schon einmal da). */
+.tabellenrolle .liste.auswertungsblatt th:first-child {
+  white-space: normal; overflow-wrap: normal; word-break: normal;
+}
+.tabellenrolle .liste.auswertungsblatt td:first-child {
   white-space: normal; overflow-wrap: normal; word-break: normal;
 }
 /* In den Zellen steht seit 1.4.3 keine Marke mehr („Grundwert“,
-   „gestaffelt“): sie zwang jede zweite Zeile zum Umbruch und machte die
-   Spalte „Bewilligt“ unnötig breit. Nur die Abweichungspille bleibt, und
-   die passt. Beträge bleiben ausdrücklich einzeilig — „4.022,58 €“ über
-   zwei Zeilen ist keine Zahl mehr. */
+   „gestaffelt“): sie zwang jede zweite Zeile zum Umbruch. Nur die
+   Abweichungspille bleibt. Beträge und Zeiten bleiben einzeilig —
+   „4.022,58 €“ über zwei Zeilen ist keine Zahl mehr. Bei table-layout:
+   auto ist das ungefährlich: der Browser gibt der Spalte dann eben die
+   Breite, die sie braucht, statt den Inhalt überlaufen zu lassen. */
 .tabellenrolle .liste.auswertungsblatt .marke-status { white-space: nowrap; }
 .tabellenrolle .liste.auswertungsblatt td.betrag,
-.tabellenrolle .liste.auswertungsblatt td.zahlen { white-space: nowrap; }
+.tabellenrolle .liste.auswertungsblatt td.zahlen,
+.tabellenrolle .liste.auswertungsblatt th { white-space: nowrap; }
 
 /* --- Maßangaben ---------------------------------------------------------
    Einheiten sollen lesbar sein, aber nicht mit der Zahl um Aufmerksamkeit
@@ -1830,6 +1892,21 @@ body.anmeldeseite {
    und „Verdienst“ sonst je gut 70px, und „8.488,58 €“ lief aus der
    Zelle in die Nachbarspalte. */
 
+
+/* --- Betreute Personen: Bewilligungsstand ------------------------------- */
+/* Eine Person ohne gültige Bewilligung wird links rot markiert. Sie ist
+   der Grund, warum eine Auswertung nicht mehr stimmt, und muss deshalb
+   in der Liste sofort auffallen - nicht erst beim Aufklappen. */
+.konto.person.ohne-bewilligung { border-left: 3px solid var(--dopp); }
+.konto.person .konto-daten {
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.konto.person .konto-daten .marke-status { padding: 3px 9px; font-size: 11px; }
+.bewilligungswarnung { margin: 14px 0 0; }
+/* „entfernen“ rückt nach rechts ab - es soll nicht neben „speichern“
+   stehen wie eine gleichwertige zweite Möglichkeit. Der Selektor ist
+   bewusst so lang: .knopfreihe form setzt margin: 0 und gewinnt sonst. */
+.knopfreihe form.entfernen-rechts { margin-left: auto; }
 
 /* --- Bewilligte Zeiträume je betreuter Person --------------------------- */
 

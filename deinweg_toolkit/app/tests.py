@@ -20,6 +20,7 @@ Bestand.
 from __future__ import annotations
 
 import os
+import datetime as dt
 import re
 import shutil
 import sys
@@ -1399,8 +1400,15 @@ def test_marke(client: TestClient) -> None:
            in einzeilig,
            "ihre Spaltentitel dürfen dort umbrechen")
     # Dasselbe für die Tabellen der Auswertung - acht Spalten.
-    pruefe(".auswertungsblatt { min-width:" in einzeilig,
-           "die Tabellen der Auswertung rollen in ihrer Hülle")
+    # ⚠️ Diese eine Tabelle steht auf table-layout: auto. Bei fixed muss
+    # man jede Spaltenbreite raten, und eine zu knapp geratene Spalte
+    # laesst eine nicht umbrechende Zelle ueberlaufen - genau daher kamen
+    # die seitlichen Rollbalken, die auch bei breitem Fenster blieben.
+    pruefe("liste.auswertungsblatt { table-layout: auto;" in einzeilig,
+           "die Auswertungstabelle rechnet ihre Spalten aus dem Inhalt")
+    pruefe(".tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }"
+           in einzeilig,
+           "und rollt in ihrer Hülle, wenn es wirklich zu eng wird")
     # Die linke Spalte braucht min-width: 0, sonst sprengen die rollenden
     # Tabellen darin das Raster.
     pruefe(re.search(r"\.auswertunghaupt\s*\{[^}]*min-width:\s*0", stil)
@@ -1983,6 +1991,117 @@ def test_monatsbloecke(client: TestClient) -> None:
     pruefe(">Grundwert<" in seite,
            "ein Monat ohne Zeitraum ist als Grundwert markiert")
     pruefe("40,00 €" in seite, "und rechnet mit dem Grundsatz")
+
+
+def test_mehrere_betreute(client: TestClient) -> None:
+    """Der Filter der Auswertung nimmt mehrere Betreute auf einmal."""
+    abschnitt("Filter: mehrere Betreute")
+    with db.db() as con:
+        for name in ("Filter Eins", "Filter Zwei", "Filter Drei"):
+            con.execute("INSERT OR IGNORE INTO person (name, wochenstunden, "
+                        "stundensatz, aktiv, abrechenbar, angelegt_am) "
+                        "VALUES (?,4,50,1,1,'2025-01-01 08:00')", (name,))
+        for nr, name in enumerate(("Filter Eins", "Filter Zwei", "Filter Drei"), 1):
+            con.execute(
+                "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+                "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+                "angelegt_am) VALUES ('pruefer','2025-05-05','2025-05','09:00',"
+                "'10:00',?,'Besuch',60,1,?,'2025-05-05 09:00')",
+                (name, f"fi{nr}"))
+
+    def tabelle(html):
+        # Nur der Tabellenkörper - im Filter stehen ohnehin alle Namen als
+        # Kästchen, danach kann man nicht prüfen.
+        return html.split("<tbody>")[1].split("</tbody>")[0]
+
+    zwei = client.get("/auswertung?klient=Filter+Eins&klient=Filter+Zwei").text
+    körper = tabelle(zwei)
+    pruefe("Filter Eins" in körper and "Filter Zwei" in körper,
+           "beide gewählten Personen stehen in der Auswertung")
+    pruefe("Filter Drei" not in körper, "die dritte nicht")
+    pruefe("2 betreute Personen" in zwei,
+           "die Chipleiste nennt die Zahl der Personen")
+
+    einer = tabelle(client.get("/auswertung?klient=Filter+Eins").text)
+    pruefe("Filter Zwei" not in einer, "eine einzelne Person filtert wie bisher")
+    pruefe("Filter Eins" in einer, "und wird namentlich genannt")
+
+    # Das Auswahlfeld selbst.
+    pruefe('name="klient" value="Filter Eins"' in zwei
+           and 'class="wahlliste"' in zwei,
+           "die Auswahl steht als Kästchenliste im Filter")
+    pruefe(zwei.count('type="checkbox" name="klient"') >= 3,
+           "mit einem Kästchen je Person")
+    pruefe("ausgewählt</summary>" in zwei.replace("\n", "").replace("  ", "")
+           or "2 ausgewählt" in zwei,
+           "und zeigt zugeklappt, wie viele gewählt sind")
+
+    # Auch die Übersicht und der Export folgen der Mehrfachauswahl.
+    liste = tabelle(client.get(
+        "/eintraege?klient=Filter+Eins&klient=Filter+Zwei").text)
+    pruefe("Filter Eins" in liste and "Filter Drei" not in liste,
+           "die Übersicht filtert genauso")
+    csv = client.get("/export.csv?klient=Filter+Eins&klient=Filter+Zwei").text
+    pruefe("Filter Eins" in csv and "Filter Zwei" in csv
+           and "Filter Drei" not in csv,
+           "und der Export nimmt beide mit")
+
+    # Der Schalter steht in einer eigenen Zeile unter den Feldern.
+    pruefe('class="filter-fuss"' in zwei,
+           "Schalter und Knöpfe stehen in einer eigenen Zeile")
+
+
+def test_bewilligungsstand(client: TestClient) -> None:
+    """Eine ausgelaufene Bewilligung muss sofort auffallen."""
+    abschnitt("Bewilligungsstand")
+    heute = dt.date.today()
+    vorbei = (heute - dt.timedelta(days=40)).isoformat()
+    frueher = (heute - dt.timedelta(days=400)).isoformat()
+    kuenftig_von = (heute + dt.timedelta(days=30)).isoformat()
+
+    client.post("/einstellungen/person", data={
+        "name": "Abgelaufen Anton", "wochenstunden": "0", "stundensatz": "0",
+        "abrechenbar": "1"})
+    client.post("/einstellungen/person", data={
+        "name": "Kuenftig Karla", "wochenstunden": "0", "stundensatz": "0",
+        "abrechenbar": "1"})
+    client.post("/einstellungen/person", data={
+        "name": "Laufend Lena", "wochenstunden": "0", "stundensatz": "0",
+        "abrechenbar": "1"})
+    with db.db() as con:
+        ids = {r["name"]: r["id"] for r in con.execute(
+            "SELECT id, name FROM person WHERE name IN "
+            "('Abgelaufen Anton','Kuenftig Karla','Laufend Lena')")}
+    client.post(f"/einstellungen/person/{ids['Abgelaufen Anton']}/zeitraum",
+                data={"von": frueher, "bis": vorbei, "wochenstunden": "4",
+                      "stundensatz": "60"})
+    client.post(f"/einstellungen/person/{ids['Kuenftig Karla']}/zeitraum",
+                data={"von": kuenftig_von, "wochenstunden": "4",
+                      "stundensatz": "60"})
+    client.post(f"/einstellungen/person/{ids['Laufend Lena']}/zeitraum",
+                data={"von": frueher, "wochenstunden": "4", "stundensatz": "60"})
+
+    seite = client.get("/einstellungen?bereich=betreute").text
+    pruefe("Bewilligung ausgelaufen" in seite,
+           "eine ausgelaufene Bewilligung wird benannt")
+    pruefe("gilt erst ab" in seite,
+           "ein noch nicht begonnener Zeitraum ebenfalls")
+    pruefe(">gültig<" in seite, "ein laufender wird als gültig ausgewiesen")
+    pruefe("ohne-bewilligung" in seite,
+           "die betroffene Zeile ist markiert")
+    pruefe("ohne gültige Bewilligung" in seite,
+           "und oben steht, wie viele betroffen sind")
+
+    # Der ausdrückliche Hinweis im aufgeklappten Block.
+    offen = client.get(
+        f"/einstellungen?bereich=betreute&offen={ids['Abgelaufen Anton']}").text
+    pruefe("bewilligungswarnung" in offen,
+           "im aufgeklappten Block steht die Warnung ausdrücklich")
+
+    # Ein Zeitraum ohne Ende gilt weiter - keine Warnung.
+    zeile = seite.split("Laufend Lena")[1][:400]
+    pruefe("Bewilligung ausgelaufen" not in zeile,
+           "ein Zeitraum ohne Ende löst keine Warnung aus")
 
 
 def test_versionen() -> None:
@@ -2702,6 +2821,8 @@ def _durchlauf(client: TestClient) -> None:
         test_kontingent_zeitraeume(client)
         test_zeitraum_rechte(client)
         test_monatsbloecke(client)
+        test_mehrere_betreute(client)
+        test_bewilligungsstand(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")

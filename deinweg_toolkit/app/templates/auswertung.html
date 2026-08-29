@@ -36,7 +36,9 @@
     <p class="boxumfang">
       <strong>{{ zeitraum_wort }}</strong>
       {%- if monate_anzahl > 1 %} · {{ monate_anzahl }} Monate{% endif %}
-      {%- if f.klient %} · nur <strong>{{ f.klient }}</strong>{% else %} · alle betreuten Personen{% endif %}
+      {%- if f.klienten | length == 1 %} · nur <strong>{{ f.klienten[0] }}</strong>
+      {%- elif f.klienten %} · nur <strong>{{ f.klienten | join(", ") }}</strong>
+      {%- else %} · alle betreuten Personen{% endif %}
       {%- if f.mitarbeiter %} · nur Zeiten von <strong>{{ f.mitarbeiter }}</strong>{% endif %}
     </p>
   </div>

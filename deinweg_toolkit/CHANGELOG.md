@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.5
+
+- Auswertung: mehrere betreute Personen gleichzeitig filtern
+- Filterbereich aufgeräumt, „nur abrechenbare Zeiten" in eigener Zeile
+- Einstellungen → Betreute Personen: Bewilligungsstand je Person
+  („gültig", „ausgelaufen", „gilt erst ab …"), Zähler über der Liste
+- Zeiträume oben, Stammdaten darunter, eine Knopfzeile ganz unten
+- Rollbalken der Auswertung endgültig weg (Spaltenbreiten aus dem Inhalt)
+
 ## 1.4.4
 
 - Spalte „Mitarbeiter" aus den Auswertungstabellen entfernt
