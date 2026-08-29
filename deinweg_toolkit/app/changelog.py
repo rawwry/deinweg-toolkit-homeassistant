@@ -939,4 +939,15 @@ CHANGELOG = [
         "Der Knopf „Zurücksetzen“ im Filterhinweis geht am Handy nicht "
         "mehr über die ganze Breite",
     ]},
+    {"version": "1.1.2", "titel": "Umbrüche im Wiki, weniger Hinweistexte", "punkte": [
+        "Wiki: Ein Zeilenumbruch im Text ist jetzt auch einer in der "
+        "Anzeige. Bisher lief ein Absatz durch, egal wie man ihn getippt "
+        "hatte – Anschriften und kurze Aufstellungen klebten dadurch in "
+        "einer Zeile",
+        "Wiki: Der Hinweis zum Verschieben per Maus ist entfernt",
+        "Dateien: Die drei Hinweistexte über Ablageort, erlaubte "
+        "Dateiarten und das Ziehen mit der Maus sind entfernt",
+        "„Changelog“ steht nicht mehr als Symbol in der Kopfzeile, "
+        "sondern als Link in der Fußzeile hinter der Versionsnummer",
+    ]},
 ]

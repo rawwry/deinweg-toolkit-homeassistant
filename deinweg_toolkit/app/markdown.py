@@ -223,11 +223,16 @@ def _ist_blockanfang(zeile: str, zeilen: list[str], i: int) -> bool:
 
 
 def _absatz(zeilen: list[str], aufloesen) -> str:
+    # Jeder Zeilenumbruch im Quelltext ist auch einer in der Anzeige.
+    # Klassisches Markdown wuerfe ihn weg und liesse den Absatz
+    # durchlaufen; wer im Wiki eine Anschrift oder eine kurze Aufstellung
+    # tippt, meint aber genau die Zeilen, die er sieht. Die alten Wege
+    # (zwei Leerzeichen oder ein Rueckstrich am Zeilenende) funktionieren
+    # weiterhin, sie sind jetzt nur nicht mehr noetig.
     teile = []
     for nr, z in enumerate(zeilen):
-        umbruch = (z.endswith("  ") or z.endswith("\\")) and nr < len(zeilen) - 1
         teile.append(_inline(z.rstrip("\\").strip(), aufloesen)
-                     + ("<br>" if umbruch else ""))
+                     + ("<br>" if nr < len(zeilen) - 1 else ""))
     return "\n".join(teile)
 
 

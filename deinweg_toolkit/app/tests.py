@@ -1842,7 +1842,10 @@ def test_dateien(client: TestClient) -> None:
            "das Formular fürs Ziehen liegt außerhalb der übrigen Formulare")
     pruefe(seite.count('draggable="true"') >= 2,
            "Einträge lassen sich ziehen")
-    pruefe(d.wurzel() in seite, "der Ablageort steht in der Oberfläche")
+    # Der Ablageort und die beiden anderen Hinweistexte in der
+    # Seitenleiste sind mit 1.1.2 auf Timos Wunsch entfallen.
+    pruefe(d.wurzel() not in seite,
+           "die Hinweistexte in der Seitenleiste sind entfernt")
 
     # --- Von Hand abgelegte Dateien ----------------------------------------
     # Genau der Weg über die Dateifreigabe: etwas liegt einfach im Ordner.
@@ -1944,6 +1947,20 @@ def test_menue_reihenfolge(client: TestClient) -> None:
     pruefe("<h1>Aufgaben</h1>" in client.get("/vorgaenge").text,
            "die Seite selbst heißt ebenfalls „Aufgaben“")
 
+    # Der Changelog stand bis 1.1.1 als Symbol in der Kopfzeile. Jetzt
+    # haengt er als Link in der Fusszeile hinter der Versionsnummer.
+    from .main import VERSION
+    kopf = seite.split("</header>")[0]
+    fuss = seite.split("<footer>")[1].split("</footer>")[0]
+    pruefe('href="/changelog"' not in kopf,
+           "der Changelog steht nicht mehr in der Kopfzeile")
+    pruefe('href="/changelog"' in fuss,
+           "der Changelog steht in der Fußzeile")
+    pruefe(fuss.index(VERSION) < fuss.index('href="/changelog"'),
+           "und zwar hinter der Versionsnummer")
+    pruefe(client.get("/changelog").status_code == 200,
+           "die Changelog-Seite ist weiterhin erreichbar")
+
 
 def test_markdown() -> None:
     """Der eigene Markdown-Wandler - er ersetzt eine Bibliothek und muss
@@ -1955,6 +1972,16 @@ def test_markdown() -> None:
     pruefe("<em>kursiv</em>" in html and "<strong>fett</strong>" in html,
            "kursiv und fett")
     pruefe("<code>code</code>" in html, "Code im Fließtext")
+
+    # Seit 1.1.2 ist jeder Zeilenumbruch im Quelltext auch einer in der
+    # Anzeige. Vorher lief der Absatz durch.
+    html = str(md.zu_html("Musterweg 1\n12345 Musterstadt\n"))
+    pruefe("<br>" in html, "ein einfacher Zeilenumbruch wird angezeigt")
+    pruefe(html.count("<p>") == 1,
+           "die Zeilen bleiben trotzdem ein Absatz")
+    html = str(md.zu_html("Erster Absatz.\n\nZweiter Absatz.\n"))
+    pruefe(html.count("<p>") == 2 and "<br>" not in html,
+           "eine Leerzeile trennt weiterhin zwei Absätze")
 
     html = str(md.zu_html("- eins\n- zwei\n  - zwei a\n"))
     pruefe(html.count("<ul>") == 2 and html.count("<li>") == 3,

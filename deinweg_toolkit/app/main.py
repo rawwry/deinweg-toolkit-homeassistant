@@ -36,7 +36,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -62,6 +62,7 @@ templates.env.filters["hhmm"] = hhmm
 templates.env.globals["APP_NAME"] = APP_NAME
 templates.env.globals["VERSION"] = VERSION
 templates.env.globals["t"] = lambda *a, **k: t(*a, **k)
+templates.env.globals["fusstext"] = lambda: fusstext()
 
 
 # --- Anmeldung ---------------------------------------------------------------
@@ -154,6 +155,25 @@ def t(schluessel: str, **platzhalter) -> str:
         except (KeyError, IndexError, ValueError):
             pass
     return Markup(text)
+
+
+def fusstext() -> str:
+    """Der Fusszeilentext, mit dem Changelog-Link hinter der Version.
+
+    Der Link steht bewusst hier und nicht in ``footer.text``: eine schon
+    vorhandene ``strings.txt`` gewinnt gegen die Standardtexte, der Link
+    waere dort also bei jeder bestehenden Installation unsichtbar
+    geblieben. So haengt er am Markup und ist immer da.
+    """
+    roh = str(t("footer.text", version=VERSION))
+    link = ' (<a href="/changelog">Changelog</a>)'
+    # Erst hinter dem schliessenden </span> ansetzen: sonst stuende der
+    # Link innerhalb von .version und waere mitgedaempft. Faellt die
+    # Auszeichnung in einer eigenen strings.txt weg, greift der Rueckfall.
+    if VERSION + "</span>" in roh:
+        return Markup(roh.replace(VERSION + "</span>",
+                                  VERSION + "</span>" + link, 1))
+    return Markup(roh.replace(VERSION, VERSION + link, 1))
 
 
 def strings_anlegen() -> None:

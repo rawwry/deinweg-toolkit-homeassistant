@@ -79,9 +79,6 @@
       {% endif %}
     </nav>
 
-    <p class="klein leise dateiablage">{{ t("dateien.ablage", pfad=ablage) }}</p>
-    <p class="klein leise">{{ t("dateien.erlaubt", endungen=endungen, mb=max_mb) }}</p>
-    <p class="klein leise wiki-ziehhinweis">{{ t("dateien.ziehen") }}</p>
   </aside>
 
   {# --- Hauptbereich --- #}
@@ -97,7 +94,6 @@
           </div>
         </div>
       </div>
-      {% if not brotkrumen %}<p class="lead">{{ t("dateien.lead") }}</p>{% endif %}
 
       {% if not unterordner and not dateien %}
       <p class="leer">{{ t("dateien.leer") }}</p>

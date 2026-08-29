@@ -3,6 +3,16 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.1.2
+
+- Wiki: Zeilenumbrüche aus der Markdown-Datei erscheinen jetzt auch in
+  der Anzeige
+- Wiki: Hinweis zum Verschieben per Maus entfernt
+- Dateien: Hinweistexte über Ablageort, erlaubte Dateiarten und Ziehen
+  entfernt
+- „Changelog“ vom Kopfzeilen-Symbol in die Fußzeile verschoben, hinter
+  die Versionsnummer
+
 ## 1.1.1
 
 - Mobiles Menü wieder bedienbar (lag hinter dem Abdunkler)
