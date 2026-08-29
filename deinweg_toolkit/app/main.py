@@ -36,7 +36,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.3"
+VERSION = "1.4"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1314,13 +1314,16 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
             filter_["werte"]).fetchall()
         # Zusaetzlich monatsweise: Wochenstunden und Stundensatz koennen sich
         # innerhalb des Auswertungszeitraums geaendert haben, der Verdienst
-        # muss deshalb Monat fuer Monat gerechnet werden.
-        je_monat: dict[str, dict[str, int]] = {}
+        # muss deshalb Monat fuer Monat gerechnet werden. Dieselben Zahlen
+        # tragen weiter unten die Monatsbloecke.
+        je_monat: dict[str, dict[str, dict]] = {}
         for r in con.execute(
-                f"SELECT klient, monat, SUM(dauer_min) m FROM eintrag "
+                f"SELECT klient, monat, COUNT(*) n, SUM(dauer_min) m, "
+                f"GROUP_CONCAT(DISTINCT mitarbeiter) leute FROM eintrag "
                 f"WHERE {filter_['wo']} GROUP BY klient, monat",
                 filter_["werte"]):
-            je_monat.setdefault(r["klient"], {})[r["monat"]] = r["m"] or 0
+            je_monat.setdefault(r["klient"], {})[r["monat"]] = {
+                "n": r["n"], "m": r["m"] or 0, "leute": r["leute"] or ""}
         stamm = {r["name"]: r for r in con.execute(
             "SELECT name, wochenstunden, stundensatz FROM person WHERE aktiv=1")}
         zeitraeume = zeitraeume_lesen(con)
@@ -1360,11 +1363,11 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
 
         # Verdienst: die Minuten JEDES Monats mit dem Satz dieses Monats.
         betrag, satz_stufen = 0.0, set()
-        for monat, minuten in (je_monat.get(r["klient"]) or {}).items():
+        for monat, daten in (je_monat.get(r["klient"]) or {}).items():
             _std, satz, _ = kontingent_im_monat(monat, zr, grund_std, grund_satz)
-            if satz and minuten:
+            if satz and daten["m"]:
                 satz_stufen.add(satz)
-                betrag += minuten / 60 * satz
+                betrag += daten["m"] / 60 * satz
         if len(std_stufen) > 1 or len(satz_stufen) > 1:
             gestaffelt = True
 
@@ -1395,6 +1398,73 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
     stand.sort(key=lambda r: r["prozent"])
     verdienst.sort(key=lambda r: -r["betrag"])
 
+    # --- Monat für Monat ----------------------------------------------------
+    #
+    # Die Boxen oben fassen den ganzen Zeitraum zusammen. Fuer einen
+    # Nachweis gegenueber dem Kostentraeger braucht es aber den einzelnen
+    # Monat: was wurde geleistet, was ist daraus verdient, und mit welchem
+    # Satz - der kann sich mitten im Zeitraum geaendert haben.
+    #
+    # Bewusst chronologisch aufsteigend: so liest sich der Block wie ein
+    # Nachweis und nicht wie ein Postfach.
+    #
+    # Monate ohne erfasste Zeiten bleiben stehen, solange fuer sie ein Soll
+    # gilt. Genau die will man sehen - eine Luecke faellt sonst nicht auf.
+    monatsbloecke = []
+    for monat in monate:
+        zeilen, m_ist, m_soll, m_betrag, m_n = [], 0, 0, 0.0, 0
+        for r in roh:
+            klient = r["klient"]
+            p = stamm.get(klient)
+            zr = zeitraeume.get(klient, [])
+            std, satz, aus_zeitraum = kontingent_im_monat(
+                monat, zr, p["wochenstunden"] if p else 0,
+                p["stundensatz"] if p else 0)
+            daten = (je_monat.get(klient) or {}).get(monat)
+            ist = daten["m"] if daten else 0
+            anzahl = daten["n"] if daten else 0
+            soll = soll_minuten(std, monat) or 0
+            if not ist and not soll:
+                # Weder gearbeitet noch beauftragt - diese Zeile traegt nichts.
+                continue
+            zeilenbetrag = ist / 60 * satz if (satz and ist) else 0.0
+            leute = sorted({t.strip() for t in (daten["leute"] if daten else "").split(",")
+                            if t.strip()})
+            zeilen.append({
+                "klient": klient, "n": anzahl, "m": ist, "soll": soll or None,
+                "abweichung": (ist - soll) if soll else None,
+                "satz": satz, "wochenstunden": std,
+                "aus_zeitraum": aus_zeitraum,
+                "betrag": zeilenbetrag, "leute": leute,
+            })
+            m_ist += ist
+            m_soll += soll
+            m_betrag += zeilenbetrag
+            m_n += anzahl
+        if not zeilen:
+            continue
+        monatsbloecke.append({
+            "monat": monat, "wort": monat_wort(monat), "zeilen": zeilen,
+            "ist": m_ist, "soll": m_soll or None, "betrag": m_betrag, "n": m_n,
+            "abweichung": (m_ist - m_soll) if m_soll else None,
+            "prozent": round(m_ist / m_soll * 100) if m_soll else None,
+            "leer": m_ist == 0,
+        })
+
+    gesamt_ist = sum(r["m"] for r in je_klient)
+    gesamt_soll = sum(b["soll"] or 0 for b in monatsbloecke)
+    zusammenfassung = {
+        "ist": gesamt_ist,
+        "soll": gesamt_soll or None,
+        "abweichung": (gesamt_ist - gesamt_soll) if gesamt_soll else None,
+        "prozent": round(gesamt_ist / gesamt_soll * 100) if gesamt_soll else None,
+        "betrag": verdienst_gesamt,
+        "n": sum(r["n"] for r in je_klient),
+        "monate": len(monate),
+        "monate_mit": sum(1 for b in monatsbloecke if not b["leer"]),
+        "personen": len(je_klient),
+    }
+
     zusatz = auswahllisten()
     return templates.TemplateResponse(request=request, name="auswertung.html", context={
         "je_klient": je_klient, "stand": stand, "verdienst": verdienst,
@@ -1403,6 +1473,7 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         "gesamt": sum(r["m"] for r in je_klient),
         "soll_aktiv": any(r["soll"] for r in je_klient),
         "gestaffelt": gestaffelt,
+        "monatsbloecke": monatsbloecke, "zusammenfassung": zusammenfassung,
         "zeitraum_wort": filter_["wort"], "aktive_filter": filter_["aktive"],
         "f": filter_["f"], "seite": "auswertung", **zusatz})
 

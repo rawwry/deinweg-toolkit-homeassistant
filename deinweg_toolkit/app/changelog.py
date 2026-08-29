@@ -1002,4 +1002,25 @@ CHANGELOG = [
         "hinterlegt sind. Ein Monat mit Stundensatz, aber ohne Kontingent "
         "fiel vorher stillschweigend aus der Summe",
     ]},
+    {"version": "1.4", "titel": "Auswertung Monat für Monat", "punkte": [
+        "Die Auswertung teilt den gewählten Zeitraum jetzt in Monate auf: "
+        "unter den bisherigen Boxen steht je Monat ein eigener Block mit "
+        "dem, was geleistet wurde, was bewilligt war und was daraus "
+        "verdient ist – gerechnet mit dem Stundensatz, der in genau "
+        "diesem Monat galt",
+        "Darüber eine Zusammenfassung über den ganzen gefilterten "
+        "Zeitraum: geleistet, bewilligt, Abweichung, Verdienst und die "
+        "Zahl der Monate",
+        "Monate ohne erfasste Zeiten bleiben stehen, solange für sie "
+        "etwas bewilligt war – eine Lücke fällt sonst nicht auf",
+        "Ein Monat, für den kein Zeitraum hinterlegt ist, wird in der "
+        "Spalte „Bewilligt“ als Grundwert markiert. So hält man einen "
+        "fehlenden Bescheid nicht für eine Bewilligung",
+        "Die Aufteilung erscheint ab zwei Monaten – bei einem einzelnen "
+        "stünde dort dasselbe noch einmal",
+        "Einstellungen → Betreute Personen: die Schalter „Zeiten sind "
+        "abrechenbar“ und „Person aktiv“ klebten am Speichern-Knopf. "
+        "Jetzt haben die drei Lagen Luft voneinander, und die Knopfzeile "
+        "schließt den Block mit einer feinen Linie ab",
+    ]},
 ]

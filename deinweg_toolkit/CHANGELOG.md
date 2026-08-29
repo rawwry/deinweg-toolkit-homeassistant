@@ -3,6 +3,16 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.4
+
+- Auswertung: der gewählte Zeitraum wird in Monatsblöcke aufgeteilt, je
+  mit Geleistet, Bewilligt, Abweichung und Verdienst
+- Jeder Monat rechnet mit dem Stundensatz, der in diesem Monat galt
+- Zusammenfassung über den ganzen Zeitraum darüber
+- Monate ohne erfasste Zeiten bleiben stehen, solange etwas bewilligt war
+- Einstellungen → Betreute Personen: mehr Abstand um die Schalter und die
+  Knopfzeile
+
 ## 1.3
 
 - Bewilligte Zeiträume je betreuter Person: eigene Wochenstunden und

@@ -1636,8 +1636,75 @@ body.anmeldeseite {
    bedienbar, tritt aber zurück. */
 .konto-block.ohne-wirkung .bereichsraster { opacity: .55; }
 .konto-fuss { padding-top: 14px; border-top: 1px solid var(--linie); margin-top: 4px; }
+/* Innerhalb eines aufgeklappten Blocks brauchen die drei Lagen Luft
+   voneinander: Felder, dann die Schalter, dann die Knöpfe. Ohne das
+   klebte „Person aktiv“ direkt über „speichern“ und beides sah aus wie
+   eine einzige Reihe. Die Knopfzeile bekommt zusätzlich eine feine Linie
+   – sie schließt den Block ab, statt in ihm zu schwimmen. */
+.konto-block > .bereichsraster { margin-top: 4px; }
+/* Nur die Knopfzeile des Blocks selbst, nicht die eines Formulars darin
+   (das Anlegen eines Zeitraums bringt seine eigene Trennung mit). */
+.konto-block > .knopfreihe {
+  margin-top: 20px; margin-bottom: 4px;
+  padding-top: 16px; border-top: 1px solid var(--linie);
+}
+/* Die Schalter selbst etwas größer – sie sind hier keine Filterpillen,
+   sondern die zwei Eigenschaften, die man am häufigsten umstellt. */
+.konto-block > .bereichsraster .bereich-kachel { padding: 9px 14px; }
 /* „Oberfläche“ lässt sich nicht abwählen und ist deshalb nur Anzeige. */
 .bereich-kachel.fest { cursor: default; opacity: .7; }
+
+/* --- Auswertung: Monat für Monat ---------------------------------------- */
+/*
+   Ein Block je Monat, untereinander. Der Kopf trägt die Zahlen, nach denen
+   man sucht (geleistet, bewilligt, Abweichung, Verdienst), die Tabelle
+   darunter die Aufschlüsselung je betreuter Person. Bewusst eigene Karten
+   statt einer durchlaufenden Tabelle: über zwölf Monate hinweg fände man
+   in einer Tabelle den Monatswechsel nicht wieder.
+*/
+.monatsblock { padding-top: 16px; padding-bottom: 16px; margin-bottom: 12px; }
+.monatsblock.ohne-zeiten { opacity: .72; }
+.monatsleiste {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 14px 20px; flex-wrap: wrap;
+  padding-bottom: 12px; margin-bottom: 12px;
+  border-bottom: 1px solid var(--linie);
+}
+.monatsleiste h3 { margin: 0; font-size: 17px; }
+.monatswerte {
+  display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap;
+  font-size: 13.5px;
+}
+.mwert { display: inline-flex; align-items: baseline; gap: 7px; }
+.mlabel { font-size: 11.5px; color: var(--leise); text-transform: uppercase;
+          letter-spacing: .05em; }
+.monatsbetrag { font-size: 16px; font-weight: 700; color: var(--akzent);
+                white-space: nowrap; }
+/* Eine Zeile ohne geleistete Zeit tritt zurück – sie steht nur da, damit
+   die Lücke auffällt. Bewusst NICHT .zeile-zu: das ist die grüne Zeile
+   für Erledigtes und hieße hier das Gegenteil. */
+.liste tbody tr.ohne-ist td { color: var(--leise); }
+
+.monatsblatt th:nth-child(1) { width: 20%; }
+.monatsblatt th:nth-child(2) { width: 15%; }
+.monatsblatt th:nth-child(3) { width: 8%; }
+.monatsblatt th:nth-child(4) { width: 12%; }
+.monatsblatt th:nth-child(5) { width: 14%; }
+.monatsblatt th:nth-child(6) { width: 13%; }
+.monatsblatt th:nth-child(7) { width: 9%; }
+.monatsblatt th:last-child   { width: 12%; }
+.tabellenrolle .liste.monatsblatt .marke-status { white-space: nowrap; }
+
+/* Die Verdienst-Kachel der Zusammenfassung trägt die Akzentfarbe – sie
+   ist die Zahl, wegen der man herkommt. */
+.kennzahl.k-verdienst { border-color: var(--akzent); background: var(--akzent-weich); }
+.kennzahl.k-verdienst .kzahl { color: var(--akzent); font-size: 22px; }
+
+@media (max-width: 760px) {
+  .monatsblatt { min-width: 820px; }
+  .tabellenrolle:has(.monatsblatt) { overflow-x: auto; }
+  .tabellenrolle .liste.monatsblatt th { white-space: normal; }
+}
 
 /* --- Bewilligte Zeiträume je betreuter Person --------------------------- */
 

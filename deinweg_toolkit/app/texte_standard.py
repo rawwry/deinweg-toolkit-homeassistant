@@ -32,6 +32,13 @@ TEXTE_STANDARD["auswertung.gestaffelt"] = (
     "Bei mindestens einer Person haben sich Wochenstunden oder "
     "Stundensatz innerhalb des Zeitraums geändert. Gerechnet wird dann "
     "Monat für Monat mit den Werten, die im jeweiligen Monat galten.")
+TEXTE_STANDARD["auswertung.monate_lead"] = (
+    "Darunter steht jeder Monat des gewählten Zeitraums einzeln – mit dem "
+    "Kontingent und dem Stundensatz, die in genau diesem Monat bewilligt "
+    "waren. Monate ohne erfasste Zeiten bleiben stehen, solange für sie "
+    "etwas bewilligt war: eine Lücke fällt sonst nicht auf.")
+TEXTE_STANDARD["auswertung.monat_leer"] = (
+    "In diesem Monat ist nichts erfasst – bewilligt war trotzdem etwas.")
 TEXTE_STANDARD["auswertung.tabelle_leer"] = (
     "Für {zeitraum} sind keine Zeiten erfasst.")
 TEXTE_STANDARD["auswertung.verdienst_hinweis"] = (

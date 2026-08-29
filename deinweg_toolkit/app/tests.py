@@ -1398,6 +1398,9 @@ def test_marke(client: TestClient) -> None:
     pruefe(".tabellenrolle .liste.vorgangstabelle th { white-space: normal; }"
            in einzeilig,
            "ihre Spaltentitel dürfen dort umbrechen")
+    # Dasselbe für die Monatsblöcke der Auswertung - acht Spalten.
+    pruefe(".monatsblatt { min-width:" in einzeilig,
+           "die Monatstabelle der Auswertung rollt am Handy ebenfalls")
 
 
 def test_einstellungen_aufbau(client: TestClient) -> None:
@@ -1837,6 +1840,103 @@ def test_zeitraum_rechte(client: TestClient) -> None:
            "und keiner ändern")
     pruefe(o.post("/einstellungen/person/zeitraum/1/loeschen").status_code == 403,
            "und keiner löschen")
+
+
+def test_monatsbloecke(client: TestClient) -> None:
+    """Die Auswertung teilt den Zeitraum in Monatsblöcke (seit 1.4).
+
+    Für einen Nachweis gegenüber dem Kostenträger reicht die Summe über
+    den ganzen Zeitraum nicht - es zählt der einzelne Monat, und der
+    rechnet mit dem Satz, der in genau diesem Monat bewilligt war.
+    """
+    abschnitt("Auswertung Monat für Monat")
+    from .main import soll_minuten
+    from .parser import hhmm as _hhmm
+
+    client.post("/einstellungen/person", data={
+        "name": "Blockmann", "wochenstunden": "0", "stundensatz": "0",
+        "abrechenbar": "1"})
+    with db.db() as con:
+        pid = con.execute("SELECT id FROM person WHERE name='Blockmann'"
+                          ).fetchone()["id"]
+    client.post(f"/einstellungen/person/{pid}/zeitraum", data={
+        "von": "2024-08-01", "bis": "2025-07-31", "wochenstunden": "4",
+        "stundensatz": "60,49"})
+    client.post(f"/einstellungen/person/{pid}/zeitraum", data={
+        "von": "2025-08-01", "bis": "2026-07-31", "wochenstunden": "3",
+        "stundensatz": "75"})
+    with db.db() as con:
+        for datum, minuten, fp in (("2024-09-10", 120, "bl1"),
+                                   ("2025-09-10", 180, "bl2")):
+            con.execute(
+                "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+                "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+                "angelegt_am) VALUES ('pruefer',?,?, '09:00','11:00',"
+                "'Blockmann','Hausbesuch',?,1,?,?)",
+                (datum, datum[:7], minuten, fp, datum + " 09:00"))
+
+    seite = client.get("/auswertung?von_jahr=2024&von_monat=08"
+                       "&bis_jahr=2025&bis_monat=10&klient=Blockmann").text
+
+    # 15 Monate, jeder mit einem Soll - also 15 Blöcke.
+    pruefe(seite.count('class="karte monatsblock') == 15,
+           f"je Monat ein Block (sind: {seite.count('class=\"karte monatsblock')})")
+    for wort in ("August 2024", "Januar 2025", "Juli 2025", "Oktober 2025"):
+        pruefe(f"<h3>{wort}</h3>" in seite, f"der Block „{wort}“ steht da")
+
+    # Der Monat aus dem ersten Zeitraum: 2 Std zu 60,49 EUR.
+    pruefe("120,98 €" in seite,
+           "September 2024 rechnet mit dem Satz des ersten Zeitraums")
+    # Der Monat aus dem zweiten: 3 Std zu 75 EUR.
+    pruefe("225,00 €" in seite,
+           "September 2025 rechnet mit dem Satz des zweiten Zeitraums")
+    pruefe("345,98 €" in seite, "die Summe stimmt")
+
+    # Ein Monat ohne Zeiten bleibt stehen, solange etwas bewilligt war -
+    # sonst faellt die Luecke nicht auf.
+    pruefe("ohne-zeiten" in seite,
+           "Monate ohne erfasste Zeiten bleiben stehen")
+    pruefe("In diesem Monat ist nichts erfasst" in seite,
+           "und sagen das auch")
+
+    # Das Soll je Monat richtet sich nach dem jeweiligen Zeitraum.
+    pruefe(_hhmm(soll_minuten(4, "2024-09")) in seite
+           and _hhmm(soll_minuten(3, "2025-09")) in seite,
+           "beide Kontingentstufen tauchen als Soll auf")
+
+    # Die Zusammenfassung darüber.
+    pruefe("<h2>Zusammenfassung</h2>" in seite, "es gibt eine Zusammenfassung")
+    gesamt_soll = soll_minuten(4, "2024-09") * 12 + soll_minuten(3, "2025-09") * 3
+    pruefe(_hhmm(gesamt_soll) in seite,
+           f"mit dem Soll über alle Monate ({_hhmm(gesamt_soll)})")
+    pruefe("15 Monate" in seite or ">15<" in seite,
+           "und der Zahl der Monate")
+    pruefe("2 mit Zeiten" in seite,
+           "davon zwei mit erfassten Zeiten")
+
+    # Bei einem einzelnen Monat waere der Block eine Wiederholung.
+    einer = client.get("/auswertung?von_jahr=2024&von_monat=09"
+                       "&bis_jahr=2024&bis_monat=09&klient=Blockmann").text
+    pruefe("monatsblock" not in einer,
+           "bei einem einzigen Monat entfällt die Aufteilung")
+    pruefe("<h2>Zusammenfassung</h2>" not in einer, "und die Zusammenfassung auch")
+
+    # Der Grundwert wird als solcher gekennzeichnet, damit man einen
+    # fehlenden Bescheid nicht für eine Bewilligung hält.
+    client.post("/einstellungen/person", data={
+        "name": "Grundmann", "wochenstunden": "2", "stundensatz": "40",
+        "abrechenbar": "1"})
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2024-09-12','2024-09','09:00',"
+            "'10:00','Grundmann','Besuch',60,1,'gr1','2024-09-12 09:00')")
+    seite = client.get("/auswertung?von_jahr=2024&von_monat=08"
+                       "&bis_jahr=2024&bis_monat=10&klient=Grundmann").text
+    pruefe(">Grundwert<" in seite,
+           "ein Monat ohne Zeitraum ist als Grundwert markiert")
+    pruefe("40,00 €" in seite, "und rechnet mit dem Grundsatz")
 
 
 def test_versionen() -> None:
@@ -2555,6 +2655,7 @@ def _durchlauf(client: TestClient) -> None:
         test_benutzerverwaltung_aufbau(client)
         test_kontingent_zeitraeume(client)
         test_zeitraum_rechte(client)
+        test_monatsbloecke(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")
