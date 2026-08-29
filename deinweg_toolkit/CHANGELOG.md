@@ -3,6 +3,16 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.1.1
+
+- Mobiles Menü wieder bedienbar (lag hinter dem Abdunkler)
+- Keine animierten Linien mehr beim Überfahren der Menüpunkte
+- Anmeldeseite zurück auf die ruhige Fassung aus 1.0.1
+- Excel- und CSV-Knopf über der Trefferliste statt im Filterkasten,
+  beide in derselben Farbe
+- Kleinere Abstandskorrekturen bei der manuellen Zeiterfassung und am
+  Filterhinweis
+
 ## 1.1
 
 - Auslieferung über GitHub: Home Assistant meldet Updates von selbst

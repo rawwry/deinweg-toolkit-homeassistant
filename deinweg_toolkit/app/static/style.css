@@ -144,13 +144,6 @@ body > * { min-width: 0; }
 .kopf nav a:hover { background: var(--flaeche-2); color: var(--tinte); }
 .kopf nav a.aktiv { background: var(--akzent-weich); color: var(--akzent);
                     font-weight: 600; }
-/* Ein schmaler Strich unter dem aktiven Punkt. Die Farbfläche allein
-   trägt bei fünf gleich aussehenden Punkten zu wenig - der Strich sagt
-   auch bei flüchtigem Blick, wo man steht. */
-.kopf nav a.aktiv::after {
-  content: ""; position: absolute; left: 14px; right: 14px; bottom: -13px;
-  height: 2px; border-radius: 2px; background: var(--akzent);
-}
 
 .schalter { margin-left: auto; display: flex; align-items: center; gap: 9px;
             color: var(--leise); font-size: 12.5px; }
@@ -608,17 +601,6 @@ input[type=date], input[type=time] {
   }
   .marke img { animation: marke-rein .55s cubic-bezier(.3, 1.5, .5, 1) backwards; }
 
-  /* Navigation bekommt einen mitwachsenden Unterstrich */
-  .kopf nav a { position: relative; }
-  .kopf nav a::after {
-    content: ""; position: absolute; left: 13px; right: 13px; bottom: 3px; height: 2px;
-    border-radius: 2px; background: var(--akzent);
-    transform: scaleX(0); transform-origin: left center;
-    transition: transform .26s cubic-bezier(.3, 1.4, .5, 1);
-  }
-  .kopf nav a:hover::after { transform: scaleX(1); }
-  .kopf nav a.aktiv::after { transform: scaleX(1); }
-
   /* Statuspillen wippen beim Überfahren */
   .marke-status { transition: transform .22s cubic-bezier(.34, 1.6, .5, 1); }
   .liste tbody tr:hover .marke-status { transform: scale(1.06); }
@@ -668,6 +650,9 @@ input[type=date], input[type=time] {
   text-transform: uppercase; color: var(--leise);
 }
 .erfassreihe-text { margin-top: 2px; }
+/* Die Zeile mit „+ Weitere Zeile“ klebte am Speichern-Knopf darunter.
+   Sie gehört zur Eingabe, nicht zum Abschluss - deshalb Luft dazwischen. */
+#zeilenknopf { margin: 14px 0 20px; }
 .erfassreihe .dauer-anzeige { display: flex; flex-direction: column; }
 .dauer-anzeige > span { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
 .dauer-anzeige output {
@@ -748,6 +733,22 @@ tr.stillgelegt:hover { opacity: .85; }
   .spruch { animation: spruch-rein .8s ease backwards; }
 }
 
+/* Kopfzeile über der Datensatzliste: links die Zahl, rechts der Export.
+   Beide Formate im selben leisen Stil - Excel war früher der auffällige
+   Hauptknopf, obwohl beides gleichwertige Wege sind, dieselbe Liste
+   mitzunehmen. */
+.listenkopf {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.listenkopf-titel {
+  font-size: 11px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--leise);
+}
+.exportknoepfe { display: flex; gap: 6px; }
+.exportknoepfe .knopf { display: inline-flex; align-items: center; gap: 6px; }
+.exportknoepfe svg { width: 15px; height: 15px; flex: 0 0 auto; }
+
 .boxumfang {
   margin: -8px 0 16px; padding-bottom: 13px;
   border-bottom: 1px solid var(--linie-fein);
@@ -779,7 +780,11 @@ tr.stillgelegt:hover { opacity: .85; }
     flex-direction: column; align-items: flex-start; gap: 8px; margin: 22px 0;
   }
   .filterstand-marke { margin-bottom: 3px; }
-  .filterstand .knopf { margin-left: 0; width: 100%; }
+  /* Der Knopf zog sich früher über die ganze Breite und sah dadurch aus
+     wie die Hauptaktion der Seite. Er soll aber unauffällig bleiben -
+     man kommt hierher, um zu sehen, WAS gefiltert ist, nicht um es
+     wegzuwerfen. Deshalb bleibt er so schmal wie sein Text. */
+  .filterstand .knopf { margin-left: 0; width: auto; align-self: flex-start; }
 }
 
 .boxumfang {
@@ -1022,7 +1027,16 @@ textarea:focus { border-color: var(--akzent); }
 .menuehuelle { display: contents; }
 
 @media (max-width: 860px) {
-  .kopf { position: relative; gap: 12px; padding: 12px 18px; }
+  /* ⚠️ z-index MUSS hier zurückgesetzt werden. Die Kopfzeile trägt
+     außerhalb dieser Abfrage z-index 40 (fürs Kleben beim Rollen) und
+     bildet damit einen eigenen Stapelkontext. Die Menüschublade liegt
+     INNERHALB der Kopfzeile; ihr z-index 60 gilt dann nur noch innerhalb
+     dieses Kontextes. Der Abdunkler daneben (z-index 55) liegt dagegen
+     im Wurzelkontext und deckte damit die ganze Kopfzeile samt Menü zu -
+     das Menü war verschwommen und nicht mehr anklickbar. Am Handy klebt
+     die Kopfzeile ohnehin nicht, der Kontext wird hier also nicht
+     gebraucht. */
+  .kopf { position: relative; z-index: auto; gap: 12px; padding: 12px 18px; }
   .marke img { height: 30px; }
 
   .burger {
@@ -1066,7 +1080,6 @@ textarea:focus { border-color: var(--akzent); }
     flex-direction: column; gap: 3px; margin-top: 34px;
   }
   .menuehuelle nav a { padding: 12px 14px; font-size: 16px; border-radius: 10px; }
-  .kopf nav a::after { display: none; }
 
   .werkzeuge {
     margin: 12px 0 0; padding: 14px 0 0; flex-direction: column;
@@ -1488,64 +1501,35 @@ body.anmeldeseite {
 }
 
 .anmelde-marke {
-  display: block; margin-bottom: 30px; position: relative;
-  perspective: 900px;
+  display: block; margin-bottom: 30px;
 }
 .anmelde-marke img { height: 92px; width: auto; display: block; }
 
-/* --- Der Auftritt beim Laden ------------------------------------------
-   Ausdrücklich die Ausnahme von "keine übertriebenen Animationen"
-   (Abschnitt 13): die Anmeldeseite sieht man einmal am Tag, eine
-   Tabellenzeile hundertmal. Überall sonst gilt die Regel weiter.
+/* Der Aufbau beim Laden. Bewusst nur hier: die Anmeldeseite sieht man
+   einmal am Tag, alles andere im Programm hundertmal - dort wäre das
+   Zappeln nach kurzer Zeit lästig (siehe Abschnitt "vermeiden" in
+   CLAUDE.md).
 
-   Der Ablauf in vier Zügen, zusammen 2,6 Sekunden:
-     0,0-1,0  das Logo kippt aus der Tiefe herein, unscharf, und
-              schärft sich dabei
-     0,3-1,3  eine schräge Kante wischt es von links nach rechts frei
-     1,2-2,0  ein Glanzlicht läuft einmal darüber
-     1,3-2,6  Karte, Fußzeile und ein einmaliges Leuchten hinter dem
-              Zeichen kommen nach
-   Alles endet und bleibt stehen ("both"), nichts springt zurück. */
+   Drei Bewegungen, die ineinandergreifen: der Schein hinter der Karte
+   geht auf, das Logo kommt aus der Tiefe und schärft sich, die Karte
+   steigt danach von unten nach. Alles endet nach gut einer Sekunde und
+   bleibt dann stehen ("both"), damit nichts zurückspringt.
+
+   ⚠️ Hier stand in 1.0.2 kurzzeitig ein aufwendigerer Auftritt mit
+   Wischkante, Glanzlicht und Leuchten. Timo mochte ihn nicht - nicht
+   wieder einbauen. */
 @keyframes anmelde-logo {
-  0%   { opacity: 0; filter: blur(16px);
-         transform: rotateX(38deg) translateY(26px) scale(.72); }
-  45%  { opacity: 1; }
-  62%  { filter: blur(0); }
-  78%  { transform: rotateX(0) translateY(0) scale(1.055); }
-  90%  { transform: rotateX(0) translateY(0) scale(.988); }
-  100% { opacity: 1; filter: blur(0);
-         transform: rotateX(0) translateY(0) scale(1); }
+  0%   { opacity: 0; transform: translateY(14px) scale(.86); filter: blur(9px); }
+  55%  { opacity: 1; filter: blur(0); }
+  70%  { transform: translateY(0) scale(1.035); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
-
-/* Die Kante läuft schräg durch - deshalb Werte über 100%, damit sie an
-   den Ecken sauber durchzieht statt dort hängen zu bleiben. */
-@keyframes anmelde-wisch {
-  0%   { clip-path: polygon(-25% 0, -8% 0, -25% 100%, -42% 100%); }
-  100% { clip-path: polygon(-25% 0, 135% 0, 135% 100%, -42% 100%); }
-}
-
-/* Das Glanzlicht ist ein schmaler heller Streifen, der einmal über das
-   Logo zieht. plus-lighter statt Deckkraft, damit er auf dunklem wie auf
-   hellem Grund als Licht wirkt und nicht als grauer Schleier. */
-@keyframes anmelde-glanz {
-  0%   { opacity: 0; transform: translateX(-140%) skewX(-18deg); }
-  12%  { opacity: 1; }
-  88%  { opacity: 1; }
-  100% { opacity: 0; transform: translateX(140%) skewX(-18deg); }
-}
-
-/* Ein einziger Lichtstoß hinter dem Zeichen, wenn alles steht. */
-@keyframes anmelde-leuchten {
-  0%, 100% { opacity: 0; transform: scale(.6); }
-  45%      { opacity: .5; transform: scale(1); }
-}
-
 @keyframes anmelde-karte {
-  from { opacity: 0; transform: translateY(22px) scale(.985); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes anmelde-schein-auf {
-  from { opacity: 0; transform: scale(1.3); }
+  from { opacity: 0; transform: scale(1.25); }
   to   { opacity: 1; transform: scale(1); }
 }
 @keyframes anmelde-fuss {
@@ -1587,30 +1571,12 @@ body.anmeldeseite {
    einzigen Regel abschalten lässt - wer "Bewegung reduzieren" eingestellt
    hat, bekommt die Seite sofort fertig zu sehen. */
 @media (prefers-reduced-motion: no-preference) {
-  .anmelde-marke {
-    animation: anmelde-logo 1s cubic-bezier(.2, .9, .25, 1) both,
-               anmelde-wisch 1s cubic-bezier(.65, 0, .35, 1) .3s both;
-  }
-  /* Glanzlicht über dem Logo */
-  .anmelde-marke::after {
-    content: ""; position: absolute; inset: -6% -12%; pointer-events: none;
-    background: linear-gradient(90deg, transparent 38%,
-                rgba(255, 255, 255, .82) 50%, transparent 62%);
-    mix-blend-mode: plus-lighter; opacity: 0;
-    animation: anmelde-glanz .8s ease-in-out 1.2s both;
-  }
-  /* Leuchten dahinter, ganz zum Schluss */
-  .anmelde-marke::before {
-    content: ""; position: absolute; z-index: -1;
-    left: -14%; right: -14%; top: -34%; bottom: -34%;
-    background: radial-gradient(closest-side, var(--akzent), transparent 72%);
-    opacity: 0; filter: blur(16px); pointer-events: none;
-    animation: anmelde-leuchten 1.3s ease-out 1.3s both;
-  }
-  .anmeldekarte   { animation: anmelde-karte .7s cubic-bezier(.2, .9, .25, 1) 1.3s both; }
-  .anmelde-schein { animation: anmelde-schein-auf 1.6s ease-out both; }
-  .anmelde-fuss   { animation: anmelde-fuss .6s ease-out 2s both; }
-  .anmeldekarte::before { animation: anmelde-fuss .7s ease-out 1.9s both; }
+  .anmelde-marke  { animation: anmelde-logo .85s cubic-bezier(.22, 1, .32, 1) both; }
+  .anmeldekarte   { animation: anmelde-karte .55s ease-out .38s both; }
+  .anmelde-schein { animation: anmelde-schein-auf 1.1s ease-out both; }
+  .anmelde-fuss   { animation: anmelde-fuss .5s ease-out .8s both; }
+  /* Die Lichtkante oben auf der Karte zieht zum Schluss durch. */
+  .anmeldekarte::before { animation: anmelde-fuss .6s ease-out .75s both; }
 }
 
 @media (max-width: 420px) {

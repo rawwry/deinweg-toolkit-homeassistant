@@ -923,4 +923,20 @@ CHANGELOG = [
         "Der Ordner share/deinweg-toolkit/app wird nicht mehr gebraucht "
         "und kann gelöscht werden",
     ]},
+    {"version": "1.1.1", "titel": "Menü am Handy, ruhigere Oberfläche", "punkte": [
+        "Am Handy ließ sich das Menü nicht mehr bedienen: es lag hinter "
+        "dem Abdunkler und war dadurch verschwommen und nicht anklickbar. "
+        "Ursache war der Stapelkontext der Kopfzeile, nicht das Menü selbst",
+        "Die pinken Linien, die beim Überfahren der Menüpunkte "
+        "hereinliefen, sind entfernt",
+        "Anmeldeseite: zurück zur ruhigen Fassung aus 1.0.1",
+        "Manuelle Zeiterfassung: Abstand zwischen „+ Weitere Zeile“ und "
+        "„Eintrag speichern“",
+        "Arbeitszeit → Übersicht: „Excel“ und „CSV“ stehen nicht mehr im "
+        "Filterkasten, sondern über der Trefferliste – und beide in "
+        "derselben, zurückhaltenden Farbe. Vorher lag der pinke "
+        "Excel-Knopf da, wo man „Filtern“ erwartet",
+        "Der Knopf „Zurücksetzen“ im Filterhinweis geht am Handy nicht "
+        "mehr über die ganze Breite",
+    ]},
 ]

@@ -14,14 +14,38 @@
   </div>
 
   {% with ziel = "/eintraege", abrechenbar_zeigen = true, suche_zeigen = true %}{% include "_filter.html" %}{% endwith %}
-
-  <div class="knopfreihe">
-    <a class="knopf haupt" href="/export.xlsx?{{ query }}">Excel herunterladen</a>
-    <a class="knopf leise" href="/export.csv?{{ query }}">CSV herunterladen</a>
-  </div>
 </section>
 
 <section class="karte">
+  {# Der Export gehört zur Liste, nicht zum Filter. Er stand bis 1.2
+     direkt unter dem Knopf „Filtern“ und wurde regelmäßig aus Versehen
+     angeklickt – besonders am Handy, wo beide untereinander stehen.
+     Beide Formate sehen jetzt gleich aus: es sind zwei gleichwertige
+     Wege, dieselbe Liste mitzunehmen, keiner davon ist der Hauptweg. #}
+  <div class="listenkopf">
+    <span class="listenkopf-titel">{{ kopf.n }} {{ 'Eintrag' if kopf.n == 1 else 'Einträge' }}</span>
+    <div class="exportknoepfe">
+      <a class="knopf leise klein" href="/export.xlsx?{{ query }}">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 4v11m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M5 17.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-1.5"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        Excel
+      </a>
+      <a class="knopf leise klein" href="/export.csv?{{ query }}">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 4v11m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M5 17.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-1.5"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        CSV
+      </a>
+    </div>
+  </div>
+
   {% if zeilen %}
   {# Das Formular steht leer neben der Tabelle, die Kästchen in den Zeilen
      verweisen über form="massenloeschen" darauf. Sonst müsste es die ganze
