@@ -1406,6 +1406,13 @@ def test_marke(client: TestClient) -> None:
     # die seitlichen Rollbalken, die auch bei breitem Fenster blieben.
     pruefe("liste.auswertungsblatt { table-layout: auto;" in einzeilig,
            "die Auswertungstabelle rechnet ihre Spalten aus dem Inhalt")
+    # ⚠️ Kein nowrap in dieser Tabelle: eine Zelle, die nicht umbrechen
+    # darf, setzt eine Mindestbreite, die die Tabelle nicht unterschreiten
+    # kann - genau daran hingen die hartnäckigen Rollbalken.
+    pruefe(re.search(r"\.liste\.auswertungsblatt td,\s*"
+                     r"\.tabellenrolle \.liste\.auswertungsblatt th \{\s*"
+                     r"white-space: normal", stil) is not None,
+           "in der Auswertungstabelle bricht alles um")
     pruefe(".tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }"
            in einzeilig,
            "und rollt in ihrer Hülle, wenn es wirklich zu eng wird")
@@ -1620,10 +1627,16 @@ def test_meine_zeiten(client: TestClient) -> None:
 
     # Abmelden steht oben in der ersten Karte, nicht mehr klein unten.
     seite = z.get("/meinbereich").text
-    kopfkarte = seite.split("</section>")[0]
+    # Die Kopfkarte ist seit 1.7 die erste Karte der Seite; davor steht
+    # nur noch der Spruch.
+    kopfkarte = seite.split('class="karte meinkopf"')[1].split("</section>")[0]
     pruefe('action="/logout"' in kopfkarte,
-           "„Abmelden“ steht in der obersten Karte")
-    pruefe("abmelden gross" in seite, "und zwar als großer Knopf")
+           "„Abmelden“ steht in der Kopfkarte")
+    pruefe(seite.index("meinkopf") < seite.index("Bewilligungen im Blick")
+           if "Bewilligungen im Blick" in seite else True,
+           "die Kopfkarte steht vor den Bewilligungen")
+    pruefe('class="knopf abmelden"' in seite,
+           "und zwar als eigener Knopf in der Kopfzeile")
     pruefe(seite.count('action="/logout"') == 1, "genau einmal")
 
 
@@ -2216,6 +2229,46 @@ def test_uebersicht_filter(client: TestClient) -> None:
     körper = einer.split("<tbody>")[1].split("</tbody>")[0]
     pruefe("zweiter" in körper and "pruefer" not in körper,
            "ein einzelner Mitarbeiter filtert wie bisher")
+
+
+def test_meinbereich_aufbau(client: TestClient) -> None:
+    """Aufbau von „Mein Bereich“ nach dem Umbau in 1.7."""
+    abschnitt("Aufbau von „Mein Bereich“")
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO vorgangsart (name, aktiv, "
+                    "angelegt_am) VALUES ('Antrag',1,'2026-01-01 08:00')")
+        con.execute(
+            "INSERT INTO vorgang (klient, art, titel, zustaendig, status, "
+            "prioritaet, frist, angelegt_am, angelegt_von) VALUES "
+            "('Testperson','Antrag','Folgeantrag stellen','pruefer','Offen',"
+            "'Hoch','2020-01-01','2026-01-01 08:00','pruefer')")
+    seite = client.get("/meinbereich").text
+
+    pruefe('class="spruch"' in seite or "spruch" not in seite,
+           "der Spruch steht oben, sofern einer gepflegt ist")
+    pruefe('class="karte meinkopf"' in seite,
+           "die Kopfkarte ist die schmale Fassung")
+    pruefe(seite.index("meinkopf") < seite.index("Meine Arbeitszeit"),
+           "sie steht vor den Inhalten")
+
+    baender = re.findall(r'class="abschnittsband"[^>]*>\s*<h2>([^<]+)</h2>', seite)
+    pruefe("Meine Arbeitszeit" in baender and "Was ansteht" in baender,
+           f"die Seite ist in Abschnitte geteilt (sind: {baender})")
+
+    pruefe("Folgeantrag stellen" in seite,
+           "die eigenen Aufgaben stehen mit Titel da")
+    pruefe('class="aufgabenliste"' in seite, "als eigene Liste")
+    pruefe("überfällig seit" in seite,
+           "eine überschrittene Frist wird als solche benannt")
+    pruefe("Alle meine Aufgaben" in seite,
+           "mit einem Weg in den Aufgabenbereich")
+
+    # Die Bewilligungskarte hat keinen farbigen Rahmen mehr.
+    pruefe("bewilligungskarte dringend" not in seite,
+           "die Bewilligungskarte trägt keinen farbigen Rahmen mehr")
+    pruefe("Bewilligungen im Blick" in seite, "sie steht aber weiterhin da")
+    pruefe(seite.index("Was ansteht") < seite.index("Bewilligungen im Blick"),
+           "und zwar im Abschnitt „Was ansteht“")
 
 
 def test_versionen() -> None:
@@ -2939,6 +2992,7 @@ def _durchlauf(client: TestClient) -> None:
         test_bewilligungsstand(client)
         test_bewilligungen_mein_bereich(client)
         test_uebersicht_filter(client)
+        test_meinbereich_aufbau(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")

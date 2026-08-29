@@ -1157,4 +1157,25 @@ CHANGELOG = [
         "darunter rutscht sie unter den Inhalt und die Tabellen bekommen "
         "die volle Breite",
     ]},
+    {"version": "1.7", "titel": "Mein Bereich neu geordnet", "punkte": [
+        "„Mein Bereich“ ist in Abschnitte geteilt: oben der Spruch wie auf "
+        "der Zeiterfassung, darunter eine schmale Kopfzeile mit Namen und "
+        "Abmelden, dann „Meine Arbeitszeit“ und „Was ansteht“",
+        "Die Kopfkarte ist deutlich kleiner. Sie hatte eine eigene "
+        "Überschriftenzeile samt Erklärabsatz und nahm den halben ersten "
+        "Bildschirm für eine Auskunft, die man einmal liest",
+        "Neu unter „Was ansteht“: die eigenen Aufgaben mit Titel, "
+        "betreuter Person, Status und Frist – überfällige rot markiert, "
+        "ein Klick führt zum Vorgang",
+        "Daneben „Bewilligungen im Blick“, jetzt kompakter und ohne den "
+        "gelben Rahmen. Wie dringend etwas ist, sagt der farbige Balken "
+        "an der Zeile",
+        "Der seitliche Rollbalken der Auswertungstabellen: In den Tabellen "
+        "steht jetzt nichts mehr auf „nicht umbrechen“. Eine Zelle, die "
+        "nicht umbrechen darf, setzt eine Mindestbreite, die die Tabelle "
+        "nicht unterschreiten kann – steht sie in einer schmaleren Spalte, "
+        "muss sie überlaufen. Darf dagegen alles umbrechen, passt die "
+        "Tabelle in jede Breite. Sichtbar ist davon nichts: umgebrochen "
+        "wird nur, wo der Platz sonst wirklich nicht reicht",
+    ]},
 ]

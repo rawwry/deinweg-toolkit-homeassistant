@@ -276,10 +276,11 @@ TEXTE_STANDARD["einst.urlaubstage"] = (
     "sieht jede Person davon ausgehend, wie viele Tage sie schon genommen "
     "hat und wie viele noch offen sind. 0 = kein Anspruch hinterlegt.")
 TEXTE_STANDARD["mein.bewilligungen_lead"] = (
-    "Bei diesen betreuten Personen ist die Bewilligung abgelaufen, läuft "
-    "in den nächsten 60 Tagen aus oder fehlt ganz. Solange nichts "
-    "Neues vorliegt, rechnet die Auswertung für diese Monate ohne "
-    "Kontingent – ein Folgeantrag gehört also raus.")
+    "Abgelaufen, läuft in den nächsten 60 Tagen aus oder fehlt ganz – "
+    "hier gehört ein Folgeantrag raus.")
+TEXTE_STANDARD["mein.ansteht_lead"] = (
+    "Was auf deinem Tisch liegt: eigene Aufgaben mit Frist und "
+    "Bewilligungen, die nachgehalten werden müssen.")
 TEXTE_STANDARD["mein.bewilligungen_gut"] = (
     "Bei keiner betreuten Person läuft gerade eine Bewilligung aus oder "
     "fehlt.")

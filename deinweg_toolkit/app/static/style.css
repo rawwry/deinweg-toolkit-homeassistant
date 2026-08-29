@@ -1867,26 +1867,41 @@ body.anmeldeseite {
 .tabellenrolle .liste.auswertungsblatt { table-layout: auto; min-width: 0; }
 .auswertungsblatt th:first-child { width: 22%; }
 .auswertungsblatt th:nth-child(2) { width: 7%; }
+/* Der Rollbalken bleibt als letzte Rückversicherung: die Tabelle passt
+   inzwischen in jede realistische Breite, aber lieber ein Rollbalken auf
+   einem sehr schmalen Telefon als still abgeschnittene Zahlen. */
 .tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }
-/* „Betreute Person“ darf als einziger Titel an seinem Leerzeichen
-   umbrechen - sonst nimmt die Spalte zu viel Breite. Innerhalb eines
-   Wortes wird nie getrennt („ABWEICHU / NG“ war schon einmal da). */
-.tabellenrolle .liste.auswertungsblatt th:first-child {
-  white-space: normal; overflow-wrap: normal; word-break: normal;
-}
+/* Die Namensspalte bricht bevorzugt an Leerzeichen - „Cordesmeyer“ soll
+   nicht mitten im Wort zerfallen, solange es anders geht. break-word tut
+   genau das: es trennt erst, wenn eine ganze Zeile sonst überliefe, und
+   senkt anders als „anywhere“ die Mindestbreite nicht. */
+.tabellenrolle .liste.auswertungsblatt th:first-child,
 .tabellenrolle .liste.auswertungsblatt td:first-child {
-  white-space: normal; overflow-wrap: normal; word-break: normal;
+  white-space: normal; overflow-wrap: break-word;
 }
-/* In den Zellen steht seit 1.4.3 keine Marke mehr („Grundwert“,
-   „gestaffelt“): sie zwang jede zweite Zeile zum Umbruch. Nur die
-   Abweichungspille bleibt. Beträge und Zeiten bleiben einzeilig —
-   „4.022,58 €“ über zwei Zeilen ist keine Zahl mehr. Bei table-layout:
-   auto ist das ungefährlich: der Browser gibt der Spalte dann eben die
-   Breite, die sie braucht, statt den Inhalt überlaufen zu lassen. */
+/* ⚠️ NICHTS in dieser Tabelle steht auf white-space: nowrap - und das ist
+   der eigentliche Grund, warum sie nie mehr seitlich rollt.
+   Eine Zelle, die nicht umbrechen darf, setzt eine Mindestbreite, die die
+   Tabelle nicht unterschreiten kann; steht die Tabelle in einer schmaleren
+   Spalte, MUSS sie überlaufen. Genau daran hing der Rollbalken, und keine
+   noch so sorgfältig gerechnete Spaltenbreite ändert daran etwas.
+   Darf dagegen alles umbrechen, ist die Mindestbreite nur noch das längste
+   Wort - die Tabelle passt damit in jede Spalte. Bei table-layout: auto
+   bricht sie trotzdem erst um, wenn der Platz wirklich nicht reicht; auf
+   dem Schreibtisch sieht man davon nichts.
+   Nur innerhalb einer Statusmarke wird nicht getrennt, sonst zerfällt die
+   Pille. */
+.tabellenrolle .liste.auswertungsblatt td,
+.tabellenrolle .liste.auswertungsblatt th { white-space: normal; }
 .tabellenrolle .liste.auswertungsblatt .marke-status { white-space: nowrap; }
-.tabellenrolle .liste.auswertungsblatt td.betrag,
-.tabellenrolle .liste.auswertungsblatt td.zahlen,
-.tabellenrolle .liste.auswertungsblatt th { white-space: nowrap; }
+/* ⚠️ Und dazu overflow-wrap: anywhere (kommt aus .tabellenrolle .liste).
+   Das ist der zweite Teil derselben Sache: „anywhere“ senkt die
+   Mindestbreite einer Zelle auf ein einzelnes Zeichen, „break-word“ und
+   „normal“ tun das NICHT. Erst damit fällt die Mindestbreite der ganzen
+   Tabelle von rund 600px auf gut 250px - und erst dann passt sie auch in
+   ein stark vergrößertes Fenster (Browser-Zoom) und aufs Telefon.
+   Sichtbar wird davon nichts: umgebrochen wird immer nur dort, wo der
+   Platz sonst wirklich nicht reicht. Nicht auf „normal“ zurückstellen. */
 
 /* --- Maßangaben ---------------------------------------------------------
    Einheiten sollen lesbar sein, aber nicht mit der Zahl um Aufmerksamkeit
@@ -1940,6 +1955,38 @@ body.anmeldeseite {
    Hinweis - orangefarbener Balken statt rotem. */
 .konto.person.bald-ohne-bewilligung { border-left: 3px solid var(--warn); }
 
+/* --- Mein Bereich: Kopfkarte -------------------------------------------- */
+/* Schmal und einzeilig. Vorher stand hier eine volle Karte mit
+   Überschrift, Name und Erklärabsatz und nahm den halben ersten
+   Bildschirm für eine Auskunft, die man einmal liest. */
+.karte.meinkopf {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; padding-top: 14px; padding-bottom: 14px;
+}
+.meinkopf-name { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.meinkopf-titel {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--leise);
+}
+.meinkopf-name .stark { font-size: 20px; color: var(--akzent); }
+
+/* --- Mein Bereich: eigene Aufgaben --------------------------------------- */
+.aufgabenliste { list-style: none; margin: 0; padding: 0;
+                 display: flex; flex-direction: column; gap: 2px; }
+.aufgabenliste li {
+  padding: 9px 12px; border-radius: 9px; background: var(--flaeche-2);
+  border-left: 3px solid var(--linie-stark);
+}
+.aufgabenliste li.ueberfaellig { border-left-color: var(--dopp); }
+.au-titel { display: block; font-weight: 600; color: var(--tinte);
+            text-decoration: none; }
+.au-titel:hover { color: var(--akzent); }
+.au-zeile { display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+            margin-top: 5px; font-size: 12px; }
+.au-zeile .marke-status { padding: 2px 8px; font-size: 10.5px; }
+.au-frist { color: var(--leise); }
+.au-frist.spaet { color: var(--dopp); font-weight: 600; }
+
 /* --- Bewilligungen in „Mein Bereich“ ------------------------------------ */
 .bewilligungskarte { border-color: var(--linie-stark); }
 .bewilligungsliste { list-style: none; margin: 0; padding: 0;
@@ -1958,10 +2005,11 @@ body.anmeldeseite {
            flex-wrap: wrap; font-size: 12.5px; }
 .bw-lage .marke-status { padding: 3px 9px; font-size: 11px; }
 .bw-pflegen { margin-left: auto; flex: 0 0 auto; }
-/* Steht wirklich etwas an, bekommt die Karte einen farbigen Rand. Ohne
-   Handlungsbedarf bleibt sie unauffällig. */
-.bewilligungskarte.dringend { border-color: var(--warn); }
-.bewilligung-rest { margin-top: 14px; }
+/* ⚠️ Kein farbiger Rahmen um die Karte. Der Balken links an jeder Zeile
+   sagt bereits, wie dringend es ist; ein gelb umrandeter Kasten schrie
+   über die halbe Seite. Nicht wieder einbauen. */
+.bewilligungsliste li { padding: 8px 11px; font-size: 13.5px; }
+.bewilligung-rest { margin-top: 12px; }
 .bewilligung-rest > summary {
   cursor: pointer; font-size: 12.5px; color: var(--leise);
   padding: 8px 0; list-style: revert;

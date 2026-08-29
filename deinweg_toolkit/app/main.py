@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.6"
+VERSION = "1.7"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1682,6 +1682,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                 request=request, name="meinbereich.html",
                 context={"seite": "meinbereich", "person": None,
                          "monate": [], "benutzer": benutzer,
+                         "spruch": spruch(), "eigene_aufgaben": [],
                          "bewilligungen": [
                              b for b in (bewilligungen_pruefen(con)
                                          if auth.darf_bewilligungen_sehen(benutzer)
@@ -1707,6 +1708,16 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "SELECT COUNT(*) c FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
             "AND status NOT IN ('Erledigt','Abgebrochen') AND frist <> '' "
             "AND frist < ?", (name, dt.date.today().isoformat())).fetchone()["c"]
+        # Nicht nur zaehlen, sondern zeigen: die naechsten eigenen
+        # Aufgaben stehen mit Titel, betreuter Person und Frist da.
+        # Fristlose ganz nach hinten - sonst stuenden sie vor allem, was
+        # wirklich draengt.
+        eigene_aufgaben = con.execute(
+            "SELECT id, titel, klient, art, status, prioritaet, frist "
+            "FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
+            "AND status NOT IN ('Erledigt','Abgebrochen') "
+            "ORDER BY CASE WHEN frist IS NULL OR frist='' THEN 1 ELSE 0 END, "
+            "frist, id LIMIT 6", (name,)).fetchall()
 
         # Urlaub: gezaehlt werden Kalendertage, an denen ein Eintrag steht,
         # dessen Beschreibung mit "Urlaub" beginnt. Bewusst DISTINCT nach
@@ -1895,6 +1906,8 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "diagramm": diagramm, "urlaub": urlaub,
             "letzter": letzter, "trend": trend,
             "offene_vorgaenge": offene_vorgaenge, "ueberfaellig": ueberfaellig,
+            "eigene_aufgaben": eigene_aufgaben, "spruch": spruch(),
+            "heute": dt.date.today().isoformat(),
             "bewilligungen": [b for b in alle_lagen if b["art"] != "grundwert"],
             "bewilligungen_grundwert": [b for b in alle_lagen
                                         if b["art"] == "grundwert"],

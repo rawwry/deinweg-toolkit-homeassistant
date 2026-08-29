@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.7
+
+- „Mein Bereich" neu geordnet: Spruch oben, schmale Kopfzeile, Abschnitte
+  „Meine Arbeitszeit" und „Was ansteht"
+- Neue Karte mit den eigenen Aufgaben samt Frist; überfällige markiert
+- „Bewilligungen im Blick" kompakter und ohne gelben Rahmen
+- Auswertungstabellen brechen überall um und können dadurch nicht mehr
+  breiter werden als ihre Spalte — der seitliche Rollbalken ist weg
+
 ## 1.6
 
 - Namensliste im Filter mit Suchfeld (tippen springt zum Namen) und

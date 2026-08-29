@@ -1,19 +1,14 @@
 {% extends "base.html" %}
+{% from "_vorgang_teile.html" import statusmarke with context %}
 {% block titel %} – Mein Bereich{% endblock %}
 {% block inhalt %}
 
-{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
-{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
-
-{# „Abmelden“ steht seit 1.2 ganz oben in der ersten Karte und nicht mehr
-   klein unten bei „Mein Konto“. Es ist der eine Knopf, den man auf dieser
-   Seite sucht, wenn man sie überhaupt aufruft - und er muss auch dann da
-   sein, wenn das Konto keinem Mitarbeiter zugeordnet ist. #}
-{# Fehlende und auslaufende Bewilligungen - ganz oben, weil hier gehandelt
-   werden muss und weil „Mein Bereich" die Seite ist, die jeder täglich
-   sieht. Wer das Recht nicht hat, bekommt die Liste gar nicht erst. #}
+{% macro bewilligungskarte() %}
 {% if bewilligungen or bewilligungen_grundwert %}
-<section class="karte bewilligungskarte {{ 'dringend' if bewilligungen }}">
+{# Kein farbiger Rahmen mehr um die ganze Karte - der Balken links an
+   jeder Zeile sagt schon, wie dringend es ist, und ein gelb umrandeter
+   Kasten schrie über die halbe Seite. #}
+<section class="karte bewilligungskarte">
   <div class="kopfzeile">
     <h2>Bewilligungen im Blick</h2>
     {% if bewilligungen %}
@@ -22,7 +17,7 @@
     {% endif %}
   </div>
   {% if bewilligungen %}
-  <p class="lead">{{ t("mein.bewilligungen_lead") }}</p>
+  <p class="klein leise">{{ t("mein.bewilligungen_lead") }}</p>
   <ul class="bewilligungsliste">
     {% for b in bewilligungen %}
     <li class="bw-{{ b.art }}">
@@ -59,7 +54,7 @@
     {% endfor %}
   </ul>
   {% else %}
-  <p class="lead">{{ t("mein.bewilligungen_gut") }}</p>
+  <p class="klein leise">{{ t("mein.bewilligungen_gut") }}</p>
   {% endif %}
 
   {# Personen ganz ohne Bescheid stehen zugeklappt darunter. Sie sind
@@ -95,53 +90,59 @@
   {% endif %}
 </section>
 {% endif %}
+{% endmacro %}
+
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+{# Derselbe Spruch wie auf der Zeiterfassung. „Mein Bereich" ist die
+   zweite Seite, die jeder täglich sieht - da darf er auch stehen. #}
+{% if spruch.text %}
+<figure class="spruch">
+  <blockquote>{{ spruch.text }}</blockquote>
+  {% if spruch.quelle %}<figcaption>{{ spruch.quelle }}</figcaption>{% endif %}
+</figure>
+{% endif %}
+
+{# Die Kopfkarte ist bewusst schmal: Name, Abmelden, fertig. Sie hatte
+   früher eine eigene Überschriftenzeile samt Erklärabsatz und nahm damit
+   den halben ersten Bildschirm für eine Auskunft, die man einmal liest. #}
+<section class="karte meinkopf">
+  <div class="meinkopf-name">
+    <span class="meinkopf-titel">Mein Bereich</span>
+    <span class="stark">{{ name if person else benutzer.benutzername }}</span>
+  </div>
+  <form action="/logout" method="post" class="abmeldeform">
+    <button type="submit" class="knopf abmelden">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h12"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Abmelden
+    </button>
+  </form>
+</section>
 
 {% if not person %}
 <section class="karte">
-  <div class="kopfzeile">
-    <h1>Mein Bereich</h1>
-  <form action="/logout" method="post" class="abmeldeform">
-    <button type="submit" class="knopf abmelden gross">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h12"
-              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Abmelden
-    </button>
-  </form>
-  </div>
-  <p class="lead">{{ t("mein.keine_zuordnung") }}</p>
+  <p class="lead" style="margin-bottom: 0;">{{ t("mein.keine_zuordnung") }}</p>
 </section>
+{% endif %}
 
+{% if person %}
 
-{% else %}
+{% if verwaist %}
+<p class="meldung offen-hinweis">{{ t("mein.verwaist", name=name) }}</p>
+{% endif %}
+{% if not soll_std %}
+<p class="meldung offen-hinweis">{{ t("mein.kein_soll") }}</p>
+{% endif %}
 
-<section class="karte">
-  <div class="kopfzeile">
-    <div>
-      <h1>Mein Bereich</h1>
-      <p class="summe">{{ name }}</p>
-    </div>
-  <form action="/logout" method="post" class="abmeldeform">
-    <button type="submit" class="knopf abmelden gross">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h12"
-              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Abmelden
-    </button>
-  </form>
-  </div>
-  <p class="lead">{{ t("mein.lead", name=name) }}</p>
-
-  {% if verwaist %}
-  <p class="meldung offen-hinweis">{{ t("mein.verwaist", name=name) }}</p>
-  {% endif %}
-
-  {% if not soll_std %}
-  <p class="meldung offen-hinweis">{{ t("mein.kein_soll") }}</p>
-  {% endif %}
-</section>
+<div class="abschnittsband">
+  <h2>Meine Arbeitszeit</h2>
+  <p class="klein leise">{{ t("mein.lead", name=name) }}</p>
+</div>
 
 {% if soll_std %}
 <section class="raster gleich buendig">
@@ -206,20 +207,6 @@
     {% else %}
     <p class="leer">{{ t("mein.kein_laufender") }}</p>
     {% endif %}
-  </div>
-</section>
-{% endif %}
-
-{% if offene_vorgaenge %}
-<section class="karte">
-  <h2>Meine Aufgaben</h2>
-  <p class="lead">
-    {{ offene_vorgaenge }} offene{{ 'r' if offene_vorgaenge == 1 }} Vorgang{{ '' if offene_vorgaenge == 1 else 'e' }}
-    {%- if ueberfaellig %}, davon <span class="stark saldo-minus">{{ ueberfaellig }} überfällig</span>{% endif %}.
-  </p>
-  <div class="knopfreihe">
-    <a class="knopf {{ 'haupt' if ueberfaellig else '' }}"
-       href="/vorgaenge?zustaendig={{ name | urlencode }}">Meine Vorgänge ansehen</a>
   </div>
 </section>
 {% endif %}
@@ -363,6 +350,57 @@
   {% endif %}
 </section>
 
+{% endif %}
+
+{# --- Aufgaben und Bewilligungen -----------------------------------------
+   Zwei Themen, die zusammengehören: beides ist etwas, das ich als
+   Mitarbeiterin auf dem Schirm haben muss, und beides führt zu einer
+   Handlung. Deshalb nebeneinander und unter einer gemeinsamen
+   Überschrift. #}
+{% if (person and offene_vorgaenge) or bewilligungen or bewilligungen_grundwert %}
+<div class="abschnittsband">
+  <h2>Was ansteht</h2>
+  <p class="klein leise">{{ t("mein.ansteht_lead") }}</p>
+</div>
+
+<section class="raster gleich buendig">
+  {% if person and offene_vorgaenge %}
+  <div class="karte">
+    <div class="kopfzeile">
+      <h2>Meine Aufgaben</h2>
+      <p class="summe">{{ offene_vorgaenge }} offen{% if ueberfaellig %}
+        <span class="marke-status dopp">{{ ueberfaellig }} überfällig</span>{% endif %}</p>
+    </div>
+    <ul class="aufgabenliste">
+      {% for v in eigene_aufgaben %}
+      <li class="{{ 'ueberfaellig' if v.frist and v.frist < heute }}">
+        <a class="au-titel" href="/vorgaenge/{{ v.id }}">{{ v.titel }}</a>
+        <span class="au-zeile">
+          <span class="leise">{{ v.klient }}</span>
+          {{ statusmarke(v.status) }}
+          {% if v.frist %}
+          <span class="au-frist {{ 'spaet' if v.frist < heute }}">
+            {{ 'überfällig seit' if v.frist < heute else 'bis' }} {{ v.frist | deutsch }}
+          </span>
+          {% else %}<span class="leise klein">ohne Frist</span>{% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if offene_vorgaenge > eigene_aufgaben | length %}
+    <p class="klein leise" style="margin: 10px 0 0;">
+      … und {{ offene_vorgaenge - eigene_aufgaben | length }} weitere.
+    </p>
+    {% endif %}
+    <div class="knopfreihe">
+      <a class="knopf leise klein"
+         href="/vorgaenge?zustaendig={{ name | urlencode }}">Alle meine Aufgaben</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {{ bewilligungskarte() }}
+</section>
 {% endif %}
 
 {# Nur wenn das Konto einem Mitarbeiter zugeordnet ist - ohne diese
