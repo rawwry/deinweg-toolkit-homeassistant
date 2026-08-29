@@ -412,6 +412,28 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
 .wahlzeile input { accent-color: var(--akzent); margin: 0; flex: 0 0 auto; }
 .wahlzeile:has(input:checked) { color: var(--akzent); font-weight: 600; }
 
+/* Suchfeld über der Liste: beim Aufklappen bekommt es den Fokus, ein
+   getippter Buchstabe filtert sofort. Bei zwanzig Namen ist das der
+   schnellste Weg zum gesuchten. */
+.wahlliste-suche { padding: 2px 3px 7px; position: sticky; top: -6px;
+                   background: var(--flaeche); z-index: 1; }
+.wahlliste-feld {
+  width: 100%; padding: 7px 10px; font: inherit; font-size: 13px;
+  border: 1px solid var(--linie); border-radius: 7px;
+  background: var(--flaeche-2); color: inherit;
+}
+.wahlliste-feld:focus { outline: none; border-color: var(--akzent); }
+.wahlliste-leer { margin: 4px 9px 6px; }
+
+/* Suchfeld in der Fußzeile des Filters (nur auf der Übersicht). */
+.filter-suche { display: flex; align-items: center; gap: 9px; flex: 1 1 220px;
+                max-width: 340px; font-size: 12.5px; }
+.filter-suche input {
+  flex: 1 1 auto; min-width: 0; padding: 8px 11px; font: inherit;
+  font-size: 14px; border: 1px solid var(--linie); border-radius: 8px;
+  background: var(--flaeche-2); color: inherit;
+}
+
 .knopf {
   display: inline-block; padding: 9px 16px; border-radius: 8px; cursor: pointer;
   font: inherit; font-size: 14px; font-weight: 600; text-decoration: none;
@@ -1731,9 +1753,20 @@ body.anmeldeseite {
 .auswertunghaupt {
   min-width: 0; display: flex; flex-direction: column; gap: var(--abstand);
 }
-/* Die Seitenspalte läuft mit, solange links noch Monatsblöcke kommen.
-   Ihre Höhe hängt an --kopfhoehe, weil die Kopfzeile oben klebt. */
-@media (min-width: 900px) {
+/*
+   ⚠️ Zwei Spalten erst ab 1200px, nicht wie sonst ab 900px.
+   Die Tabellen tragen sieben Spalten und brauchen rund 630px, um ohne
+   seitliches Rollen auszukommen. Bei einer 340px breiten Seitenspalte
+   bleibt links ab etwa 1200px genug übrig - darunter stand die Tabelle
+   in einer Spalte, die schmaler war als ihr Inhalt, und rollte. Genau
+   daher kamen die Rollbalken, die auch nach dem Umbau auf
+   table-layout: auto noch blieben.
+   Unterhalb rutscht die Seitenspalte unter den Inhalt und die Tabellen
+   bekommen die volle Breite.
+*/
+.auswertungsraster { grid-template-columns: 1fr; }
+@media (min-width: 1200px) {
+  .auswertungsraster { grid-template-columns: minmax(0, 1fr) 320px; }
   .auswertungsraster > .spalte { align-self: start; }
 }
 
@@ -1903,6 +1936,38 @@ body.anmeldeseite {
 }
 .konto.person .konto-daten .marke-status { padding: 3px 9px; font-size: 11px; }
 .bewilligungswarnung { margin: 14px 0 0; }
+/* „Läuft aus“ und „kein Zeitraum“ sind noch kein Notfall, aber ein
+   Hinweis - orangefarbener Balken statt rotem. */
+.konto.person.bald-ohne-bewilligung { border-left: 3px solid var(--warn); }
+
+/* --- Bewilligungen in „Mein Bereich“ ------------------------------------ */
+.bewilligungskarte { border-color: var(--linie-stark); }
+.bewilligungsliste { list-style: none; margin: 0; padding: 0;
+                     display: flex; flex-direction: column; gap: 2px; }
+.bewilligungsliste li {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 9px 12px; border-radius: 9px; background: var(--flaeche-2);
+  border-left: 3px solid var(--linie-stark);
+}
+.bewilligungsliste li.bw-abgelaufen,
+.bewilligungsliste li.bw-leer { border-left-color: var(--dopp); }
+.bewilligungsliste li.bw-laeuft_aus,
+.bewilligungsliste li.bw-kuenftig { border-left-color: var(--warn); }
+.bw-name { font-weight: 600; flex: 1 1 180px; min-width: 0; }
+.bw-lage { display: inline-flex; align-items: center; gap: 8px;
+           flex-wrap: wrap; font-size: 12.5px; }
+.bw-lage .marke-status { padding: 3px 9px; font-size: 11px; }
+.bw-pflegen { margin-left: auto; flex: 0 0 auto; }
+/* Steht wirklich etwas an, bekommt die Karte einen farbigen Rand. Ohne
+   Handlungsbedarf bleibt sie unauffällig. */
+.bewilligungskarte.dringend { border-color: var(--warn); }
+.bewilligung-rest { margin-top: 14px; }
+.bewilligung-rest > summary {
+  cursor: pointer; font-size: 12.5px; color: var(--leise);
+  padding: 8px 0; list-style: revert;
+}
+.bewilligung-rest > summary:hover { color: var(--tinte); }
+.bewilligung-rest .bewilligungsliste { margin-top: 8px; }
 /* „entfernen“ rückt nach rechts ab - es soll nicht neben „speichern“
    stehen wie eine gleichwertige zweite Möglichkeit. Der Selektor ist
    bewusst so lang: .knopfreihe form setzt margin: 0 und gewinnt sonst. */

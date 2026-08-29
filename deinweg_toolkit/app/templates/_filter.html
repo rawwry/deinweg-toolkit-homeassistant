@@ -1,6 +1,47 @@
-{# Gemeinsamer Filter für Auswertung und Datensätze.
+{# Gemeinsamer Filter für Auswertung und Übersicht.
    Erwartet: ziel (Formularadresse), f, jahre, monatsnamen, leute, klienten,
-   aktive_filter und optional abrechenbar_zeigen. #}
+   aktive_filter und optional abrechenbar_zeigen / suche_zeigen. #}
+
+{# Ein Auswahlfeld für mehrere Namen. Bewusst <details> mit Kästchen und
+   kein <select multiple>: das verlangt Strg-Klick und weiß niemand.
+   Zugeklappt steht dort, was gewählt ist - das Skript unten hält den Text
+   beim Anklicken sofort aktuell, ohne dass man erst filtern muss. #}
+{% macro mehrfachwahl(titel, feldname, werte, gewaehlt, wort_eins, wort_viele) %}
+<div class="filterwahl {{ 'gesetzt' if gewaehlt }}">
+  <span class="filterwahl-titel">{{ titel }}</span>
+  <details class="wahlliste" data-eins="{{ wort_eins }}" data-viele="{{ wort_viele }}">
+    <summary>
+      <span class="wahlliste-text">
+        {%- if not gewaehlt -%}alle
+        {%- elif gewaehlt | length == 1 -%}{{ gewaehlt[0] }}
+        {%- else -%}{{ gewaehlt | length }} {{ wort_viele }}
+        {%- endif -%}
+      </span>
+    </summary>
+    <div class="wahlliste-panel">
+      {% if werte %}
+      <div class="wahlliste-suche">
+        <input type="text" class="wahlliste-feld" placeholder="tippen zum Suchen"
+               autocomplete="off" aria-label="{{ titel }} durchsuchen">
+      </div>
+      {% endif %}
+      <div class="wahlliste-eintraege">
+        {% for w in werte %}
+        <label class="wahlzeile" data-name="{{ w | lower }}">
+          <input type="checkbox" name="{{ feldname }}" value="{{ w }}"
+                 {{ 'checked' if w in gewaehlt }}>
+          <span>{{ w }}</span>
+        </label>
+        {% else %}
+        <p class="klein leise" style="margin: 6px 8px;">Noch keine Namen erfasst.</p>
+        {% endfor %}
+      </div>
+      <p class="wahlliste-leer klein leise" hidden>Kein Treffer.</p>
+    </div>
+  </details>
+</div>
+{% endmacro %}
+
 <form class="filter" method="get" action="{{ ziel }}">
   <label><span>Von Jahr</span>
     <select name="von_jahr">
@@ -26,54 +67,28 @@
       {% for nr, wort in monatsnamen.items() %}<option value="{{ nr }}" {{ 'selected' if f.bis_monat==nr }}>{{ wort }}</option>{% endfor %}
     </select>
   </label>
-  {# Mehrere Betreute auf einmal: man wertet oft zwei oder drei zusammen
-     aus. Bewusst <details> mit Kästchen und kein <select multiple> - das
-     verlangt Strg-Klick und weiß niemand. Ohne Skript bleibt die Liste
-     offen stehen, bedienbar ist sie trotzdem; das Skript unten schließt
-     sie nur beim Klick daneben. #}
-  <div class="filterwahl {{ 'gesetzt' if f.klienten }}">
-    <span class="filterwahl-titel">Betreute Personen</span>
-    <details class="wahlliste">
-      <summary>
-        {%- if not f.klienten -%}alle
-        {%- elif f.klienten | length == 1 -%}{{ f.klienten[0] }}
-        {%- else -%}{{ f.klienten | length }} ausgewählt
-        {%- endif -%}
-      </summary>
-      <div class="wahlliste-panel">
-        {% for k in klienten %}
-        <label class="wahlzeile">
-          <input type="checkbox" name="klient" value="{{ k }}"
-                 {{ 'checked' if k in f.klienten }}>
-          <span>{{ k }}</span>
-        </label>
-        {% else %}
-        <p class="klein leise" style="margin: 6px 8px;">Noch keine Namen erfasst.</p>
-        {% endfor %}
-      </div>
-    </details>
-  </div>
-  <label><span>Mitarbeiter</span>
-    <select name="mitarbeiter">
-      <option value="">alle</option>
-      {% for m in leute %}<option value="{{ m }}" {{ 'selected' if f.mitarbeiter==m }}>{{ m }}</option>{% endfor %}
-    </select>
-  </label>
-  {% if suche_zeigen %}
-  <label><span>Suche</span>
-    <input type="search" name="q" value="{{ f.q or '' }}"
-           placeholder="Leistung, Person oder Mitarbeiter">
-  </label>
-  {% endif %}
-  {# Schalter und Knöpfe stehen in einer eigenen Zeile unter den Feldern.
-     Zwischen den Auswahlfeldern sah die Pille wie ein vergessenes Feld
-     aus und stand mal am Zeilenende, mal mittendrin - je nachdem, wie
-     die Felder gerade umbrachen. #}
+
+  {{ mehrfachwahl("Betreute Personen", "klient", klienten, f.klienten,
+                  "Person", "Personen") }}
+  {{ mehrfachwahl("Mitarbeiter", "mitarbeiter", leute, f.mitarbeiterliste,
+                  "Mitarbeiter", "Mitarbeiter") }}
+
+  {# Schalter, Suche und Knöpfe stehen in einer eigenen Zeile unter den
+     Feldern. Zwischen den Auswahlfeldern sah die Pille wie ein vergessenes
+     Feld aus und landete je nach Umbruch mal am Zeilenende, mal
+     mittendrin. #}
   <div class="filter-fuss">
     {% if abrechenbar_zeigen %}
     <label class="filter-umschalter">
       <input type="checkbox" name="nur_abrechenbar" value="1" {{ 'checked' if f.nur_abrechenbar }}>
       <span>nur abrechenbare Zeiten</span>
+    </label>
+    {% endif %}
+    {% if suche_zeigen %}
+    <label class="filter-suche">
+      <span class="leise">Suche</span>
+      <input type="search" name="q" value="{{ f.q or '' }}"
+             placeholder="Leistung, Person oder Mitarbeiter">
     </label>
     {% endif %}
     <div class="filter-knoepfe">
@@ -84,9 +99,65 @@
 </form>
 
 <script>
-  // Klappt die Namensliste zu, wenn daneben geklickt wird. Reine
-  // Bequemlichkeit - ohne Skript bleibt sie offen und alles funktioniert.
+  // Drei Bequemlichkeiten für die Namenslisten. Alles rein optional:
+  // ohne Skript bleibt die Liste offen stehen und der Text im Feld ist
+  // erst nach dem Filtern aktuell - bedienbar ist sie so wie so.
   (function () {
+    document.querySelectorAll("details.wahlliste").forEach(function (liste) {
+      var text    = liste.querySelector(".wahlliste-text"),
+          feld    = liste.querySelector(".wahlliste-feld"),
+          leer    = liste.querySelector(".wahlliste-leer"),
+          zeilen  = Array.prototype.slice.call(
+                      liste.querySelectorAll(".wahlzeile")),
+          viele   = liste.dataset.viele || "Einträge";
+
+      // 1. Der Text im zugeklappten Feld folgt den Kästchen sofort.
+      function beschriften() {
+        var gewaehlt = zeilen.filter(function (z) {
+          return z.querySelector("input").checked;
+        });
+        if (!gewaehlt.length)        { text.textContent = "alle"; }
+        else if (gewaehlt.length === 1) {
+          text.textContent = gewaehlt[0].querySelector("span").textContent;
+        } else { text.textContent = gewaehlt.length + " " + viele; }
+        liste.closest(".filterwahl").classList.toggle("gesetzt", gewaehlt.length > 0);
+      }
+      liste.addEventListener("change", beschriften);
+
+      // 2. Tippen springt zum Namen. Das Suchfeld bekommt beim Aufklappen
+      //    den Fokus, ein Buchstabe filtert die Liste sofort.
+      function filtern() {
+        var wort = (feld.value || "").trim().toLowerCase(), treffer = 0;
+        zeilen.forEach(function (z) {
+          var passt = !wort || (z.dataset.name || "").indexOf(wort) === 0
+                            || (z.dataset.name || "").indexOf(" " + wort) > -1;
+          z.hidden = !passt;
+          if (passt) { treffer++; }
+        });
+        if (leer) { leer.hidden = treffer > 0; }
+      }
+      if (feld) {
+        feld.addEventListener("input", filtern);
+        // Enter im Suchfeld soll nicht das ganze Formular abschicken,
+        // sondern den ersten Treffer anhaken.
+        feld.addEventListener("keydown", function (e) {
+          if (e.key !== "Enter") { return; }
+          e.preventDefault();
+          var erster = zeilen.filter(function (z) { return !z.hidden; })[0];
+          if (erster) {
+            var k = erster.querySelector("input");
+            k.checked = !k.checked;
+            beschriften();
+          }
+        });
+        liste.addEventListener("toggle", function () {
+          if (liste.open) { feld.focus(); }
+          else { feld.value = ""; filtern(); }
+        });
+      }
+    });
+
+    // 3. Klick daneben klappt zu.
     document.addEventListener("click", function (e) {
       document.querySelectorAll("details.wahlliste[open]").forEach(function (d) {
         if (!d.contains(e.target)) { d.open = false; }

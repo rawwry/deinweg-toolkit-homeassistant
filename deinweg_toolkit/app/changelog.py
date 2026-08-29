@@ -1129,4 +1129,32 @@ CHANGELOG = [
         "dreimal zu knapp geraten – zuletzt, weil dieselbe Schrift auf "
         "einem anderen Rechner ein paar Pixel breiter läuft",
     ]},
+    {"version": "1.6", "titel": "Filter überall gleich, Bewilligungen in Mein Bereich", "punkte": [
+        "Die Namensliste im Filter hat jetzt ein Suchfeld: aufklappen, "
+        "Anfangsbuchstaben tippen, und die Liste zeigt nur noch die "
+        "passenden Namen. Enter hakt den ersten Treffer an",
+        "Der Text im zugeklappten Feld folgt den Kästchen sofort – vorher "
+        "stand dort noch „alle“, obwohl schon zwei Namen angehakt waren",
+        "Dieselbe Mehrfachauswahl gilt jetzt auch für „Mitarbeiter“",
+        "Die Übersicht hat denselben Filter wie die Auswertung bekommen. "
+        "Das Suchfeld ist geblieben und sitzt in der unteren Zeile neben "
+        "„nur abrechenbare Zeiten“",
+        "„Mein Bereich“ zeigt oben, bei welchen betreuten Personen eine "
+        "Bewilligung abgelaufen ist, in den nächsten 60 Tagen ausläuft "
+        "oder ganz fehlt – mit einem Sprung direkt zu den Zeiträumen. "
+        "Personen, für die nie ein Bescheid hinterlegt war, stehen "
+        "zugeklappt darunter, damit sie die dringenden Fälle nicht "
+        "ertränken",
+        "Neues Recht „Bewilligungen in Mein Bereich“ in der "
+        "Benutzerverwaltung. Standard an: es ist eine Erinnerung fürs "
+        "Team, keine heikle Auskunft",
+        "Einstellungen → Betreute Personen kennt jetzt auch „läuft aus“ – "
+        "mit der Zahl der verbleibenden Tage",
+        "Der seitliche Rollbalken in der Auswertung: Die Tabellen brauchen "
+        "rund 630 Pixel. Bei einer 340 Pixel breiten Seitenspalte blieb "
+        "links darunter zu wenig übrig, und die Tabelle rollte. Die zweite "
+        "Spalte erscheint deshalb erst ab 1200 Pixel Fensterbreite; "
+        "darunter rutscht sie unter den Inhalt und die Tabellen bekommen "
+        "die volle Breite",
+    ]},
 ]

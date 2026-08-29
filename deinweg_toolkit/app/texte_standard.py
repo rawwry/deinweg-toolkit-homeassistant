@@ -275,6 +275,14 @@ TEXTE_STANDARD["einst.urlaubstage"] = (
     "Der Urlaubsanspruch in Tagen pro Kalenderjahr. Im persönlichen Bereich "
     "sieht jede Person davon ausgehend, wie viele Tage sie schon genommen "
     "hat und wie viele noch offen sind. 0 = kein Anspruch hinterlegt.")
+TEXTE_STANDARD["mein.bewilligungen_lead"] = (
+    "Bei diesen betreuten Personen ist die Bewilligung abgelaufen, läuft "
+    "in den nächsten 60 Tagen aus oder fehlt ganz. Solange nichts "
+    "Neues vorliegt, rechnet die Auswertung für diese Monate ohne "
+    "Kontingent – ein Folgeantrag gehört also raus.")
+TEXTE_STANDARD["mein.bewilligungen_gut"] = (
+    "Bei keiner betreuten Person läuft gerade eine Bewilligung aus oder "
+    "fehlt.")
 TEXTE_STANDARD["mein.zeiten_lead"] = (
     "Alle Zeiten, die auf deinen Namen laufen. Hier stehen sie unabhängig "
     "davon, ob du die Übersicht unter „Arbeitszeit“ nutzen darfst – deine "

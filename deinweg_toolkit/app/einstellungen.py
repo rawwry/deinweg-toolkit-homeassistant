@@ -318,47 +318,24 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
     # Auswertung: der zuletzt begonnene, der heute noch laeuft. Bewusst
     # hier und nicht in der Vorlage - dort muesste man ueber ein leeres
     # "bis" stolpern, und die Regel stuende dann an zwei Stellen.
+    # Wie steht jede Person heute da? Gerechnet wird in
+    # main.bewilligungslage() - dieselbe Funktion, die auch "Mein
+    # Bereich" benutzt, damit beide Seiten nie auseinanderlaufen.
     heute_wert = _u["heute"]()
     aktuell, lage = {}, {}
     for p in personen:
-        eintraege = zeitraeume.get(p["id"], [])
-        laufend = None
-        for z in eintraege:
-            if z["von"] <= heute_wert and (not z["bis"] or z["bis"] >= heute_wert):
-                laufend = z
-                break
-        if laufend:
-            aktuell[p["id"]] = laufend
-        # Wie steht diese Person heute da? Genau das ist die Frage, mit
-        # der man auf die Seite kommt - eine ausgelaufene Bewilligung
-        # faellt sonst erst auf, wenn die Auswertung nicht stimmt.
-        if laufend:
-            lage[p["id"]] = {"art": "laufend", "zeitraum": laufend}
-        elif eintraege:
-            # Es gibt Bescheide, aber keiner gilt heute. Zwei Faelle:
-            # ausgelaufen oder erst in der Zukunft.
-            kuenftig = [z for z in eintraege if z["von"] > heute_wert]
-            vergangen = [z for z in eintraege
-                         if z["bis"] and z["bis"] < heute_wert]
-            if kuenftig:
-                naechster = min(kuenftig, key=lambda z: z["von"])
-                lage[p["id"]] = {"art": "kuenftig", "ab": naechster["von"],
-                                 "zeitraum": naechster}
-            else:
-                letzter = max(vergangen, key=lambda z: z["bis"]) if vergangen else None
-                lage[p["id"]] = {"art": "abgelaufen",
-                                 "seit": letzter["bis"] if letzter else "",
-                                 "zeitraum": letzter}
-        elif p["wochenstunden"] or p["stundensatz"]:
-            lage[p["id"]] = {"art": "grundwert"}
-        else:
-            lage[p["id"]] = {"art": "leer"}
-    # Fuer die Ueberschrift: wie viele aktive Personen stehen gerade ohne
-    # gueltige Bewilligung da?
+        stand = _u["bewilligungslage"](zeitraeume.get(p["id"], []),
+                                       p["wochenstunden"], p["stundensatz"],
+                                       heute_wert)
+        lage[p["id"]] = stand
+        if stand["art"] in ("laufend", "laeuft_aus"):
+            aktuell[p["id"]] = stand["zeitraum"]
+    # Fuer die Ueberschrift: bei wie vielen aktiven Personen ist etwas zu
+    # tun?
     ohne_bewilligung = sum(
         1 for p in personen
         if p["aktiv"] and lage.get(p["id"], {}).get("art") in
-        ("abgelaufen", "kuenftig", "leer"))
+        _u["BEWILLIGUNG_HANDLUNG"])
 
     return _u["templates"].TemplateResponse(
         request=request, name="einstellungen.html", context={
@@ -806,6 +783,7 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
                      fremde_loeschen: str = Form(""),
                      fremde_bearbeiten: str = Form(""),
                      wiki_schreiben: str = Form(""),
+                     bewilligungen_sehen: str = Form(""),
                      bereiche: list[str] = Form([]),
                      einst_bereiche: list[str] = Form([])):
     benutzername = benutzername.strip()
@@ -824,13 +802,14 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
         con.execute(
             "INSERT INTO benutzer (benutzername, passwort_hash, rolle, "
             "berechtigungen, email, mitarbeiter, fremde_loeschen, "
-            "fremde_bearbeiten, wiki_schreiben, einst_bereiche, angelegt_am) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "fremde_bearbeiten, wiki_schreiben, bewilligungen_sehen, "
+            "einst_bereiche, angelegt_am) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (benutzername, db.passwort_hashen(passwort), rolle,
              auth.berechtigungen_speichern(bereiche), email or None,
              mitarbeiter or None, 1 if fremde_loeschen else 0,
              1 if fremde_bearbeiten else 0,
-             1 if wiki_schreiben else 0,
+             1 if wiki_schreiben else 0, 1 if bewilligungen_sehen else 0,
              auth.einst_bereiche_speichern(einst_bereiche), _u["jetzt"]()))
     return benutzer_zurueck(hinweis=f"„{benutzername}“ angelegt.")
 
@@ -843,6 +822,7 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                        fremde_loeschen: str = Form(""),
                        fremde_bearbeiten: str = Form(""),
                        wiki_schreiben: str = Form(""),
+                       bewilligungen_sehen: str = Form(""),
                        bereiche: list[str] = Form([]),
                        einst_bereiche: list[str] = Form([])):
     benutzername = benutzername.strip()
@@ -875,6 +855,7 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                   "fremde_loeschen": 1 if fremde_loeschen else 0,
                   "fremde_bearbeiten": 1 if fremde_bearbeiten else 0,
                   "wiki_schreiben": 1 if wiki_schreiben else 0,
+                  "bewilligungen_sehen": 1 if bewilligungen_sehen else 0,
                   "berechtigungen": auth.berechtigungen_speichern(bereiche),
                   "einst_bereiche": auth.einst_bereiche_speichern(einst_bereiche)}
         if neues_passwort:

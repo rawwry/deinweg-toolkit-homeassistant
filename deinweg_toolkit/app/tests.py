@@ -2032,9 +2032,16 @@ def test_mehrere_betreute(client: TestClient) -> None:
            "die Auswahl steht als Kästchenliste im Filter")
     pruefe(zwei.count('type="checkbox" name="klient"') >= 3,
            "mit einem Kästchen je Person")
-    pruefe("ausgewählt</summary>" in zwei.replace("\n", "").replace("  ", "")
-           or "2 ausgewählt" in zwei,
+    pruefe("2 Personen</span>" in zwei.replace("\n", "").replace("  ", ""),
            "und zeigt zugeklappt, wie viele gewählt sind")
+    pruefe('class="wahlliste-feld"' in zwei,
+           "über der Liste steht ein Suchfeld zum Tippen")
+
+    # Dieselbe Mehrfachauswahl für die Mitarbeiter.
+    zwei_leute = client.get("/auswertung?mitarbeiter=pruefer").text
+    pruefe(zwei_leute.count('type="checkbox" name="mitarbeiter"') >= 1,
+           "auch die Mitarbeiter stehen als Kästchenliste da")
+    pruefe("Mitarbeiter" in zwei_leute, "mit ihrem eigenen Feld")
 
     # Auch die Übersicht und der Export folgen der Mehrfachauswahl.
     liste = tabelle(client.get(
@@ -2102,6 +2109,113 @@ def test_bewilligungsstand(client: TestClient) -> None:
     zeile = seite.split("Laufend Lena")[1][:400]
     pruefe("Bewilligung ausgelaufen" not in zeile,
            "ein Zeitraum ohne Ende löst keine Warnung aus")
+
+
+def test_bewilligungen_mein_bereich(client: TestClient) -> None:
+    """Fehlende und auslaufende Bewilligungen stehen in „Mein Bereich“."""
+    abschnitt("Bewilligungen in „Mein Bereich“")
+    from .main import bewilligungslage, BEWILLIGUNG_BALD_TAGE
+
+    heute = dt.date.today()
+    h = heute.isoformat()
+
+    class Z(dict):
+        def __getitem__(self, k):
+            return dict.get(self, k)
+
+    # --- Die Regel selbst ---------------------------------------------------
+    laeuft = [Z(von="2020-01-01",
+                bis=(heute + dt.timedelta(days=10)).isoformat(),
+                wochenstunden=4, stundensatz=60)]
+    lage = bewilligungslage(laeuft, 0, 0, h)
+    pruefe(lage["art"] == "laeuft_aus" and lage["tage"] == 10,
+           "ein Zeitraum, der bald endet, gilt als „läuft aus“")
+
+    weit = [Z(von="2020-01-01",
+              bis=(heute + dt.timedelta(days=BEWILLIGUNG_BALD_TAGE + 5)).isoformat(),
+              wochenstunden=4, stundensatz=60)]
+    pruefe(bewilligungslage(weit, 0, 0, h)["art"] == "laufend",
+           "einer, der erst später endet, nicht")
+    ohne_ende = [Z(von="2020-01-01", bis=None, wochenstunden=4, stundensatz=60)]
+    pruefe(bewilligungslage(ohne_ende, 0, 0, h)["art"] == "laufend",
+           "ein Zeitraum ohne Ende läuft nie aus")
+    pruefe(bewilligungslage([], 3, 40, h)["art"] == "grundwert",
+           "ohne Zeitraum, aber mit Grundwert: „grundwert“")
+    pruefe(bewilligungslage([], 0, 0, h)["art"] == "leer",
+           "ganz ohne alles: „leer“")
+
+    # --- Die Karte ----------------------------------------------------------
+    seite = client.get("/meinbereich").text
+    pruefe("Bewilligungen im Blick" in seite, "die Karte steht in Mein Bereich")
+    pruefe("bewilligungsliste" in seite, "mit einer Liste der Personen")
+    pruefe("Abgelaufen Anton" in seite,
+           "die abgelaufene Bewilligung steht darin")
+    # Personen, bei denen nur der Grundwert greift, stehen zugeklappt
+    # darunter - sonst ertränken sie die dringenden Fälle.
+    pruefe("bewilligung-rest" in seite,
+           "Personen ohne Zeitraum stehen zugeklappt darunter")
+
+    # --- Das Recht ----------------------------------------------------------
+    from .auth import darf_bewilligungen_sehen
+    pruefe(darf_bewilligungen_sehen({"rolle": "benutzer",
+                                     "bewilligungen_sehen": 1}) is True,
+           "mit dem Recht sichtbar")
+    pruefe(darf_bewilligungen_sehen({"rolle": "benutzer",
+                                     "bewilligungen_sehen": 0}) is False,
+           "ohne das Recht nicht")
+    pruefe(darf_bewilligungen_sehen({"rolle": "benutzer"}) is True,
+           "eine Sitzung von vor der Migration fällt auf den Standard")
+
+    client.post("/einstellungen/benutzer", data={
+        "benutzername": "ohnebewilligung", "passwort": "ohnepasswort",
+        "rolle": "benutzer", "bereiche": ["datensaetze"]})
+    with db.db() as con:
+        bid = con.execute("SELECT id FROM benutzer WHERE benutzername="
+                          "'ohnebewilligung'").fetchone()["id"]
+        con.execute("UPDATE benutzer SET bewilligungen_sehen=0 WHERE id=?",
+                    (bid,))
+    o = TestClient(app)
+    o.post("/login", data={"benutzername": "ohnebewilligung",
+                           "passwort": "ohnepasswort"}, follow_redirects=False)
+    pruefe("Bewilligungen im Blick" not in o.get("/meinbereich").text,
+           "ohne das Recht fehlt die Karte ganz")
+
+    # Und der Schalter steht in der Benutzerverwaltung.
+    verwaltung = client.get("/einstellungen?bereich=benutzer").text
+    pruefe('name="bewilligungen_sehen"' in verwaltung,
+           "das Recht lässt sich in der Benutzerverwaltung vergeben")
+
+
+def test_uebersicht_filter(client: TestClient) -> None:
+    """Die Übersicht trägt denselben Filter wie die Auswertung."""
+    abschnitt("Filter der Übersicht")
+    seite = client.get("/eintraege").text
+    pruefe('class="wahlliste"' in seite,
+           "auch hier stehen die Namen als Kästchenliste")
+    pruefe(seite.count("filterwahl") >= 2,
+           "für betreute Personen und für Mitarbeiter")
+    pruefe('class="filter-suche"' in seite,
+           "das Suchfeld steht in der Fußzeile des Filters")
+    pruefe(seite.index('class="filter-fuss"') < seite.index('class="filter-suche"'),
+           "und zwar innerhalb dieser Zeile")
+
+    # Mehrere Mitarbeiter zugleich.
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, "
+                    "abgabepflicht, monatsstunden, urlaubstage, angelegt_am) "
+                    "VALUES ('zweiter',1,1,100,30,'2026-01-01 08:00')")
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('zweiter','2026-02-02','2026-02','09:00',"
+            "'10:00','Testperson','Besuch',60,1,'zw1','2026-02-02 09:00')")
+    beide = client.get("/auswertung?mitarbeiter=pruefer&mitarbeiter=zweiter").text
+    pruefe("2 Mitarbeiter" in beide,
+           "zwei Mitarbeiter zugleich stehen in der Chipleiste")
+    einer = client.get("/eintraege?mitarbeiter=zweiter").text
+    körper = einer.split("<tbody>")[1].split("</tbody>")[0]
+    pruefe("zweiter" in körper and "pruefer" not in körper,
+           "ein einzelner Mitarbeiter filtert wie bisher")
 
 
 def test_versionen() -> None:
@@ -2823,6 +2937,8 @@ def _durchlauf(client: TestClient) -> None:
         test_monatsbloecke(client)
         test_mehrere_betreute(client)
         test_bewilligungsstand(client)
+        test_bewilligungen_mein_bereich(client)
+        test_uebersicht_filter(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")

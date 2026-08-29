@@ -3,6 +3,18 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.6
+
+- Namensliste im Filter mit Suchfeld (tippen springt zum Namen) und
+  sofort aktueller Beschriftung
+- Mehrfachauswahl jetzt auch für „Mitarbeiter"
+- Übersicht mit demselben Filter, Suchfeld in der unteren Zeile
+- „Mein Bereich": Karte mit abgelaufenen, auslaufenden und fehlenden
+  Bewilligungen; neues Recht dafür in der Benutzerverwaltung
+- Einstellungen → Betreute Personen kennt zusätzlich „läuft aus"
+- Auswertung: zweite Spalte erst ab 1200px, damit die Tabellen nie
+  seitlich rollen müssen
+
 ## 1.5
 
 - Auswertung: mehrere betreute Personen gleichzeitig filtern

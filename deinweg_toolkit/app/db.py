@@ -153,6 +153,9 @@ CREATE TABLE IF NOT EXISTS benutzer (
     fremde_loeschen  INTEGER NOT NULL DEFAULT 0,
     fremde_bearbeiten INTEGER NOT NULL DEFAULT 0,
     wiki_schreiben   INTEGER NOT NULL DEFAULT 1,
+    -- Darf dieses Konto in "Mein Bereich" sehen, bei welchen betreuten
+    -- Personen eine Bewilligung fehlt oder auslaeuft?
+    bewilligungen_sehen INTEGER NOT NULL DEFAULT 1,
     -- Kommaliste der erlaubten Punkte INNERHALB der Einstellungen, nach
     -- derselben Regel wie berechtigungen: leer/NULL bedeutet "alle".
     einst_bereiche TEXT,
@@ -506,6 +509,12 @@ def init() -> dict | None:
         # Standard von 0 haette bestehenden Konten stillschweigend eine
         # Faehigkeit genommen.
         spalte_ergaenzen(con, "benutzer", "wiki_schreiben",
+                         "INTEGER NOT NULL DEFAULT 1")
+        # Der Hinweis auf fehlende und auslaufende Bewilligungen in
+        # "Mein Bereich". Standard 1: es ist eine Erinnerung fuers ganze
+        # Team, keine heikle Auskunft - wer sie nicht braucht, bekommt
+        # sie ausdruecklich abgeschaltet.
+        spalte_ergaenzen(con, "benutzer", "bewilligungen_sehen",
                          "INTEGER NOT NULL DEFAULT 1")
         # Welche Punkte innerhalb der Einstellungen darf dieser Benutzer
         # sehen? Leer/NULL heisst "alle" - genau wie bei berechtigungen und

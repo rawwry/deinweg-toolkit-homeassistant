@@ -9,6 +9,93 @@
    klein unten bei „Mein Konto“. Es ist der eine Knopf, den man auf dieser
    Seite sucht, wenn man sie überhaupt aufruft - und er muss auch dann da
    sein, wenn das Konto keinem Mitarbeiter zugeordnet ist. #}
+{# Fehlende und auslaufende Bewilligungen - ganz oben, weil hier gehandelt
+   werden muss und weil „Mein Bereich" die Seite ist, die jeder täglich
+   sieht. Wer das Recht nicht hat, bekommt die Liste gar nicht erst. #}
+{% if bewilligungen or bewilligungen_grundwert %}
+<section class="karte bewilligungskarte {{ 'dringend' if bewilligungen }}">
+  <div class="kopfzeile">
+    <h2>Bewilligungen im Blick</h2>
+    {% if bewilligungen %}
+    <p class="summe">{{ bewilligungen | length }}
+      {{ "Person" if bewilligungen | length == 1 else "Personen" }}</p>
+    {% endif %}
+  </div>
+  {% if bewilligungen %}
+  <p class="lead">{{ t("mein.bewilligungen_lead") }}</p>
+  <ul class="bewilligungsliste">
+    {% for b in bewilligungen %}
+    <li class="bw-{{ b.art }}">
+      <span class="bw-name">{{ b.name }}</span>
+      <span class="bw-lage">
+        {% if b.art == "abgelaufen" %}
+          <span class="marke-status dopp">abgelaufen</span>
+          {% if b.seit %}<span class="leise">seit {{ b.seit | deutsch }}</span>{% endif %}
+        {% elif b.art == "leer" %}
+          <span class="marke-status dopp">nichts hinterlegt</span>
+        {% elif b.art == "laeuft_aus" %}
+          <span class="marke-status offen">läuft aus</span>
+          <span class="leise">am {{ b.bis | deutsch }} · noch
+            {{ b.tage }} {{ "Tag" if b.tage == 1 else "Tage" }}</span>
+        {% elif b.art == "kuenftig" %}
+          <span class="marke-status offen">gilt erst ab {{ b.ab | deutsch }}</span>
+        {% else %}
+          <span class="marke-status weg">kein Zeitraum</span>
+          <span class="leise">es gilt der Grundwert</span>
+        {% endif %}
+      </span>
+      {% if hat_zugriff(request.state.benutzer, "einstellungen")
+            and hat_einst_zugriff(request.state.benutzer, "betreute") %}
+      <a class="knopf-icon bw-pflegen" title="Zeiträume pflegen" aria-label="Zeiträume pflegen"
+         href="/einstellungen?bereich=betreute&offen={{ b.id }}#person-{{ b.id }}">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+      </a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="lead">{{ t("mein.bewilligungen_gut") }}</p>
+  {% endif %}
+
+  {# Personen ganz ohne Bescheid stehen zugeklappt darunter. Sie sind
+     eine Feststellung, kein Auftrag - offen ertränken zwanzig solche
+     Zeilen die drei, um die es wirklich geht. #}
+  {% if bewilligungen_grundwert %}
+  <details class="bewilligung-rest">
+    <summary>
+      {{ bewilligungen_grundwert | length }}
+      {{ "Person" if bewilligungen_grundwert | length == 1 else "Personen" }}
+      ohne hinterlegten Bewilligungszeitraum – dort gilt der Grundwert
+    </summary>
+    <ul class="bewilligungsliste">
+      {% for b in bewilligungen_grundwert %}
+      <li class="bw-grundwert">
+        <span class="bw-name">{{ b.name }}</span>
+        <span class="bw-lage"><span class="marke-status weg">kein Zeitraum</span></span>
+        {% if hat_zugriff(request.state.benutzer, "einstellungen")
+              and hat_einst_zugriff(request.state.benutzer, "betreute") %}
+        <a class="knopf-icon bw-pflegen" title="Zeiträume pflegen" aria-label="Zeiträume pflegen"
+           href="/einstellungen?bereich=betreute&offen={{ b.id }}#person-{{ b.id }}">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+                  stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
+
 {% if not person %}
 <section class="karte">
   <div class="kopfzeile">

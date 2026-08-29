@@ -68,6 +68,7 @@ def setup(templates, sitzung_tage: int) -> None:
     templates.env.globals["hat_zugriff"] = hat_zugriff
     templates.env.globals["hat_einst_zugriff"] = hat_einst_zugriff
     templates.env.globals["darf_wiki_schreiben"] = darf_wiki_schreiben
+    templates.env.globals["darf_bewilligungen_sehen"] = darf_bewilligungen_sehen
     templates.env.globals["darf_fremde_loeschen"] = darf_fremde_loeschen
     templates.env.globals["darf_fremde_bearbeiten"] = darf_fremde_bearbeiten
 
@@ -291,6 +292,16 @@ def darf_wiki_schreiben(benutzer) -> bool:
     return _schalter(benutzer, "wiki_schreiben", True)
 
 
+def darf_bewilligungen_sehen(benutzer) -> bool:
+    """Darf die Karte "Bewilligungen im Blick" in Mein Bereich sehen.
+
+    Standard 1: das ist eine Erinnerung fuers ganze Team ("hier muss ein
+    Folgeantrag raus"), keine heikle Auskunft. Wer sie nicht braucht,
+    bekommt sie ausdruecklich abgeschaltet.
+    """
+    return _schalter(benutzer, "bewilligungen_sehen", True)
+
+
 def berechtigungen_speichern(gewaehlt: list[str]) -> str:
     """Kommaliste aus den angeklickten Bereichen - oder leer, wenn wirklich
     alle angeklickt sind (das steht dann fuer "alles", siehe Moduldoku).
@@ -330,7 +341,7 @@ def sitzung_benutzer(con, token: str, sitzung_tage: int):
         "SELECT s.erstellt_am, b.id, b.benutzername, b.rolle, "
         "b.berechtigungen, b.email, b.mitarbeiter, b.aktiv, "
         "b.fremde_loeschen, b.fremde_bearbeiten, b.wiki_schreiben, "
-        "b.einst_bereiche "
+        "b.bewilligungen_sehen, b.einst_bereiche "
         "FROM sitzung s JOIN benutzer b ON b.id = s.benutzer_id "
         "WHERE s.token = ?", (token,)).fetchone()
     if not zeile or not zeile["aktiv"]:

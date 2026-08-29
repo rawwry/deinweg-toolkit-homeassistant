@@ -1139,6 +1139,11 @@
                    {{ 'checked' if b.wiki_schreiben }}>
             Wiki bearbeiten
           </label>
+          <label class="bereich-kachel">
+            <input type="checkbox" name="bewilligungen_sehen" value="1" form="bn-{{ b.id }}"
+                   {{ 'checked' if b.bewilligungen_sehen }}>
+            Bewilligungen in „Mein Bereich“
+          </label>
         </div>
       </fieldset>
     </div>
@@ -1240,6 +1245,10 @@
         <label class="bereich-kachel">
           <input type="checkbox" name="wiki_schreiben" value="1" checked>
           Wiki bearbeiten
+        </label>
+        <label class="bereich-kachel">
+          <input type="checkbox" name="bewilligungen_sehen" value="1" checked>
+          Bewilligungen in „Mein Bereich“
         </label>
       </div>
     </fieldset>

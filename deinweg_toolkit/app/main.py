@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.5"
+VERSION = "1.6"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -714,6 +714,92 @@ def monatsgrenzen(monat: str) -> tuple[str, str]:
     return f"{monat}-01", letzter.isoformat()
 
 
+# Ab wie vielen Tagen vor dem Ende gilt eine Bewilligung als "laeuft
+# aus"? Zwei Monate - so lange dauert ein Folgeantrag beim Kostentraeger
+# erfahrungsgemaess, und frueher waere es nur Rauschen.
+BEWILLIGUNG_BALD_TAGE = 60
+
+
+def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str) -> dict:
+    """Wie steht eine betreute Person heute da?
+
+    Eine Stelle fuer die Frage, die in den Einstellungen und in "Mein
+    Bereich" gleich beantwortet werden muss. Die Liste kommt absteigend
+    nach ``von`` herein, wie ueberall (siehe kontingent_im_monat).
+
+    ``art`` ist eines von:
+    * ``laufend``    - alles in Ordnung
+    * ``laeuft_aus`` - gilt noch, endet aber in den naechsten 60 Tagen
+    * ``abgelaufen`` - der letzte Bescheid ist vorbei
+    * ``kuenftig``   - der naechste beginnt erst
+    * ``grundwert``  - gar kein Bescheid, aber ein Grundwert
+    * ``leer``       - nichts hinterlegt
+    """
+    laufend = None
+    for z in zeitraeume or []:
+        if z["von"] <= heute and (not z["bis"] or z["bis"] >= heute):
+            laufend = z
+            break
+
+    if laufend:
+        if laufend["bis"]:
+            try:
+                tage = (dt.date.fromisoformat(laufend["bis"])
+                        - dt.date.fromisoformat(heute)).days
+            except ValueError:
+                tage = None
+            if tage is not None and tage <= BEWILLIGUNG_BALD_TAGE:
+                return {"art": "laeuft_aus", "bis": laufend["bis"],
+                        "tage": tage, "zeitraum": laufend}
+        return {"art": "laufend", "zeitraum": laufend}
+
+    if zeitraeume:
+        kuenftig = [z for z in zeitraeume if z["von"] > heute]
+        if kuenftig:
+            naechster = min(kuenftig, key=lambda z: z["von"])
+            return {"art": "kuenftig", "ab": naechster["von"],
+                    "zeitraum": naechster}
+        vergangen = [z for z in zeitraeume if z["bis"] and z["bis"] < heute]
+        letzter = max(vergangen, key=lambda z: z["bis"]) if vergangen else None
+        return {"art": "abgelaufen",
+                "seit": letzter["bis"] if letzter else "", "zeitraum": letzter}
+
+    if grund_stunden or grund_satz:
+        return {"art": "grundwert"}
+    return {"art": "leer"}
+
+
+# Welche Lagen verlangen, dass jemand tätig wird? Reihenfolge ist zugleich
+# die Dringlichkeit, nach der sortiert wird.
+BEWILLIGUNG_HANDLUNG = ("abgelaufen", "leer", "laeuft_aus", "kuenftig",
+                        "grundwert")
+
+
+def bewilligungen_pruefen(con) -> list[dict]:
+    """Alle aktiven betreuten Personen, bei denen etwas zu tun ist.
+
+    Dringendstes zuerst. Grundlage fuer die Karte in "Mein Bereich".
+
+    ⚠️ Die Karte trennt danach in zwei Gruppen: alles ausser "grundwert"
+    verlangt einen Folgeantrag, "grundwert" ist nur eine Feststellung
+    ("hier war nie ein Bescheid hinterlegt"). Ohne diese Trennung
+    ertraenken zwanzig Grundwert-Zeilen die drei, um die es geht.
+    """
+    heute = dt.date.today().isoformat()
+    zr = zeitraeume_lesen(con)
+    offen = []
+    for p in con.execute(
+            "SELECT id, name, wochenstunden, stundensatz FROM person "
+            "WHERE aktiv=1 ORDER BY name"):
+        stand = bewilligungslage(zr.get(p["name"], []), p["wochenstunden"],
+                                 p["stundensatz"], heute)
+        if stand["art"] in BEWILLIGUNG_HANDLUNG:
+            offen.append({**stand, "name": p["name"], "id": p["id"],
+                          "rang": BEWILLIGUNG_HANDLUNG.index(stand["art"])})
+    offen.sort(key=lambda r: (r["rang"], r["name"]))
+    return offen
+
+
 def zeitraeume_lesen(con) -> dict[str, list]:
     """Alle bewilligten Zeiträume, nach Personennamen gebündelt.
 
@@ -764,17 +850,21 @@ def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
     von_jahr, von_monat = str(von_jahr or "").strip(), str(von_monat or "").strip()
     bis_jahr, bis_monat = str(bis_jahr or "").strip(), str(bis_monat or "").strip()
 
-    # "klient" nimmt seit 1.5 mehrere Namen entgegen - man wertet oft zwei
-    # oder drei Betreute zusammen aus. Ein einzelner String kommt weiterhin
-    # an (alte Lesezeichen, Links aus anderen Seiten) und wird hier zur
-    # Liste mit einem Element.
-    if isinstance(klient, str):
-        klienten_filter = [klient.strip()] if klient.strip() else []
-    else:
-        klienten_filter = [str(k).strip() for k in (klient or []) if str(k).strip()]
-    # Reihenfolge stabil halten, Dubletten raus - sonst steht derselbe Name
-    # zweimal in der Chipleiste.
-    klienten_filter = list(dict.fromkeys(klienten_filter))
+    # "klient" und "mitarbeiter" nehmen seit 1.5 bzw. 1.6 mehrere Namen
+    # entgegen - man wertet oft zwei oder drei zusammen aus. Ein einzelner
+    # String kommt weiterhin an (alte Lesezeichen, Links aus anderen
+    # Seiten) und wird hier zur Liste mit einem Element.
+    def als_liste(wert) -> list[str]:
+        if isinstance(wert, str):
+            roh = [wert.strip()] if wert.strip() else []
+        else:
+            roh = [str(w).strip() for w in (wert or []) if str(w).strip()]
+        # Reihenfolge stabil halten, Dubletten raus - sonst steht derselbe
+        # Name zweimal in der Chipleiste.
+        return list(dict.fromkeys(roh))
+
+    klienten_filter = als_liste(klient)
+    leute_filter = als_liste(mitarbeiter)
 
     # Teilangaben sinnvoll ergänzen: ein Jahr ohne Monat meint das ganze Jahr.
     von = f"{von_jahr}-{von_monat or '01'}" if von_jahr else ""
@@ -799,8 +889,9 @@ def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
         wo.append("substr(monat, 6, 2)>=?"); werte.append(nur_monate[0])
     elif nur_monate[1]:
         wo.append("substr(monat, 6, 2)<=?"); werte.append(nur_monate[1])
-    if mitarbeiter:
-        wo.append("mitarbeiter=?"); werte.append(mitarbeiter)
+    if leute_filter:
+        wo.append("mitarbeiter IN (" + ",".join("?" * len(leute_filter)) + ")")
+        werte += leute_filter
     if klienten_filter:
         platzhalter = ",".join("?" * len(klienten_filter))
         wo.append(f"klient IN ({platzhalter})")
@@ -840,9 +931,10 @@ def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
 
     felder = {"von_jahr": von_jahr, "von_monat": von_monat,
               "bis_jahr": bis_jahr, "bis_monat": bis_monat,
-              "mitarbeiter": mitarbeiter,
-              # "klient" bleibt ein einzelner Wert (fuer Links und die
-              # alte Schreibweise), "klienten" ist die vollstaendige Liste.
+              # Der Einzelwert bleibt (fuer Links und die alte
+              # Schreibweise), daneben steht die vollstaendige Liste.
+              "mitarbeiter": leute_filter[0] if len(leute_filter) == 1 else "",
+              "mitarbeiterliste": leute_filter,
               "klient": klienten_filter[0] if len(klienten_filter) == 1 else "",
               "klienten": klienten_filter, "q": q,
               "import_id": import_id or "", "nur_abrechenbar": nur_abrechenbar}
@@ -855,8 +947,10 @@ def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
     elif klienten_filter:
         aktive.append((f"{len(klienten_filter)} betreute Personen",
                        ", ".join(klienten_filter)))
-    if mitarbeiter:
-        aktive.append(("Mitarbeiter", mitarbeiter))
+    if len(leute_filter) == 1:
+        aktive.append(("Mitarbeiter", leute_filter[0]))
+    elif leute_filter:
+        aktive.append((f"{len(leute_filter)} Mitarbeiter", ", ".join(leute_filter)))
     if q:
         aktive.append(("Suche", q))
     if nur_abrechenbar:
@@ -870,10 +964,14 @@ def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
         "f": felder, "aktive": aktive,
         # doseq, damit mehrere Namen als eigene klient=-Parameter
         # herauskommen und nicht als ein String mit Kommas.
+        # doseq, damit mehrere Namen als eigene klient=/mitarbeiter=
+        # Parameter herauskommen und nicht als ein String mit Kommas.
         "query": urlencode(
             {k: v for k, v in felder.items()
-             if v and k not in ("klient", "klienten")}
-            | ({"klient": klienten_filter} if klienten_filter else {}),
+             if v and k not in ("klient", "klienten",
+                                "mitarbeiter", "mitarbeiterliste")}
+            | ({"klient": klienten_filter} if klienten_filter else {})
+            | ({"mitarbeiter": leute_filter} if leute_filter else {}),
             doseq=True),
     }
 
@@ -956,7 +1054,8 @@ def darf_eintrag_bearbeiten(benutzer, eintrag_mitarbeiter: str,
 
 @app.get("/eintraege", response_class=HTMLResponse)
 def eintraege(request: Request, von_jahr: str = "", von_monat: str = "",
-              bis_jahr: str = "", bis_monat: str = "", mitarbeiter: str = "",
+              bis_jahr: str = "", bis_monat: str = "",
+              mitarbeiter: list[str] = Query([]),
               klient: list[str] = Query([]), q: str = "", import_id: int = 0,
               nur_abrechenbar: str = "", seite_nr: int = 1, hinweis: str = ""):
     filter_ = bereichsfilter(von_jahr, von_monat, bis_jahr, bis_monat,
@@ -1328,7 +1427,8 @@ def erfassung_speichern(mitarbeiter: str = Form(""),
 
 @app.get("/auswertung", response_class=HTMLResponse)
 def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
-               bis_jahr: str = "", bis_monat: str = "", mitarbeiter: str = "",
+               bis_jahr: str = "", bis_monat: str = "",
+               mitarbeiter: list[str] = Query([]),
                klient: list[str] = Query([]), q: str = "",
                nur_abrechenbar: str = ""):
     filter_ = bereichsfilter(von_jahr, von_monat, bis_jahr, bis_monat,
@@ -1576,10 +1676,22 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
     with db.db() as con:
         person = mitarbeiter_zu_benutzer(con, benutzer)
         if not person:
+            # Auch ohne Mitarbeiterzuordnung: der Hinweis auf fehlende
+            # Bewilligungen gilt dem Team, nicht der einzelnen Person.
             return templates.TemplateResponse(
                 request=request, name="meinbereich.html",
                 context={"seite": "meinbereich", "person": None,
                          "monate": [], "benutzer": benutzer,
+                         "bewilligungen": [
+                             b for b in (bewilligungen_pruefen(con)
+                                         if auth.darf_bewilligungen_sehen(benutzer)
+                                         else [])
+                             if b["art"] != "grundwert"],
+                         "bewilligungen_grundwert": [
+                             b for b in (bewilligungen_pruefen(con)
+                                         if auth.darf_bewilligungen_sehen(benutzer)
+                                         else [])
+                             if b["art"] == "grundwert"],
                          "hinweis": hinweis, "fehler": fehler})
 
         name = person["name"]
@@ -1610,6 +1722,13 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
         # gehoeren dem angemeldeten Konto, und "Mein Bereich" ist die eine
         # Seite, die jeder sehen darf. Der Monatsfilter ist nur Bequem-
         # lichkeit - "alle" zeigt alles, gedeckelt auf MEINE_ZEITEN_MAX.
+        # Fehlende und auslaufende Bewilligungen - dieselbe Rechnung wie
+        # in den Einstellungen (main.bewilligungslage). Steht hier, weil
+        # "Mein Bereich" die Seite ist, die jeder taeglich sieht: ein
+        # Folgeantrag faellt sonst erst auf, wenn der Bescheid weg ist.
+        alle_lagen = (bewilligungen_pruefen(con)
+                      if auth.darf_bewilligungen_sehen(benutzer) else [])
+
         zeitmonate = [r["monat"] for r in con.execute(
             "SELECT DISTINCT monat FROM eintrag WHERE mitarbeiter=? "
             "ORDER BY monat DESC", (name,))]
@@ -1776,6 +1895,9 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "diagramm": diagramm, "urlaub": urlaub,
             "letzter": letzter, "trend": trend,
             "offene_vorgaenge": offene_vorgaenge, "ueberfaellig": ueberfaellig,
+            "bewilligungen": [b for b in alle_lagen if b["art"] != "grundwert"],
+            "bewilligungen_grundwert": [b for b in alle_lagen
+                                        if b["art"] == "grundwert"],
             "eigene_zeiten": eigene_zeiten, "zeitmonate": zeitmonate,
             "zeiten_monat": gewaehlter_monat, "zeiten_gekappt": zeiten_gekappt,
             "zeiten_summe": zeiten_summe, "zeiten_max": MEINE_ZEITEN_MAX,
@@ -2083,7 +2205,7 @@ def exportname(filter_: dict, endung: str) -> str:
 
 @app.get("/export.xlsx")
 def export_xlsx(von_jahr: str = "", von_monat: str = "", bis_jahr: str = "",
-                bis_monat: str = "", mitarbeiter: str = "",
+                bis_monat: str = "", mitarbeiter: list[str] = Query([]),
                 klient: list[str] = Query([]),
                 q: str = "", import_id: int = 0, nur_abrechenbar: str = ""):
     filter_ = bereichsfilter(von_jahr, von_monat, bis_jahr, bis_monat,
@@ -2098,7 +2220,7 @@ def export_xlsx(von_jahr: str = "", von_monat: str = "", bis_jahr: str = "",
 
 @app.get("/export.csv")
 def export_csv(von_jahr: str = "", von_monat: str = "", bis_jahr: str = "",
-               bis_monat: str = "", mitarbeiter: str = "",
+               bis_monat: str = "", mitarbeiter: list[str] = Query([]),
                klient: list[str] = Query([]),
                q: str = "", import_id: int = 0, nur_abrechenbar: str = ""):
     import csv as csvmod
@@ -2145,6 +2267,8 @@ from . import einstellungen as _einstellungen  # noqa: E402
 _einstellungen.setup(templates, {
     "jetzt": jetzt,
     "heute": lambda: dt.date.today().isoformat(),
+    "bewilligungslage": bewilligungslage,
+    "BEWILLIGUNG_HANDLUNG": BEWILLIGUNG_HANDLUNG,
     "monat_wort": monat_wort,
     "VERSION": VERSION,
     "MAX_UPLOAD_MB": MAX_UPLOAD_MB,
