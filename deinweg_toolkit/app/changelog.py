@@ -1023,4 +1023,27 @@ CHANGELOG = [
         "Jetzt haben die drei Lagen Luft voneinander, und die Knopfzeile "
         "schließt den Block mit einer feinen Linie ab",
     ]},
+    {"version": "1.4.1", "titel": "Auswertung in einer Spalte", "punkte": [
+        "Die Auswertung lief oben zweispaltig und unten über die volle "
+        "Breite. Die beiden Hälften waren verschieden hoch, dadurch klaffte "
+        "rechts eine Lücke, und ab den Monatsblöcken wechselte das Raster "
+        "mitten auf der Seite. Jetzt läuft alles in einer Spalte",
+        "„Stunden pro betreuter Person“, „Stundenkontingent“ und "
+        "„Verdienst“ standen als drei Kästen nebeneinander und zählten "
+        "dieselben Namen dreimal auf. Sie sind zu einer Karte "
+        "„Überblick“ zusammengefasst: vier Kennzahlen oben, darunter eine "
+        "Zeile je Person mit Einheiten, Geleistet, Bewilligt, Abweichung, "
+        "Satz und Verdienst – dazu der Kontingentbalken unter dem Namen "
+        "und eine Summenzeile",
+        "Alle Spalten stehen linksbündig, wie in jeder anderen Liste des "
+        "Programms. Die rechtsbündigen Zahlenspalten der Monatsblöcke "
+        "sahen daneben wie ein Fremdkörper aus",
+        "Überblick und Monatsblöcke tragen dieselbe Spaltenfolge – das "
+        "Auge muss sie nicht zweimal lernen",
+        "Ein Band mit Überschrift „Monat für Monat“ trennt die beiden "
+        "Teile der Seite. Vorher lief das eine ohne erkennbare Kante ins "
+        "andere über",
+        "Am Handy stehen die Spalten in Pixeln statt in Prozent: "
+        "„8.488,58 €“ lief sonst aus seiner Zelle in die Nachbarspalte",
+    ]},
 ]

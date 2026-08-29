@@ -22,8 +22,6 @@ TEXTE_STANDARD["erfassung.leer"] = (
     "Noch nichts von Hand erfasst für {mitarbeiter}.")
 TEXTE_STANDARD["datensaetze.leer"] = (
     "Keine Einträge für diesen Filter.")
-TEXTE_STANDARD["auswertung.kontingent_leer"] = (
-    "Im gewählten Zeitraum wurde mit niemandem gearbeitet, für den ein Kontingent hinterlegt ist.")
 TEXTE_STANDARD["auswertung.soll_erklaerung"] = (
     "Soll = Wochenkontingent × 4,33 je Monat, auf 15 Minuten gerundet. Gepflegt unter <a href=\"/einstellungen?bereich=betreute\">Betreute Personen</a>.")
 TEXTE_STANDARD["auswertung.soll_fehlt"] = (
@@ -43,8 +41,6 @@ TEXTE_STANDARD["auswertung.tabelle_leer"] = (
     "Für {zeitraum} sind keine Zeiten erfasst.")
 TEXTE_STANDARD["auswertung.verdienst_hinweis"] = (
     "Rechnerischer Wert der bisher erfassten Zeiten. Keine Abrechnung.")
-TEXTE_STANDARD["auswertung.verdienst_leer"] = (
-    "Niemand mit Kontingent <em>und</em> Stundensatz im gewählten Zeitraum.")
 TEXTE_STANDARD["bearbeiten.dauer_hinweis"] = (
     "Leer gelassene Dauer wird aus Beginn und Ende berechnet. Eine eingetragene Dauer gewinnt gegenüber der Zeitspanne – praktisch für Zettel ohne Uhrzeiten.")
 TEXTE_STANDARD["bearbeiten.lead"] = (

@@ -5,6 +5,13 @@
 
 {{ arbeitszeit('auswertung') }}
 
+{# Die Seite läuft seit 1.4.1 in einer einzigen Spalte. Vorher standen oben
+   zwei Spalten und darunter volle Breite – die beiden Hälften waren
+   verschieden hoch, dadurch klaffte rechts eine Lücke, und ab den
+   Monatsblöcken wechselte das Raster mitten auf der Seite. Dieselben
+   Personen standen außerdem in drei Kästen nebeneinander. Jetzt trägt
+   eine Zeile alles, was zu einer Person zu sagen ist, und die Seite hat
+   genau zwei Teile: Überblick und Monat für Monat. #}
 <section class="karte">
   <div class="kopfzeile">
     <h1>Auswertung{% if aktive_filter %} <span class="marke-status offen">gefiltert</span>{% endif %}</h1>
@@ -14,149 +21,26 @@
   {% with ziel = "/auswertung", abrechenbar_zeigen = true %}{% include "_filter.html" %}{% endwith %}
 </section>
 
-<section class="raster">
-  <div class="karte">
-    <h2>Stunden pro betreuter Person</h2>
-    <p class="boxumfang">
-      Zeitraum <strong>{{ zeitraum_wort }}</strong>
-      {%- if f.klient %} · nur <strong>{{ f.klient }}</strong>{% else %} · alle betreuten Personen{% endif %}
-      {%- if f.mitarbeiter %} · nur Zeiten von <strong>{{ f.mitarbeiter }}</strong>{% else %} · alle Mitarbeiter{% endif %}
-      {%- if je_klient %} · {{ je_klient | length }}
-        {{ "Person" if je_klient | length == 1 else "Personen" }}{% endif %}
-    </p>
-    {% if je_klient %}
-    <table class="liste">
-      <thead>
-        <tr>
-          <th>Betreute Person</th>
-          <th>Mitarbeiter</th>
-          <th>Einheiten</th>
-          <th>IST</th>
-          {% if soll_aktiv %}<th>Soll</th><th>Abweichung</th>{% endif %}
-        </tr>
-      </thead>
-      <tbody>
-      {% for r in je_klient %}
-        <tr>
-          <td class="stark">{{ r.klient }}</td>
-          <td class="leise">
-            {% if r.anzahl_leute > 2 %}
-              <span title="{{ r.leute | join(', ') }}">{{ r.anzahl_leute }} Personen</span>
-            {% else %}
-              {{ r.leute | join(', ') }}
-            {% endif %}
-          </td>
-          <td class="zahlen">{{ r.n }}</td>
-          <td class="zahlen stark">{{ r.m | hhmm }}</td>
-          {% if soll_aktiv %}
-            <td class="zahlen leise">
-              {{ r.soll | hhmm if r.soll else "—" }}
-              {%- if r.stufen > 1 %} <span class="marke-status offen" title="Im Zeitraum galten {{ r.stufen }} verschiedene Wochenkontingente">gestaffelt</span>{% endif %}
-            </td>
-            <td class="zahlen">
-              {% if r.abweichung is not none %}
-                <span class="marke-status {{ 'gut' if r.abweichung >= 0 else 'dopp' }}">{{ '+' if r.abweichung >= 0 }}{{ r.abweichung | hhmm }}</span>
-              {% else %}<span class="leise">—</span>{% endif %}
-            </td>
-          {% endif %}
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-    {% if soll_aktiv %}
-    <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.soll_erklaerung") }}</p>
-    {% if gestaffelt %}
-    <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.gestaffelt") }}</p>
-    {% endif %}
-    {% elif f.monat %}
-    <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.soll_fehlt") }}</p>
-    {% endif %}
-    {% else %}
-    <p class="leer">{{ t("auswertung.tabelle_leer", zeitraum=zeitraum_wort) }}</p>
-    {% endif %}
-  </div>
-
-  <div class="spalte">
-    <div class="karte schmal">
-      <h2>Stundenkontingent</h2>
-      <p class="klein leise" style="margin-top: -8px;">{{ zeitraum_wort }}{% if monate_anzahl > 1 %} · {{ monate_anzahl }} Monate{% endif %}</p>
-      {% if stand %}
-      <ul class="standliste">
-        {% for r in stand %}
-        <li>
-          <div class="standkopf">
-            <span class="stark">{{ r.klient }}</span>
-            <span class="prozent {{ 'ueber' if r.prozent > 105 }}{{ ' knapp' if r.prozent < 90 }}">{{ r.prozent }} %</span>
-          </div>
-          <span class="balkenspur">
-            <span class="balken {{ 'ueber' if r.prozent > 105 }}{{ ' knapp' if r.prozent < 90 }}"
-                  style="width: {{ [r.prozent, 100] | min }}%"></span>
-          </span>
-          <span class="standfuss zahlen">{{ r.m | hhmm }} von {{ r.soll | hhmm }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="leer klein">{{ t("auswertung.kontingent_leer") }}</p>
-      {% endif %}
-    </div>
-
-    <div class="karte schmal">
-      <h2>Verdienst</h2>
-      <p class="klein leise" style="margin-top: -8px;">{{ zeitraum_wort }}</p>
-      {% if verdienst %}
-      <table class="liste">
-        <tbody>
-        {% for r in verdienst %}
-          <tr>
-            <td>
-              <span class="stark">{{ r.klient }}</span><br>
-              <span class="klein leise zahlen">
-                {{ r.m | hhmm }} ×
-                {% if r.satz is not none %}{{ r.satz | euro }}
-                {% else %}{{ r.saetze | length }} Sätze{% endif %}
-              </span>
-            </td>
-            <td class="num zahlen stark betrag">{{ r.betrag | euro }}</td>
-          </tr>
-        {% endfor %}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td class="stark">Summe</td>
-            <td class="num zahlen stark betrag gross">{{ verdienst_gesamt | euro }}</td>
-          </tr>
-        </tfoot>
-      </table>
-      <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.verdienst_hinweis") }}</p>
-      {% else %}
-      <p class="leer klein">{{ t("auswertung.verdienst_leer") }}</p>
-      {% endif %}
-    </div>
-  </div>
-</section>
-
-{# --- Monat für Monat ------------------------------------------------------
-   Die Boxen oben fassen den ganzen Zeitraum zusammen. Für einen Nachweis
-   gegenüber dem Kostenträger braucht es aber den einzelnen Monat: was
-   wurde geleistet, was ist daraus verdient, mit welchem Satz. Erst ab
-   zwei Monaten - bei einem einzigen stünde hier dasselbe noch einmal. #}
-{% if monatsbloecke and monate_anzahl > 1 %}
-<section class="karte" id="monate">
+<section class="karte">
   <div class="kopfzeile">
-    <h2>Zusammenfassung</h2>
-    <p class="summe">{{ zeitraum_wort }}</p>
+    <h2>Überblick</h2>
+    <p class="boxumfang">
+      <strong>{{ zeitraum_wort }}</strong>
+      {%- if monate_anzahl > 1 %} · {{ monate_anzahl }} Monate{% endif %}
+      {%- if f.klient %} · nur <strong>{{ f.klient }}</strong>{% else %} · alle betreuten Personen{% endif %}
+      {%- if f.mitarbeiter %} · nur Zeiten von <strong>{{ f.mitarbeiter }}</strong>{% endif %}
+    </p>
   </div>
-  <p class="lead">{{ t("auswertung.monate_lead") }}</p>
 
-  <div class="kennzahlen">
+  {% if je_klient %}
+  <div class="kennzahlen kennzahlen-auswertung">
     <div class="kennzahl">
       <span class="kzahl">{{ zusammenfassung.ist | hhmm }}</span>
       <span class="klabel">geleistet · {{ zusammenfassung.n }} Einheiten</span>
     </div>
     <div class="kennzahl">
       <span class="kzahl">{{ zusammenfassung.soll | hhmm if zusammenfassung.soll else "—" }}</span>
-      <span class="klabel">bewilligt</span>
+      <span class="klabel">bewilligt{% if zusammenfassung.prozent %} · {{ zusammenfassung.prozent }} % genutzt{% endif %}</span>
     </div>
     <div class="kennzahl {{ 'hat k-ueberfaellig' if zusammenfassung.abweichung is not none and zusammenfassung.abweichung < 0 }}">
       <span class="kzahl">
@@ -164,19 +48,115 @@
           {{ '+' if zusammenfassung.abweichung >= 0 }}{{ zusammenfassung.abweichung | hhmm }}
         {%- else -%}—{%- endif -%}
       </span>
-      <span class="klabel">Abweichung{% if zusammenfassung.prozent %} · {{ zusammenfassung.prozent }} %{% endif %}</span>
+      <span class="klabel">Abweichung</span>
     </div>
     <div class="kennzahl k-verdienst">
-      <span class="kzahl">{{ zusammenfassung.betrag | euro }}</span>
-      <span class="klabel">Verdienst</span>
-    </div>
-    <div class="kennzahl">
-      <span class="kzahl">{{ zusammenfassung.monate }}</span>
-      <span class="klabel">Monate · {{ zusammenfassung.monate_mit }} mit Zeiten</span>
+      <span class="kzahl">{{ verdienst_gesamt | euro }}</span>
+      <span class="klabel">Verdienst · {{ zusammenfassung.personen }}
+        {{ "Person" if zusammenfassung.personen == 1 else "Personen" }}</span>
     </div>
   </div>
+
+  <div class="tabellenrolle">
+  <table class="liste auswertungsblatt">
+    <thead>
+      <tr>
+        <th>Betreute Person</th>
+        <th>Mitarbeiter</th>
+        <th>Einh.</th>
+        <th>Geleistet</th>
+        <th>Bewilligt</th>
+        <th>Abweichung</th>
+        <th>Satz</th>
+        <th>Verdienst</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in je_klient %}
+      <tr>
+        <td>
+          <span class="stark">{{ r.klient }}</span>
+          {% if r.prozent is not none %}
+          {# Balken und Prozentwert auf einer Zeile: untereinander zog die
+             Zeile auf drei Zeilen auf und der Wert stand ohne Bezug da. #}
+          <span class="auslastung" title="{{ r.prozent }} % des bewilligten Kontingents">
+            <span class="balkenspur schmal">
+              <span class="balken {{ 'ueber' if r.prozent > 105 }}{{ ' knapp' if r.prozent < 90 }}"
+                    style="width: {{ [r.prozent, 100] | min }}%"></span>
+            </span>
+            <span class="klein leise zahlen">{{ r.prozent }} %</span>
+          </span>
+          {% endif %}
+        </td>
+        <td class="leise klein">
+          {% if r.anzahl_leute > 2 %}
+            <span title="{{ r.leute | join(', ') }}">{{ r.anzahl_leute }} Personen</span>
+          {% else %}
+            {{ r.leute | join(', ') }}
+          {% endif %}
+        </td>
+        <td class="zahlen leise">{{ r.n }}</td>
+        <td class="zahlen stark">{{ r.m | hhmm }}</td>
+        <td class="zahlen leise">
+          {{ r.soll | hhmm if r.soll else "—" }}
+          {%- if r.stufen > 1 %} <span class="marke-status offen" title="Im Zeitraum galten {{ r.stufen }} verschiedene Wochenkontingente">gestaffelt</span>{% endif %}
+        </td>
+        <td class="zahlen">
+          {% if r.abweichung is not none %}
+            <span class="marke-status {{ 'gut' if r.abweichung >= 0 else 'dopp' }}">{{ '+' if r.abweichung >= 0 }}{{ r.abweichung | hhmm }}</span>
+          {% else %}<span class="leise">—</span>{% endif %}
+        </td>
+        <td class="zahlen leise">
+          {% if r.satz is not none %}{{ r.satz | euro }}
+          {% elif r.saetze %}{{ r.saetze | length }} Sätze
+          {% else %}<span class="leise">—</span>{% endif %}
+        </td>
+        <td class="zahlen stark betrag">{{ r.betrag | euro if r.betrag else "—" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    {% if je_klient | length > 1 %}
+    <tfoot>
+      <tr>
+        <td class="stark">Summe</td>
+        <td></td>
+        <td class="zahlen leise">{{ zusammenfassung.n }}</td>
+        <td class="zahlen stark">{{ zusammenfassung.ist | hhmm }}</td>
+        <td class="zahlen leise">{{ zusammenfassung.soll | hhmm if zusammenfassung.soll else "—" }}</td>
+        <td></td>
+        <td></td>
+        <td class="zahlen stark betrag gross">{{ verdienst_gesamt | euro }}</td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+  </div>
+
+  <p class="klein leise">{{ t("auswertung.soll_erklaerung") }}</p>
+  {% if gestaffelt %}
+  <p class="klein leise">{{ t("auswertung.gestaffelt") }}</p>
+  {% endif %}
+  {% if not soll_aktiv %}
+  <p class="klein leise">{{ t("auswertung.soll_fehlt") }}</p>
+  {% endif %}
+  <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.verdienst_hinweis") }}</p>
+  {% else %}
+  <p class="leer">{{ t("auswertung.tabelle_leer", zeitraum=zeitraum_wort) }}</p>
+  {% endif %}
 </section>
 
+{# --- Monat für Monat ------------------------------------------------------
+   Für einen Nachweis gegenüber dem Kostenträger reicht die Summe über den
+   ganzen Zeitraum nicht: es zählt der einzelne Monat, und der rechnet mit
+   dem Satz, der in genau diesem Monat bewilligt war. Erst ab zwei Monaten –
+   bei einem einzigen stünde hier dasselbe noch einmal. #}
+{% if monatsbloecke and monate_anzahl > 1 %}
+<div class="abschnittsband" id="monate">
+  <h2>Monat für Monat</h2>
+  <p class="klein leise">{{ t("auswertung.monate_lead") }}</p>
+</div>
+
+<div class="monatsliste">
 {% for b in monatsbloecke %}
 <section class="karte monatsblock {{ 'ohne-zeiten' if b.leer }}">
   <div class="monatsleiste">
@@ -200,12 +180,13 @@
   </div>
 
   <div class="tabellenrolle">
-  <table class="liste dicht monatsblatt">
+  {# Dieselbe Spaltenfolge wie im Überblick, damit das Auge sie nicht neu
+     lernen muss. #}
+  <table class="liste dicht auswertungsblatt monatsblatt">
     <thead>
-      <tr><th>Betreute Person</th><th>Mitarbeiter</th><th class="rechts">Einh.</th>
-          <th class="rechts">Geleistet</th><th class="rechts">Bewilligt</th>
-          <th class="rechts">Abweichung</th><th class="rechts">Satz</th>
-          <th class="rechts">Verdienst</th></tr>
+      <tr><th>Betreute Person</th><th>Mitarbeiter</th><th>Einh.</th>
+          <th>Geleistet</th><th>Bewilligt</th><th>Abweichung</th>
+          <th>Satz</th><th>Verdienst</th></tr>
     </thead>
     <tbody>
       {% for z in b.zeilen %}
@@ -214,21 +195,21 @@
         <td class="leise klein">
           {% if z.leute | length > 2 %}
             <span title="{{ z.leute | join(', ') }}">{{ z.leute | length }} Personen</span>
-          {% else %}{{ z.leute | join(', ') or '–' }}{% endif %}
+          {% else %}{{ z.leute | join(', ') or '—' }}{% endif %}
         </td>
-        <td class="zahlen rechts leise">{{ z.n or '–' }}</td>
-        <td class="zahlen rechts stark">{{ z.m | hhmm if z.m else '–' }}</td>
-        <td class="zahlen rechts leise">
-          {{ z.soll | hhmm if z.soll else '–' }}
+        <td class="zahlen leise">{{ z.n or '—' }}</td>
+        <td class="zahlen stark">{{ z.m | hhmm if z.m else '—' }}</td>
+        <td class="zahlen leise">
+          {{ z.soll | hhmm if z.soll else '—' }}
           {%- if z.soll and not z.aus_zeitraum %} <span class="marke-status weg" title="Kein Zeitraum hinterlegt – es gilt der Grundwert der Person">Grundwert</span>{% endif %}
         </td>
-        <td class="zahlen rechts">
+        <td class="zahlen">
           {% if z.abweichung is not none %}
           <span class="marke-status {{ 'gut' if z.abweichung >= 0 else 'dopp' }}">{{ '+' if z.abweichung >= 0 }}{{ z.abweichung | hhmm }}</span>
-          {% else %}<span class="leise">–</span>{% endif %}
+          {% else %}<span class="leise">—</span>{% endif %}
         </td>
-        <td class="zahlen rechts leise">{{ z.satz | euro if z.satz else '–' }}</td>
-        <td class="zahlen rechts stark betrag">{{ z.betrag | euro if z.betrag else '–' }}</td>
+        <td class="zahlen leise">{{ z.satz | euro if z.satz else '—' }}</td>
+        <td class="zahlen stark betrag">{{ z.betrag | euro if z.betrag else '—' }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -239,6 +220,7 @@
   {% endif %}
 </section>
 {% endfor %}
+</div>
 {% endif %}
 
 {% endblock %}

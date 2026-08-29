@@ -3,6 +3,16 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.4.1
+
+- Auswertung läuft in einer Spalte statt oben zweispaltig und unten voll
+  breit — die Lücke im Raster ist damit weg
+- Die drei Kästen oben sind zu einer Karte „Überblick" zusammengefasst,
+  eine Zeile je Person statt dreimal derselbe Name
+- Alle Spalten linksbündig, Überblick und Monatsblöcke mit derselben
+  Spaltenfolge
+- Ein Band „Monat für Monat" trennt die beiden Teile der Seite
+
 ## 1.4
 
 - Auswertung: der gewählte Zeitraum wird in Monatsblöcke aufgeteilt, je

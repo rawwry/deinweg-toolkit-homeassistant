@@ -1654,15 +1654,34 @@ body.anmeldeseite {
 /* „Oberfläche“ lässt sich nicht abwählen und ist deshalb nur Anzeige. */
 .bereich-kachel.fest { cursor: default; opacity: .7; }
 
-/* --- Auswertung: Monat für Monat ---------------------------------------- */
+/* --- Auswertung ---------------------------------------------------------- */
 /*
-   Ein Block je Monat, untereinander. Der Kopf trägt die Zahlen, nach denen
-   man sucht (geleistet, bewilligt, Abweichung, Verdienst), die Tabelle
-   darunter die Aufschlüsselung je betreuter Person. Bewusst eigene Karten
-   statt einer durchlaufenden Tabelle: über zwölf Monate hinweg fände man
-   in einer Tabelle den Monatswechsel nicht wieder.
+   Die Seite läuft in einer einzigen Spalte. Bis 1.4 standen oben zwei
+   Spalten und darunter Blöcke über die volle Breite: die beiden Hälften
+   waren verschieden hoch, dadurch klaffte rechts eine Lücke, und ab den
+   Monatsblöcken wechselte das Raster mitten auf der Seite. Nicht wieder
+   auf .raster umbauen.
 */
-.monatsblock { padding-top: 16px; padding-bottom: 16px; margin-bottom: 12px; }
+
+/* Ein Band trennt die beiden Teile der Seite. Ohne das lief der Überblick
+   ohne erkennbare Kante in die Monatsblöcke über. */
+.abschnittsband {
+  margin: 30px 0 14px; padding-left: 16px;
+  border-left: 3px solid var(--akzent);
+}
+.abschnittsband h2 { margin: 0 0 4px; }
+.abschnittsband p { margin: 0; max-width: 78ch; }
+
+.monatsliste { display: flex; flex-direction: column; gap: 12px; }
+
+/*
+   Ein Block je Monat. Der Kopf trägt die Zahlen, nach denen man sucht
+   (geleistet, bewilligt, Abweichung, Verdienst), die Tabelle darunter die
+   Aufschlüsselung je betreuter Person. Bewusst eigene Karten statt einer
+   durchlaufenden Tabelle: über zwölf Monate hinweg fände man in einer
+   Tabelle den Monatswechsel nicht wieder.
+*/
+.monatsblock { padding-top: 16px; padding-bottom: 16px; margin: 0; }
 .monatsblock.ohne-zeiten { opacity: .72; }
 .monatsleiste {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -1685,25 +1704,54 @@ body.anmeldeseite {
    für Erledigtes und hieße hier das Gegenteil. */
 .liste tbody tr.ohne-ist td { color: var(--leise); }
 
-.monatsblatt th:nth-child(1) { width: 20%; }
-.monatsblatt th:nth-child(2) { width: 15%; }
-.monatsblatt th:nth-child(3) { width: 8%; }
-.monatsblatt th:nth-child(4) { width: 12%; }
-.monatsblatt th:nth-child(5) { width: 14%; }
-.monatsblatt th:nth-child(6) { width: 13%; }
-.monatsblatt th:nth-child(7) { width: 9%; }
-.monatsblatt th:last-child   { width: 12%; }
-.tabellenrolle .liste.monatsblatt .marke-status { white-space: nowrap; }
+/* Überblick und Monatsblöcke tragen dieselbe Spaltenfolge, damit das Auge
+   sie nicht zweimal lernen muss. Alles linksbündig wie in jeder anderen
+   Liste des Programms – rechtsbündige Zahlenspalten sahen hier wie ein
+   Fremdkörper aus. */
+.auswertungsblatt th:nth-child(1) { width: 21%; }
+.auswertungsblatt th:nth-child(2) { width: 14%; }
+.auswertungsblatt th:nth-child(3) { width: 7%; }
+.auswertungsblatt th:nth-child(4) { width: 12%; }
+.auswertungsblatt th:nth-child(5) { width: 15%; }
+.auswertungsblatt th:nth-child(6) { width: 13%; }
+.auswertungsblatt th:nth-child(7) { width: 8%; }
+.auswertungsblatt th:last-child   { width: 10%; }
+.tabellenrolle .liste.auswertungsblatt .marke-status { white-space: nowrap; }
+.auswertungsblatt tfoot td {
+  border-top: 1px solid var(--linie-stark); padding-top: 12px;
+}
+/* Der Kontingentbalken sitzt unter dem Namen statt in einer eigenen
+   Spalte – eine neunte Spalte hätte die Tabelle gesprengt, und so liest
+   sich die Zeile als das, was sie ist: eine Person mit ihrem Stand. */
+.auslastung { display: flex; align-items: center; gap: 9px; margin-top: 7px; }
+.auslastung .balkenspur.schmal {
+  height: 5px; margin: 0; flex: 1 1 auto; max-width: 130px;
+}
+.auslastung .klein { flex: 0 0 auto; }
 
-/* Die Verdienst-Kachel der Zusammenfassung trägt die Akzentfarbe – sie
-   ist die Zahl, wegen der man herkommt. */
+/* Die Verdienst-Kachel trägt die Akzentfarbe – sie ist die Zahl, wegen
+   der man herkommt. */
+.kennzahlen-auswertung { margin-bottom: 18px; }
+.kennzahlen-auswertung .kzahl { font-size: 22px; }
 .kennzahl.k-verdienst { border-color: var(--akzent); background: var(--akzent-weich); }
-.kennzahl.k-verdienst .kzahl { color: var(--akzent); font-size: 22px; }
+.kennzahl.k-verdienst .kzahl { color: var(--akzent); }
 
-@media (max-width: 760px) {
-  .monatsblatt { min-width: 820px; }
-  .tabellenrolle:has(.monatsblatt) { overflow-x: auto; }
-  .tabellenrolle .liste.monatsblatt th { white-space: normal; }
+/* Am Handy rollt die Tabelle in ihrer eigenen Hülle. Die Spalten stehen
+   dort in Pixeln statt in Prozent: bei acht Spalten blieben für „Satz“
+   und „Verdienst“ sonst je gut 70px, und „8.488,58 €“ lief aus der
+   Zelle in die Nachbarspalte. */
+@media (max-width: 860px) {
+  .auswertungsblatt { min-width: 900px; }
+  .tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }
+  .tabellenrolle .liste.auswertungsblatt th { white-space: normal; }
+  .auswertungsblatt th:nth-child(1) { width: 170px; }
+  .auswertungsblatt th:nth-child(2) { width: 100px; }
+  .auswertungsblatt th:nth-child(3) { width: 60px; }
+  .auswertungsblatt th:nth-child(4) { width: 100px; }
+  .auswertungsblatt th:nth-child(5) { width: 130px; }
+  .auswertungsblatt th:nth-child(6) { width: 120px; }
+  .auswertungsblatt th:nth-child(7) { width: 95px; }
+  .auswertungsblatt th:last-child   { width: 115px; }
 }
 
 /* --- Bewilligte Zeiträume je betreuter Person --------------------------- */

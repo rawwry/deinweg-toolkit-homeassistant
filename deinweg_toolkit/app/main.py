@@ -36,7 +36,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.4"
+VERSION = "1.4.1"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1339,7 +1339,12 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         # Offener oder monatsweiser Filter: nur die Monate, in denen etwas steht
         monate = vorhandene or [dt.date.today().strftime("%Y-%m")]
 
-    je_klient, stand, verdienst, verdienst_gesamt = [], [], [], 0.0
+    # Bis 1.4 standen dieselben Personen in drei Boxen nebeneinander:
+    # Stundentabelle, Kontingentbalken, Verdienstliste. Das erzeugte drei
+    # verschieden hohe Kaesten und damit die Luecken im Raster - und man
+    # musste dreimal denselben Namen suchen. Jetzt traegt eine Zeile
+    # alles, was zu einer Person zu sagen ist.
+    je_klient, verdienst_gesamt = [], 0.0
     gestaffelt = False
     for r in roh:
         namen = sorted({t.strip() for t in (r["leute"] or "").split(",") if t.strip()})
@@ -1371,32 +1376,23 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         if len(std_stufen) > 1 or len(satz_stufen) > 1:
             gestaffelt = True
 
+        # Bewusst nicht an das Soll geknuepft: mit gestaffelten Zeitraeumen
+        # kann ein Monat einen Stundensatz tragen, ohne dass fuer denselben
+        # Zeitraum Wochenstunden hinterlegt sind. Vorher fiel dieser
+        # Verdienst stillschweigend unter den Tisch.
+        verdienst_gesamt += betrag
+
         je_klient.append({
             "klient": r["klient"], "n": r["n"], "m": r["m"],
             "leute": namen, "anzahl_leute": r["anzahl_leute"],
             "soll": soll,
             "abweichung": (r["m"] - soll) if soll else None,
+            "prozent": round(r["m"] / soll * 100) if soll else None,
             "stufen": len(std_stufen),
+            "betrag": betrag,
+            "satz": min(satz_stufen) if len(satz_stufen) == 1 else None,
+            "saetze": sorted(satz_stufen),
         })
-
-        # Beide Seitenboxen richten sich nach demselben Filter
-        if soll:
-            stand.append({"klient": r["klient"], "m": r["m"], "soll": soll,
-                          "prozent": round(r["m"] / soll * 100),
-                          "stufen": len(std_stufen)})
-        # Bewusst nicht mehr an das Soll geknuepft: mit gestaffelten
-        # Zeitraeumen kann ein Monat einen Stundensatz tragen, ohne dass
-        # fuer denselben Zeitraum Wochenstunden hinterlegt sind. Vorher
-        # fiel dieser Verdienst stillschweigend unter den Tisch.
-        if betrag:
-            verdienst_gesamt += betrag
-            verdienst.append({
-                "klient": r["klient"], "m": r["m"], "betrag": betrag,
-                "satz": min(satz_stufen) if len(satz_stufen) == 1 else None,
-                "saetze": sorted(satz_stufen)})
-
-    stand.sort(key=lambda r: r["prozent"])
-    verdienst.sort(key=lambda r: -r["betrag"])
 
     # --- Monat für Monat ----------------------------------------------------
     #
@@ -1467,8 +1463,7 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
 
     zusatz = auswahllisten()
     return templates.TemplateResponse(request=request, name="auswertung.html", context={
-        "je_klient": je_klient, "stand": stand, "verdienst": verdienst,
-        "verdienst_gesamt": verdienst_gesamt,
+        "je_klient": je_klient, "verdienst_gesamt": verdienst_gesamt,
         "monate_anzahl": len(monate),
         "gesamt": sum(r["m"] for r in je_klient),
         "soll_aktiv": any(r["soll"] for r in je_klient),

@@ -1398,9 +1398,9 @@ def test_marke(client: TestClient) -> None:
     pruefe(".tabellenrolle .liste.vorgangstabelle th { white-space: normal; }"
            in einzeilig,
            "ihre Spaltentitel dürfen dort umbrechen")
-    # Dasselbe für die Monatsblöcke der Auswertung - acht Spalten.
-    pruefe(".monatsblatt { min-width:" in einzeilig,
-           "die Monatstabelle der Auswertung rollt am Handy ebenfalls")
+    # Dasselbe für die Tabellen der Auswertung - acht Spalten.
+    pruefe(".auswertungsblatt { min-width:" in einzeilig,
+           "die Tabellen der Auswertung rollen am Handy ebenfalls")
 
 
 def test_einstellungen_aufbau(client: TestClient) -> None:
@@ -1904,22 +1904,23 @@ def test_monatsbloecke(client: TestClient) -> None:
            and _hhmm(soll_minuten(3, "2025-09")) in seite,
            "beide Kontingentstufen tauchen als Soll auf")
 
-    # Die Zusammenfassung darüber.
-    pruefe("<h2>Zusammenfassung</h2>" in seite, "es gibt eine Zusammenfassung")
+    # Der Überblick darüber - seit 1.4.1 eine Karte mit Kennzahlen und
+    # einer Zeile je Person, statt drei Kästen nebeneinander.
+    pruefe("<h2>Überblick</h2>" in seite, "es gibt einen Überblick")
+    pruefe('class="abschnittsband"' in seite and "Monat für Monat" in seite,
+           "und ein Band, das die Monatsblöcke davon abgrenzt")
     gesamt_soll = soll_minuten(4, "2024-09") * 12 + soll_minuten(3, "2025-09") * 3
     pruefe(_hhmm(gesamt_soll) in seite,
            f"mit dem Soll über alle Monate ({_hhmm(gesamt_soll)})")
-    pruefe("15 Monate" in seite or ">15<" in seite,
-           "und der Zahl der Monate")
-    pruefe("2 mit Zeiten" in seite,
-           "davon zwei mit erfassten Zeiten")
+    pruefe("15 Monate" in seite, "und der Zahl der Monate")
 
     # Bei einem einzelnen Monat waere der Block eine Wiederholung.
     einer = client.get("/auswertung?von_jahr=2024&von_monat=09"
                        "&bis_jahr=2024&bis_monat=09&klient=Blockmann").text
     pruefe("monatsblock" not in einer,
            "bei einem einzigen Monat entfällt die Aufteilung")
-    pruefe("<h2>Zusammenfassung</h2>" not in einer, "und die Zusammenfassung auch")
+    pruefe('class="abschnittsband"' not in einer, "und das Band dazu auch")
+    pruefe("<h2>Überblick</h2>" in einer, "der Überblick bleibt")
 
     # Der Grundwert wird als solcher gekennzeichnet, damit man einen
     # fehlenden Bescheid nicht für eine Bewilligung hält.
