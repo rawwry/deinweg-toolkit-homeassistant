@@ -1400,7 +1400,12 @@ def test_marke(client: TestClient) -> None:
            "ihre Spaltentitel dürfen dort umbrechen")
     # Dasselbe für die Tabellen der Auswertung - acht Spalten.
     pruefe(".auswertungsblatt { min-width:" in einzeilig,
-           "die Tabellen der Auswertung rollen am Handy ebenfalls")
+           "die Tabellen der Auswertung rollen in ihrer Hülle")
+    # Die linke Spalte braucht min-width: 0, sonst sprengen die rollenden
+    # Tabellen darin das Raster.
+    pruefe(re.search(r"\.auswertunghaupt\s*\{[^}]*min-width:\s*0", stil)
+           is not None,
+           "die linke Spalte der Auswertung sprengt das Raster nicht")
 
 
 def test_einstellungen_aufbau(client: TestClient) -> None:
@@ -1913,6 +1918,23 @@ def test_monatsbloecke(client: TestClient) -> None:
     pruefe(_hhmm(gesamt_soll) in seite,
            f"mit dem Soll über alle Monate ({_hhmm(gesamt_soll)})")
     pruefe("15 Monate" in seite, "und der Zahl der Monate")
+
+    # Die Seitenspalte: Kontingentbalken, Sprungliste, Bescheide.
+    pruefe("auswertungsraster" in seite and "auswertunghaupt" in seite,
+           "die Seite steht in zwei Spalten, über ihre ganze Länge")
+    pruefe("<h2>Stundenkontingent</h2>" in seite and "standliste" in seite,
+           "der Kontingentbalken steht in der Seitenspalte")
+    pruefe("auslastung" not in seite,
+           "und nicht mehr zusätzlich in der Tabellenzelle")
+    pruefe("monatsspur" in seite and 'href="#monat-2025-09"' in seite,
+           "die Monate sind als Sprungliste verlinkt")
+    pruefe(seite.count('id="monat-') == 15,
+           "jeder Block trägt seine Sprungmarke")
+    pruefe("<h2>Bewilligt</h2>" in seite and "bescheidliste" in seite,
+           "die zugrunde liegenden Bescheide stehen daneben")
+    pruefe("01.08.2024" in seite and "31.07.2025" in seite,
+           "mit ihrem Zeitraum")
+    pruefe("4 Std/Woche" in seite, "und ihren Werten")
 
     # Bei einem einzelnen Monat waere der Block eine Wiederholung.
     einer = client.get("/auswertung?von_jahr=2024&von_monat=09"

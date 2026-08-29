@@ -35,6 +35,10 @@ TEXTE_STANDARD["auswertung.monate_lead"] = (
     "Kontingent und dem Stundensatz, die in genau diesem Monat bewilligt "
     "waren. Monate ohne erfasste Zeiten bleiben stehen, solange für sie "
     "etwas bewilligt war: eine Lücke fällt sonst nicht auf.")
+TEXTE_STANDARD["auswertung.monatsliste_lead"] = (
+    "Ein Klick führt zum ausführlichen Block.")
+TEXTE_STANDARD["auswertung.bewilligt_lead"] = (
+    "Die Bescheide, die den gewählten Zeitraum berühren.")
 TEXTE_STANDARD["auswertung.monat_leer"] = (
     "In diesem Monat ist nichts erfasst – bewilligt war trotzdem etwas.")
 TEXTE_STANDARD["auswertung.tabelle_leer"] = (

@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.4.2
+
+- Auswertung wieder zweispaltig, diesmal über die ganze Seitenlänge — die
+  Monatsblöcke werden dadurch schmaler und ruhiger
+- Rechte Spalte mit „Stundenkontingent" (die Balken), „Monate" (Sprung-
+  liste mit Verlauf) und „Bewilligt" (die zugrunde liegenden Bescheide)
+
 ## 1.4.1
 
 - Auswertung läuft in einer Spalte statt oben zweispaltig und unten voll

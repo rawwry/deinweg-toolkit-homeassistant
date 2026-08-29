@@ -1046,4 +1046,22 @@ CHANGELOG = [
         "Am Handy stehen die Spalten in Pixeln statt in Prozent: "
         "„8.488,58 €“ lief sonst aus seiner Zelle in die Nachbarspalte",
     ]},
+    {"version": "1.4.2", "titel": "Auswertung mit Seitenspalte", "punkte": [
+        "Die Auswertung steht wieder in zwei Spalten – diesmal aber über "
+        "ihre ganze Länge und nicht nur oben. Die Monatsblöcke liegen "
+        "damit in der schmaleren linken Spalte und wirken ruhiger",
+        "Rechts drei Kästen, die den Platz füllen, der neben einer langen "
+        "Monatsliste sonst leer bliebe:",
+        "„Stundenkontingent“ – die Balken je betreuter Person, wie vorher. "
+        "Der Balken ist damit aus der Tabellenzelle raus, wo er jede Zeile "
+        "auf drei Zeilen aufzog",
+        "„Monate“ – jeder Monat mit Balken, Stunden und Verdienst; ein "
+        "Klick springt zum ausführlichen Block links. Bei fünfzehn Blöcken "
+        "der schnellste Weg zum gesuchten Monat",
+        "„Bewilligt“ – die Bescheide, die den gewählten Zeitraum berühren, "
+        "je Person mit Zeitraum, Wochenstunden, Satz und Notiz. Damit "
+        "steht neben den Zahlen auch, woher sie kommen",
+        "Spaltenbreiten der Tabellen so gesetzt, dass im engsten Fall "
+        "jeder Spaltentitel und jeder Betrag in seine Zelle passt",
+    ]},
 ]

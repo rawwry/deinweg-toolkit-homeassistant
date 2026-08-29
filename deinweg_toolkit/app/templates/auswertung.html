@@ -21,6 +21,15 @@
   {% with ziel = "/auswertung", abrechenbar_zeigen = true %}{% include "_filter.html" %}{% endwith %}
 </section>
 
+{# Zwei Spalten über die GANZE Seite, nicht nur über den oberen Teil. Bis
+   1.4.1 war das Raster nur oben und darunter lief alles über die volle
+   Breite - die Kante mitten auf der Seite war das eigentliche Problem,
+   nicht das Raster. Jetzt liegt auch die Monatsliste in der linken
+   Spalte: sie wird dadurch schmaler und die vielen Blöcke wirken ruhiger,
+   und die Seitenspalte füllt genau den Platz, der sonst leer bliebe. #}
+<div class="raster auswertungsraster">
+<div class="auswertunghaupt">
+
 <section class="karte">
   <div class="kopfzeile">
     <h2>Überblick</h2>
@@ -74,20 +83,9 @@
     <tbody>
     {% for r in je_klient %}
       <tr>
-        <td>
-          <span class="stark">{{ r.klient }}</span>
-          {% if r.prozent is not none %}
-          {# Balken und Prozentwert auf einer Zeile: untereinander zog die
-             Zeile auf drei Zeilen auf und der Wert stand ohne Bezug da. #}
-          <span class="auslastung" title="{{ r.prozent }} % des bewilligten Kontingents">
-            <span class="balkenspur schmal">
-              <span class="balken {{ 'ueber' if r.prozent > 105 }}{{ ' knapp' if r.prozent < 90 }}"
-                    style="width: {{ [r.prozent, 100] | min }}%"></span>
-            </span>
-            <span class="klein leise zahlen">{{ r.prozent }} %</span>
-          </span>
-          {% endif %}
-        </td>
+        {# Der Kontingentbalken steht in der Seitenspalte, nicht hier -
+           in einer Tabellenzelle zog er jede Zeile auf drei Zeilen auf. #}
+        <td class="stark">{{ r.klient }}</td>
         <td class="leise klein">
           {% if r.anzahl_leute > 2 %}
             <span title="{{ r.leute | join(', ') }}">{{ r.anzahl_leute }} Personen</span>
@@ -158,7 +156,7 @@
 
 <div class="monatsliste">
 {% for b in monatsbloecke %}
-<section class="karte monatsblock {{ 'ohne-zeiten' if b.leer }}">
+<section class="karte monatsblock {{ 'ohne-zeiten' if b.leer }}" id="monat-{{ b.monat }}">
   <div class="monatsleiste">
     <h3>{{ b.wort }}</h3>
     <div class="monatswerte">
@@ -222,5 +220,105 @@
 {% endfor %}
 </div>
 {% endif %}
+
+</div>
+
+<aside class="spalte">
+  {% if je_klient %}
+  <div class="karte schmal">
+    <h2>Stundenkontingent</h2>
+    <p class="klein leise" style="margin-top: -8px;">{{ zeitraum_wort }}{% if monate_anzahl > 1 %} · {{ monate_anzahl }} Monate{% endif %}</p>
+    {% set mit_soll = je_klient | selectattr("prozent") | list %}
+    {% if mit_soll %}
+    <ul class="standliste">
+      {% for r in mit_soll | sort(attribute="prozent") %}
+      <li>
+        <div class="standkopf">
+          <span class="stark">{{ r.klient }}</span>
+          <span class="prozent {{ 'ueber' if r.prozent > 105 }}{{ ' knapp' if r.prozent < 90 }}">{{ r.prozent }} %</span>
+        </div>
+        <span class="balkenspur">
+          <span class="balken {{ 'ueber' if r.prozent > 105 }}{{ ' knapp' if r.prozent < 90 }}"
+                style="width: {{ [r.prozent, 100] | min }}%"></span>
+        </span>
+        <span class="standfuss zahlen">{{ r.m | hhmm }} von {{ r.soll | hhmm }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="leer klein">{{ t("auswertung.soll_fehlt") }}</p>
+    {% endif %}
+  </div>
+
+  {% if monatsbloecke and monate_anzahl > 1 %}
+  {# Zugleich Verlauf und Sprungliste: der Balken zeigt, wie voll der Monat
+     war, ein Klick führt zum ausführlichen Block links. Bei fünfzehn
+     Blöcken ist das der schnellste Weg zum gesuchten Monat. #}
+  <div class="karte schmal">
+    <h2>Monate</h2>
+    <p class="klein leise" style="margin-top: -8px;">{{ t("auswertung.monatsliste_lead") }}</p>
+    <ul class="monatsspur">
+      {% for b in monatsbloecke %}
+      <li>
+        <a href="#monat-{{ b.monat }}" class="{{ 'leer' if b.leer }}">
+          <span class="mspur-kopf">
+            <span class="mspur-name">{{ b.wort }}</span>
+            <span class="zahlen mspur-wert">{{ b.ist | hhmm }}</span>
+          </span>
+          {% if b.soll %}
+          <span class="balkenspur">
+            <span class="balken {{ 'ueber' if b.prozent > 105 }}{{ ' knapp' if b.prozent < 90 }}"
+                  style="width: {{ [b.prozent, 100] | min }}%"></span>
+          </span>
+          {% endif %}
+          <span class="mspur-fuss">
+            <span class="leise">{{ b.prozent ~ ' %' if b.prozent is not none else '–' }}</span>
+            <span class="zahlen betrag">{{ b.betrag | euro }}</span>
+          </span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if zeitraum_liste %}
+  {# Woher kommen Kontingent und Satz? Das ist die Frage, die beim Lesen
+     der Zahlen als Nächstes kommt. #}
+  <div class="karte schmal">
+    <h2>Bewilligt</h2>
+    <p class="klein leise" style="margin-top: -8px;">{{ t("auswertung.bewilligt_lead") }}</p>
+    {% for p in zeitraum_liste %}
+    <div class="bewilligung">
+      <span class="stark">{{ p.klient }}</span>
+      {% if p.zeitraeume %}
+      <ul class="bescheidliste">
+        {% for z in p.zeitraeume %}
+        <li>
+          <span class="zahlen bescheidzeit">
+            {{ z.von | deutsch }} – {{ z.bis | deutsch if z.bis else "offen" }}
+          </span>
+          <span class="bescheidwerte zahlen">
+            {{ z.wochenstunden | stunden }} Std/Woche · {{ z.stundensatz | euro }}
+          </span>
+          {% if z.notiz %}<span class="klein leise">{{ z.notiz }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if p.grundwert %}
+      <p class="klein leise" style="margin: 6px 0 0;">
+        <span class="marke-status weg">Grundwert</span>
+        in {{ p.grundwert }} {{ "Monat" if p.grundwert == 1 else "Monaten" }} ohne Bescheid
+      </p>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <a class="knopf leise klein" href="/einstellungen?bereich=betreute">Zeiträume pflegen</a>
+  </div>
+  {% endif %}
+  {% endif %}
+</aside>
+</div>
 
 {% endblock %}

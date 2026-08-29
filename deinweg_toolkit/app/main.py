@@ -36,7 +36,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.4.1"
+VERSION = "1.4.2"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1407,6 +1407,7 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
     # Monate ohne erfasste Zeiten bleiben stehen, solange fuer sie ein Soll
     # gilt. Genau die will man sehen - eine Luecke faellt sonst nicht auf.
     monatsbloecke = []
+    grundwert_monate: dict[str, int] = {}
     for monat in monate:
         zeilen, m_ist, m_soll, m_betrag, m_n = [], 0, 0, 0.0, 0
         for r in roh:
@@ -1433,6 +1434,11 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
                 "aus_zeitraum": aus_zeitraum,
                 "betrag": zeilenbetrag, "leute": leute,
             })
+            if not aus_zeitraum and (soll or satz):
+                # Fuer die Seitenspalte: in wievielen Monaten hat der
+                # Grundwert der Person gegriffen, weil kein Bescheid
+                # hinterlegt ist?
+                grundwert_monate[klient] = grundwert_monate.get(klient, 0) + 1
             m_ist += ist
             m_soll += soll
             m_betrag += zeilenbetrag
@@ -1446,6 +1452,26 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
             "prozent": round(m_ist / m_soll * 100) if m_soll else None,
             "leer": m_ist == 0,
         })
+
+    # --- Welche Bescheide liegen dem Ganzen zugrunde? -----------------------
+    # Steht in der Seitenspalte und beantwortet die Frage, die beim Lesen
+    # der Zahlen als naechstes kommt: woher kommt dieser Stundensatz?
+    # Nur die Zeitraeume, die den gefilterten Bereich ueberhaupt beruehren.
+    filterbeginn = monatsgrenzen(monate[0])[0] if monate else ""
+    filterende = monatsgrenzen(monate[-1])[1] if monate else ""
+    zeitraum_liste = []
+    for r in je_klient:
+        treffer = [z for z in zeitraeume.get(r["klient"], [])
+                   if z["von"] <= filterende
+                   and (not z["bis"] or z["bis"] >= filterbeginn)]
+        grund = grundwert_monate.get(r["klient"], 0)
+        if treffer or grund:
+            zeitraum_liste.append({
+                "klient": r["klient"],
+                # aufsteigend lesen, so wie die Bescheide aufeinander folgen
+                "zeitraeume": list(reversed(treffer)),
+                "grundwert": grund,
+            })
 
     gesamt_ist = sum(r["m"] for r in je_klient)
     gesamt_soll = sum(b["soll"] or 0 for b in monatsbloecke)
@@ -1469,6 +1495,7 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         "soll_aktiv": any(r["soll"] for r in je_klient),
         "gestaffelt": gestaffelt,
         "monatsbloecke": monatsbloecke, "zusammenfassung": zusammenfassung,
+        "zeitraum_liste": zeitraum_liste,
         "zeitraum_wort": filter_["wort"], "aktive_filter": filter_["aktive"],
         "f": filter_["f"], "seite": "auswertung", **zusatz})
 

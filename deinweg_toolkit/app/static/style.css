@@ -1656,12 +1656,56 @@ body.anmeldeseite {
 
 /* --- Auswertung ---------------------------------------------------------- */
 /*
-   Die Seite läuft in einer einzigen Spalte. Bis 1.4 standen oben zwei
-   Spalten und darunter Blöcke über die volle Breite: die beiden Hälften
-   waren verschieden hoch, dadurch klaffte rechts eine Lücke, und ab den
-   Monatsblöcken wechselte das Raster mitten auf der Seite. Nicht wieder
-   auf .raster umbauen.
+   Zwei Spalten über die GANZE Seite. Bis 1.4.1 lag das Raster nur über
+   dem oberen Teil und darunter lief alles über die volle Breite – die
+   Kante mitten auf der Seite war das Problem, nicht das Raster. Jetzt
+   liegt auch die Monatsliste in der linken Spalte: sie wird schmaler,
+   die vielen Blöcke wirken dadurch ruhiger, und die Seitenspalte füllt
+   den Platz, der neben einer langen Monatsliste sonst leer bliebe.
+   ⚠️ Die linke Spalte braucht min-width: 0, sonst sprengen die
+   rollenden Tabellen darin das Raster.
 */
+.auswertunghaupt {
+  min-width: 0; display: flex; flex-direction: column; gap: var(--abstand);
+}
+/* Die Seitenspalte läuft mit, solange links noch Monatsblöcke kommen.
+   Ihre Höhe hängt an --kopfhoehe, weil die Kopfzeile oben klebt. */
+@media (min-width: 900px) {
+  .auswertungsraster > .spalte { align-self: start; }
+}
+
+/* Monate als Sprungliste mit Verlauf in einem: der Balken zeigt, wie voll
+   der Monat war, ein Klick führt zum Block links. */
+.monatsspur { list-style: none; margin: 0; padding: 0;
+              display: flex; flex-direction: column; gap: 2px; }
+.monatsspur a {
+  display: block; padding: 8px 9px; border-radius: 8px;
+  text-decoration: none; color: var(--tinte);
+}
+.monatsspur a:hover { background: var(--flaeche-2); }
+.monatsspur a.leer { opacity: .6; }
+.mspur-kopf, .mspur-fuss {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+}
+.mspur-name { font-size: 13px; font-weight: 600; }
+.mspur-wert { font-size: 13px; }
+.monatsspur .balkenspur { margin: 5px 0 4px; }
+.mspur-fuss { font-size: 11.5px; }
+.mspur-fuss .betrag { color: var(--akzent); font-weight: 600; }
+
+/* Welche Bescheide liegen den Zahlen zugrunde? */
+.bewilligung { padding: 10px 0; border-bottom: 1px solid var(--linie); }
+.bewilligung:first-of-type { padding-top: 0; }
+.bewilligung:last-of-type { border-bottom: none; }
+.bescheidliste { list-style: none; margin: 7px 0 0; padding: 0;
+                 display: flex; flex-direction: column; gap: 8px; }
+.bescheidliste li {
+  padding-left: 11px; border-left: 2px solid var(--akzent);
+  display: flex; flex-direction: column; gap: 1px;
+}
+.bescheidzeit { font-size: 11.5px; color: var(--leise); }
+.bescheidwerte { font-size: 12.5px; font-weight: 600; }
+
 
 /* Ein Band trennt die beiden Teile der Seite. Ohne das lief der Überblick
    ohne erkennbare Kante in die Monatsblöcke über. */
@@ -1708,26 +1752,45 @@ body.anmeldeseite {
    sie nicht zweimal lernen muss. Alles linksbündig wie in jeder anderen
    Liste des Programms – rechtsbündige Zahlenspalten sahen hier wie ein
    Fremdkörper aus. */
-.auswertungsblatt th:nth-child(1) { width: 21%; }
-.auswertungsblatt th:nth-child(2) { width: 14%; }
-.auswertungsblatt th:nth-child(3) { width: 7%; }
-.auswertungsblatt th:nth-child(4) { width: 12%; }
-.auswertungsblatt th:nth-child(5) { width: 15%; }
-.auswertungsblatt th:nth-child(6) { width: 13%; }
-.auswertungsblatt th:nth-child(7) { width: 8%; }
-.auswertungsblatt th:last-child   { width: 10%; }
+/* Die linke Spalte ist schmaler als die Seite – acht Spalten passen dort
+   nicht mehr in Prozent. Feste Breiten, und die Tabelle rollt in ihrer
+   Hülle, sobald es eng wird. */
+/* ⚠️ Die Breiten sind so gewählt, dass bei min-width (also im engsten
+   Fall, wenn die Tabelle rollt) jeder Spaltentitel und jeder Betrag in
+   seine Zelle passt. Bei mehr Platz verteilt der Browser den Rest
+   proportional. Wer hier kürzt, muss die Titel mitkürzen. */
+.auswertungsblatt { min-width: 780px; }
+.auswertungsblatt th:nth-child(1) { width: 135px; }
+.auswertungsblatt th:nth-child(2) { width: 105px; }
+.auswertungsblatt th:nth-child(3) { width: 52px; }
+.auswertungsblatt th:nth-child(4) { width: 92px; }
+.auswertungsblatt th:nth-child(5) { width: 98px; }
+.auswertungsblatt th:nth-child(6) { width: 105px; }
+.auswertungsblatt th:nth-child(7) { width: 78px; }
+.auswertungsblatt th:last-child   { width: 105px; }
+.tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }
+/* ⚠️ Die Spaltentitel dürfen hier umbrechen – aber nur an Leerzeichen.
+   .tabellenrolle setzt sonst overflow-wrap: anywhere, und dann zerfiel
+   „Abweichung“ in „ABWEICHU / NG“. Die Spaltenbreiten sind so gewählt,
+   dass jedes einzelne Wort in seine Spalte passt; nur „Betreute Person“
+   bricht absichtlich an seinem Leerzeichen um. */
+.tabellenrolle .liste.auswertungsblatt th {
+  white-space: normal; overflow-wrap: normal; word-break: normal;
+}
+/* Die Marke selbst bricht nicht um, darf aber in ihrer Zelle auf eine
+   eigene Zeile rutschen. Sonst müsste die Spalte „Bewilligt“ Zeit UND
+   Marke nebeneinander fassen und die Tabelle passte nicht mehr in die
+   schmalere linke Spalte. Beträge bleiben ausdrücklich einzeilig -
+   „4.022,58 €“ über zwei Zeilen ist keine Zahl mehr. */
 .tabellenrolle .liste.auswertungsblatt .marke-status { white-space: nowrap; }
+.auswertungsblatt td { white-space: normal; }
+.tabellenrolle .liste.auswertungsblatt td.betrag { white-space: nowrap; }
 .auswertungsblatt tfoot td {
   border-top: 1px solid var(--linie-stark); padding-top: 12px;
 }
 /* Der Kontingentbalken sitzt unter dem Namen statt in einer eigenen
    Spalte – eine neunte Spalte hätte die Tabelle gesprengt, und so liest
    sich die Zeile als das, was sie ist: eine Person mit ihrem Stand. */
-.auslastung { display: flex; align-items: center; gap: 9px; margin-top: 7px; }
-.auslastung .balkenspur.schmal {
-  height: 5px; margin: 0; flex: 1 1 auto; max-width: 130px;
-}
-.auslastung .klein { flex: 0 0 auto; }
 
 /* Die Verdienst-Kachel trägt die Akzentfarbe – sie ist die Zahl, wegen
    der man herkommt. */
@@ -1740,19 +1803,7 @@ body.anmeldeseite {
    dort in Pixeln statt in Prozent: bei acht Spalten blieben für „Satz“
    und „Verdienst“ sonst je gut 70px, und „8.488,58 €“ lief aus der
    Zelle in die Nachbarspalte. */
-@media (max-width: 860px) {
-  .auswertungsblatt { min-width: 900px; }
-  .tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }
-  .tabellenrolle .liste.auswertungsblatt th { white-space: normal; }
-  .auswertungsblatt th:nth-child(1) { width: 170px; }
-  .auswertungsblatt th:nth-child(2) { width: 100px; }
-  .auswertungsblatt th:nth-child(3) { width: 60px; }
-  .auswertungsblatt th:nth-child(4) { width: 100px; }
-  .auswertungsblatt th:nth-child(5) { width: 130px; }
-  .auswertungsblatt th:nth-child(6) { width: 120px; }
-  .auswertungsblatt th:nth-child(7) { width: 95px; }
-  .auswertungsblatt th:last-child   { width: 115px; }
-}
+
 
 /* --- Bewilligte Zeiträume je betreuter Person --------------------------- */
 
