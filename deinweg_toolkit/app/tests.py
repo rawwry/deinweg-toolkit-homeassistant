@@ -1944,6 +1944,15 @@ def test_monatsbloecke(client: TestClient) -> None:
            "die Geldspalten ebenso")
     pruefe('class="kmass">Std<' in seite,
            "die Kennzahlen tragen ihre Einheit hinter der Zahl")
+    pruefe('class="massangabe">Name<' in seite
+           and 'class="massangabe">Anzahl<' in seite,
+           "auch die beiden Spalten ohne Einheit tragen eine zweite Zeile")
+    # Die Spalte "Mitarbeiter" ist mit 1.4.4 entfallen - wer die Zeit
+    # erfasst hat, steht in der Übersicht, nicht in der Auswertung.
+    pruefe("<th>Mitarbeiter" not in seite,
+           "die Spalte „Mitarbeiter“ steht nicht mehr in der Auswertung")
+    kopf = seite.split("<thead>")[1].split("</thead>")[0]
+    pruefe(kopf.count("<th>") == 7, f"sieben Spalten (sind: {kopf.count('<th>')})")
     pruefe("Std</span></td>" not in seite,
            "in den Zellen selbst steht die Einheit nicht")
     pruefe("01.08.2024" in seite and "31.07.2025" in seite,

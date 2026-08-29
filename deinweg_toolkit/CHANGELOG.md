@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.4.4
+
+- Spalte „Mitarbeiter" aus den Auswertungstabellen entfernt
+- „Betreute Person" und „Einh." tragen ebenfalls eine zweite Kopfzeile
+  („Name", „Anzahl")
+- Seitlicher Rollbalken weg: die Summenzeile mit sechsstelligen Beträgen
+  passte nicht in ihre Spalte und zog die Rollbreite mit sich
+
 ## 1.4.3
 
 - Maßangaben („Std", „€") an Kennzahlen, Monatsköpfen und Seitenspalte;

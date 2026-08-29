@@ -1761,17 +1761,20 @@ body.anmeldeseite {
    proportional. Wer hier kürzt, muss die Titel mitkürzen — und die
    Maßangabe steht bewusst auf einer zweiten Zeile im Kopf, damit sie
    die Spalte NICHT breiter macht (siehe th .massangabe). */
-.auswertungsblatt { min-width: 720px; }
-.auswertungsblatt th:nth-child(1) { width: 130px; }
-.auswertungsblatt th:nth-child(2) { width: 96px; }
-.auswertungsblatt th:nth-child(3) { width: 50px; }
-.auswertungsblatt th:nth-child(4) { width: 84px; }
-.auswertungsblatt th:nth-child(5) { width: 84px; }
-.auswertungsblatt th:nth-child(6) { width: 98px; }
-.auswertungsblatt th:nth-child(7) { width: 68px; }
-/* Breit genug für einen fünfstelligen Betrag: „43.247,27 €“ in der
-   Summenzeile lief bei 92px aus der Zelle. */
-.auswertungsblatt th:last-child   { width: 108px; }
+.auswertungsblatt { min-width: 656px; }
+.auswertungsblatt th:nth-child(1) { width: 140px; }
+.auswertungsblatt th:nth-child(2) { width: 56px; }
+.auswertungsblatt th:nth-child(3) { width: 86px; }
+.auswertungsblatt th:nth-child(4) { width: 86px; }
+.auswertungsblatt th:nth-child(5) { width: 100px; }
+.auswertungsblatt th:nth-child(6) { width: 70px; }
+/* ⚠️ Reichlich bemessen, und das mit Absicht: in der Summenzeile stehen
+   sechsstellige Beträge („178.980,66 €“). Passte der Betrag nicht in
+   seine Zelle, lief er darüber hinaus - und weil die Zelle nicht
+   umbrechen darf, wuchs damit die Rollbreite der ganzen Tabelle. Genau
+   daher kam der seitliche Rollbalken, der auch bei breitem Fenster
+   blieb. */
+.auswertungsblatt th:last-child   { width: 118px; }
 .tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }
 /* ⚠️ Die Spaltentitel dürfen hier umbrechen – aber nur an Leerzeichen.
    .tabellenrolle setzt sonst overflow-wrap: anywhere, und dann zerfiel

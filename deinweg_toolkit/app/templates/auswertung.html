@@ -76,9 +76,11 @@
   <table class="liste auswertungsblatt">
     <thead>
       <tr>
-        <th>Betreute Person</th>
-        <th>Mitarbeiter</th>
-        <th>Einh.</th>
+        {# Jede Spalte trägt eine zweite, gedämpfte Zeile - bei den
+           Zahlenspalten die Einheit, bei den beiden anderen das, was
+           dort steht. So sind alle Köpfe gleich hoch und gleich gebaut. #}
+        <th>Betreute Person <span class="massangabe">Name</span></th>
+        <th>Einh. <span class="massangabe">Anzahl</span></th>
         <th>Geleistet <span class="massangabe">Std</span></th>
         <th>Bewilligt <span class="massangabe">Std</span></th>
         <th>Abweichung <span class="massangabe">Std</span></th>
@@ -92,13 +94,6 @@
         {# Der Kontingentbalken steht in der Seitenspalte, nicht hier -
            in einer Tabellenzelle zog er jede Zeile auf drei Zeilen auf. #}
         <td class="stark">{{ r.klient }}</td>
-        <td class="leise klein">
-          {% if r.anzahl_leute > 2 %}
-            <span title="{{ r.leute | join(', ') }}">{{ r.anzahl_leute }} Personen</span>
-          {% else %}
-            {{ r.leute | join(', ') }}
-          {% endif %}
-        </td>
         <td class="zahlen leise">{{ r.n }}</td>
         <td class="zahlen stark">{{ r.m | hhmm }}</td>
         {# Keine Marke in der Zelle: sie zwang die Zeile zum Umbruch. Dass
@@ -123,7 +118,6 @@
     <tfoot>
       <tr>
         <td class="stark">Summe</td>
-        <td></td>
         <td class="zahlen leise">{{ zusammenfassung.n }}</td>
         <td class="zahlen stark">{{ zusammenfassung.ist | hhmm }}</td>
         <td class="zahlen leise">{{ zusammenfassung.soll | hhmm if zusammenfassung.soll else "—" }}</td>
@@ -190,7 +184,8 @@
      lernen muss. #}
   <table class="liste dicht auswertungsblatt monatsblatt">
     <thead>
-      <tr><th>Betreute Person</th><th>Mitarbeiter</th><th>Einh.</th>
+      <tr><th>Betreute Person <span class="massangabe">Name</span></th>
+          <th>Einh. <span class="massangabe">Anzahl</span></th>
           <th>Geleistet <span class="massangabe">Std</span></th>
           <th>Bewilligt <span class="massangabe">Std</span></th>
           <th>Abweichung <span class="massangabe">Std</span></th>
@@ -201,11 +196,6 @@
       {% for z in b.zeilen %}
       <tr class="{{ 'ohne-ist' if not z.m }}">
         <td class="stark">{{ z.klient }}</td>
-        <td class="leise klein">
-          {% if z.leute | length > 2 %}
-            <span title="{{ z.leute | join(', ') }}">{{ z.leute | length }} Personen</span>
-          {% else %}{{ z.leute | join(', ') or '—' }}{% endif %}
-        </td>
         <td class="zahlen leise">{{ z.n or '—' }}</td>
         <td class="zahlen stark">{{ z.m | hhmm if z.m else '—' }}</td>
         {# Ohne Marke: sie brach jede zweite Zeile um. Wo der Grundwert

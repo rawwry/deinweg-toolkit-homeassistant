@@ -1084,4 +1084,19 @@ CHANGELOG = [
         "der Rest; bei fünfstelligen Beträgen sprengte sie sonst ihre "
         "Spalte",
     ]},
+    {"version": "1.4.4", "titel": "Auswertung: eine Spalte weniger, keine Rollbalken", "punkte": [
+        "Die Spalte „Mitarbeiter“ ist aus beiden Tabellen der Auswertung "
+        "entfallen. Wer die Zeit erfasst hat, steht in der Übersicht unter "
+        "„Arbeitszeit“; in der Auswertung geht es um die betreute Person",
+        "„Betreute Person“ und „Einh.“ tragen jetzt auch eine zweite Zeile "
+        "im Kopf („Name“ bzw. „Anzahl“). Damit sind alle Spaltenköpfe "
+        "gleich gebaut und gleich hoch",
+        "Der seitliche Rollbalken ist weg – er blieb auch bei breitem "
+        "Fenster stehen, weil die Summenzeile mit sechsstelligen Beträgen "
+        "wie „178.980,66 €“ nicht in ihre Spalte passte. Der Betrag lief "
+        "über den Rand hinaus und zog die Rollbreite der ganzen Tabelle "
+        "mit sich. Die Spalte ist jetzt entsprechend bemessen, und mit der "
+        "eingesparten Mitarbeiterspalte passt die Tabelle bis hinunter zu "
+        "einem 1080 Pixel breiten Fenster ohne Rollen",
+    ]},
 ]
