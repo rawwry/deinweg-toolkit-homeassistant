@@ -1551,7 +1551,13 @@ label.knopf-icon { cursor: pointer; }
 .liste.dateiverzeichnis { min-width: 660px; }
 .liste.dateiverzeichnis th:nth-child(3) { width: 78px; }
 .liste.dateiverzeichnis th:nth-child(4) { width: 92px; }
-.liste.dateiverzeichnis th:nth-child(5) { width: 118px; }
+/* ⚠️ Datum und Uhrzeit stehen untereinander, nicht in einer Zeile. Als
+   „30.08.2026, 11:43" brach die Spalte an einer beliebigen Stelle um -
+   wo genau, entschied die Fensterbreite. Jetzt bricht sie dort, wo es
+   gemeint ist, und die Spalte kann schmal bleiben. */
+.liste.dateiverzeichnis th:nth-child(5) { width: 96px; }
+.zeitzelle { line-height: 1.35; }
+.zeitzelle > span { display: block; font-size: 11px; opacity: .8; }
 .liste.dateiverzeichnis th:last-child { width: 170px; padding-right: 6px; }
 .tabellenrolle .liste.dateiverzeichnis td:last-child { white-space: nowrap; }
 .dateizeile[draggable="true"] { cursor: grab; }
@@ -2080,9 +2086,16 @@ body.anmeldeseite {
    sind das 200px, und genau die fehlten dann und erzeugten den seitlichen
    Rollbalken. Untereinander kostet sie nur Höhe. */
 .massangabe { font-size: .78em; font-weight: 500; opacity: .55; margin-left: .35em; }
+/* Zweizeilige Spaltentitel brauchen Luft, sonst kleben Titel und Einheit
+   aneinander und der Kopf wirkt gedrängt. */
 .liste th .massangabe {
-  display: block; margin-left: 0; margin-top: 1px;
-  font-size: 10px; letter-spacing: .04em;
+  display: block; margin-left: 0; margin-top: 3px;
+  font-size: 10px; letter-spacing: .06em; line-height: 1.2;
+}
+.liste th:has(.massangabe) { padding-top: 12px; padding-bottom: 12px; }
+.auswertungsblatt thead th {
+  vertical-align: bottom; line-height: 1.25;
+  border-bottom: 1px solid var(--linie-stark);
 }
 /* Bei den Kennzahlen sitzt die Einheit direkt hinter der grossen Zahl. */
 .kmass { font-size: 14px; font-weight: 500; opacity: .5; margin-left: 4px; }
@@ -3091,22 +3104,48 @@ fieldset.feld > span {
 
 /* Eigene Zeiten in „Mein Bereich“. Sechs Spalten - unterhalb von 760px
    dieselbe Lösung wie bei Vorgangs- und Fuhrpark-Tabellen. */
-.zeitentabelle th:nth-child(1) { width: 11%; }
-.zeitentabelle th:nth-child(2) { width: 13%; }
-.zeitentabelle th:nth-child(3) { width: 20%; }
-.zeitentabelle th:nth-child(4) { width: 32%; }
-.zeitentabelle th:nth-child(5) { width: 10%; }
-.zeitentabelle th:last-child { width: 74px; text-align: right; padding-right: 6px; }
-.tabellenrolle .liste.zeitentabelle td:last-child {
-  white-space: nowrap; padding-left: 6px; padding-right: 6px;
-}
-.zeitentabelle td:last-child .knopf-icon { width: 28px; height: 28px; }
-.zeitentabelle td:last-child .knopf-icon + form.inline { margin-left: 5px; }
+/* ⚠️ Alles linksbündig, wie in jeder anderen Liste des Programms. Die
+   rechtsbündige Dauerspalte sah daneben wie ein Fremdkörper aus.
+   Die Tabelle steht auf table-layout: auto und darf überall umbrechen -
+   dieselbe Begründung wie bei .auswertungsblatt: eine Zelle, die nicht
+   umbrechen darf, setzt eine Mindestbreite, die die Tabelle nicht
+   unterschreiten kann, und erzwingt damit einen Rollbalken. */
+.tabellenrolle .liste.zeitentabelle { table-layout: auto; min-width: 0; }
+.zeitentabelle th:first-child { width: 13%; }
+.zeitentabelle th:last-child { width: 78px; }
+.tabellenrolle .liste.zeitentabelle td,
+.tabellenrolle .liste.zeitentabelle th { white-space: normal; }
+.tabellenrolle .liste.zeitentabelle td.nowrap,
+.tabellenrolle .liste.zeitentabelle td:last-child { white-space: nowrap; }
+/* Etwas kleiner als die übrigen Listen: es ist die Nachschlageliste der
+   eigenen Zeiten, keine Auswertung. */
+.zeitentabelle { font-size: 12.5px; }
+.zeitentabelle td, .zeitentabelle th { padding-top: 7px; padding-bottom: 7px; }
+.zeitentabelle td:last-child .knopf-icon { width: 26px; height: 26px; }
+.zeitentabelle td:last-child .knopf-icon + form.inline { margin-left: 4px; }
 
-@media (max-width: 760px) {
-  .zeitentabelle { min-width: 720px; }
-  .tabellenrolle:has(.zeitentabelle) { overflow-x: auto; }
+/* Ein Balken hinter der Dauer macht auf einen Blick sichtbar, welche
+   Einheiten lang und welche kurz waren - eine Spalte mit zwanzig
+   HH:MM-Werten sagt das nicht. Die Breite kommt als CSS-Variable aus der
+   Vorlage, gerechnet wird sie auf dem Server. */
+.dauerbalken {
+  display: block; height: 4px; margin-top: 4px; border-radius: 3px;
+  background: var(--linie-stark); max-width: 90px;
 }
+.dauerbalken > span {
+  display: block; height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--akzent), var(--akzent-2, var(--akzent)));
+  width: var(--anteil, 0%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* Die Balken wachsen beim Laden einmal auf. Sie stehen unter einer
+     Überschrift, die man selten aufruft - anders als eine Tabellenzeile,
+     die man hundertmal sieht (Abschnitt 13). */
+  .dauerbalken > span { animation: dauer-auf .5s cubic-bezier(.2,.8,.3,1) backwards; }
+  @keyframes dauer-auf { from { width: 0; } }
+  .zeitentabelle tbody tr { transition: background .15s ease; }
+}
+.zeitentabelle tbody tr:hover { background: var(--flaeche-2); }
 
 /* --- Fuhrpark ----------------------------------------------------------- */
 

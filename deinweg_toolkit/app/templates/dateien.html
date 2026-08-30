@@ -118,7 +118,7 @@
               <td><a class="stark" href="/dateien?ordner={{ o.pfad | urlencode }}">{{ o.name }}</a></td>
               <td class="leise">Ordner</td>
               <td class="leise nowrap">{{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträge' }}</td>
-              <td class="leise nowrap">{{ o.geaendert }}</td>
+              <td class="leise nowrap zeitzelle">{{ o.geaendert.datum }}<span>{{ o.geaendert.zeit }}</span></td>
               <td class="nowrap">{{ ordnerknoepfe(o, ordner) }}</td>
             </tr>
             <tr class="dateidetailzeile" data-detail="{{ o.pfad }}" hidden>
@@ -138,7 +138,7 @@
               </td>
               <td class="leise">{{ d.wort }}</td>
               <td class="zahlen leise nowrap">{{ d.groesse }}</td>
-              <td class="leise nowrap">{{ d.geaendert }}</td>
+              <td class="leise nowrap zeitzelle">{{ d.geaendert.datum }}<span>{{ d.geaendert.zeit }}</span></td>
               <td class="nowrap">{{ dateiknoepfe(d, ordner) }}</td>
             </tr>
             <tr class="dateidetailzeile" data-detail="{{ d.pfad }}" hidden>
@@ -156,7 +156,7 @@
           <a class="dateikachel-flaeche" href="/dateien?ordner={{ o.pfad | urlencode }}">
             <span class="dateikachel-bild ordner">{{ dateisymbol("ordner") }}</span>
             <span class="dateikachel-name">{{ o.name }}</span>
-            <span class="dateikachel-zeile">{{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträge' }} · {{ o.geaendert }}</span>
+            <span class="dateikachel-zeile">{{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträge' }} · {{ o.geaendert.datum }}</span>
           </a>
           <div class="dateikachel-knoepfe">{{ ordnerknoepfe(o, ordner) }}</div>
           <div class="dateikachel-detail" data-detail="{{ o.pfad }}" hidden>
@@ -180,7 +180,7 @@
             <span class="dateikachel-bild art"><span class="dateikachel-wort">{{ d.wort }}</span></span>
             {% endif %}
             <span class="dateikachel-name">{{ d.name }}</span>
-            <span class="dateikachel-zeile">{{ d.groesse }} · {{ d.geaendert }}</span>
+            <span class="dateikachel-zeile">{{ d.groesse }} · {{ d.geaendert.datum }}</span>
           </a>
           <div class="dateikachel-knoepfe">{{ dateiknoepfe(d, ordner) }}</div>
           <div class="dateikachel-detail" data-detail="{{ d.pfad }}" hidden>

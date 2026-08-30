@@ -188,11 +188,17 @@ def _groesse(zahl: int) -> str:
 
 
 def _zeitpunkt(voll: str) -> str:
+    """Datum und Uhrzeit der letzten Aenderung, getrennt zurueckgegeben.
+
+    Datum und Uhrzeit stehen in der Uebersicht untereinander statt in
+    einer Zeile: als "30.08.2026, 11:43" brach die Spalte an einer
+    beliebigen Stelle um, und wo genau, entschied die Fensterbreite.
+    """
     try:
-        return dt.datetime.fromtimestamp(
-            os.path.getmtime(voll)).strftime("%d.%m.%Y, %H:%M")
+        wann = dt.datetime.fromtimestamp(os.path.getmtime(voll))
     except OSError:
-        return ""
+        return {"datum": "", "zeit": ""}
+    return {"datum": wann.strftime("%d.%m.%Y"), "zeit": wann.strftime("%H:%M")}
 
 
 def _zaehle(voll: str) -> int:

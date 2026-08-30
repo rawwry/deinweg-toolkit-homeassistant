@@ -1288,4 +1288,21 @@ CHANGELOG = [
         "Seitenwechsel",
         "Die Katze ist größer und läuft im Takt des Vorbilds",
     ]},
+    {"version": "1.10.1", "titel": "Tabellen ruhiger, Spalten linksbündig", "punkte": [
+        "„Mein Bereich“: beide Tabellen stehen jetzt vollständig "
+        "linksbündig – „Dauer“ war als einzige Spalte rechtsbündig und "
+        "sah daneben wie ein Fremdkörper aus",
+        "Die Liste der eigenen Zeiten ist etwas kleiner gesetzt und "
+        "bekommt hinter jeder Dauer einen Balken: zwanzig HH:MM-Werte "
+        "untereinander sagen nicht, welche Einheit lang und welche kurz "
+        "war. Die Balken wachsen beim Laden einmal auf, die Zeile hebt "
+        "sich beim Überfahren",
+        "Auch die Monatsübersicht trägt jetzt ihre Einheiten im "
+        "Spaltenkopf",
+        "Auswertung: die zweizeiligen Spaltenköpfe haben mehr Luft "
+        "zwischen Titel und Einheit und eine kräftigere Linie darunter",
+        "Dateien: in der Spalte „Geändert“ stehen Datum und Uhrzeit "
+        "untereinander. Als „30.08.2026, 11:43“ brach die Spalte an einer "
+        "beliebigen Stelle um – wo genau, entschied die Fensterbreite",
+    ]},
 ]

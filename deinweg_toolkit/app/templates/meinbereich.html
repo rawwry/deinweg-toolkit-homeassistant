@@ -452,8 +452,13 @@
   <div class="tabellenrolle">
   <table class="liste dicht monatstabelle">
     <thead>
-      <tr><th>Monat</th><th class="rechts">Erfasst</th>{% if soll_std %}<th class="rechts">Soll</th><th class="rechts">Saldo</th>{% endif %}
-          <th class="rechts">Einh.</th></tr>
+      {# Alles linksbündig - wie in jeder anderen Liste des Programms.
+         Rechtsbündige Zahlenspalten sahen daneben wie ein Fremdkörper
+         aus. #}
+      <tr><th>Monat</th><th>Erfasst <span class="massangabe">Std</span></th>
+          {% if soll_std %}<th>Soll <span class="massangabe">Std</span></th>
+          <th>Saldo <span class="massangabe">Std</span></th>{% endif %}
+          <th>Einheiten <span class="massangabe">Anzahl</span></th></tr>
     </thead>
     <tbody>
       {% for m in monate %}
@@ -462,10 +467,10 @@
           {{ m.wort }}
           {% if m.laufend %}<span class="marke-status offen">läuft</span>{% endif %}
         </td>
-        <td class="zahlen rechts nowrap">{{ m.ist | hhmm }}</td>
+        <td class="zahlen nowrap stark">{{ m.ist | hhmm }}</td>
         {% if soll_std %}
-        <td class="zahlen rechts leise nowrap">{{ m.soll | hhmm }}</td>
-        <td class="zahlen rechts nowrap">
+        <td class="zahlen leise nowrap">{{ m.soll | hhmm }}</td>
+        <td class="zahlen nowrap">
           {% if m.laufend %}
             <span class="leise">–</span>
           {% else %}
@@ -475,7 +480,7 @@
           {% endif %}
         </td>
         {% endif %}
-        <td class="zahlen rechts leise">{{ m.n }}</td>
+        <td class="zahlen leise">{{ m.n }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -524,7 +529,7 @@
   <table class="liste dicht zeitentabelle">
     <thead>
       <tr><th>Datum</th><th>Zeit</th><th>Betreute Person</th><th>Leistung</th>
-          <th class="rechts">Dauer</th><th>Aktion</th></tr>
+          <th>Dauer <span class="massangabe">Std</span></th><th>Aktion</th></tr>
     </thead>
     <tbody>
       {% for z in eigene_zeiten %}
@@ -535,7 +540,13 @@
         </td>
         <td>{{ z.klient }}</td>
         <td class="leise klein">{{ z.beschreibung }}</td>
-        <td class="zahlen rechts nowrap stark">{{ z.dauer_min | hhmm }}</td>
+        <td class="zahlen nowrap stark">
+          {{ z.dauer_min | hhmm }}
+          {% if zeiten_laengste %}
+          <span class="dauerbalken" aria-hidden="true"><span
+            style="--anteil: {{ (z.dauer_min / zeiten_laengste * 100) | round | int }}%"></span></span>
+          {% endif %}
+        </td>
         <td class="rechts nowrap">
           <a class="knopf-icon" title="Bearbeiten" aria-label="Bearbeiten"
              href="/meinbereich/eintrag/{{ z.id }}/bearbeiten?zurueck={{ ('/meinbereich?zeiten=' ~ zeiten_monat ~ '#zeiten') | urlencode }}">

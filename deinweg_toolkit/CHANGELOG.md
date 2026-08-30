@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.10.1
+
+- „Mein Bereich": Tabellen linksbündig, Zeitenliste kleiner mit Balken
+  hinter der Dauer
+- Auswertung: mehr Luft in den zweizeiligen Spaltenköpfen
+- Dateien: Datum und Uhrzeit in „Geändert" untereinander
+
 ## 1.10
 
 - Aufgaben: Schalter für erledigte Vorgänge, 20 Karten je Seite

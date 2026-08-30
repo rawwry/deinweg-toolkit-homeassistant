@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.10"
+VERSION = "1.10.1"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1762,6 +1762,11 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
         zeiten_gekappt = len(eigene_zeiten) > MEINE_ZEITEN_MAX
         eigene_zeiten = list(eigene_zeiten[:MEINE_ZEITEN_MAX])
         zeiten_summe = sum(z["dauer_min"] or 0 for z in eigene_zeiten)
+        # Fuer den Balken hinter der Dauer: laengste Einheit der Liste als
+        # Bezugsgroesse. Zwanzig HH:MM-Werte untereinander sagen nicht, was
+        # lang und was kurz war - ein Balken schon.
+        zeiten_laengste = max((z["dauer_min"] or 0 for z in eigene_zeiten),
+                              default=0)
 
     ist_je_monat = {r["monat"]: {"m": r["m"], "n": r["n"]} for r in zeilen}
     dieser_monat = dt.date.today().strftime("%Y-%m")
@@ -1912,6 +1917,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "bewilligungen_grundwert": [b for b in alle_lagen
                                         if b["art"] == "grundwert"],
             "eigene_zeiten": eigene_zeiten, "zeitmonate": zeitmonate,
+            "zeiten_laengste": zeiten_laengste,
             "zeiten_monat": gewaehlter_monat, "zeiten_gekappt": zeiten_gekappt,
             "zeiten_summe": zeiten_summe, "zeiten_max": MEINE_ZEITEN_MAX,
             "verwaist": isinstance(person, dict) and person.get("verwaist")})
