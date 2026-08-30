@@ -216,6 +216,32 @@ def vorgangsarten_liste(con) -> list[str]:
     return sorted(namen, key=lambda s: s.casefold())
 
 
+def handelnde_person(request) -> str:
+    """Wer führt diese Aktion aus? Kommt seit 1.9 IMMER aus der Anmeldung.
+
+    ⚠️ Bis 1.8.1 stand in jedem Formular ein Auswahlfeld „Handelnde
+    Person". Das stammte aus der Zeit vor den Logins und war danach zwei
+    Dinge zugleich: überflüssig, weil das Konto ohnehin feststeht, und
+    verwirrend, weil direkt daneben die „zuständige Person" stand und
+    niemand den Unterschied kannte. Und als Nachweis taugte es ohnehin
+    nicht - man konnte jeden beliebigen Namen wählen. Fürs Löschen galt
+    deshalb schon immer die Anmeldung; jetzt gilt sie überall.
+
+    Bevorzugt der Mitarbeitername des Kontos (so steht im Logbuch
+    derselbe Name wie in den Zeiten), sonst der Benutzername.
+    """
+    benutzer = getattr(request.state, "benutzer", None)
+    if benutzer is None:
+        return "unbekannt"
+    name = _umgebung.get("eigener_name", lambda r: "")(request)
+    if name:
+        return name
+    try:
+        return benutzer["benutzername"] or "unbekannt"
+    except (IndexError, KeyError, TypeError):
+        return "unbekannt"
+
+
 def protokoll(con, vorgang_id: int | None, klient: str, wer: str,
               aktion: str, beschreibung: str = "") -> None:
     """Schreibt eine Zeile ins Logbuch. Wird nie geaendert oder geloescht."""
@@ -463,28 +489,26 @@ def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
 # --- Vorgang anlegen --------------------------------------------------------
 
 @router.post("")
-def anlegen(klient: str = Form(""), art: str = Form(""), titel: str = Form(""),
+def anlegen(request: Request, klient: str = Form(""), art: str = Form(""),
+            titel: str = Form(""),
             beschreibung: str = Form(""), zustaendig: str = Form(""),
             beteiligte: str = Form(""), status: str = Form("Offen"),
             prioritaet: str = Form("Normal"), frist: str = Form(""),
-            dateiverweis: str = Form(""), wer: str = Form(""),
+            dateiverweis: str = Form(""),
             zurueck: str = Form("/vorgaenge")):
     klient = sauber(klient, 120)
     titel = sauber(titel, 160)
     zustaendig = sauber(zustaendig, 80)
-    # Ohne handelnde Person waere nicht nachvollziehbar, wer den Vorgang
-    # angelegt hat – darum Pflicht und ausdruecklich kein Rueckfall auf
-    # die zustaendige Person.
-    wer = sauber(wer, 80)
+    wer = handelnde_person(request)
     art = sauber(art, 160)
     status = status if status in STATUS_LISTE else "Offen"
     prioritaet = prioritaet if prioritaet in PRIORITAETEN else "Normal"
     frist_iso = datum_lesen(frist)
 
-    if not klient or not titel or not zustaendig or not wer or not art:
+    if not klient or not titel or not zustaendig or not art:
         return zurueck_zu("/vorgaenge", neu="1", fehler=(
-            "Betreute Person, Vorgangsart, Titel, zuständige Person und "
-            "handelnde Person müssen ausgefüllt sein."))
+            "Betreute Person, Vorgangsart, Titel und zuständige Person "
+            "müssen ausgefüllt sein."))
 
     with db.db() as con:
         if klient not in klientenliste(con):
@@ -676,12 +700,10 @@ def loeschen(request: Request, vorgang_id: int,
 
 
 @router.post("/{vorgang_id}/status")
-def status_aendern(vorgang_id: int, status: str = Form(""), wer: str = Form(""),
+def status_aendern(request: Request, vorgang_id: int, status: str = Form(""),
                    notiz: str = Form(""), frist: str = Form(""),
                    zurueck: str = Form("")):
-    wer = sauber(wer, 80)
-    if not wer:
-        return _fehler(vorgang_id, "Bitte angeben, wer die Änderung vornimmt.")
+    wer = handelnde_person(request)
     if status not in STATUS_LISTE:
         return _fehler(vorgang_id, "Unbekannter Status.")
 
@@ -731,10 +753,10 @@ def status_aendern(vorgang_id: int, status: str = Form(""), wer: str = Form(""),
 
 
 @router.post("/{vorgang_id}/zustaendig")
-def zustaendig_aendern(vorgang_id: int, zustaendig: str = Form(""),
-                       wer: str = Form(""), notiz: str = Form("")):
-    wer, neu = sauber(wer, 80), sauber(zustaendig, 80)
-    if not wer or not neu:
+def zustaendig_aendern(request: Request, vorgang_id: int,
+                       zustaendig: str = Form(""), notiz: str = Form("")):
+    wer, neu = handelnde_person(request), sauber(zustaendig, 80)
+    if not neu:
         return _fehler(vorgang_id, "Neue Zuständigkeit und handelnde Person "
                                    "müssen angegeben sein.")
     with db.db() as con:
@@ -750,11 +772,9 @@ def zustaendig_aendern(vorgang_id: int, zustaendig: str = Form(""),
 
 
 @router.post("/{vorgang_id}/frist")
-def frist_aendern(vorgang_id: int, frist: str = Form(""), wer: str = Form(""),
+def frist_aendern(request: Request, vorgang_id: int, frist: str = Form(""),
                   notiz: str = Form("")):
-    wer = sauber(wer, 80)
-    if not wer:
-        return _fehler(vorgang_id, "Bitte angeben, wer die Änderung vornimmt.")
+    wer = handelnde_person(request)
     neue = datum_lesen(frist)
     if frist.strip() and not neue:
         return _fehler(vorgang_id, "Das Datum der Wiedervorlage ist unklar.")
@@ -778,9 +798,9 @@ def frist_aendern(vorgang_id: int, frist: str = Form(""), wer: str = Form(""),
 
 
 @router.post("/{vorgang_id}/notiz")
-def notiz_anlegen(vorgang_id: int, wer: str = Form(""), notiz: str = Form("")):
-    wer, text = sauber(wer, 80), mehrzeilig(notiz, 2000)
-    if not wer or not text:
+def notiz_anlegen(request: Request, vorgang_id: int, notiz: str = Form("")):
+    wer, text = handelnde_person(request), mehrzeilig(notiz, 2000)
+    if not text:
         return _fehler(vorgang_id, "Notiz und handelnde Person müssen "
                                    "ausgefüllt sein.")
     with db.db() as con:
@@ -806,7 +826,7 @@ FELDER_BESCHRIFTUNG = {
 
 
 @router.post("/{vorgang_id}/daten")
-def daten_speichern(vorgang_id: int, wer: str = Form(""), titel: str = Form(""),
+def daten_speichern(request: Request, vorgang_id: int, titel: str = Form(""),
                     art: str = Form(""), beschreibung: str = Form(""),
                     prioritaet: str = Form("Normal"), beteiligte: str = Form(""),
                     dateiverweis: str = Form(""),
@@ -814,7 +834,7 @@ def daten_speichern(vorgang_id: int, wer: str = Form(""), titel: str = Form(""),
                     datum_eingang: str = Form(""),
                     datum_rueckmeldung: str = Form(""),
                     datum_erledigt: str = Form("")):
-    wer = sauber(wer, 80)
+    wer = handelnde_person(request)
     if not wer:
         return _fehler(vorgang_id, "Bitte angeben, wer die Änderung vornimmt.")
     titel = sauber(titel, 160)

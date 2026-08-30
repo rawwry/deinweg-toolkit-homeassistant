@@ -14,6 +14,9 @@ TEXTE_STANDARD["start.kein_team"] = (
 TEXTE_STANDARD["start.vorschau_offen"] = (
     "Diese Dateien wurden eingelesen, sind aber noch nicht im Bestand. "
     "Öffne die Vorschau, prüfe die Zeilen und übernimm sie oder verwirf sie.")
+TEXTE_STANDARD["start.upload_name"] = (
+    "Der gewählte Name gilt für alle Zeilen der Datei – auch dann, wenn "
+    "sie eine eigene Mitarbeiterspalte mitbringt.")
 TEXTE_STANDARD["start.upload"] = (
     "Exporte aus Working Hours oder vergleichbare Listen als .xlsx oder .csv hochladen. Vor dem Speichern siehst du eine Vorschau mit allen Dopplungen oder anderen Fuckups.")
 TEXTE_STANDARD["erfassung.lead"] = (
@@ -140,14 +143,10 @@ TEXTE_STANDARD["vorgaenge.zustaendig_hinweis"] = (
     "jetzt an. Sie steht in der Liste, wird bei Fristen per E-Mail "
     "erinnert, und über sie filtert man „meine Aufgaben“. Sie kann "
     "später jederzeit gewechselt werden.")
-TEXTE_STANDARD["vorgaenge.wer_hinweis"] = (
-    "Die <strong>handelnde Person</strong> ist, wer gerade an der "
-    "Tastatur sitzt. Sie wird nicht am Vorgang gespeichert, sondern nur "
-    "in seinem Verlauf: „am 30.08. von Nadine angelegt“. Bei jeder "
-    "späteren Änderung wird sie erneut gefragt – so bleibt "
-    "nachvollziehbar, wer was getan hat. Meistens ist das dieselbe "
-    "Person wie oben; wer für eine Kollegin einträgt, wählt hier sich "
-    "selbst und oben die Kollegin.")
+TEXTE_STANDARD["vorgaenge.protokoll_hinweis"] = (
+    "Jede Änderung an einem Vorgang landet mit Zeitpunkt und Konto im "
+    "Verlauf – dafür ist nichts auszufüllen, das kommt aus deiner "
+    "Anmeldung.")
 TEXTE_STANDARD["vorgaenge.keine_personen"] = (
     "Noch keine betreute Person im System. Lade zuerst eine Arbeitsliste hoch "
     "oder erfasse Zeiten von Hand, dann steht die Auswahl hier bereit.")

@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.9
+
+- Feld „Handelnde Person" entfällt; wer handelt, kommt aus der Anmeldung
+- Anlegeformular dadurch schlanker, nur noch zwei Blöcke
+- Manuelle Zeiterfassung und Zeitlisten einlesen neu gestaltet
+- Katze wieder kleiner und ruhiger
+
 ## 1.8.1
 
 - Höchstens zwei Vorgangskarten nebeneinander

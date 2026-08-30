@@ -2322,23 +2322,41 @@ def test_vorgang_anlegen(client: TestClient) -> None:
     pruefe("Formular schließen" in offen,
            "und lässt sich wieder schließen")
     bloecke = re.findall(r'class="formblock-titel">([^<]+)<', offen)
-    pruefe(len(bloecke) == 3,
-           f"das Formular steht in drei Blöcken (sind: {bloecke})")
-    pruefe("zuständige Person" in offen and "handelnde Person" in offen,
-           "beide Rollen werden ausdrücklich erklärt")
+    pruefe(len(bloecke) == 2,
+           f"das Formular steht in zwei Blöcken (sind: {bloecke})")
+    pruefe("zuständige Person" in offen,
+           "die Rolle der zuständigen Person wird erklärt")
 
-    # Beide Personenfelder sind mit dem angemeldeten Konto vorbelegt.
-    pruefe(offen.count('value="pruefer" selected') >= 2,
-           "zuständige und handelnde Person sind vorbelegt")
+    # ⚠️ Das Feld „Handelnde Person" ist mit 1.9 ersatzlos entfallen - wer
+    # handelt, kommt aus der Anmeldung. Es stammte aus der Zeit vor den
+    # Logins, stand verwirrend neben der zuständigen Person und taugte als
+    # Nachweis ohnehin nicht: man konnte jeden Namen wählen.
+    pruefe('name="wer"' not in offen,
+           "es gibt kein Feld „Handelnde Person“ mehr")
+    pruefe("Handelnde Person" not in offen,
+           "und auch keine Beschriftung dazu")
+    pruefe('value="pruefer" selected' in offen,
+           "die zuständige Person ist mit dem eigenen Konto vorbelegt")
 
     # Und das Anlegen funktioniert weiterhin.
     antwort = client.post("/vorgaenge", data={
         "klient": "Testperson", "art": "Antrag", "titel": "Formularprobe",
         "zustaendig": "pruefer", "status": "Offen", "prioritaet": "Normal",
-        "frist": "", "wer": "pruefer"}, follow_redirects=False)
-    pruefe(antwort.status_code == 303, "ein Vorgang lässt sich anlegen")
+        "frist": ""}, follow_redirects=False)
+    pruefe(antwort.status_code == 303,
+           "ein Vorgang lässt sich ohne das Feld anlegen")
     pruefe("Formularprobe" in client.get("/vorgaenge").text,
            "und steht danach in der Liste")
+
+    # Und im Logbuch steht trotzdem, wer es war - aus der Anmeldung.
+    with db.db() as con:
+        zeile = con.execute(
+            "SELECT wer FROM vorgang_log WHERE beschreibung LIKE '%Formularprobe%' "
+            "OR vorgang_id = (SELECT id FROM vorgang WHERE titel='Formularprobe') "
+            "ORDER BY id DESC LIMIT 1").fetchone()
+    pruefe(zeile is not None and zeile["wer"] == "pruefer",
+           f"im Verlauf steht das angemeldete Konto (ist: "
+           f"{zeile['wer'] if zeile else None})")
 
 
 def test_dringlichkeit(client: TestClient) -> None:

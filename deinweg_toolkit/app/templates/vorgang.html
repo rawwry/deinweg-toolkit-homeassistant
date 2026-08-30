@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_vorgang_teile.html" import statusmarke, priomarke, frist, werwahl, werskript, logzeile,
+{% from "_vorgang_teile.html" import statusmarke, priomarke, frist, logzeile,
    logtag with context %}
 {% block titel %} – {{ v.titel }}{% endblock %}
 {% block inhalt %}
@@ -79,7 +79,6 @@
           <span>Wiedervorlage <span class="leise">– optional</span></span>
           <input type="date" name="frist" value="" min="2020-01-01">
         </label>
-        {{ werwahl(leute) }}
       </div>
       <label class="feld">
         <span>Was wurde getan? <span class="leise">– landet im Logbuch</span></span>
@@ -102,7 +101,6 @@
             {% for m in leute %}<option value="{{ m }}" {{ 'selected' if m == v.zustaendig }}>{{ m }}</option>{% endfor %}
           </select>
         </label>
-        {{ werwahl(leute) }}
       </div>
       <label class="feld">
         <span>Notiz <span class="leise">– optional</span></span>
@@ -116,7 +114,6 @@
     <h2 class="unterkopf">Notiz nachtragen</h2>
     <form action="/vorgaenge/{{ v.id }}/notiz" method="post">
       <div class="feldreihe zwei">
-        {{ werwahl(leute) }}
       </div>
       <label class="feld">
         <span>Eintrag für das Logbuch</span>
@@ -178,7 +175,6 @@
           <input type="date" name="datum_erledigt" value="{{ v.datum_erledigt or '' }}"></label>
       </div>
       <div class="feldreihe zwei">
-        {{ werwahl(leute) }}
       </div>
       <div class="knopfreihe">
         <button class="knopf haupt" type="submit">Änderungen speichern</button>
@@ -198,5 +194,4 @@
   </form>
 </section>
 
-{{ werskript() }}
 {% endblock %}

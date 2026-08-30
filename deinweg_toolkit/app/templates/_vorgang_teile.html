@@ -20,45 +20,6 @@
 {% endif %}
 {%- endmacro %}
 
-{# Handelnde Person. Ohne Anmeldung im Tool ist das die einzige Möglichkeit,
-   Verantwortlichkeit sauber zu protokollieren. #}
-{% macro werwahl(leute, beschriftung="Handelnde Person", vorbelegt="") -%}
-<label class="feld">
-  <span>{{ beschriftung }}</span>
-  <select name="wer" class="werwahl" required>
-    <option value="">bitte wählen</option>
-    {% for m in leute %}<option value="{{ m }}" {{ 'selected' if vorbelegt and vorbelegt == m }}>{{ m }}</option>{% endfor %}
-  </select>
-</label>
-{%- endmacro %}
-
-{% macro werskript() -%}
-<script>
-  // Die zuletzt gewählte handelnde Person bleibt im Browser gespeichert,
-  // damit sie nicht bei jeder Aktion neu ausgewählt werden muss.
-  (function () {
-    var schluessel = "toolkit-wer", gemerkt = null;
-    try { gemerkt = localStorage.getItem(schluessel); } catch (e) {}
-    document.querySelectorAll("select.werwahl").forEach(function (feld) {
-      if (gemerkt) {
-        for (var i = 0; i < feld.options.length; i++) {
-          if (feld.options[i].value === gemerkt) { feld.value = gemerkt; break; }
-        }
-      }
-      feld.addEventListener("change", function () {
-        try { localStorage.setItem(schluessel, feld.value); } catch (e) {}
-      });
-    });
-  })();
-</script>
-{%- endmacro %}
-
-{# Eine Zeile im Logbuch #}
-{# Eine Zeile im Logbuch. Zwei Spalten: links wann und wer, rechts was.
-   Vorher stand alles in einer Zeile hintereinander – Zeitpunkt, Name,
-   Aktion, Person, Vorgang – und die Seite war eine gleichförmige
-   Textwand. Das Datum steht jetzt nicht mehr in jeder Zeile, sondern
-   einmal als Tagesüberschrift darüber (siehe logtag). #}
 {% macro logzeile(e, mit_person=true) -%}
 <li class="logeintrag">
   <div class="logzeit">

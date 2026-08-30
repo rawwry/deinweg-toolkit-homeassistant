@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_vorgang_teile.html" import statusmarke, priomarke, frist, werskript, logzeile, logtag with context %}
+{% from "_vorgang_teile.html" import statusmarke, priomarke, frist, logzeile, logtag with context %}
 {% block titel %} – {{ name }}{% endblock %}
 {% block inhalt %}
 
@@ -144,5 +144,4 @@
   {% endif %}
 </section>
 
-{{ werskript() }}
 {% endblock %}

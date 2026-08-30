@@ -37,10 +37,17 @@
 
     {% if darf_erfassen %}
     <div class="karte">
-      <h1>Manuelle Zeiterfassung</h1>
+      <div class="kopfzeile">
+        <h1>Manuelle Zeiterfassung</h1>
+        {% if mitarbeiter %}<p class="summe">{{ mitarbeiter }}</p>{% endif %}
+      </div>
       <p class="lead">{{ t("erfassung.lead") }}</p>
 
+      {# Der Name gilt für alle Zeilen darunter und steht deshalb
+         abgesetzt in einem eigenen Band - vorher sah er aus wie das
+         erste von acht gleichrangigen Feldern. #}
       <div class="erfasser">
+        <span class="erfasser-marke">gilt für alle Zeilen</span>
         <label class="feld">
           <span>Mitarbeiter</span>
           {# Auswahl statt Freitext: die Namen kommen aus dem gepflegten
@@ -62,19 +69,15 @@
             {% endif %}
           </select>
         </label>
-        {% if mitarbeiter %}
-        <p class="erfasser-status">
-          <span class="marke-status gut">aktiv</span>
-          wird in jeden Eintrag übernommen
-        </p>
-        {% endif %}
       </div>
 
       {% if not mitarbeiterliste.team and not mitarbeiterliste.weitere %}
       <p class="meldung offen-hinweis">{{ t("erfassung.kein_team") }}</p>
       {% endif %}
 
-      <h2 class="unterkopf">Neuer Eintrag</h2>
+      <div class="erfasstrenner">
+        <span>Neuer Eintrag</span>
+      </div>
 
       {# Jede Zeile ist ein vollständiger Eintrag. Der Server nimmt die
          Felder als parallele Listen entgegen, eine Zeile ist der
@@ -139,14 +142,18 @@
 
       {# Der Knopf steht nur mit Skript zur Verfügung und wird dort
          eingeblendet – ohne Skript ließe sich keine Zeile hinzufügen. #}
-      <div class="knopfreihe" id="zeilenknopf" hidden>
+      <div class="knopfreihe erfass-mehr" id="zeilenknopf" hidden>
         <button class="knopf leise klein" type="button" id="zeile-mehr">
-          + Weitere Zeile
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round"/>
+          </svg>
+          Weitere Zeile
         </button>
         <span class="klein leise" id="zeilenstand"></span>
       </div>
 
-      <div class="knopfreihe">
+      <div class="knopfreihe erfass-fuss">
         <button class="knopf haupt" type="submit" form="erfassung" id="erfassen-knopf">
           Eintrag speichern</button>
         {% if mitarbeiter %}
@@ -167,28 +174,42 @@
       <p class="lead">{{ t("start.upload") }}</p>
 
       <form action="/upload" method="post" enctype="multipart/form-data">
-        {# Beide Felder nebeneinander – die Karte ist breit genug. #}
-        <div class="feldreihe zwei">
-          <label class="feld">
-            <span>Dateien</span>
-            <input type="file" name="datei" accept=".xlsx,.xlsm,.csv" multiple required>
-          </label>
+        {# Das nackte <input type="file"> sieht in jedem Browser anders
+           aus und wie ein Fremdkörper zwischen den übrigen Feldern.
+           Deshalb ein Ablagefeld: das echte Feld liegt unsichtbar
+           darunter und bleibt per Tastatur erreichbar, das Label ist die
+           Fläche. Ohne Skript steht dort weiterhin „Datei auswählen“ –
+           nur die Namensanzeige fehlt dann. #}
+        <label class="ablagefeld">
+          <input type="file" name="datei" accept=".xlsx,.xlsm,.csv" multiple required
+                 id="listenfeld">
+          <span class="ablage-inhalt">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke="currentColor"
+                    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 15v3.2A1.8 1.8 0 0 0 5.8 20h12.4a1.8 1.8 0 0 0 1.8-1.8V15"
+                    stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span class="ablage-titel" id="listenname">Datei auswählen</span>
+            <span class="ablage-hinweis">xlsx, xlsm oder csv · mehrere möglich</span>
+          </span>
+        </label>
 
-          <label class="feld">
-            <span>Mitarbeiter</span>
-            <select name="mitarbeiter" required>
-              <option value="">– bitte auswählen –</option>
-              {% for m in mitarbeiterliste.team %}
-                <option value="{{ m }}">{{ m }}</option>
-              {% endfor %}
-              {% if mitarbeiterliste.weitere %}
-              <optgroup label="nicht mehr im Team">
-                {% for m in mitarbeiterliste.weitere %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
-              </optgroup>
-              {% endif %}
-            </select>
-          </label>
-        </div>
+        <label class="feld">
+          <span>Diese Listen gehören zu</span>
+          <select name="mitarbeiter" required>
+            <option value="">– bitte auswählen –</option>
+            {% for m in mitarbeiterliste.team %}
+              <option value="{{ m }}" {{ 'selected' if m == mitarbeiter }}>{{ m }}</option>
+            {% endfor %}
+            {% if mitarbeiterliste.weitere %}
+            <optgroup label="nicht mehr im Team">
+              {% for m in mitarbeiterliste.weitere %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+            </optgroup>
+            {% endif %}
+          </select>
+        </label>
+        <p class="klein leise felderklaerung">{{ t("start.upload_name") }}</p>
 
         {# Der gewaehlte Name gilt immer, auch wenn die Datei eine eigene
            Spalte mitbringt. Frueher war das eine Wahlmoeglichkeit; da der
@@ -196,9 +217,26 @@
         <input type="hidden" name="erzwingen" value="1">
 
         <div class="knopfreihe unten">
-          <button class="knopf haupt" type="submit">Datei einlesen</button>
+          <button class="knopf haupt" type="submit">Listen einlesen</button>
         </div>
       </form>
+
+      <script>
+        // Zeigt die gewählten Dateinamen im Ablagefeld. Reine Anzeige -
+        // ohne Skript bleibt dort "Datei auswählen" stehen.
+        (function () {
+          var feld = document.getElementById("listenfeld"),
+              name = document.getElementById("listenname");
+          if (!feld || !name) { return; }
+          feld.addEventListener("change", function () {
+            var n = feld.files.length;
+            name.textContent = n === 0 ? "Datei auswählen"
+              : n === 1 ? feld.files[0].name
+              : n + " Dateien ausgewählt";
+            name.closest(".ablagefeld").classList.toggle("hat", n > 0);
+          });
+        })();
+      </script>
     </div>
     {% endif %}
 

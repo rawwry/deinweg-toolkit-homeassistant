@@ -713,9 +713,73 @@ input[type=date], input[type=time] {
 
 /* --- Manuelle Zeiterfassung ----------------------------------------- */
 
-.erfasser { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; }
-.erfasser .feld { margin-bottom: 0; flex: 1 1 280px; max-width: 380px; }
-.erfasser-status { margin: 0 0 9px; font-size: 12.5px; color: var(--leise); }
+/* Der Mitarbeitername gilt für ALLE Zeilen darunter und steht deshalb
+   abgesetzt in einem eigenen Band. Vorher sah er aus wie das erste von
+   acht gleichrangigen Feldern. */
+.erfasser {
+  position: relative;
+  display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap;
+  padding: 16px 18px 18px; border-radius: 12px;
+  background: var(--flaeche-2); border: 1px solid var(--linie);
+}
+.erfasser .feld { margin-bottom: 0; flex: 1 1 280px; max-width: 420px; }
+.erfasser-marke {
+  position: absolute; top: -8px; left: 16px; padding: 2px 9px;
+  border-radius: 20px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  background: var(--akzent-weich); color: var(--akzent);
+}
+
+/* Trennlinie mit Beschriftung zwischen Kopf und Eintragszeilen. Eine
+   normale Überschrift stand dort wie ein neuer Abschnitt; hier gehört
+   beides zusammen. */
+.erfasstrenner {
+  display: flex; align-items: center; gap: 12px;
+  margin: 22px 0 14px; color: var(--leise);
+  font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.erfasstrenner::after {
+  content: ""; flex: 1 1 auto; height: 1px; background: var(--linie);
+}
+
+.erfass-mehr { margin-top: 12px; }
+.erfass-mehr .knopf { display: inline-flex; align-items: center; gap: 6px; }
+.erfass-mehr .knopf svg { width: 14px; height: 14px; }
+.erfass-fuss {
+  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--linie);
+}
+
+/* Ablagefeld für die Zeitlisten. Das nackte <input type="file"> sieht in
+   jedem Browser anders aus und wirkt zwischen den übrigen Feldern wie
+   ein Fremdkörper. Das echte Feld liegt unsichtbar über der Fläche und
+   bleibt per Tastatur erreichbar. */
+.ablagefeld {
+  position: relative; display: block; margin-bottom: 16px;
+  border: 1.5px dashed var(--linie-stark); border-radius: 12px;
+  background: var(--flaeche-2); cursor: pointer;
+}
+.ablagefeld:hover { border-color: var(--akzent); }
+.ablagefeld.hat { border-style: solid; border-color: var(--akzent);
+                  background: var(--akzent-weich); }
+/* ⚠️ Der lange Selektor ist nötig: weiter oben steht eine allgemeine
+   Regel für input[type=file] (Rahmen, Polsterung, eigener Knopf), die
+   sonst gewinnt und das Feld sichtbar lässt. */
+.ablagefeld input[type=file],
+.ablagefeld input[type=file]:hover {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  margin: 0; padding: 0; border: none; background: none;
+  opacity: 0; cursor: pointer; z-index: 1;
+}
+.ablagefeld:focus-within { border-color: var(--akzent); }
+.ablage-inhalt {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 24px 16px; text-align: center; pointer-events: none;
+}
+.ablage-inhalt svg { width: 26px; height: 26px; color: var(--leise); }
+.ablagefeld.hat .ablage-inhalt svg { color: var(--akzent); }
+.ablage-titel { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.ablage-hinweis { font-size: 11.5px; color: var(--leise); }
 
 .erfassreihe { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
 
@@ -726,6 +790,9 @@ input[type=date], input[type=time] {
    Kopf mit „Eintrag 1“ nur Lärm. */
 .erfassliste { display: flex; flex-direction: column; gap: 4px; }
 .erfasszeile-kopf { display: none; }
+/* Jede Eintragszeile ist ein eigener Block, sobald es mehr als eine
+   gibt - sonst verschwimmen bei fünf Zeilen dreißig Felder zu einer
+   Fläche. */
 .erfassliste.mehrere .erfasszeile {
   padding: 12px 14px 4px; border-radius: 10px;
   border: 1px solid var(--linie); background: var(--flaeche-2);
@@ -740,9 +807,8 @@ input[type=date], input[type=time] {
   text-transform: uppercase; color: var(--leise);
 }
 .erfassreihe-text { margin-top: 2px; }
-/* Die Zeile mit „+ Weitere Zeile“ klebte am Speichern-Knopf darunter.
-   Sie gehört zur Eingabe, nicht zum Abschluss - deshalb Luft dazwischen. */
-#zeilenknopf { margin: 14px 0 20px; }
+/* „Weitere Zeile“ gehört zur Eingabe, nicht zum Abschluss - der Abstand
+   dazwischen macht das sichtbar (siehe .erfass-mehr / .erfass-fuss). */
 .erfassreihe .dauer-anzeige { display: flex; flex-direction: column; }
 .dauer-anzeige > span { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
 .dauer-anzeige output {
@@ -2018,27 +2084,30 @@ body.anmeldeseite {
    hält die Kanten hart, sonst weicht der Browser die Pixel beim
    Hochskalieren auf.
 */
+/* Mittelweg: der Pixelstil des Originals, aber kleiner und ruhiger als
+   die erste große Fassung - die zog auf einer Seite, auf der es nichts
+   zu tun gibt, zu viel Aufmerksamkeit auf sich. */
 .nyan {
-  width: 100%; border-radius: 12px; overflow: hidden;
+  width: 100%; max-width: 230px; border-radius: 12px; overflow: hidden;
   background: #0b0d1a;
   border: 1px solid var(--linie);
 }
 .nyan svg { display: block; width: 100%; height: auto; }
-.nyan-stern { opacity: .25; }
+.nyan-stern { opacity: .2; }
 
 @media (prefers-reduced-motion: no-preference) {
   /* Der Regenbogen ist elfmal derselbe 24px-Takt. Verschiebt man die
      Gruppe um genau einen Takt und springt zurück, läuft er endlos -
      steps() macht daraus das harte Ruckeln des Originals statt eines
      weichen Gleitens. */
-  .nyan-regen { animation: nyan-regen .34s steps(2) infinite; }
+  .nyan-regen { animation: nyan-regen .48s steps(2) infinite; }
   /* Die Katze hüpft auf demselben Takt wie der Regenbogen zuckt. */
-  .nyan-katze { animation: nyan-huepf .17s steps(2) infinite alternate; }
-  .nyan-stern { animation: nyan-funkeln .7s steps(3) infinite;
+  .nyan-katze { animation: nyan-huepf .24s steps(2) infinite alternate; }
+  .nyan-stern { animation: nyan-funkeln 1.3s steps(3) infinite;
                 animation-delay: var(--takt, 0s); }
 }
 @keyframes nyan-regen { to { transform: translateX(-24px); } }
-@keyframes nyan-huepf { to { transform: translateY(-4px); } }
+@keyframes nyan-huepf { to { transform: translateY(-3px); } }
 @keyframes nyan-funkeln {
   0%   { opacity: .1;  transform: scale(.45); }
   50%  { opacity: 1;   transform: scale(1); }

@@ -1237,4 +1237,24 @@ CHANGELOG = [
         "Originals gezeichnet – mit Zickzack-Regenbogen und funkelnden "
         "Pixelsternen",
     ]},
+    {"version": "1.9", "titel": "Handelnde Person entfällt, Arbeitszeit aufgeräumt", "punkte": [
+        "Das Feld „Handelnde Person“ ist ersatzlos entfallen. Wer eine "
+        "Änderung vornimmt, kommt jetzt überall aus der Anmeldung – so "
+        "wie es beim Löschen schon immer war. Das Feld stammte aus der "
+        "Zeit vor den Benutzerkonten, stand verwirrend neben der "
+        "zuständigen Person und taugte als Nachweis ohnehin nicht: man "
+        "konnte jeden beliebigen Namen wählen. Im Verlauf steht jetzt "
+        "immer das Konto, das die Änderung gemacht hat",
+        "Das Anlegeformular hat dadurch nur noch zwei Blöcke und kommt "
+        "mit einem Feld weniger aus",
+        "Manuelle Zeiterfassung: der Mitarbeitername steht in einem "
+        "eigenen Band mit der Marke „gilt für alle Zeilen“ – vorher sah "
+        "er aus wie das erste von acht gleichrangigen Feldern. Zwischen "
+        "Kopf und Eingabe liegt eine beschriftete Trennlinie, „Weitere "
+        "Zeile“ und „Eintrag speichern“ sind sauber voneinander getrennt",
+        "Zeitlisten einlesen: statt des nackten Dateifelds, das in jedem "
+        "Browser anders aussieht, jetzt eine Ablagefläche mit Symbol, die "
+        "nach der Auswahl die Dateinamen anzeigt",
+        "Die Katze ist wieder kleiner und ruhiger – der Pixelstil bleibt",
+    ]},
 ]

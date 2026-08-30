@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_vorgang_teile.html" import statusmarke, priomarke, frist, werwahl, werskript with context %}
+{% from "_vorgang_teile.html" import statusmarke, priomarke, frist with context %}
 {% block titel %} – Aufgaben{% endblock %}
 {% block inhalt %}
 
@@ -131,13 +131,7 @@
           <input type="date" name="frist" min="2020-01-01">
         </label>
       </div>
-
-      </div>
-
-      <div class="formblock">
-      <span class="formblock-titel">Wer trägt das gerade ein?</span>
-      {{ werwahl(leute, "Handelnde Person", eigener_name) }}
-      <p class="klein leise felderklaerung">{{ t("vorgaenge.wer_hinweis") }}</p>
+      <p class="klein leise felderklaerung">{{ t("vorgaenge.protokoll_hinweis") }}</p>
       </div>
 
       <div class="knopfreihe">
@@ -285,5 +279,4 @@
   {% endif %}
 </section>
 
-{{ werskript() }}
 {% endblock %}
