@@ -1257,4 +1257,35 @@ CHANGELOG = [
         "nach der Auswahl die Dateinamen anzeigt",
         "Die Katze ist wieder kleiner und ruhiger – der Pixelstil bleibt",
     ]},
+    {"version": "1.10", "titel": "Dateien und Wiki mit Rechtsklick, Aufgaben blättern", "punkte": [
+        "Aufgaben: ein Schalter blendet erledigte Vorgänge aus. "
+        "Standardmäßig sind sie eingeblendet – Erledigtes verschwinden zu "
+        "lassen sollte man selbst entscheiden. Dazu höchstens 20 Karten "
+        "je Seite mit Blätterleiste",
+        "Dateien: in der Seitenleiste stehen nur noch Ordner. Der Baum "
+        "zeigt die Struktur, das Hauptfenster den Inhalt – beides doppelt "
+        "machte die Leiste bei einem Ordner mit dreißig Bildern "
+        "unbrauchbar lang",
+        "Dateien: „Hochladen“ und „Neuer Ordner“ stehen jetzt im "
+        "Hauptfenster. Sie wirken auf den Ordner, den man gerade ansieht, "
+        "und gehören dorthin, wo dessen Inhalt steht",
+        "Dateien: Dateien lassen sich vom Rechner direkt ins Fenster "
+        "ziehen – auch gezielt auf einen Ordner",
+        "Dateien und Wiki: Rechtsklick auf einen Eintrag öffnet ein Menü "
+        "mit den passenden Aktionen. Mit Umschalt+Rechtsklick kommt "
+        "weiterhin das Menü des Browsers",
+        "Dateien: Ordner sind deutlich von Dateien zu unterscheiden – "
+        "Akzentfarbe, getönter Hintergrund, Balken links",
+        "Dateien: ein Klick auf ein Bild öffnet es im Fenster statt auf "
+        "einer neuen Seite",
+        "Wiki: derselbe Umschalter zwischen Kacheln und Liste wie bei den "
+        "Dateien, und „Neu anlegen“ steht ebenfalls im Hauptfenster",
+        "Einstellungen: mehr Luft zwischen „Einstellungen“ und der ersten "
+        "Gruppe",
+        "Zeiterfassung: der Mitarbeiterblock ist ruhiger gesetzt – die "
+        "Marke klebt nicht mehr auf der Kante",
+        "Das Zeichen in der Kopfzeile bewegt sich nicht mehr bei jedem "
+        "Seitenwechsel",
+        "Die Katze ist größer und läuft im Takt des Vorbilds",
+    ]},
 ]

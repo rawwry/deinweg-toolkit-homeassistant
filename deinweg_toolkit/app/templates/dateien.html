@@ -20,49 +20,7 @@
 
   {# --- Seitenleiste: derselbe Aufbau wie im Wiki --- #}
   <aside class="wiki-seitenleiste karte">
-    <div class="dateiwerkzeuge">
-      {# Hochladen als Symbolknopf: das eigentliche Dateifeld ist versteckt,
-         der Knopf ist sein Label. Nach der Auswahl schickt das Skript das
-         Formular ab. Ohne Skript bleibt der Absenden-Knopf sichtbar. #}
-      <form action="/dateien/hochladen" method="post" enctype="multipart/form-data"
-            id="hochladeform" class="inline">
-        <input type="hidden" name="ordner" value="{{ ordner }}">
-        <input type="file" name="datei" id="dateifeld" multiple required
-               class="dateifeld-versteckt"
-               accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.odt,.ods,.odp,.csv,.txt,.md">
-        <label class="knopf-icon" for="dateifeld"
-               title="Dateien in diesen Ordner hochladen" tabindex="0" role="button">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 20V8m0 0-4 4m4-4 4 4" stroke="currentColor" stroke-width="1.7"
-                  stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M5 5.5h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          </svg>
-        </label>
-        <button class="knopf klein" type="submit" id="hochladeknopf">Hochladen</button>
-      </form>
-
-      <button class="knopf-icon" type="button" id="ordnerknopf"
-              title="Neuen Ordner hier anlegen" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M3.5 7.5c0-1.1.9-2 2-2h3.2l1.8 2h8c1.1 0 2 .9 2 2v8.5c0 1.1-.9 2-2 2H5.5c-1.1 0-2-.9-2-2v-10.5Z"
-                stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-          <path d="M12 11.5v5M9.5 14h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-        </svg>
-      </button>
-    </div>
-
-    <form action="/dateien/ordner" method="post" class="ordnerform" id="ordnerform">
-      <input type="hidden" name="ordner" value="{{ ordner }}">
-      <label class="feld">
-        <span>Neuer Ordner</span>
-        <input type="text" name="name" required autocomplete="off"
-               placeholder="z. B. Fotos Sommerfest">
-      </label>
-      <div class="knopfreihe">
-        <button class="knopf klein haupt" type="submit">Anlegen</button>
-      </div>
-    </form>
-
+    <span class="seitenmenue-titel">Ordner</span>
     <nav class="wiki-baum" aria-label="Dateistruktur">
       <a class="wiki-knoten wiki-wurzel {{ 'hier' if wurzel_hier }}" href="/dateien"
          data-ziel="" title="Oberste Ebene – zum Verschieben hierher ziehen">
@@ -94,6 +52,50 @@
           </div>
         </div>
       </div>
+
+      {# Hochladen und Ordner anlegen stehen im Hauptfenster, nicht in der
+         Seitenleiste: sie wirken auf den Ordner, den man gerade ansieht,
+         und gehören deshalb dorthin, wo dessen Inhalt steht. #}
+      <div class="dateiwerkzeuge">
+        <form action="/dateien/hochladen" method="post" enctype="multipart/form-data"
+              id="hochladeform" class="inline">
+          <input type="hidden" name="ordner" value="{{ ordner }}" id="hochladeordner">
+          <input type="file" name="datei" id="dateifeld" multiple required
+                 class="dateifeld-versteckt"
+                 accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.mp4,.eps,.pdf,.docx,.dotx,.doc,.xlsx,.xls,.pptx,.ppt,.odt,.ods,.odp,.csv,.txt,.md">
+          <label class="knopf haupt klein" for="dateifeld" tabindex="0" role="button">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 20V8m0 0-4 4m4-4 4 4" stroke="currentColor" stroke-width="1.7"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M5 5.5h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            Dateien hochladen
+          </label>
+          <button class="knopf klein" type="submit" id="hochladeknopf">Absenden</button>
+        </form>
+
+        <button class="knopf klein" type="button" id="ordnerknopf" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3.5 7.5c0-1.1.9-2 2-2h3.2l1.8 2h8c1.1 0 2 .9 2 2v8.5c0 1.1-.9 2-2 2H5.5c-1.1 0-2-.9-2-2v-10.5Z"
+                  stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M12 11.5v5M9.5 14h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          Neuer Ordner
+        </button>
+        <span class="klein leise dateiziehhinweis">oder Dateien einfach hierher ziehen</span>
+      </div>
+
+      <form action="/dateien/ordner" method="post" class="ordnerform" id="ordnerform">
+        <input type="hidden" name="ordner" value="{{ ordner }}">
+        <label class="feld">
+          <span>Name des neuen Ordners</span>
+          <input type="text" name="name" required autocomplete="off"
+                 placeholder="z. B. Fotos Sommerfest">
+        </label>
+        <div class="knopfreihe">
+          <button class="knopf klein haupt" type="submit">Anlegen</button>
+        </div>
+      </form>
 
       {% if not unterordner and not dateien %}
       <p class="leer">{{ t("dateien.leer") }}</p>
@@ -130,7 +132,8 @@
               <td class="artspalte">{{ dateisymbol(d.art) }}</td>
               <td>
                 {% if d.bekannt %}
-                <a class="stark" href="{{ d.adresse }}" target="_blank" rel="noopener">{{ d.name }}</a>
+                <a class="stark" href="{{ d.adresse }}" target="_blank" rel="noopener"
+                   {% if d.art == "bild" %}data-bild="{{ d.name }}"{% endif %}>{{ d.name }}</a>
                 {% else %}<span class="stark">{{ d.name }}</span>{% endif %}
               </td>
               <td class="leise">{{ d.wort }}</td>
@@ -165,7 +168,8 @@
         <li class="dateikachel k-{{ d.art }}" draggable="true"
             data-pfad="{{ d.pfad }}" data-art="datei">
           <a class="dateikachel-flaeche" {% if d.bekannt %}href="{{ d.adresse }}"
-             target="_blank" rel="noopener"{% endif %}>
+             target="_blank" rel="noopener"
+             {% if d.art == "bild" %}data-bild="{{ d.name }}"{% endif %}{% endif %}>
             {% if d.art == "video" %}
             <span class="dateikachel-bild art"><span class="dateikachel-wort">▶ {{ d.wort }}</span></span>
             {% elif d.art == "bild" %}
@@ -197,6 +201,27 @@
   <input type="hidden" name="ziel" id="datei-ziel">
   <input type="hidden" name="ordner" value="{{ ordner }}">
 </form>
+
+{# Eigenes Kontextmenü und Bildfenster. Beide sind leer und werden erst
+   vom Skript gefüllt; ohne Skript existieren sie nicht sichtbar und die
+   Seite verhält sich wie vorher. #}
+<div id="kontextmenue" class="kontextmenue" role="menu" hidden></div>
+
+<div id="bildfenster" class="bildfenster" role="dialog" aria-modal="true"
+     aria-label="Bildvorschau" hidden>
+  <figure class="bildfenster-rahmen">
+    <img alt="">
+    <figcaption>
+      <span class="bildfenster-name"></span>
+      <button type="button" class="knopf-icon bildfenster-zu" aria-label="Schließen">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round"/>
+        </svg>
+      </button>
+    </figcaption>
+  </figure>
+</div>
 
 <script>
 (function () {
@@ -310,6 +335,180 @@
     document.getElementById("datei-ziel").value = ziel.dataset.ziel;
     verschieben.submit();
   });
+
+  // --- Dateien vom Rechner hereinziehen -------------------------------------
+  // Der Browser reicht echte Dateien über dataTransfer.files herein. Sie
+  // lassen sich in das versteckte Feld übernehmen (DataTransfer) und dann
+  // ganz normal mit dem vorhandenen Formular abschicken - kein zweiter
+  // Weg zum Server, keine Sonderbehandlung dort.
+  var flaeche = document.querySelector(".wiki-haupt");
+  if (flaeche && feld && formular && window.DataTransfer) {
+    var zaehler = 0;
+
+    function hatDateien(e) {
+      return e.dataTransfer && Array.prototype.indexOf
+              .call(e.dataTransfer.types || [], "Files") > -1;
+    }
+
+    flaeche.addEventListener("dragenter", function (e) {
+      if (!hatDateien(e) || gezogen) return;
+      e.preventDefault();
+      zaehler++;
+      flaeche.classList.add("ablage-bereit");
+    });
+    flaeche.addEventListener("dragover", function (e) {
+      if (!hatDateien(e) || gezogen) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      // In einen Ordner darunter, wenn man genau darüber loslässt.
+      document.querySelectorAll(".ablage-ordner").forEach(function (n) {
+        n.classList.remove("ablage-ordner");
+      });
+      var ordner = e.target.closest('[data-art="ordner"]');
+      if (ordner) ordner.classList.add("ablage-ordner");
+    });
+    flaeche.addEventListener("dragleave", function (e) {
+      if (!hatDateien(e) || gezogen) return;
+      if (--zaehler <= 0) { zaehler = 0; flaeche.classList.remove("ablage-bereit"); }
+    });
+    flaeche.addEventListener("drop", function (e) {
+      if (!hatDateien(e) || gezogen) return;
+      e.preventDefault();
+      zaehler = 0;
+      flaeche.classList.remove("ablage-bereit");
+      document.querySelectorAll(".ablage-ordner").forEach(function (n) {
+        n.classList.remove("ablage-ordner");
+      });
+      var dateien = e.dataTransfer.files;
+      if (!dateien || !dateien.length) return;
+      // Auf einen Ordner gezogen? Dann landet alles dort.
+      var ordner = e.target.closest('[data-art="ordner"]'),
+          ziel = document.getElementById("hochladeordner");
+      if (ordner && ziel) ziel.value = ordner.dataset.pfad;
+      var behaelter = new DataTransfer();
+      for (var i = 0; i < dateien.length; i++) behaelter.items.add(dateien[i]);
+      feld.files = behaelter.files;
+      formular.submit();
+    });
+  }
+
+  // --- Rechtsklick ----------------------------------------------------------
+  // Ein eigenes Menü statt des Browsermenüs: die Aktionen stehen sonst nur
+  // als kleine Symbole am Zeilenende, und auf einer Kachel sind sie erst
+  // beim Überfahren da. Mit Umschalt+Rechtsklick kommt weiterhin das
+  // Menü des Browsers - so ist "Bild speichern unter" nicht verbaut.
+  var menue = document.getElementById("kontextmenue");
+  if (menue) {
+    function schliessen() { menue.hidden = true; }
+    document.addEventListener("click", schliessen);
+    document.addEventListener("scroll", schliessen, true);
+    window.addEventListener("resize", schliessen);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") schliessen();
+    });
+
+    document.querySelector(".wiki-haupt").addEventListener("contextmenu", function (e) {
+      if (e.shiftKey) return;
+      var knoten = e.target.closest("[data-pfad]");
+      if (!knoten) return;
+      e.preventDefault();
+
+      var pfad = knoten.dataset.pfad,
+          istOrdner = knoten.dataset.art === "ordner",
+          name = pfad.split("/").pop(),
+          zeile = knoten.closest("tr, li") || knoten;
+
+      menue.innerHTML = "";
+      function punkt(text, klasse, tun) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "kmenue-punkt" + (klasse ? " " + klasse : "");
+        b.textContent = text;
+        b.addEventListener("click", function () { schliessen(); tun(); });
+        menue.appendChild(b);
+      }
+      function trenner() {
+        var t = document.createElement("span");
+        t.className = "kmenue-trenner";
+        menue.appendChild(t);
+      }
+      function klick(auswahl) {
+        var el = zeile.querySelector(auswahl);
+        if (el) el.click();
+      }
+
+      var kopf = document.createElement("span");
+      kopf.className = "kmenue-kopf";
+      kopf.textContent = name;
+      menue.appendChild(kopf);
+
+      if (istOrdner) {
+        punkt("Öffnen", "", function () {
+          window.location.href = "/dateien?ordner=" + encodeURIComponent(pfad);
+        });
+      } else {
+        var verweis = zeile.querySelector("a[href^='/dateien/holen/']");
+        if (verweis) {
+          punkt("Öffnen", "", function () { verweis.click(); });
+          punkt("Herunterladen", "", function () {
+            var a = document.createElement("a");
+            a.href = verweis.getAttribute("href");
+            a.download = name;
+            document.body.appendChild(a); a.click(); a.remove();
+          });
+        }
+        if (zeile.querySelector(".kopieren")) {
+          punkt("Markdown fürs Wiki kopieren", "", function () { klick(".kopieren"); });
+        }
+      }
+      trenner();
+      punkt("Umbenennen oder verschieben", "", function () { klick("[data-umbenennen]"); });
+      trenner();
+      punkt("Löschen", "warn", function () {
+        var f = zeile.querySelector("form[action='/dateien/loeschen']");
+        if (f) f.requestSubmit ? f.requestSubmit() : f.submit();
+      });
+
+      menue.hidden = false;
+      // Ins Bild rücken, wenn rechts oder unten kein Platz mehr ist.
+      var b = menue.getBoundingClientRect();
+      menue.style.left = Math.min(e.clientX, window.innerWidth - b.width - 8) + "px";
+      menue.style.top  = Math.min(e.clientY, window.innerHeight - b.height - 8) + "px";
+    });
+  }
+
+  // --- Bilder im Fenster statt auf neuer Seite ------------------------------
+  var lupe = document.getElementById("bildfenster");
+  if (lupe) {
+    var lupeBild = lupe.querySelector("img"),
+        lupeName = lupe.querySelector(".bildfenster-name");
+    function zeigeBild(adresse, name) {
+      lupeBild.src = adresse;
+      lupeBild.alt = name;
+      lupeName.textContent = name;
+      lupe.hidden = false;
+      document.body.classList.add("kein-rollen");
+      lupe.querySelector(".bildfenster-zu").focus();
+    }
+    function schliesseBild() {
+      lupe.hidden = true;
+      lupeBild.removeAttribute("src");
+      document.body.classList.remove("kein-rollen");
+    }
+    lupe.addEventListener("click", function (e) {
+      if (e.target === lupe || e.target.closest(".bildfenster-zu")) schliesseBild();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !lupe.hidden) schliesseBild();
+    });
+    document.querySelectorAll("[data-bild]").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        zeigeBild(a.getAttribute("href"), a.dataset.bild);
+      });
+    });
+  }
 })();
 </script>
 

@@ -47,7 +47,6 @@
          abgesetzt in einem eigenen Band - vorher sah er aus wie das
          erste von acht gleichrangigen Feldern. #}
       <div class="erfasser">
-        <span class="erfasser-marke">gilt für alle Zeilen</span>
         <label class="feld">
           <span>Mitarbeiter</span>
           {# Auswahl statt Freitext: die Namen kommen aus dem gepflegten
@@ -69,6 +68,8 @@
             {% endif %}
           </select>
         </label>
+        <span class="erfasser-marke">Gilt für alle Zeilen unten und bleibt
+          stehen, bis du ihn änderst.</span>
       </div>
 
       {% if not mitarbeiterliste.team and not mitarbeiterliste.weitere %}

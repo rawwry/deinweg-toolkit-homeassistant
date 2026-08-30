@@ -3,6 +3,17 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.10
+
+- Aufgaben: Schalter für erledigte Vorgänge, 20 Karten je Seite
+- Dateien: nur Ordner in der Seitenleiste, Werkzeuge im Hauptfenster,
+  Drag & Drop vom Rechner, Rechtsklickmenü, Bilder im Fenster
+- Wiki: Umschalter Kacheln/Liste, „Neu anlegen" im Hauptfenster,
+  Rechtsklickmenü
+- Einstellungen: mehr Luft in der Seitenleiste
+- Zeiterfassung: Mitarbeiterblock ruhiger gesetzt
+- Keine Logo-Animation mehr beim Seitenwechsel
+
 ## 1.9
 
 - Feld „Handelnde Person" entfällt; wer handelt, kommt aus der Anmeldung

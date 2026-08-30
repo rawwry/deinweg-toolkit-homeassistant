@@ -53,12 +53,6 @@
       {% endif %}
     </nav>
 
-    {% if darf_schreiben %}
-    <details class="wiki-anlegen">
-      <summary>Neu anlegen</summary>
-      {{ neu_formular(ordner, ordner_auswahl) }}
-    </details>
-    {% endif %}
   </aside>
 
   {# --- Abschnitte dieser Seite. Steht im Quelltext zwischen Navigation
@@ -185,6 +179,14 @@
     <article class="karte">
       <div class="wiki-werkzeugleiste">
         <h1>{{ titel }}</h1>
+        {# Derselbe Umschalter wie in der Dateiverwaltung. Beide Ansichten
+           stehen im HTML, umgeschaltet wird per CSS über data-wikiliste
+           am <html> - so blitzt beim Laden nichts auf. #}
+        <div class="schalter wikiansicht">
+          <span class="wikiliste-text">Kacheln</span>
+          <button type="button" class="wikiliste-knopf" role="switch" aria-checked="false"
+                  aria-label="Zwischen Kachel- und Listenansicht wechseln"></button>
+        </div>
         {% if aktuell and darf_schreiben %}
         <form class="inline" action="/wiki/aktion/loeschen" method="post"
               onsubmit="return confirm('Den Ordner „{{ titel }}“ entfernen? Das geht nur, wenn er leer ist.')">
@@ -200,6 +202,16 @@
         Aus <code>{{ start_datei }}</code>{% if darf_schreiben %} ·
         <a href="{{ start_adresse }}?bearbeiten=1">bearbeiten</a>{% endif %}
       </p>
+      {% endif %}
+
+      {# „Neu anlegen“ steht im Hauptfenster, nicht in der Seitenleiste:
+         es legt in dem Ordner an, den man gerade ansieht, und gehört
+         deshalb dorthin, wo dessen Inhalt steht. #}
+      {% if darf_schreiben %}
+      <details class="wiki-anlegen">
+        <summary>Neue Seite oder neuen Ordner anlegen</summary>
+        {{ neu_formular(ordner, ordner_auswahl) }}
+      </details>
       {% endif %}
 
       {% if kinder_ordner or kinder_seiten %}
@@ -320,8 +332,93 @@
 </form>
 {% endif %}
 
+{# Eigenes Kontextmenü, genau wie in der Dateiverwaltung. Wird erst vom
+   Skript gefüllt; ohne Skript ist es nicht sichtbar und die Seite
+   verhält sich wie vorher. #}
+<div id="kontextmenue" class="kontextmenue" role="menu" hidden></div>
+
 <script>
 (function () {
+  // --- Rechtsklick auf Seiten und Ordner ----------------------------------
+  // Dieselben Aktionen wie über die Symbolknöpfe, nur dort erreichbar, wo
+  // man gerade steht. Umschalt+Rechtsklick lässt weiterhin das Menü des
+  // Browsers durch.
+  var menue = document.getElementById("kontextmenue"),
+      haupt = document.querySelector(".wiki-haupt"),
+      darfSchreiben = {{ 'true' if darf_schreiben else 'false' }};
+  if (menue && haupt) {
+    var zu = function () { menue.hidden = true; };
+    document.addEventListener("click", zu);
+    document.addEventListener("scroll", zu, true);
+    window.addEventListener("resize", zu);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") zu();
+    });
+
+    haupt.addEventListener("contextmenu", function (e) {
+      if (e.shiftKey) return;
+      var ziel = e.target.closest(".wiki-kachel, .wiki-verzeichnis tbody tr");
+      if (!ziel) return;
+      var verweis = ziel.matches("a") ? ziel : ziel.querySelector("a[href^='/wiki']");
+      if (!verweis) return;
+      e.preventDefault();
+
+      var adresse = verweis.getAttribute("href"),
+          name = (ziel.querySelector(".wiki-kachel-titel, td a") || verweis).textContent.trim(),
+          istOrdner = ziel.classList.contains("ordner")
+                      || !!ziel.querySelector(".wiki-symbol.ordner");
+
+      menue.innerHTML = "";
+      var kopf = document.createElement("span");
+      kopf.className = "kmenue-kopf";
+      kopf.textContent = name;
+      menue.appendChild(kopf);
+
+      function punkt(text, klasse, tun) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "kmenue-punkt" + (klasse ? " " + klasse : "");
+        b.textContent = text;
+        b.addEventListener("click", function () { zu(); tun(); });
+        menue.appendChild(b);
+      }
+      function trenner() {
+        var t = document.createElement("span");
+        t.className = "kmenue-trenner";
+        menue.appendChild(t);
+      }
+      function knopf(auswahl) { return ziel.querySelector(auswahl); }
+
+      punkt(istOrdner ? "Ordner öffnen" : "Seite öffnen", "", function () {
+        window.location.href = adresse;
+      });
+      if (!istOrdner) {
+        {% if darf_schreiben %}
+        punkt("Bearbeiten", "", function () {
+          window.location.href = adresse + "?bearbeiten=1";
+        });
+        {% endif %}
+        punkt("Als .md herunterladen", "", function () {
+          window.location.href = "/wiki/aktion/herunterladen?pfad="
+            + encodeURIComponent(adresse.replace(/^\/wiki\/?/, ""));
+        });
+      }
+      if (darfSchreiben) {
+        var weg = knopf("form[action='/wiki/aktion/loeschen'] button")
+               || knopf("form[action='/wiki/aktion/loeschen']");
+        if (weg) {
+          trenner();
+          punkt("Löschen", "warn", function () { weg.click(); });
+        }
+      }
+
+      menue.hidden = false;
+      var b = menue.getBoundingClientRect();
+      menue.style.left = Math.min(e.clientX, window.innerWidth - b.width - 8) + "px";
+      menue.style.top  = Math.min(e.clientY, window.innerHeight - b.height - 8) + "px";
+    });
+  }
+
   var baum = document.querySelector(".wiki-baum");
   var verschieben = document.getElementById("wiki-verschieben");
   // Ohne Schreibrecht steht das Formular nicht in der Seite. Dann bleibt

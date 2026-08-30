@@ -1,6 +1,21 @@
 {% extends "base.html" %}
 {% from "_vorgang_teile.html" import statusmarke, priomarke, frist with context %}
-{% block titel %} – Aufgaben{% endblock %}
+{% block titel %} – Aufgaben<script>
+  // Der Schalter „erledigte ausblenden" ist nur eine bequeme Abkürzung
+  // auf den vorhandenen Zustandsfilter. Ohne Skript bleibt er wirkungslos,
+  // der Filter darüber tut dasselbe.
+  (function () {
+    var schalter = document.getElementById("erledigte-aus");
+    if (!schalter) { return; }
+    schalter.addEventListener("change", function () {
+      var adresse = new URL(window.location.href);
+      adresse.searchParams.set("zustand", schalter.checked ? "offen" : "alle");
+      adresse.searchParams.delete("seite_nr");
+      window.location.href = adresse.toString();
+    });
+  })();
+</script>
+{% endblock %}
 {% block inhalt %}
 
 {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
@@ -207,7 +222,15 @@
 
 <section class="karte">
   <div class="kopfzeile">
-    <h2>{{ liste | length }} Vorgang{{ '' if liste | length == 1 else 'e' }}</h2>
+    <h2>{{ gesamt_treffer }} Vorgang{{ '' if gesamt_treffer == 1 else 'e' }}</h2>
+    {# Ein Schalter statt eines weiteren Auswahlfelds: „erledigt oder
+       nicht" ist die eine Frage, die man beim Draufschauen ständig
+       umlegt. Standard ist „mit erledigten" - Erledigtes verschwinden zu
+       lassen wäre eine Entscheidung, die man selbst treffen sollte. #}
+    <label class="filter-umschalter erledigt-schalter">
+      <input type="checkbox" id="erledigte-aus" {{ 'checked' if f.zustand == 'offen' }}>
+      <span>erledigte ausblenden</span>
+    </label>
   </div>
 
   {% if liste %}
@@ -274,6 +297,41 @@
     </article>
     {% endfor %}
   </div>
+
+  {% if seiten_gesamt > 1 %}
+  <nav class="blaettern" aria-label="Seiten">
+    <span class="blaettern-stand">
+      <strong>{{ erste_nr }}–{{ letzte_nr }}</strong> von {{ gesamt_treffer }} Vorgängen
+    </span>
+    <div class="seitenzahlen">
+      {% if seite_nr > 1 %}
+        <a class="seitenknopf pfeil" href="/vorgaenge?{{ query }}&sortierung={{ sortierung }}&seite_nr={{ seite_nr-1 }}"
+           aria-label="Vorherige Seite">‹</a>
+      {% else %}
+        <span class="seitenknopf pfeil aus" aria-hidden="true">‹</span>
+      {% endif %}
+      {% set fenster = 2 %}
+      {% for nr in range(1, seiten_gesamt + 1) %}
+        {% if nr == 1 or nr == seiten_gesamt or (nr >= seite_nr - fenster and nr <= seite_nr + fenster) %}
+          {% if nr == seite_nr %}
+            <span class="seitenknopf hier" aria-current="page">{{ nr }}</span>
+          {% else %}
+            <a class="seitenknopf" href="/vorgaenge?{{ query }}&sortierung={{ sortierung }}&seite_nr={{ nr }}">{{ nr }}</a>
+          {% endif %}
+        {% elif nr == seite_nr - fenster - 1 or nr == seite_nr + fenster + 1 %}
+          <span class="seitenluecke">…</span>
+        {% endif %}
+      {% endfor %}
+      {% if mehr %}
+        <a class="seitenknopf pfeil" href="/vorgaenge?{{ query }}&sortierung={{ sortierung }}&seite_nr={{ seite_nr+1 }}"
+           aria-label="Nächste Seite">›</a>
+      {% else %}
+        <span class="seitenknopf pfeil aus" aria-hidden="true">›</span>
+      {% endif %}
+    </div>
+    <span class="blaettern-stand">Seite <strong>{{ seite_nr }}</strong> von {{ seiten_gesamt }}</span>
+  </nav>
+  {% endif %}
   {% else %}
   <p class="leer">{{ t("vorgaenge.leer") }}</p>
   {% endif %}

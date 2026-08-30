@@ -451,15 +451,26 @@ def kennzahlen(con) -> dict:
 def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
                status: str = "", art: str = "", faellig: str = "",
                zustand: str = "alle", q: str = "", sortierung: str = "dringlichkeit",
+               seite_nr: int = 1,
                neu: str = "", fehler: str = "", hinweis: str = ""):
     if sortierung not in SORTIERUNGEN:
         sortierung = "dringlichkeit"
     filter_ = filter_bauen(klient, zustaendig, status, art, faellig, zustand, q)
 
+    # Zwanzig Karten je Seite. Als Tabelle konnte man fünfhundert Zeilen
+    # ueberfliegen; als Karten waeren das ein halber Kilometer Seite.
+    pro_seite = 20
+
     with db.db() as con:
+        gesamt = con.execute(
+            f"SELECT COUNT(*) c FROM vorgang WHERE {filter_['wo']}",
+            filter_["werte"]).fetchone()["c"]
+        seiten_gesamt = max(1, -(-gesamt // pro_seite))
+        seite_nr = min(max(1, seite_nr), seiten_gesamt)
         zeilen = con.execute(
             f"SELECT * FROM vorgang WHERE {filter_['wo']} "
-            f"ORDER BY {SORTIERUNGEN[sortierung]} LIMIT 500",
+            f"ORDER BY {SORTIERUNGEN[sortierung]} "
+            f"LIMIT {pro_seite} OFFSET {(seite_nr - 1) * pro_seite}",
             filter_["werte"]).fetchall()
         zahlen = kennzahlen(con)
         klienten = klientenliste(con)
@@ -478,6 +489,11 @@ def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
                  V_ARTEN=arten,
                  f=filter_["f"], aktive_filter=filter_["aktive"],
                  query=filter_["query"], sortierung=sortierung,
+                 seite_nr=seite_nr, seiten_gesamt=seiten_gesamt,
+                 gesamt_treffer=gesamt, pro_seite=pro_seite,
+                 erste_nr=(seite_nr - 1) * pro_seite + 1,
+                 letzte_nr=min(seite_nr * pro_seite, gesamt),
+                 mehr=gesamt > seite_nr * pro_seite,
                  vorhandene_arten=vorhandene_arten,
                  vorhandene_zustaendige=vorhandene_zustaendige,
                  formular_offen=bool(neu or fehler), vorbelegt_klient=klient,

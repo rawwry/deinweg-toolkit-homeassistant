@@ -55,16 +55,11 @@
           {{ zweig(k.kinder, aktuell) }}
         </details>
       </li>
-    {% else %}
-      <li>
-        <span class="wiki-knoten wiki-seitenknoten dateiknoten {{ 'unbekannt' if not k.bekannt }}"
-              draggable="true" data-pfad="{{ k.pfad }}" data-art="datei"
-              title="{{ k.pfad }}{{ ' – Dateiart wird nicht unterstützt' if not k.bekannt }}">
-          {{ dateisymbol(k.art) }}
-          <span>{{ k.name }}</span>
-        </span>
-      </li>
     {% endif %}
+    {# ⚠️ Dateien stehen NICHT mehr im Baum (seit 1.10). Der Baum zeigt die
+       Struktur, das Hauptfenster den Inhalt - beides doppelt zu zeigen
+       machte die Leiste bei einem Ordner mit dreißig Bildern unbrauchbar
+       lang. #}
   {% endfor %}
 </ul>
 {% endmacro %}
