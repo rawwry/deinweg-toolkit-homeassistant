@@ -1192,4 +1192,26 @@ CHANGELOG = [
         "schlicht nichts mehr zu rollen. Auf dem Telefon bleibt das "
         "Rollen erhalten, dort ist es nötig",
     ]},
+    {"version": "1.8", "titel": "Aufgaben als Karten", "punkte": [
+        "Die Vorgangsliste ist keine Tabelle mehr, sondern ein Raster aus "
+        "Karten – eine je Vorgang. In der Tabelle stand der Titel, also "
+        "das Einzige, wonach man wirklich sucht, als schmale Spalte "
+        "zwischen sieben anderen, und bei zwanzig Zeilen sah alles gleich "
+        "aus",
+        "Jede Karte hat ihre eigene Ordnung: oben der Titel, darunter "
+        "betreute Person und Art, dann die Notiz (auf zwei Zeilen "
+        "gekürzt), unten Status, Frist, zuständige Person und Priorität",
+        "Der Balken links sagt schon vor dem Lesen, wie dringend es ist – "
+        "rot für überfällig, orange für heute und bald, grün für erledigt",
+        "Öffnen und Löschen erscheinen beim Überfahren der Karte. Sonst "
+        "zöge das Rot des Löschknopfes auf zwanzig Karten mehr "
+        "Aufmerksamkeit als die Vorgänge selbst. Per Tastatur und auf dem "
+        "Telefon sind sie immer da",
+        "„Mein Bereich“: hat man keine offene Aufgabe, fliegt in der Karte "
+        "jetzt eine Katze auf einem Regenbogen durchs Bild. Handgezeichnet "
+        "und ohne nachgeladenes Bild, und sie hält still, wenn im System "
+        "„Bewegung reduzieren“ eingestellt ist",
+        "Der Knopf „Zu den Aufgaben“ steht dort jetzt mittig unter dem "
+        "Text",
+    ]},
 ]

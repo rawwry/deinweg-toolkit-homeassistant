@@ -182,23 +182,79 @@
       … und {{ offene_vorgaenge - eigene_aufgaben | length }} weitere.
     </p>
     {% endif %}
+    <div class="knopfreihe">
+      <a class="knopf leise klein"
+         href="/vorgaenge?zustaendig={{ name | urlencode }}">Alle meine Aufgaben</a>
+    </div>
     {% else %}
     {# Nichts offen ist eine gute Nachricht und sieht auch so aus - eine
        leere Karte oder gar keine Karte wirkt dagegen wie ein Fehler. #}
+    {# Nichts offen ist eine gute Nachricht - und darf hier auch mal albern
+       sein. Handgezeichnetes SVG mit CSS-Animation, kein Bild und kein
+       Skript: die Anwendung lädt bewusst nichts nach (Abschnitt 13). Die
+       ganze Bewegung hängt an prefers-reduced-motion; wer sie abgestellt
+       hat, sieht eine stehende Katze. #}
     <div class="nichtsoffen">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.6"/>
-        <path d="M8 12.4l2.7 2.6L16 9.6" stroke="currentColor" stroke-width="1.9"
-              stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <div class="nyan" role="img" aria-label="Eine Katze fliegt durchs Bild">
+        <svg viewBox="0 0 200 70" aria-hidden="true">
+          <g class="nyan-regen">
+            {% for i in range(9) %}
+            <g transform="translate({{ i * 16 }} 0)">
+              <rect x="0" y="20" width="16" height="5" fill="#ff2f2f"/>
+              <rect x="0" y="25" width="16" height="5" fill="#ff9a2f"/>
+              <rect x="0" y="30" width="16" height="5" fill="#ffe62f"/>
+              <rect x="0" y="35" width="16" height="5" fill="#3fd84a"/>
+              <rect x="0" y="40" width="16" height="5" fill="#3f9bff"/>
+              <rect x="0" y="45" width="16" height="5" fill="#a55bff"/>
+              <rect x="8" y="20" width="8" height="5" fill="#ff2f2f" opacity=".82"/>
+              <rect x="8" y="25" width="8" height="5" fill="#ff9a2f" opacity=".82"/>
+              <rect x="8" y="30" width="8" height="5" fill="#ffe62f" opacity=".82"/>
+              <rect x="8" y="35" width="8" height="5" fill="#3fd84a" opacity=".82"/>
+              <rect x="8" y="40" width="8" height="5" fill="#3f9bff" opacity=".82"/>
+              <rect x="8" y="45" width="8" height="5" fill="#a55bff" opacity=".82"/>
+            </g>
+            {% endfor %}
+          </g>
+
+          <g class="nyan-katze">
+            {# Keksteig mit Zuckerguss #}
+            <rect x="118" y="19" width="42" height="34" rx="4" fill="#f7a8c8"/>
+            <rect x="122" y="23" width="34" height="26" rx="3" fill="#ffd9a0"/>
+            {% for p in [(127,28),(137,32),(147,27),(131,42),(145,40)] %}
+            <rect x="{{ p[0] }}" y="{{ p[1] }}" width="3" height="3" fill="#f7a8c8"/>
+            {% endfor %}
+            {# Schwanz #}
+            <rect x="110" y="30" width="10" height="5" rx="2" fill="#9aa3ad"/>
+            {# Beine #}
+            <rect x="124" y="52" width="7" height="5" rx="2" fill="#9aa3ad"/>
+            <rect x="146" y="52" width="7" height="5" rx="2" fill="#9aa3ad"/>
+            {# Kopf #}
+            <rect x="152" y="22" width="28" height="26" rx="6" fill="#9aa3ad"/>
+            <path d="M155 24l-2-7 8 4z" fill="#9aa3ad"/>
+            <path d="M177 24l2-7-8 4z" fill="#9aa3ad"/>
+            {# Gesicht #}
+            <circle cx="161" cy="33" r="2.6" fill="#20242a"/>
+            <circle cx="173" cy="33" r="2.6" fill="#20242a"/>
+            <circle cx="158" cy="39" r="3" fill="#ff9ab8" opacity=".8"/>
+            <circle cx="176" cy="39" r="3" fill="#ff9ab8" opacity=".8"/>
+            <path d="M164 39h6M167 39v2.5" stroke="#20242a" stroke-width="1.4"
+                  stroke-linecap="round"/>
+          </g>
+
+          {% for st in [(18,12),(44,52),(70,16),(96,58),(30,34)] %}
+          <g class="nyan-stern" style="--verzug: {{ loop.index0 * 0.35 }}s">
+            <path d="M{{ st[0] }} {{ st[1] - 4 }}v8M{{ st[0] - 4 }} {{ st[1] }}h8"
+                  stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+          </g>
+          {% endfor %}
+        </svg>
+      </div>
       <p class="stark">Keine offenen Aufgaben</p>
       <p class="klein leise">{{ t("mein.keine_aufgaben") }}</p>
+      <a class="knopf leise klein nichtsoffen-knopf"
+         href="/vorgaenge?zustaendig={{ name | urlencode }}">Zu den Aufgaben</a>
     </div>
     {% endif %}
-    <div class="knopfreihe">
-      <a class="knopf leise klein"
-         href="/vorgaenge?zustaendig={{ name | urlencode }}">{{ "Alle meine Aufgaben" if eigene_aufgaben else "Zu den Aufgaben" }}</a>
-    </div>
   </div>
   {% endif %}
 

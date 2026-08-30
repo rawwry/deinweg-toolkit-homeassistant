@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.8
+
+- Aufgaben: Vorgänge stehen als Karten in einem Raster statt in einer
+  achtspaltigen Tabelle; Dringlichkeit am Balken links
+- Öffnen und Löschen erscheinen beim Überfahren der Karte
+- „Mein Bereich": ohne offene Aufgabe fliegt eine Katze durchs Bild
+- Knopf „Zu den Aufgaben" mittig
+
 ## 1.7.1
 
 - „Was ansteht" steht vor der Arbeitszeit

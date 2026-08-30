@@ -1389,16 +1389,16 @@ def test_marke(client: TestClient) -> None:
     pruefe("display: flex; align-items: flex-start; gap: 8px; } .lead::before"
            not in einzeilig,
            "und keine Flexbox mehr, die Auszeichnungen zerlegt")
-    # Acht Spalten passen auf dem Telefon nicht nebeneinander; die Tabelle
-    # rollt dort in ihrer eigenen Huelle statt sich zu stauchen.
-    pruefe(".vorgangstabelle { min-width:" in einzeilig,
-           "die Aufgabenliste bekommt am Handy eine Mindestbreite")
-    pruefe(".tabellenrolle:has(.vorgangstabelle) { overflow-x: auto; }"
+    # Die Aufgabenliste ist seit 1.8 keine Tabelle mehr, sondern ein
+    # Raster aus Karten - eine Tabelle mit acht Spalten war auf dem
+    # Telefon ohnehin nur noch eine Rollflaeche.
+    pruefe(".vorgangstabelle" not in einzeilig,
+           "die achtspaltige Aufgabentabelle ist entfallen")
+    pruefe(re.search(r"\.vorgangskarten \{\s*display: grid", stil) is not None,
+           "die Vorgänge stehen als Karten in einem Raster")
+    pruefe(".vorgangskarte.vk-ueberfaellig { border-left-color: var(--dopp); }"
            in einzeilig,
-           "und rollt dort seitlich, statt die Spalten zu stauchen")
-    pruefe(".tabellenrolle .liste.vorgangstabelle th { white-space: normal; }"
-           in einzeilig,
-           "ihre Spaltentitel dürfen dort umbrechen")
+           "eine überfällige Karte ist am Balken links zu erkennen")
     # Dasselbe für die Tabellen der Auswertung - acht Spalten.
     # ⚠️ Diese eine Tabelle steht auf table-layout: auto. Bei fixed muss
     # man jede Spaltenbreite raten, und eine zu knapp geratene Spalte
@@ -2286,6 +2286,14 @@ def test_meinbereich_aufbau(client: TestClient) -> None:
     pruefe("Keine offenen Aufgaben" in leer and "nichtsoffen" in leer,
            "und sagt ausdrücklich, dass nichts offen ist")
     pruefe("Zu den Aufgaben" in leer, "mit einem Weg dorthin")
+    # Der Spaß muss ohne nachgeladenes Bild auskommen (Abschnitt 13) und
+    # bei „Bewegung reduzieren" still stehen.
+    pruefe('class="nyan"' in leer and "nyan-regen" in leer,
+           "und einer fliegenden Katze")
+    stil = client.get("/static/style.css").text.replace("\n", " ")
+    pruefe("prefers-reduced-motion: no-preference" in stil
+           and "nyan-regen" in stil,
+           "die Katze hält still, wenn Bewegung reduziert werden soll")
     with db.db() as con:
         con.execute("UPDATE vorgang SET status='Offen' "
                     "WHERE LOWER(TRIM(zustaendig))='pruefer'")

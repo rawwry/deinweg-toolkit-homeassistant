@@ -191,26 +191,18 @@
   </div>
 
   {% if liste %}
-  <div class="tabellenrolle">
-  <table class="liste dicht vorgangstabelle">
-    <thead>
-      <tr><th>Frist</th><th>Betreute Person</th><th>Vorgang</th><th>Art</th>
-          <th>Status</th><th>Zuständig</th><th>Priorität</th><th>Aktion</th></tr>
-    </thead>
-    <tbody>
+  {# Eine Karte je Vorgang statt einer achtspaltigen Tabelle. In der
+     Tabelle stand der Titel - das Einzige, wonach man wirklich sucht -
+     als schmale Spalte zwischen sieben anderen, und bei zwanzig Zeilen
+     sah alles gleich aus. Jetzt trägt jede Karte ihre eigene Ordnung:
+     oben der Titel, darunter wer und was, unten Status und Frist. Der
+     Balken links sagt schon vor dem Lesen, wie dringend es ist. #}
+  <div class="vorgangskarten">
     {% for z in liste %}
-      <tr class="{{ 'zeile-ueberfaellig' if z.lage == 'ueberfaellig' }}{{ ' zeile-zu' if z.v.status in V_ABGESCHLOSSEN }}">
-        <td class="zahlen nowrap">{{ frist(z.v, z.lage) }}</td>
-        <td><a href="/vorgaenge/person?name={{ z.v.klient | urlencode }}">{{ z.v.klient }}</a></td>
-        <td>
-          <a class="stark" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}</a>
-          {% if z.v.beschreibung %}<span class="klein leise kuerzel">{{ z.v.beschreibung }}</span>{% endif %}
-        </td>
-        <td class="leise klein">{{ z.v.art }}</td>
-        <td class="nowrap links">{{ statusmarke(z.v.status) }}</td>
-        <td class="leise">{{ z.v.zustaendig }}</td>
-        <td class="nowrap">{{ priomarke(z.v.prioritaet) }}</td>
-        <td class="rechts nowrap">
+    <article class="vorgangskarte vk-{{ z.lage }}{{ ' vk-zu' if z.v.status in V_ABGESCHLOSSEN }}">
+      <div class="vk-kopf">
+        <a class="vk-titel" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}</a>
+        <div class="vk-aktionen">
           <a class="knopf-icon" href="/vorgaenge/{{ z.v.id }}" title="Öffnen" aria-label="Öffnen">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"
@@ -229,11 +221,35 @@
               </svg>
             </button>
           </form>
-        </td>
-      </tr>
+        </div>
+      </div>
+
+      <p class="vk-person">
+        <a href="/vorgaenge/person?name={{ z.v.klient | urlencode }}">{{ z.v.klient }}</a>
+        <span class="leise">· {{ z.v.art }}</span>
+      </p>
+
+      {% if z.v.beschreibung %}
+      <p class="vk-notiz">{{ z.v.beschreibung }}</p>
+      {% endif %}
+
+      <div class="vk-fuss">
+        {{ statusmarke(z.v.status) }}
+        <span class="vk-frist">{{ frist(z.v, z.lage) }}</span>
+        <span class="vk-zustaendig" title="Zuständig">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M5 20c0-3.4 3.2-5.5 7-5.5s7 2.1 7 5.5"
+                  stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+          {{ z.v.zustaendig }}
+        </span>
+        {% if z.v.prioritaet and z.v.prioritaet != "Normal" %}
+        <span class="vk-prio">{{ priomarke(z.v.prioritaet) }}</span>
+        {% endif %}
+      </div>
+    </article>
     {% endfor %}
-    </tbody>
-  </table>
   </div>
   {% else %}
   <p class="leer">{{ t("vorgaenge.leer") }}</p>

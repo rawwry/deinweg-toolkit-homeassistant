@@ -1996,11 +1996,49 @@ body.anmeldeseite {
 .au-frist { color: var(--leise); }
 .au-frist.spaet { color: var(--dopp); font-weight: 600; }
 /* Nichts offen ist eine gute Nachricht - eine leere oder ganz fehlende
-   Karte wirkt dagegen wie ein Fehler. */
-.nichtsoffen { text-align: center; padding: 22px 10px 6px; }
-.nichtsoffen svg { width: 34px; height: 34px; color: var(--gut); opacity: .8; }
-.nichtsoffen p { margin: 8px 0 0; }
-.nichtsoffen .klein { max-width: 40ch; margin-left: auto; margin-right: auto; }
+   Karte wirkt dagegen wie ein Fehler. Und sie darf hier albern sein. */
+.nichtsoffen {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding: 16px 10px 8px; gap: 2px;
+}
+.nichtsoffen p { margin: 0; }
+.nichtsoffen .stark { margin-top: 12px; font-size: 15px; }
+.nichtsoffen .klein { max-width: 42ch; }
+.nichtsoffen-knopf { margin-top: 16px; }
+
+/* --- Die fliegende Katze ------------------------------------------------
+   ⚠️ Handgezeichnetes SVG mit CSS-Animation. Kein Bild, kein Skript, kein
+   Paket - die Anwendung lädt bewusst nichts nach (Abschnitt 13).
+   Sie ist neben dem Anmeldebildschirm die zweite ausdrückliche Ausnahme
+   von "keine übertriebenen Animationen", auf Timos Wunsch. Sie läuft nur
+   dort, wo ohnehin nichts zu tun ist, und hängt vollständig an
+   prefers-reduced-motion - wer Bewegung abgestellt hat, sieht eine
+   stehende Katze auf einem stehenden Regenbogen.
+*/
+.nyan {
+  width: 100%; max-width: 260px; border-radius: 12px; overflow: hidden;
+  background: linear-gradient(180deg, #10121a, #191c2b);
+  border: 1px solid var(--linie);
+}
+.nyan svg { display: block; width: 100%; height: auto; }
+.nyan-stern { opacity: .35; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Der Regenbogen ist neunmal dasselbe 16px-Stück. Verschiebt man die
+     Gruppe um genau ein Stück und springt zurück, läuft er endlos - die
+     Stufen machen daraus das typische Pixel-Ruckeln statt eines
+     weichen Gleitens. */
+  .nyan-regen { animation: nyan-regen .55s steps(4) infinite; }
+  .nyan-katze { animation: nyan-huepf .38s steps(2) infinite alternate; }
+  .nyan-stern { animation: nyan-blinken 1.6s ease-in-out infinite;
+                animation-delay: var(--verzug, 0s); }
+}
+@keyframes nyan-regen { to { transform: translateX(-16px); } }
+@keyframes nyan-huepf { to { transform: translateY(-3px); } }
+@keyframes nyan-blinken {
+  0%, 100% { opacity: .15; transform: scale(.7); }
+  50%      { opacity: .9;  transform: scale(1); }
+}
 
 /* --- Bewilligungen in „Mein Bereich“ ------------------------------------ */
 .bewilligungskarte { border-color: var(--linie-stark); }
@@ -2203,45 +2241,79 @@ fieldset.feld > span {
    In diesen Tabellen darf sie stattdessen umbrechen. */
 .tabellenrolle .liste .marke-status { white-space: normal; }
 
-/* Spaltenaufteilung der Vorgangsliste – die Spalte „Vorgang“ trägt die
-   eigentliche Information (Titel und Notiz) und bekommt deshalb mit
-   Abstand den meisten Platz. „Status“ ist breit genug für die längste
-   Bezeichnung, die Aktionsspalte so schmal wie die beiden Knöpfe. */
-.vorgangstabelle th:nth-child(1) { width: 9%; }
-.vorgangstabelle th:nth-child(2) { width: 12%; }
-.vorgangstabelle th:nth-child(3) { width: 33%; }
-.vorgangstabelle th:nth-child(4) { width: 11%; }
-.vorgangstabelle th:nth-child(5) { width: 12.5%; }
-.vorgangstabelle th:nth-child(6) { width: 9%; }
-.vorgangstabelle th:nth-child(7) { width: 7%; }
-/* Feste Breite statt Prozent: hier stehen zwei Icon-Knöpfe, die bei einer
-   prozentualen Breite auf schmalen Bildschirmen aus der Zelle laufen würden. */
-.vorgangstabelle th:nth-child(8) { width: 74px; text-align: right; padding-right: 6px; }
-/* Knöpfe und Abstände in dieser einen Spalte etwas enger, damit sie mit
-   74 statt 82 Pixeln auskommt. */
-.vorgangstabelle td:last-child { white-space: nowrap; padding-left: 6px; padding-right: 6px; }
-.vorgangstabelle td:last-child .knopf-icon { width: 28px; height: 28px; }
-.vorgangstabelle td:last-child .knopf-icon + form.inline { margin-left: 5px; }
-
-/* Acht Spalten passen auf dem Telefon nicht nebeneinander. Die feste
-   Aufteilung staucht sie dort gleichmäßig zusammen, bis Titel, Status und
-   Priorität ineinanderlaufen – lesbar ist dann nichts mehr. Dieselbe
-   Lösung wie bei den Fuhrpark-Tabellen: eine Mindestbreite, und die
-   Tabelle rollt in ihrer eigenen Hülle. Auf dem Schreibtisch ändert sich
-   nichts. */
-@media (max-width: 760px) {
-  .vorgangstabelle { min-width: 980px; }
-  .tabellenrolle:has(.vorgangstabelle) { overflow-x: auto; }
-  /* Und die Spaltentitel dürfen hier umbrechen. .liste th steht sonst auf
-     nowrap; „Betreute Person“ und „Priorität“ passten damit auch bei
-     980px nicht in ihre Spalte und schoben sich über die Nachbarspalte -
-     genau das Überlappen, das auf dem Telefon zu sehen war. Eine
-     zweizeilige Kopfzeile ist das kleinere Übel. */
-  .tabellenrolle .liste.vorgangstabelle th { white-space: normal; }
-  /* Die Frist trägt zwei Zeilen (Datum und „überfällig“) und braucht
-     deshalb eine feste Breite statt der 9 %. */
-  .vorgangstabelle th:nth-child(1) { width: 100px; }
+/* --- Vorgänge als Karten ------------------------------------------------
+   Eine Karte je Vorgang statt einer achtspaltigen Tabelle. In der Tabelle
+   stand der Titel - das Einzige, wonach man wirklich sucht - als schmale
+   Spalte zwischen sieben anderen, und bei zwanzig Zeilen sah alles gleich
+   aus. Die Karte hat eine eigene Ordnung: oben der Titel, darunter wer
+   und was, unten Status und Frist. Der Balken links sagt schon vor dem
+   Lesen, wie dringend es ist.
+   Bewusst ein Raster und keine Liste: auf breiten Fenstern stehen zwei
+   oder drei Karten nebeneinander, sonst wäre die Seite endlos lang.
+*/
+.vorgangskarten {
+  display: grid; gap: 12px;
+  /* min(…, 100%) statt einer festen Mindestbreite: sonst erzwingt das
+     Raster auf einem schmalen Telefon 320px in einer 300px breiten Karte
+     und schiebt sie seitlich hinaus. */
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
 }
+.vorgangskarte {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 14px 16px; border-radius: 12px;
+  background: var(--flaeche-2); border: 1px solid var(--linie);
+  border-left: 3px solid var(--linie-stark);
+}
+.vorgangskarte.vk-ueberfaellig { border-left-color: var(--dopp); }
+.vorgangskarte.vk-heute        { border-left-color: var(--warn); }
+.vorgangskarte.vk-bald         { border-left-color: var(--warn); opacity: .95; }
+.vorgangskarte.vk-zu           { border-left-color: var(--gut); opacity: .68; }
+
+.vk-kopf { display: flex; align-items: flex-start; gap: 10px; }
+.vk-titel {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 15px; font-weight: 600; line-height: 1.35;
+  color: var(--tinte); text-decoration: none; overflow-wrap: anywhere;
+}
+.vk-titel:hover { color: var(--akzent); }
+/* Die beiden Knöpfe erscheinen erst beim Überfahren der Karte - sonst
+   zieht das Rot des Löschknopfes auf zwanzig Karten mehr Aufmerksamkeit
+   als die Vorgänge selbst. Per Tastatur sind sie immer erreichbar. */
+.vk-aktionen { display: flex; gap: 4px; flex: 0 0 auto; opacity: 0; }
+.vorgangskarte:hover .vk-aktionen,
+.vk-aktionen:focus-within { opacity: 1; }
+@media (hover: none) { .vk-aktionen { opacity: 1; } }
+.vk-aktionen .knopf-icon { width: 28px; height: 28px; }
+.vk-aktionen form { margin: 0; }
+
+.vk-person { margin: 0; font-size: 13px; }
+.vk-person a { color: var(--akzent); text-decoration: none; font-weight: 500; }
+.vk-person a:hover { text-decoration: underline; }
+
+.vk-notiz {
+  margin: 0; font-size: 12.5px; color: var(--leise); line-height: 1.5;
+  /* Höchstens zwei Zeilen - die ganze Notiz steht im Vorgang selbst. */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  line-clamp: 2; overflow: hidden;
+}
+
+.vk-fuss {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: auto; padding-top: 9px; border-top: 1px solid var(--linie);
+  font-size: 12px;
+}
+.vk-fuss .marke-status { padding: 3px 9px; font-size: 11px; }
+/* Datum und Wort („27.08.2026 überfällig“) gehören zusammen und sollen
+   nicht auf zwei Zeilen zerfallen. */
+.vk-frist { display: inline-flex; align-items: baseline; gap: 5px;
+            color: var(--leise); white-space: nowrap; }
+.vk-frist .fristwort { font-size: 11px; }
+.vk-zustaendig {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--leise); margin-left: auto;
+}
+.vk-zustaendig svg { width: 13px; height: 13px; }
+.vk-prio { flex: 0 0 auto; }
 
 /* Mehrfachauswahl in der Datensatzliste */
 .massenleiste {
