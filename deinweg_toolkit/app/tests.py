@@ -1413,6 +1413,12 @@ def test_marke(client: TestClient) -> None:
                      r"\.tabellenrolle \.liste\.auswertungsblatt th \{\s*"
                      r"white-space: normal", stil) is not None,
            "in der Auswertungstabelle bricht alles um")
+    # Ab 760px kann die Hülle gar nicht mehr rollen - dort ist ein
+    # Rollbalken immer ein Rundungsfehler und nie eine echte Überbreite.
+    pruefe(re.search(r"@media \(min-width: 760px\) \{\s*"
+                     r"\.tabellenrolle:has\(\.auswertungsblatt\) \{\s*"
+                     r"overflow-x: clip", stil) is not None,
+           "und die Hülle kann auf dem Schreibtisch gar nicht rollen")
     pruefe(".tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }"
            in einzeilig,
            "und rollt in ihrer Hülle, wenn es wirklich zu eng wird")
@@ -2252,8 +2258,8 @@ def test_meinbereich_aufbau(client: TestClient) -> None:
            "sie steht vor den Inhalten")
 
     baender = re.findall(r'class="abschnittsband"[^>]*>\s*<h2>([^<]+)</h2>', seite)
-    pruefe("Meine Arbeitszeit" in baender and "Was ansteht" in baender,
-           f"die Seite ist in Abschnitte geteilt (sind: {baender})")
+    pruefe(baender == ["Was ansteht", "Meine Arbeitszeit"],
+           f"„Was ansteht“ steht vor der Arbeitszeit (ist: {baender})")
 
     pruefe("Folgeantrag stellen" in seite,
            "die eigenen Aufgaben stehen mit Titel da")
@@ -2269,6 +2275,20 @@ def test_meinbereich_aufbau(client: TestClient) -> None:
     pruefe("Bewilligungen im Blick" in seite, "sie steht aber weiterhin da")
     pruefe(seite.index("Was ansteht") < seite.index("Bewilligungen im Blick"),
            "und zwar im Abschnitt „Was ansteht“")
+
+    # Ohne offene Aufgabe steht dort nicht nichts, sondern eine Ansage.
+    with db.db() as con:
+        con.execute("UPDATE vorgang SET status='Erledigt' "
+                    "WHERE LOWER(TRIM(zustaendig))='pruefer'")
+    leer = client.get("/meinbereich").text
+    pruefe("Meine Aufgaben" in leer,
+           "die Aufgabenkarte bleibt auch ohne offene Aufgabe stehen")
+    pruefe("Keine offenen Aufgaben" in leer and "nichtsoffen" in leer,
+           "und sagt ausdrücklich, dass nichts offen ist")
+    pruefe("Zu den Aufgaben" in leer, "mit einem Weg dorthin")
+    with db.db() as con:
+        con.execute("UPDATE vorgang SET status='Offen' "
+                    "WHERE LOWER(TRIM(zustaendig))='pruefer'")
 
 
 def test_versionen() -> None:

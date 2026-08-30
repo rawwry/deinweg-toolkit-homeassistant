@@ -1178,4 +1178,18 @@ CHANGELOG = [
         "Tabelle in jede Breite. Sichtbar ist davon nichts: umgebrochen "
         "wird nur, wo der Platz sonst wirklich nicht reicht",
     ]},
+    {"version": "1.7.1", "titel": "Was ansteht nach oben, Rollbalken abgeschaltet", "punkte": [
+        "„Was ansteht“ steht jetzt vor der Arbeitszeit – was heute zu tun "
+        "ist, wiegt schwerer als die Zahlen des letzten Monats",
+        "Die Aufgabenkarte bleibt auch dann stehen, wenn nichts offen ist, "
+        "und sagt das auch. Vorher verschwand sie einfach, was aussah wie "
+        "ein Fehler",
+        "Die Tabellen der Auswertung können auf dem Schreibtisch gar nicht "
+        "mehr seitlich rollen. Sie passen dort mit Sicherheit in ihre "
+        "Karte – ein Rollbalken war also immer ein Rundungsfehler, eine "
+        "Schrift, die auf einem anderen Rechner ein halbes Pixel breiter "
+        "läuft, oder die Scrollbar-Einstellung des Systems. Jetzt gibt es "
+        "schlicht nichts mehr zu rollen. Auf dem Telefon bleibt das "
+        "Rollen erhalten, dort ist es nötig",
+    ]},
 ]

@@ -139,6 +139,73 @@
 <p class="meldung offen-hinweis">{{ t("mein.kein_soll") }}</p>
 {% endif %}
 
+{# --- Was ansteht --------------------------------------------------------
+   Steht vor der Arbeitszeit: was heute zu tun ist, wiegt schwerer als
+   die Zahlen des letzten Monats. Zwei Themen, die zusammengehören -
+   beides muss ich auf dem Schirm haben, beides führt zu einer
+   Handlung. #}
+{% if person or bewilligungen or bewilligungen_grundwert %}
+<div class="abschnittsband">
+  <h2>Was ansteht</h2>
+  <p class="klein leise">{{ t("mein.ansteht_lead") }}</p>
+</div>
+
+<section class="raster gleich buendig">
+  {% if person %}
+  <div class="karte">
+    <div class="kopfzeile">
+      <h2>Meine Aufgaben</h2>
+      {% if offene_vorgaenge %}
+      <p class="summe">{{ offene_vorgaenge }} offen{% if ueberfaellig %}
+        <span class="marke-status dopp">{{ ueberfaellig }} überfällig</span>{% endif %}</p>
+      {% endif %}
+    </div>
+    {% if eigene_aufgaben %}
+    <ul class="aufgabenliste">
+      {% for v in eigene_aufgaben %}
+      <li class="{{ 'ueberfaellig' if v.frist and v.frist < heute }}">
+        <a class="au-titel" href="/vorgaenge/{{ v.id }}">{{ v.titel }}</a>
+        <span class="au-zeile">
+          <span class="leise">{{ v.klient }}</span>
+          {{ statusmarke(v.status) }}
+          {% if v.frist %}
+          <span class="au-frist {{ 'spaet' if v.frist < heute }}">
+            {{ 'überfällig seit' if v.frist < heute else 'bis' }} {{ v.frist | deutsch }}
+          </span>
+          {% else %}<span class="leise klein">ohne Frist</span>{% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if offene_vorgaenge > eigene_aufgaben | length %}
+    <p class="klein leise" style="margin: 10px 0 0;">
+      … und {{ offene_vorgaenge - eigene_aufgaben | length }} weitere.
+    </p>
+    {% endif %}
+    {% else %}
+    {# Nichts offen ist eine gute Nachricht und sieht auch so aus - eine
+       leere Karte oder gar keine Karte wirkt dagegen wie ein Fehler. #}
+    <div class="nichtsoffen">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M8 12.4l2.7 2.6L16 9.6" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <p class="stark">Keine offenen Aufgaben</p>
+      <p class="klein leise">{{ t("mein.keine_aufgaben") }}</p>
+    </div>
+    {% endif %}
+    <div class="knopfreihe">
+      <a class="knopf leise klein"
+         href="/vorgaenge?zustaendig={{ name | urlencode }}">{{ "Alle meine Aufgaben" if eigene_aufgaben else "Zu den Aufgaben" }}</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {{ bewilligungskarte() }}
+</section>
+{% endif %}
+
 <div class="abschnittsband">
   <h2>Meine Arbeitszeit</h2>
   <p class="klein leise">{{ t("mein.lead", name=name) }}</p>
@@ -350,57 +417,6 @@
   {% endif %}
 </section>
 
-{% endif %}
-
-{# --- Aufgaben und Bewilligungen -----------------------------------------
-   Zwei Themen, die zusammengehören: beides ist etwas, das ich als
-   Mitarbeiterin auf dem Schirm haben muss, und beides führt zu einer
-   Handlung. Deshalb nebeneinander und unter einer gemeinsamen
-   Überschrift. #}
-{% if (person and offene_vorgaenge) or bewilligungen or bewilligungen_grundwert %}
-<div class="abschnittsband">
-  <h2>Was ansteht</h2>
-  <p class="klein leise">{{ t("mein.ansteht_lead") }}</p>
-</div>
-
-<section class="raster gleich buendig">
-  {% if person and offene_vorgaenge %}
-  <div class="karte">
-    <div class="kopfzeile">
-      <h2>Meine Aufgaben</h2>
-      <p class="summe">{{ offene_vorgaenge }} offen{% if ueberfaellig %}
-        <span class="marke-status dopp">{{ ueberfaellig }} überfällig</span>{% endif %}</p>
-    </div>
-    <ul class="aufgabenliste">
-      {% for v in eigene_aufgaben %}
-      <li class="{{ 'ueberfaellig' if v.frist and v.frist < heute }}">
-        <a class="au-titel" href="/vorgaenge/{{ v.id }}">{{ v.titel }}</a>
-        <span class="au-zeile">
-          <span class="leise">{{ v.klient }}</span>
-          {{ statusmarke(v.status) }}
-          {% if v.frist %}
-          <span class="au-frist {{ 'spaet' if v.frist < heute }}">
-            {{ 'überfällig seit' if v.frist < heute else 'bis' }} {{ v.frist | deutsch }}
-          </span>
-          {% else %}<span class="leise klein">ohne Frist</span>{% endif %}
-        </span>
-      </li>
-      {% endfor %}
-    </ul>
-    {% if offene_vorgaenge > eigene_aufgaben | length %}
-    <p class="klein leise" style="margin: 10px 0 0;">
-      … und {{ offene_vorgaenge - eigene_aufgaben | length }} weitere.
-    </p>
-    {% endif %}
-    <div class="knopfreihe">
-      <a class="knopf leise klein"
-         href="/vorgaenge?zustaendig={{ name | urlencode }}">Alle meine Aufgaben</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {{ bewilligungskarte() }}
-</section>
 {% endif %}
 
 {# Nur wenn das Konto einem Mitarbeiter zugeordnet ist - ohne diese

@@ -1867,10 +1867,19 @@ body.anmeldeseite {
 .tabellenrolle .liste.auswertungsblatt { table-layout: auto; min-width: 0; }
 .auswertungsblatt th:first-child { width: 22%; }
 .auswertungsblatt th:nth-child(2) { width: 7%; }
-/* Der Rollbalken bleibt als letzte Rückversicherung: die Tabelle passt
-   inzwischen in jede realistische Breite, aber lieber ein Rollbalken auf
-   einem sehr schmalen Telefon als still abgeschnittene Zahlen. */
+/* ⚠️ Ab 760px KANN diese Hülle nicht mehr rollen - clip statt auto.
+   Die Tabelle passt dort mit Sicherheit hinein (ihre Mindestbreite liegt
+   deutlich darunter, siehe unten), also ist ein Rollbalken dort immer ein
+   Fehler: er entsteht durch ein halbes Pixel Rundung, durch eine Schrift,
+   die auf einem anderen Rechner minimal breiter läuft, oder durch die
+   Scrollbar-Einstellung des Systems. Mit clip gibt es nichts zu rollen
+   und damit auch nichts anzuzeigen.
+   Darunter bleibt es bei auto: auf einem schmalen Telefon ist Rollen
+   besser als still abgeschnittene Zahlen. */
 .tabellenrolle:has(.auswertungsblatt) { overflow-x: auto; }
+@media (min-width: 760px) {
+  .tabellenrolle:has(.auswertungsblatt) { overflow-x: clip; }
+}
 /* Die Namensspalte bricht bevorzugt an Leerzeichen - „Cordesmeyer“ soll
    nicht mitten im Wort zerfallen, solange es anders geht. break-word tut
    genau das: es trennt erst, wenn eine ganze Zeile sonst überliefe, und
@@ -1986,6 +1995,12 @@ body.anmeldeseite {
 .au-zeile .marke-status { padding: 2px 8px; font-size: 10.5px; }
 .au-frist { color: var(--leise); }
 .au-frist.spaet { color: var(--dopp); font-weight: 600; }
+/* Nichts offen ist eine gute Nachricht - eine leere oder ganz fehlende
+   Karte wirkt dagegen wie ein Fehler. */
+.nichtsoffen { text-align: center; padding: 22px 10px 6px; }
+.nichtsoffen svg { width: 34px; height: 34px; color: var(--gut); opacity: .8; }
+.nichtsoffen p { margin: 8px 0 0; }
+.nichtsoffen .klein { max-width: 40ch; margin-left: auto; margin-right: auto; }
 
 /* --- Bewilligungen in „Mein Bereich“ ------------------------------------ */
 .bewilligungskarte { border-color: var(--linie-stark); }

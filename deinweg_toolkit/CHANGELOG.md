@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.7.1
+
+- „Was ansteht" steht vor der Arbeitszeit
+- Aufgabenkarte bleibt auch ohne offene Aufgabe stehen und sagt das
+- Auswertungstabellen können auf dem Schreibtisch nicht mehr rollen
+
 ## 1.7
 
 - „Mein Bereich" neu geordnet: Spruch oben, schmale Kopfzeile, Abschnitte

@@ -278,6 +278,9 @@ TEXTE_STANDARD["einst.urlaubstage"] = (
 TEXTE_STANDARD["mein.bewilligungen_lead"] = (
     "Abgelaufen, läuft in den nächsten 60 Tagen aus oder fehlt ganz – "
     "hier gehört ein Folgeantrag raus.")
+TEXTE_STANDARD["mein.keine_aufgaben"] = (
+    "Auf dich läuft gerade kein offener Vorgang. Neue Aufgaben tauchen "
+    "hier auf, sobald dir eine zugewiesen wird.")
 TEXTE_STANDARD["mein.ansteht_lead"] = (
     "Was auf deinem Tisch liegt: eigene Aufgaben mit Frist und "
     "Bewilligungen, die nachgehalten werden müssen.")
