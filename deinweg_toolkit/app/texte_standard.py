@@ -135,6 +135,19 @@ TEXTE_STANDARD["vorgaenge.anlegen_hinweis"] = (
 TEXTE_STANDARD["vorgaenge.datei_hinweis"] = (
     "Der Dokumentenverweis ist ein reiner Textvermerk – etwa der Ablageort auf "
     "dem Server. Dateien selbst werden im Tool nicht gespeichert.")
+TEXTE_STANDARD["vorgaenge.zustaendig_hinweis"] = (
+    "Die <strong>zuständige Person</strong> bearbeitet den Vorgang von "
+    "jetzt an. Sie steht in der Liste, wird bei Fristen per E-Mail "
+    "erinnert, und über sie filtert man „meine Aufgaben“. Sie kann "
+    "später jederzeit gewechselt werden.")
+TEXTE_STANDARD["vorgaenge.wer_hinweis"] = (
+    "Die <strong>handelnde Person</strong> ist, wer gerade an der "
+    "Tastatur sitzt. Sie wird nicht am Vorgang gespeichert, sondern nur "
+    "in seinem Verlauf: „am 30.08. von Nadine angelegt“. Bei jeder "
+    "späteren Änderung wird sie erneut gefragt – so bleibt "
+    "nachvollziehbar, wer was getan hat. Meistens ist das dieselbe "
+    "Person wie oben; wer für eine Kollegin einträgt, wählt hier sich "
+    "selbst und oben die Kollegin.")
 TEXTE_STANDARD["vorgaenge.keine_personen"] = (
     "Noch keine betreute Person im System. Lade zuerst eine Arbeitsliste hoch "
     "oder erfasse Zeiten von Hand, dann steht die Auswahl hier bereit.")

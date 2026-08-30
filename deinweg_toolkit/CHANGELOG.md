@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.8.1
+
+- Höchstens zwei Vorgangskarten nebeneinander
+- „Überfällig" wiegt schwerer als „Dringend"; neue Standardsortierung
+  nach Dringlichkeit
+- Nur noch ein Auslöser für „Neuen Vorgang anlegen"; Formular in drei
+  Blöcken mit Erklärung zu zuständiger und handelnder Person
+- Katze größer, hektischer, im Pixelraster des Originals
+
 ## 1.8
 
 - Aufgaben: Vorgänge stehen als Karten in einem Raster statt in einer

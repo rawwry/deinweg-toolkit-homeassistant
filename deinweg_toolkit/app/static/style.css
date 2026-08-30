@@ -2014,31 +2014,38 @@ body.anmeldeseite {
    dort, wo ohnehin nichts zu tun ist, und hängt vollständig an
    prefers-reduced-motion - wer Bewegung abgestellt hat, sieht eine
    stehende Katze auf einem stehenden Regenbogen.
+   Alles sitzt auf einem 4px-Gitter; shape-rendering: crispEdges im Markup
+   hält die Kanten hart, sonst weicht der Browser die Pixel beim
+   Hochskalieren auf.
 */
 .nyan {
-  width: 100%; max-width: 260px; border-radius: 12px; overflow: hidden;
-  background: linear-gradient(180deg, #10121a, #191c2b);
+  width: 100%; border-radius: 12px; overflow: hidden;
+  background: #0b0d1a;
   border: 1px solid var(--linie);
 }
 .nyan svg { display: block; width: 100%; height: auto; }
-.nyan-stern { opacity: .35; }
+.nyan-stern { opacity: .25; }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Der Regenbogen ist neunmal dasselbe 16px-Stück. Verschiebt man die
-     Gruppe um genau ein Stück und springt zurück, läuft er endlos - die
-     Stufen machen daraus das typische Pixel-Ruckeln statt eines
+  /* Der Regenbogen ist elfmal derselbe 24px-Takt. Verschiebt man die
+     Gruppe um genau einen Takt und springt zurück, läuft er endlos -
+     steps() macht daraus das harte Ruckeln des Originals statt eines
      weichen Gleitens. */
-  .nyan-regen { animation: nyan-regen .55s steps(4) infinite; }
-  .nyan-katze { animation: nyan-huepf .38s steps(2) infinite alternate; }
-  .nyan-stern { animation: nyan-blinken 1.6s ease-in-out infinite;
-                animation-delay: var(--verzug, 0s); }
+  .nyan-regen { animation: nyan-regen .34s steps(2) infinite; }
+  /* Die Katze hüpft auf demselben Takt wie der Regenbogen zuckt. */
+  .nyan-katze { animation: nyan-huepf .17s steps(2) infinite alternate; }
+  .nyan-stern { animation: nyan-funkeln .7s steps(3) infinite;
+                animation-delay: var(--takt, 0s); }
 }
-@keyframes nyan-regen { to { transform: translateX(-16px); } }
-@keyframes nyan-huepf { to { transform: translateY(-3px); } }
-@keyframes nyan-blinken {
-  0%, 100% { opacity: .15; transform: scale(.7); }
-  50%      { opacity: .9;  transform: scale(1); }
+@keyframes nyan-regen { to { transform: translateX(-24px); } }
+@keyframes nyan-huepf { to { transform: translateY(-4px); } }
+@keyframes nyan-funkeln {
+  0%   { opacity: .1;  transform: scale(.45); }
+  50%  { opacity: 1;   transform: scale(1); }
+  100% { opacity: .1;  transform: scale(.45); }
 }
+/* Die Sterne skalieren um ihre eigene Mitte, nicht um die Ecke des SVG. */
+.nyan-stern { transform-box: fill-box; transform-origin: center; }
 
 /* --- Bewilligungen in „Mein Bereich“ ------------------------------------ */
 .bewilligungskarte { border-color: var(--linie-stark); }
@@ -2241,6 +2248,20 @@ fieldset.feld > span {
    In diesen Tabellen darf sie stattdessen umbrechen. */
 .tabellenrolle .liste .marke-status { white-space: normal; }
 
+/* Das Anlegeformular steht in drei Blöcken: worum es geht, wer sich
+   kümmert, wer es einträgt. Vorher war es eine durchgehende Reihe von
+   zehn Feldern, in der „Zuständige Person“ und „Handelnde Person“
+   nebeneinander standen, ohne dass irgendwo stand, was der Unterschied
+   ist. */
+.formblock { padding-top: 6px; }
+.formblock + .formblock {
+  margin-top: 6px; padding-top: 18px; border-top: 1px solid var(--linie);
+}
+.formblock-titel {
+  display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--leise); margin-bottom: 14px;
+}
+
 /* --- Vorgänge als Karten ------------------------------------------------
    Eine Karte je Vorgang statt einer achtspaltigen Tabelle. In der Tabelle
    stand der Titel - das Einzige, wonach man wirklich sucht - als schmale
@@ -2253,10 +2274,16 @@ fieldset.feld > span {
 */
 .vorgangskarten {
   display: grid; gap: 12px;
-  /* min(…, 100%) statt einer festen Mindestbreite: sonst erzwingt das
-     Raster auf einem schmalen Telefon 320px in einer 300px breiten Karte
-     und schiebt sie seitlich hinaus. */
-  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  /* ⚠️ Höchstens zwei Karten nebeneinander. Bei vier wird jede so
+     schmal, dass Titel und Notiz umbrechen und die Fußzeile zweizeilig
+     wird - man sieht dann zwar mehr Karten, aber von jeder weniger.
+     min(…, 100%) statt einer festen Mindestbreite: sonst erzwingt das
+     Raster auf einem schmalen Telefon 320px in einer 300px breiten
+     Karte und schiebt sie seitlich hinaus. */
+  grid-template-columns: 1fr;
+}
+@media (min-width: 780px) {
+  .vorgangskarten { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .vorgangskarte {
   display: flex; flex-direction: column; gap: 8px;
@@ -2313,7 +2340,28 @@ fieldset.feld > span {
   color: var(--leise); margin-left: auto;
 }
 .vk-zustaendig svg { width: 13px; height: 13px; }
+/* ⚠️ Die Priorität tritt hinter die Frist zurück. „Dringend“ ist eine
+   Einschätzung, „überfällig“ eine Tatsache - stünden beide gleich rot
+   da, konkurrierten sie um dieselbe Aufmerksamkeit. Die Priorität ist
+   deshalb hier eine ruhige Pille, die Fristlage trägt die Farbe. */
 .vk-prio { flex: 0 0 auto; }
+.vk-prio .prio {
+  padding: 2px 8px; border-radius: 20px; font-size: 10.5px;
+  background: var(--flaeche); border: 1px solid var(--linie);
+  color: var(--leise); font-weight: 600;
+}
+.vk-prio .prio.vp-hoch { color: var(--warn); border-color: var(--warn); opacity: .8; }
+.vk-prio .prio.vp-dringend { color: var(--dopp); border-color: var(--dopp); opacity: .85; }
+
+/* Die Fristlage steht als Marke gleich neben dem Titel - sie ist das
+   Erste, was zählt, und darf nicht unten in der Fußzeile untergehen. */
+.vk-lage {
+  display: inline-block; margin-left: 8px; padding: 2px 9px;
+  border-radius: 20px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .03em; vertical-align: middle; white-space: nowrap;
+}
+.vk-lage.l-ueberfaellig { background: var(--dopp-weich); color: var(--dopp); }
+.vk-lage.l-heute { background: var(--warn-weich); color: var(--warn); }
 
 /* Mehrfachauswahl in der Datensatzliste */
 .massenleiste {

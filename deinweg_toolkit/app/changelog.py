@@ -1214,4 +1214,27 @@ CHANGELOG = [
         "Der Knopf „Zu den Aufgaben“ steht dort jetzt mittig unter dem "
         "Text",
     ]},
+    {"version": "1.8.1", "titel": "Aufgaben verständlicher, Katze verrückter", "punkte": [
+        "Höchstens zwei Vorgangskarten nebeneinander. Bei vier wurde jede "
+        "so schmal, dass Titel und Notiz umbrachen – man sah mehr Karten, "
+        "aber von jeder weniger",
+        "„Überfällig“ wiegt jetzt schwerer als „Dringend“: das eine ist "
+        "eine Tatsache, das andere eine Einschätzung. Überfällige Vorgänge "
+        "tragen die Marke gleich neben dem Titel, die Priorität ist eine "
+        "ruhige Pille in der Fußzeile geworden. Die Liste ist von Haus aus "
+        "nach Dringlichkeit sortiert – überfällige zuerst, dann nach "
+        "Frist, dann nach Priorität",
+        "Es gab einen Knopf „Neuen Vorgang anlegen“ und direkt darunter "
+        "noch einmal dieselbe Beschriftung als Aufklapper. Jetzt gibt es "
+        "nur noch den Knopf; er öffnet das Formular über die Adresse und "
+        "heißt danach „Formular schließen“",
+        "Das Anlegeformular steht in drei Blöcken: „Worum geht es?“, „Wer "
+        "kümmert sich, bis wann?“ und „Wer trägt das gerade ein?“ – mit "
+        "einer Erklärung, was der Unterschied zwischen zuständiger und "
+        "handelnder Person ist. Beide Felder sind mit dem angemeldeten "
+        "Konto vorbelegt",
+        "Die Katze ist doppelt so groß, hektischer und im Pixelraster des "
+        "Originals gezeichnet – mit Zickzack-Regenbogen und funkelnden "
+        "Pixelsternen",
+    ]},
 ]

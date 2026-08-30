@@ -90,9 +90,16 @@ WOCHENTAGE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag",
               "Samstag", "Sonntag"]
 
 
-def setup(templates) -> None:
-    """Wird von main.py aufgerufen, sobald die Templates bereitstehen."""
+def setup(templates, umgebung=None) -> None:
+    """Wird von main.py aufgerufen, sobald die Templates bereitstehen.
+
+    ``umgebung`` traegt die wenigen Dinge, die aus main.py kommen muessen -
+    derzeit nur ``eigener_name``, der Mitarbeitername des angemeldeten
+    Kontos. Dasselbe Muster wie bei einstellungen.py und aus demselben
+    Grund: so gibt es keinen Ringschluss beim Import.
+    """
     _umgebung["templates"] = templates
+    _umgebung.update(umgebung or {})
     templates.env.filters["zeitpunkt"] = zeitpunkt
     templates.env.filters["uhrzeit"] = uhrzeit
     templates.env.globals.update({
@@ -362,7 +369,23 @@ def filter_bauen(klient: str, zustaendig: str, status: str, art: str,
             "query": urlencode({k: v for k, v in felder.items() if v})}
 
 
+# Rang der Priorität für die Sortierung. Dringend zuerst.
+_PRIO_RANG = ("CASE prioritaet WHEN 'Dringend' THEN 0 WHEN 'Hoch' THEN 1 "
+              "WHEN 'Normal' THEN 2 ELSE 3 END")
+
+# ⚠️ „Überfällig“ wiegt schwerer als „Dringend“: das eine ist eine
+# Tatsache, das andere eine Einschätzung. Die Standardsortierung stellt
+# deshalb zuerst alles Überfällige nach vorn und ordnet erst danach nach
+# Frist und Priorität.
+_UEBERFAELLIG_ZUERST = ("CASE WHEN frist <> '' AND frist < date('now','localtime') "
+                        "THEN 0 ELSE 1 END")
+
 SORTIERUNGEN = {
+    "dringlichkeit": (f"{_UEBERFAELLIG_ZUERST}, "
+                      "CASE WHEN frist IS NULL OR frist = '' THEN 1 ELSE 0 END, "
+                      f"frist ASC, {_PRIO_RANG}, id DESC"),
+    "prio": (f"{_PRIO_RANG}, "
+             "CASE WHEN frist IS NULL OR frist = '' THEN 1 ELSE 0 END, frist ASC"),
     "frist": "CASE WHEN frist IS NULL OR frist = '' THEN 1 ELSE 0 END, frist ASC, id DESC",
     "frist_neu": "CASE WHEN frist IS NULL OR frist = '' THEN 1 ELSE 0 END, frist DESC, id DESC",
     "person": "klient COLLATE NOCASE ASC, frist ASC",
@@ -401,10 +424,10 @@ def kennzahlen(con) -> dict:
 @router.get("", response_class=HTMLResponse)
 def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
                status: str = "", art: str = "", faellig: str = "",
-               zustand: str = "alle", q: str = "", sortierung: str = "frist",
+               zustand: str = "alle", q: str = "", sortierung: str = "dringlichkeit",
                neu: str = "", fehler: str = "", hinweis: str = ""):
     if sortierung not in SORTIERUNGEN:
-        sortierung = "frist"
+        sortierung = "dringlichkeit"
     filter_ = filter_bauen(klient, zustaendig, status, art, faellig, zustand, q)
 
     with db.db() as con:
@@ -432,6 +455,7 @@ def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
                  vorhandene_arten=vorhandene_arten,
                  vorhandene_zustaendige=vorhandene_zustaendige,
                  formular_offen=bool(neu or fehler), vorbelegt_klient=klient,
+                 eigener_name=_umgebung.get("eigener_name", lambda r: "")(request),
                  heute_iso=heute(), fehler=fehler, hinweis=hinweis,
                  bald_tage=BALD_TAGE)
 

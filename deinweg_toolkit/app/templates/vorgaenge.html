@@ -37,20 +37,32 @@
     </a>
   </div>
 
+  {# Ein Knopf, nicht zwei. Vorher stand hier „Neuen Vorgang anlegen“ und
+     direkt darunter noch einmal dieselbe Beschriftung als Aufklapper -
+     zwei Bedienelemente für dieselbe Sache. Jetzt öffnet der Knopf das
+     Formular (per Adresse, also auch ohne Skript) und heißt danach
+     „Formular schließen“. #}
   <div class="knopfreihe" style="margin-top: 16px;">
-    <button type="button" class="knopf haupt" id="neu-oeffnen">Neuen Vorgang anlegen</button>
+    {% if formular_offen %}
+    <a class="knopf" href="/vorgaenge?{{ query }}">Formular schließen</a>
+    {% else %}
+    <a class="knopf haupt" href="/vorgaenge?neu=1#neu">Neuen Vorgang anlegen</a>
+    {% endif %}
     <a class="knopf" href="/vorgaenge/logbuch">Logbuch aller Vorgänge</a>
   </div>
 </section>
 
+{% if formular_offen %}
 <section class="karte" id="neu">
-  <details id="neu-formular" {{ 'open' if formular_offen }}>
-    <summary class="aufklapp">Neuen Vorgang anlegen</summary>
-
+  <div class="kopfzeile">
+    <h2>Neuen Vorgang anlegen</h2>
+  </div>
     <p class="lead">{{ t("vorgaenge.anlegen_hinweis") }}</p>
 
     {% if klienten %}
     <form action="/vorgaenge" method="post" class="vorgang-formular">
+      <div class="formblock">
+      <span class="formblock-titel">Worum geht es?</span>
       <div class="feldreihe zwei">
         <label class="feld">
           <span>Betreute Person <span class="leise">– aus den vorhandenen Daten</span></span>
@@ -81,12 +93,16 @@
                   placeholder="Was ist der Stand, was wurde vereinbart, was fehlt noch?"></textarea>
       </label>
 
+      </div>
+
+      <div class="formblock">
+      <span class="formblock-titel">Wer kümmert sich, bis wann?</span>
       <div class="feldreihe zwei">
         <label class="feld">
-          <span>Zuständige Person</span>
+          <span>Zuständige Person <span class="leise">– bearbeitet den Vorgang</span></span>
           <select name="zustaendig" required>
             <option value="">bitte wählen</option>
-            {% for m in leute %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+            {% for m in leute %}<option value="{{ m }}" {{ 'selected' if eigener_name == m }}>{{ m }}</option>{% endfor %}
           </select>
         </label>
         <label class="feld">
@@ -95,6 +111,7 @@
                  placeholder="z. B. zwei Namen aus dem Team">
         </label>
       </div>
+      <p class="klein leise felderklaerung">{{ t("vorgaenge.zustaendig_hinweis") }}</p>
 
       <div class="feldreihe">
         <label class="feld">
@@ -115,17 +132,24 @@
         </label>
       </div>
 
-      {{ werwahl(leute) }}
+      </div>
+
+      <div class="formblock">
+      <span class="formblock-titel">Wer trägt das gerade ein?</span>
+      {{ werwahl(leute, "Handelnde Person", eigener_name) }}
+      <p class="klein leise felderklaerung">{{ t("vorgaenge.wer_hinweis") }}</p>
+      </div>
 
       <div class="knopfreihe">
         <button class="knopf haupt" type="submit">Vorgang anlegen</button>
+        <a class="knopf leise" href="/vorgaenge?{{ query }}">Abbrechen</a>
       </div>
     </form>
     {% else %}
     <p class="leer">{{ t("vorgaenge.keine_personen") }}</p>
     {% endif %}
-  </details>
 </section>
+{% endif %}
 
 <section class="karte">
   <form class="filter" method="get" action="/vorgaenge">
@@ -155,6 +179,8 @@
     </label>
     <label><span>Sortierung</span>
       <select name="sortierung">
+        <option value="dringlichkeit" {{ 'selected' if sortierung == 'dringlichkeit' }}>Dringlichkeit – überfällige zuerst</option>
+        <option value="prio" {{ 'selected' if sortierung == 'prio' }}>Priorität</option>
         <option value="frist" {{ 'selected' if sortierung == 'frist' }}>Frist, nächste zuerst</option>
         <option value="frist_neu" {{ 'selected' if sortierung == 'frist_neu' }}>Frist, späteste zuerst</option>
         <option value="neu" {{ 'selected' if sortierung == 'neu' }}>zuletzt angelegt</option>
@@ -201,7 +227,10 @@
     {% for z in liste %}
     <article class="vorgangskarte vk-{{ z.lage }}{{ ' vk-zu' if z.v.status in V_ABGESCHLOSSEN }}">
       <div class="vk-kopf">
-        <a class="vk-titel" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}</a>
+        <a class="vk-titel" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}{%
+          if z.lage == "ueberfaellig" %}<span class="vk-lage l-ueberfaellig">überfällig</span>{%
+          elif z.lage == "heute" %}<span class="vk-lage l-heute">heute fällig</span>{%
+          endif %}</a>
         <div class="vk-aktionen">
           <a class="knopf-icon" href="/vorgaenge/{{ z.v.id }}" title="Öffnen" aria-label="Öffnen">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -257,19 +286,4 @@
 </section>
 
 {{ werskript() }}
-<script>
-  // Der Knopf "Neuen Vorgang anlegen" oeffnet die aufklappbare Karte und
-  // scrollt sie ins Bild - ein reiner #-Anker haette am geschlossenen
-  // <details> nichts bewirkt.
-  (function () {
-    var knopf = document.getElementById("neu-oeffnen"),
-        formular = document.getElementById("neu-formular");
-    if (knopf && formular) {
-      knopf.addEventListener("click", function () {
-        formular.open = true;
-        formular.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    }
-  })();
-</script>
 {% endblock %}

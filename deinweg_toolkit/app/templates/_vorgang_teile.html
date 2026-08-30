@@ -22,12 +22,12 @@
 
 {# Handelnde Person. Ohne Anmeldung im Tool ist das die einzige Möglichkeit,
    Verantwortlichkeit sauber zu protokollieren. #}
-{% macro werwahl(leute, beschriftung="Handelnde Person") -%}
+{% macro werwahl(leute, beschriftung="Handelnde Person", vorbelegt="") -%}
 <label class="feld">
   <span>{{ beschriftung }}</span>
   <select name="wer" class="werwahl" required>
     <option value="">bitte wählen</option>
-    {% for m in leute %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+    {% for m in leute %}<option value="{{ m }}" {{ 'selected' if vorbelegt and vorbelegt == m }}>{{ m }}</option>{% endfor %}
   </select>
 </label>
 {%- endmacro %}

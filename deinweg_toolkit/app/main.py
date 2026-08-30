@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.8"
+VERSION = "1.8.1"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -2264,7 +2264,13 @@ def gesundheit():
 
 from . import vorgaenge as _vorgaenge  # noqa: E402
 
-_vorgaenge.setup(templates)
+def _eigener_name(request) -> str:
+    """Mitarbeitername des angemeldeten Kontos - fuer Vorbelegungen."""
+    with db.db() as con:
+        return eigener_mitarbeitername(con, request.state.benutzer)
+
+
+_vorgaenge.setup(templates, {"eigener_name": _eigener_name})
 app.include_router(_vorgaenge.router)
 
 

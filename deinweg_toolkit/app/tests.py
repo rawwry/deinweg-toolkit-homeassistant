@@ -1396,6 +1396,10 @@ def test_marke(client: TestClient) -> None:
            "die achtspaltige Aufgabentabelle ist entfallen")
     pruefe(re.search(r"\.vorgangskarten \{\s*display: grid", stil) is not None,
            "die Vorgänge stehen als Karten in einem Raster")
+    # Höchstens zwei nebeneinander: bei vier wird jede Karte so schmal,
+    # dass Titel und Notiz umbrechen.
+    pruefe("grid-template-columns: repeat(2, minmax(0, 1fr));" in einzeilig,
+           "höchstens zwei Karten nebeneinander")
     pruefe(".vorgangskarte.vk-ueberfaellig { border-left-color: var(--dopp); }"
            in einzeilig,
            "eine überfällige Karte ist am Balken links zu erkennen")
@@ -2299,6 +2303,79 @@ def test_meinbereich_aufbau(client: TestClient) -> None:
                     "WHERE LOWER(TRIM(zustaendig))='pruefer'")
 
 
+def test_vorgang_anlegen(client: TestClient) -> None:
+    """Das Anlegeformular: ein Auslöser, drei Blöcke, erklärte Rollen."""
+    abschnitt("Vorgang anlegen")
+    zu = client.get("/vorgaenge").text
+    # Es gab einen Knopf „Neuen Vorgang anlegen" und direkt darunter noch
+    # einmal dieselbe Beschriftung als Aufklapper - zwei Bedienelemente
+    # für dieselbe Sache.
+    pruefe(zu.count("Neuen Vorgang anlegen") == 1,
+           "zugeklappt gibt es genau einen Auslöser")
+    pruefe('href="/vorgaenge?neu=1#neu"' in zu,
+           "und der öffnet das Formular über die Adresse, nicht per Skript")
+    pruefe("neu-formular" not in zu, "der alte Aufklapper ist weg")
+
+    offen = client.get("/vorgaenge?neu=1").text
+    pruefe('id="neu"' in offen and 'name="titel"' in offen,
+           "mit ?neu=1 steht das Formular da")
+    pruefe("Formular schließen" in offen,
+           "und lässt sich wieder schließen")
+    bloecke = re.findall(r'class="formblock-titel">([^<]+)<', offen)
+    pruefe(len(bloecke) == 3,
+           f"das Formular steht in drei Blöcken (sind: {bloecke})")
+    pruefe("zuständige Person" in offen and "handelnde Person" in offen,
+           "beide Rollen werden ausdrücklich erklärt")
+
+    # Beide Personenfelder sind mit dem angemeldeten Konto vorbelegt.
+    pruefe(offen.count('value="pruefer" selected') >= 2,
+           "zuständige und handelnde Person sind vorbelegt")
+
+    # Und das Anlegen funktioniert weiterhin.
+    antwort = client.post("/vorgaenge", data={
+        "klient": "Testperson", "art": "Antrag", "titel": "Formularprobe",
+        "zustaendig": "pruefer", "status": "Offen", "prioritaet": "Normal",
+        "frist": "", "wer": "pruefer"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "ein Vorgang lässt sich anlegen")
+    pruefe("Formularprobe" in client.get("/vorgaenge").text,
+           "und steht danach in der Liste")
+
+
+def test_dringlichkeit(client: TestClient) -> None:
+    """Überfällig wiegt schwerer als „Dringend“."""
+    abschnitt("Dringlichkeit vor Priorität")
+    from .vorgaenge import SORTIERUNGEN
+    heute = dt.date.today()
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO vorgang (klient, art, titel, zustaendig, status, "
+            "prioritaet, frist, angelegt_am, angelegt_von) VALUES "
+            "('Testperson','Antrag','Alt und überfällig','pruefer','Offen',"
+            "'Niedrig',?,'2026-01-01 08:00','pruefer')",
+            ((heute - dt.timedelta(days=9)).isoformat(),))
+        con.execute(
+            "INSERT INTO vorgang (klient, art, titel, zustaendig, status, "
+            "prioritaet, frist, angelegt_am, angelegt_von) VALUES "
+            "('Testperson','Antrag','Dringend aber später','pruefer','Offen',"
+            "'Dringend',?,'2026-01-01 08:00','pruefer')",
+            ((heute + dt.timedelta(days=20)).isoformat(),))
+
+    pruefe("dringlichkeit" in SORTIERUNGEN,
+           "es gibt eine Sortierung nach Dringlichkeit")
+    seite = client.get("/vorgaenge?sortierung=dringlichkeit&q=überfällig").text
+    seite_beide = client.get("/vorgaenge?sortierung=dringlichkeit").text
+    pruefe(seite_beide.index("Alt und überfällig")
+           < seite_beide.index("Dringend aber später"),
+           "der überfällige Vorgang steht vor dem dringenden")
+    pruefe('option value="dringlichkeit" selected' in seite_beide,
+           "und diese Sortierung ist die Voreinstellung")
+
+    # Auf der Karte steht die Fristlage neben dem Titel, die Priorität
+    # tritt dahinter zurück.
+    pruefe('class="vk-lage l-ueberfaellig">überfällig<' in seite_beide,
+           "überfällig steht als Marke gleich neben dem Titel")
+
+
 def test_versionen() -> None:
     """Die Versionszaehlung: beginnt bei 0.1, endet beim aktuellen Stand."""
     abschnitt("Versionen")
@@ -3021,6 +3098,8 @@ def _durchlauf(client: TestClient) -> None:
         test_bewilligungen_mein_bereich(client)
         test_uebersicht_filter(client)
         test_meinbereich_aufbau(client)
+        test_vorgang_anlegen(client)
+        test_dringlichkeit(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")
