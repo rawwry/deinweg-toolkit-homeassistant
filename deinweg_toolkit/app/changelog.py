@@ -1305,4 +1305,29 @@ CHANGELOG = [
         "untereinander. Als „30.08.2026, 11:43“ brach die Spalte an einer "
         "beliebigen Stelle um – wo genau, entschied die Fensterbreite",
     ]},
+    {"version": "1.11", "titel": "Sicherung, Schutz und pflegbare Texte", "punkte": [
+        "Jeden Sonntag legt das Tool von selbst eine Kopie der Datenbank "
+        "ab. Die fünf jüngsten bleiben liegen, ältere werden verworfen. "
+        "Die Liste steht unter Einstellungen → System",
+        "Schutz vor fremden Formularen: eine schreibende Anfrage, die "
+        "nicht von einer Seite des Tools kommt, wird abgewiesen. Das "
+        "läuft an einer Stelle für die ganze Anwendung und braucht kein "
+        "Skript",
+        "Neuer E-Mail-Anlass: eine gesammelte Erinnerung an "
+        "Bewilligungen, die auslaufen, abgelaufen sind oder fehlen. "
+        "Empfänger, Vorlauf und Vorlage stehen in den Einstellungen, "
+        "verschickt wird höchstens eine Mail je Woche",
+        "Einstellungen → System: fehlende Standardtexte lassen sich "
+        "nachziehen. Bisher gewann eine einmal angelegte strings.txt "
+        "gegen jeden verbesserten Text aus einem Update – der kam damit "
+        "nie an. „Fehlende ergänzen“ lässt eigene Formulierungen in Ruhe",
+        "Die Fußzeile steht in drei Zeilen, und der mittlere Satz sowie "
+        "die Rechtezeile lassen sich in den Einstellungen selbst "
+        "beschriften",
+        "Aufgaben: der Schalter „Erledigte ausblenden“ tut jetzt etwas – "
+        "das Skript dazu stand versehentlich vor der Checkbox",
+        "Keine Animationen mehr im Menü am Handy",
+        "Statt der fliegenden Katze hängt jetzt ein müdes Faultier im "
+        "Baum, wenn nichts zu tun ist",
+    ]},
 ]

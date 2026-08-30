@@ -1,21 +1,6 @@
 {% extends "base.html" %}
 {% from "_vorgang_teile.html" import statusmarke, priomarke, frist with context %}
-{% block titel %} – Aufgaben<script>
-  // Der Schalter „erledigte ausblenden" ist nur eine bequeme Abkürzung
-  // auf den vorhandenen Zustandsfilter. Ohne Skript bleibt er wirkungslos,
-  // der Filter darüber tut dasselbe.
-  (function () {
-    var schalter = document.getElementById("erledigte-aus");
-    if (!schalter) { return; }
-    schalter.addEventListener("change", function () {
-      var adresse = new URL(window.location.href);
-      adresse.searchParams.set("zustand", schalter.checked ? "offen" : "alle");
-      adresse.searchParams.delete("seite_nr");
-      window.location.href = adresse.toString();
-    });
-  })();
-</script>
-{% endblock %}
+{% block titel %} – Aufgaben{% endblock %}
 {% block inhalt %}
 
 {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
@@ -337,4 +322,19 @@
   {% endif %}
 </section>
 
+<script>
+  // Der Schalter „erledigte ausblenden" ist nur eine bequeme Abkürzung
+  // auf den vorhandenen Zustandsfilter. Ohne Skript bleibt er wirkungslos,
+  // der Filter darüber tut dasselbe.
+  (function () {
+    var schalter = document.getElementById("erledigte-aus");
+    if (!schalter) { return; }
+    schalter.addEventListener("change", function () {
+      var adresse = new URL(window.location.href);
+      adresse.searchParams.set("zustand", schalter.checked ? "offen" : "alle");
+      adresse.searchParams.delete("seite_nr");
+      window.location.href = adresse.toString();
+    });
+  })();
+</script>
 {% endblock %}

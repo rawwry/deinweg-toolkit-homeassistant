@@ -563,6 +563,11 @@ footer img:hover { opacity: 1; transform: translateY(-3px) scale(1.03); }
    Genau das war der Grund, warum die Fusszeile auf sehr breiten Fenstern
    links klebte, waehrend das Logo darueber mittig blieb. Der seitliche
    Abstand kommt jetzt aus dem padding der Fusszeile. */
+/* Drei Zeilen: welches Programm in welcher Fassung, wofür es da ist,
+   wem es gehört. Als ein Absatz mit <br> brach der Satz je nach
+   Fensterbreite an beliebiger Stelle um. */
+.fuss-zeile { display: block; }
+.fuss-recht { margin-top: 2px; opacity: .82; }
 footer p { margin: 0 auto;
            border-top: 1px solid var(--linie); padding: 18px 0 22px; }
 footer a { color: var(--akzent); text-decoration: none; border-bottom: 1px solid transparent; }
@@ -1274,11 +1279,10 @@ textarea:focus { border-color: var(--akzent); }
   .menue-offen { overflow: hidden; }
 }
 
-@media (max-width: 860px) and (prefers-reduced-motion: no-preference) {
-  .menuehuelle { transition: transform .32s cubic-bezier(.22,1.1,.36,1), visibility .32s; }
-  .menueschatten { animation: schatten-rein .25s ease backwards; }
-  @keyframes schatten-rein { from { opacity: 0; } to { opacity: 1; } }
-}
+/* ⚠️ Das mobile Menü bewegt sich NICHT. Es fuhr bis 1.11 herein und der
+   Abdunkler blendete ein - bei einem Menü, das man auf dem Telefon
+   ständig auf- und zuklappt, ist das kein Auftritt, sondern eine
+   Wartezeit. Nicht wieder einbauen. */
 
 /* --- Ideen: Liste statt Kacheln --------------------------------------- */
 
@@ -2179,51 +2183,70 @@ body.anmeldeseite {
 .nichtsoffen .klein { max-width: 42ch; }
 .nichtsoffen-knopf { margin-top: 16px; }
 
-/* --- Die fliegende Katze ------------------------------------------------
+/* --- Das dösende Faultier ----------------------------------------------
    ⚠️ Handgezeichnetes SVG mit CSS-Animation. Kein Bild, kein Skript, kein
    Paket - die Anwendung lädt bewusst nichts nach (Abschnitt 13).
-   Sie ist neben dem Anmeldebildschirm die zweite ausdrückliche Ausnahme
-   von "keine übertriebenen Animationen", auf Timos Wunsch. Sie läuft nur
+   Es ist neben dem Anmeldebildschirm die zweite ausdrückliche Ausnahme
+   von "keine übertriebenen Animationen", auf Timos Wunsch. Es läuft nur
    dort, wo ohnehin nichts zu tun ist, und hängt vollständig an
-   prefers-reduced-motion - wer Bewegung abgestellt hat, sieht eine
-   stehende Katze auf einem stehenden Regenbogen.
+   prefers-reduced-motion - wer Bewegung abgestellt hat, sieht ein
+   stillhängendes Faultier.
    Alles sitzt auf einem 4px-Gitter; shape-rendering: crispEdges im Markup
    hält die Kanten hart, sonst weicht der Browser die Pixel beim
    Hochskalieren auf.
+   Die Bewegung ist mit Absicht langsam: ein hektisches Faultier wäre der
+   Witz nicht. Sechs Sekunden für ein Schaukeln, sieben für ein Blinzeln -
+   man sieht es aus dem Augenwinkel und wird nicht davon abgelenkt.
 */
-/* Mittelweg: der Pixelstil des Originals, aber kleiner und ruhiger als
-   die erste große Fassung - die zog auf einer Seite, auf der es nichts
-   zu tun gibt, zu viel Aufmerksamkeit auf sich. */
-.nyan {
+.faul {
   width: 100%; max-width: 300px; border-radius: 12px; overflow: hidden;
-  background: #0b0d1a;
+  background: #10161f;
   border: 1px solid var(--linie);
 }
-.nyan svg { display: block; width: 100%; height: auto; }
-.nyan-stern { opacity: .2; }
+.faul svg { display: block; width: 100%; height: auto; }
+/* Die Lider liegen im Markup über den Augen und sind normalerweise
+   unsichtbar; das Blinzeln blendet sie kurz ein. Ohne Bewegung bleiben
+   die Augen also offen. */
+.faul-lid { opacity: 0; }
+.faul-zzz { opacity: 0; }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Der Regenbogen ist elfmal derselbe 24px-Takt. Verschiebt man die
-     Gruppe um genau einen Takt und springt zurück, läuft er endlos -
-     steps() macht daraus das harte Ruckeln des Originals statt eines
-     weichen Gleitens. */
-  /* Tempo wie beim Vorbild: rund zwölf Bilder je Sekunde, also ein
-     Regenbogentakt in etwa einem Sechstel einer Sekunde. */
-  .nyan-regen { animation: nyan-regen .33s steps(2) infinite; }
-  /* Die Katze hüpft auf demselben Takt wie der Regenbogen zuckt. */
-  .nyan-katze { animation: nyan-huepf .165s steps(2) infinite alternate; }
-  .nyan-stern { animation: nyan-funkeln .85s steps(3) infinite;
+  /* Schaukeln um den Ast: der Drehpunkt sitzt oben in der Mitte der
+     Gruppe, also dort, wo die Arme hängen. transform-box: fill-box, sonst
+     bezöge sich der Ursprung auf das ganze SVG. */
+  .faul-tier { animation: faul-schaukeln 6s ease-in-out infinite alternate; }
+  .faul-lid  { animation: faul-blinzeln 7s steps(1) infinite; }
+  .faul-zzz  { animation: faul-schnarch 4.5s ease-out infinite;
+               animation-delay: var(--takt, 0s); }
+  .faul-blatt { animation: faul-fallen 9s linear infinite;
                 animation-delay: var(--takt, 0s); }
 }
-@keyframes nyan-regen { to { transform: translateX(-24px); } }
-@keyframes nyan-huepf { to { transform: translateY(-3px); } }
-@keyframes nyan-funkeln {
-  0%   { opacity: .1;  transform: scale(.45); }
-  50%  { opacity: 1;   transform: scale(1); }
-  100% { opacity: .1;  transform: scale(.45); }
+.faul-tier { transform-box: fill-box; transform-origin: top center; }
+.faul-zzz, .faul-blatt { transform-box: fill-box; transform-origin: center; }
+
+@keyframes faul-schaukeln {
+  from { transform: rotate(-2.5deg); }
+  to   { transform: rotate(2.5deg); }
 }
-/* Die Sterne skalieren um ihre eigene Mitte, nicht um die Ecke des SVG. */
-.nyan-stern { transform-box: fill-box; transform-origin: center; }
+/* steps(1) macht aus dem Lid ein hartes Auf und Zu statt eines
+   Überblendens - alles andere sähe bei Pixeln nach Weichzeichner aus. */
+@keyframes faul-blinzeln {
+  0%, 90%  { opacity: 0; }
+  91%, 95% { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+@keyframes faul-schnarch {
+  0%   { opacity: 0; transform: translate(0, 0) scale(.6); }
+  15%  { opacity: .9; }
+  70%  { opacity: .5; }
+  100% { opacity: 0; transform: translate(18px, -34px) scale(1.15); }
+}
+@keyframes faul-fallen {
+  0%   { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  10%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-14px, 104px) rotate(160deg); }
+}
 
 /* --- Bewilligungen in „Mein Bereich“ ------------------------------------ */
 .bewilligungskarte { border-color: var(--linie-stark); }

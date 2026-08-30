@@ -50,6 +50,21 @@ STANDARD = {
         "Bitte kümmere dich darum oder setze eine neue Wiedervorlage.\n\n"
         "Diese Nachricht wurde automatisch erstellt."
     ),
+    # Erinnerung an auslaufende Bewilligungen. Standard aus - erst wenn
+    # jemand die Empfaengerin benennt, ergibt sie Sinn.
+    "bewilligung_aktiv": "0",
+    "bewilligung_tage": "60",
+    "bewilligung_empfaenger": "",
+    "vorlage_bewilligung_betreff": "Bewilligungen: {anzahl} Fall/Fälle offen",
+    "vorlage_bewilligung_text": (
+        "Hallo {name},\n\n"
+        "bei den folgenden betreuten Personen läuft die Bewilligung aus, "
+        "ist bereits abgelaufen oder fehlt ganz:\n\n"
+        "{liste}\n\n"
+        "Solange nichts Neues vorliegt, rechnet die Auswertung für diese "
+        "Monate ohne Kontingent.\n\n"
+        "Diese Nachricht wurde automatisch erstellt."
+    ),
     "vorlage_abgabe_betreff": "Erinnerung: Zeiten für {monat} noch offen",
     "vorlage_abgabe_text": (
         "Hallo {name},\n\n"
@@ -194,7 +209,14 @@ def adresse_fuer(con, name: str) -> str | None:
     return r["email"] if r else None
 
 
-# --- Die beiden Anlaesse ------------------------------------------------------
+# ⚠️ Hier haengt main.py seine Funktion ein, die den Bewilligungsstand
+# ausrechnet. mail.py darf main.py nicht importieren (Ringschluss), und
+# dieselbe Regel zweimal zu schreiben waere schlimmer als dieser Haken -
+# die beiden Fassungen liefen frueher oder spaeter auseinander.
+bewilligungen_holen = None
+
+
+# --- Die Anlaesse -------------------------------------------------------------
 
 ABGESCHLOSSEN = ("Erledigt", "Abgebrochen")
 
@@ -283,15 +305,85 @@ def pruefe_abgaben(con, k: dict, monat: str | None = None) -> list[str]:
     return protokoll
 
 
-def durchlauf(nur_fristen: bool = False, nur_abgaben: bool = False) -> list[str]:
-    """Ein kompletter Durchlauf beider Pruefungen."""
+def pruefe_bewilligungen(con, k: dict) -> list[str]:
+    """Auslaufende, abgelaufene und fehlende Bewilligungen -> eine Mail.
+
+    Bewusst EINE Sammelmail statt einer je Person: es geht um eine Liste,
+    die man einmal durchgeht, nicht um zwanzig einzelne Vorgaenge. Und
+    bewusst hoechstens einmal je Woche - taeglich dieselbe Liste zu
+    bekommen, bis der Bescheid da ist, waere nach drei Tagen Rauschen.
+    """
+    if k.get("bewilligung_aktiv") != "1":
+        return []
+    if bewilligungen_holen is None:
+        return ["Bewilligungen: Rechenfunktion nicht eingehängt"]
+
+    empfaenger_name = (k.get("bewilligung_empfaenger") or "").strip()
+    if not empfaenger_name:
+        return ["Bewilligungen: keine Empfängerin eingetragen"]
+    adresse = adresse_fuer(con, empfaenger_name)
+    if not adresse:
+        return [f"Bewilligungen: kein Login mit E-Mail für „{empfaenger_name}“"]
+
+    try:
+        vorlauf = int(k.get("bewilligung_tage") or 60)
+    except ValueError:
+        vorlauf = 60
+
+    faelle = [b for b in bewilligungen_holen(con, vorlauf)
+              if b["art"] != "grundwert"]
+    if not faelle:
+        return []
+
+    # Ein Bezug je Kalenderwoche: dieselbe Liste kommt nicht taeglich.
+    jahr, woche, _ = dt.date.today().isocalendar()
+    bezug = f"bewilligung:{jahr}-KW{woche:02d}"
+    if schon_gesendet(con, "bewilligung", bezug, adresse):
+        return []
+
+    zeilen = []
+    for b in faelle:
+        if b["art"] == "abgelaufen":
+            wann = b.get("seit") or ""
+            wort = ("abgelaufen seit " + _datum(wann)) if wann else "abgelaufen"
+        elif b["art"] == "laeuft_aus":
+            wort = f"läuft am {_datum(b.get('bis'))} aus (noch {b.get('tage')} Tage)"
+        elif b["art"] == "kuenftig":
+            wort = f"gilt erst ab {_datum(b.get('ab'))}"
+        else:
+            wort = "keine Bewilligung hinterlegt"
+        zeilen.append(f"  {b['name']}: {wort}")
+
+    werte = {"name": empfaenger_name, "anzahl": len(faelle),
+             "liste": "\n".join(zeilen)}
+    erfolg, meldung = senden(
+        adresse, fuellen(k["vorlage_bewilligung_betreff"], werte),
+        fuellen(k["vorlage_bewilligung_text"], werte), k)
+    vermerken(con, "bewilligung", bezug, adresse, erfolg, meldung)
+    return [f"Bewilligungen ({len(faelle)}) an {adresse}: "
+            f"{'ok' if erfolg else meldung}"]
+
+
+def _datum(iso: str | None) -> str:
+    try:
+        return dt.date.fromisoformat(iso or "").strftime("%d.%m.%Y")
+    except ValueError:
+        return iso or ""
+
+
+def durchlauf(nur_fristen: bool = False, nur_abgaben: bool = False,
+              nur_bewilligungen: bool = False) -> list[str]:
+    """Ein kompletter Durchlauf aller Pruefungen."""
     k = konfig_lesen()
     if k.get("mail_aktiv") != "1":
         return ["E-Mail-Versand ist ausgeschaltet"]
+    einzeln = nur_fristen or nur_abgaben or nur_bewilligungen
     protokoll = []
     with db.db() as con:
-        if not nur_abgaben:
+        if nur_fristen or not einzeln:
             protokoll += pruefe_fristen(con, k)
-        if not nur_fristen:
+        if nur_abgaben or not einzeln:
             protokoll += pruefe_abgaben(con, k)
+        if nur_bewilligungen or not einzeln:
+            protokoll += pruefe_bewilligungen(con, k)
     return protokoll or ["nichts zu tun"]

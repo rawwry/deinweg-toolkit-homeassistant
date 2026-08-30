@@ -308,11 +308,21 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
                    if _u["WECKER_INTERVALL"] else "aus"),
         "anmeldung": anmeldung_zusammenfassung(benutzer_zahlen),
         "max_upload": f"{_u["MAX_UPLOAD_MB"]} MB",
+        "sicherung_pfad": _u["SICHERUNG_PFAD"],
         "dateien": [
             ("quotes.txt", _u["SPRUCH_DATEI"], dateistand(_u["SPRUCH_DATEI"])),
             ("ideen.txt", _u["IDEEN_DATEI"], dateistand(_u["IDEEN_DATEI"])),
         ],
     }
+
+    # Die woechentlich abgelegten Sicherungen, jüngste zuerst.
+    sicherungen = []
+    if bereich == "system":
+        for name in sorted(_u["sicherungsdateien"](), reverse=True):
+            pfad = os.path.join(_u["SICHERUNG_PFAD"], name)
+            sicherungen.append({"name": name,
+                                "datum": name[11:-3],
+                                "groesse": groesse(pfad)})
 
     # Welcher Zeitraum gilt heute? Nach derselben Regel wie in der
     # Auswertung: der zuletzt begonnene, der heute noch laeuft. Bewusst
@@ -355,6 +365,7 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "letzte_mails": letzte_mails,
             "sprueche": sprueche_lesen() if bereich == "quotes" else [],
             "spruch_bearbeiten": spruch_bearbeiten,
+            "sicherungen": sicherungen, "fuss_standard": _u["FUSS_STANDARD"],
             "bereich": bereich, "hinweis": hinweis, "fehler": fehler,
             "seite": "einstellungen"})
 
@@ -922,6 +933,27 @@ def email_speichern(smtp_absender: str = Form(""), smtp_absendername: str = Form
     return email_zurueck(hinweis="Zugangsdaten gespeichert.")
 
 
+@router.post("/einstellungen/bewilligungsmail")
+def bewilligungsmail_speichern(bewilligung_aktiv: str = Form(""),
+                               bewilligung_tage: str = Form("60"),
+                               bewilligung_empfaenger: str = Form("")):
+    try:
+        tage = max(1, min(365, int(bewilligung_tage or 60)))
+    except ValueError:
+        return email_zurueck(fehler="Der Vorlauf muss eine Zahl in Tagen sein.")
+    empfaenger = bewilligung_empfaenger.strip()
+    if bewilligung_aktiv and not empfaenger:
+        return email_zurueck(fehler=(
+            "Ohne Empfängerin kann die Erinnerung nicht verschickt werden."))
+    with db.db() as con:
+        mail.konfig_schreiben(con, {
+            "bewilligung_aktiv": "1" if bewilligung_aktiv else "0",
+            "bewilligung_tage": str(tage),
+            "bewilligung_empfaenger": empfaenger,
+        })
+    return email_zurueck(hinweis="Erinnerung an Bewilligungen gespeichert.")
+
+
 @router.post("/einstellungen/email/test")
 def email_test(request: Request, empfaenger: str = Form("")):
     empfaenger = empfaenger.strip() or (request.state.benutzer["email"] or "")
@@ -949,12 +981,17 @@ def email_pruefen():
 def vorlagen_speichern(vorlage_frist_betreff: str = Form(""),
                        vorlage_frist_text: str = Form(""),
                        vorlage_abgabe_betreff: str = Form(""),
-                       vorlage_abgabe_text: str = Form("")):
+                       vorlage_abgabe_text: str = Form(""),
+                       vorlage_bewilligung_betreff: str = Form(""),
+                       vorlage_bewilligung_text: str = Form("")):
     werte = {
         "vorlage_frist_betreff": vorlage_frist_betreff.strip(),
         "vorlage_frist_text": vorlage_frist_text.replace("\r\n", "\n").strip(),
         "vorlage_abgabe_betreff": vorlage_abgabe_betreff.strip(),
         "vorlage_abgabe_text": vorlage_abgabe_text.replace("\r\n", "\n").strip(),
+        "vorlage_bewilligung_betreff": vorlage_bewilligung_betreff.strip(),
+        "vorlage_bewilligung_text":
+            vorlage_bewilligung_text.replace("\r\n", "\n").strip(),
     }
     leer = [k for k, v in werte.items() if not v]
     if leer:
@@ -998,6 +1035,74 @@ def sicherung_herunterladen():
     return StreamingResponse(
         puffer, media_type="application/octet-stream",
         headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@router.post("/einstellungen/fusszeile")
+def fusszeile_speichern(fusszeile_satz: str = Form(""),
+                        fusszeile_recht: str = Form("")):
+    with db.db() as con:
+        mail.konfig_schreiben(con, {
+            "fusszeile_satz": fusszeile_satz.strip(),
+            "fusszeile_recht": fusszeile_recht.strip(),
+        })
+    return systemseite(hinweis="Fußzeile gespeichert.")
+
+
+@router.post("/einstellungen/texte")
+def texte_nachziehen(modus: str = Form("fehlende")):
+    """Schreibt die Standardtexte in die vorhandene strings.txt.
+
+    ⚠️ Ohne das hier erreicht jede Textänderung, die mit einer neuen
+    Fassung kommt, eine bestehende Installation NIE: strings.txt gewinnt
+    gegen die Standardtexte, und angelegt wird sie nur, wenn sie fehlt.
+    Das ist der stillste Fehler im ganzen System - man sieht ihm nicht an,
+    dass etwas fehlt.
+
+    "fehlende" ergaenzt nur, was noch nicht drinsteht - eigene Formu-
+    lierungen bleiben dabei unangetastet. "alle" setzt auf den
+    Auslieferungsstand zurueck.
+    """
+    pfad = _u["STRINGS_DATEI"]
+    standard = _u["TEXTE_STANDARD"]
+    vorhanden: dict[str, str] = {}
+    try:
+        with open(pfad, encoding="utf-8") as f:
+            for zeile in f:
+                if zeile.startswith("#") or "=" not in zeile:
+                    continue
+                schluessel, wert = zeile.split("=", 1)
+                vorhanden[schluessel.strip()] = wert.strip()
+    except OSError:
+        vorhanden = {}
+
+    if modus == "alle":
+        neu = dict(standard)
+        zahl = len(neu)
+    else:
+        fehlend = {k: v for k, v in standard.items() if k not in vorhanden}
+        neu = {**vorhanden, **fehlend}
+        zahl = len(fehlend)
+
+    if not zahl:
+        return systemseite(hinweis="Es fehlte nichts – alle Texte sind vorhanden.")
+    try:
+        os.makedirs(os.path.dirname(pfad) or ".", exist_ok=True)
+        with open(pfad, "w", encoding="utf-8") as f:
+            f.write("# Texte der Oberfläche. Eine Zeile je Schlüssel.\n")
+            f.write("# Was hier steht, gewinnt gegen die eingebauten Texte.\n\n")
+            for schluessel in sorted(neu):
+                f.write(f"{schluessel} = {neu[schluessel]}\n")
+    except OSError as e:
+        return systemseite(fehler=f"Konnte {pfad} nicht schreiben: {e}")
+
+    return systemseite(hinweis=(
+        f"{zahl} Texte auf den Auslieferungsstand gesetzt."
+        if modus == "alle" else f"{zahl} fehlende Texte ergänzt."))
+
+
+def systemseite(**werte):
+    werte.setdefault("bereich", "system")
+    return RedirectResponse("/einstellungen?" + urlencode(werte), status_code=303)
 
 
 @router.post("/einstellungen/sicherung")

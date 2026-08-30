@@ -31,7 +31,7 @@ import traceback
 # --- Umgebung vorbereiten, bevor die Anwendung geladen wird ------------------
 
 _ORDNER = tempfile.mkdtemp(prefix="toolkit-test-")
-for unter in ("db", "texte", "wiki", "files"):
+for unter in ("db", "texte", "wiki", "files", "sicherungen"):
     os.makedirs(os.path.join(_ORDNER, unter), exist_ok=True)
 
 os.environ.update({
@@ -41,6 +41,7 @@ os.environ.update({
     "STRINGS_DATEI": os.path.join(_ORDNER, "texte", "strings.txt"),
     "WIKI_PFAD": os.path.join(_ORDNER, "wiki"),
     "FILES_PFAD": os.path.join(_ORDNER, "files"),
+    "SICHERUNG_PFAD": os.path.join(_ORDNER, "sicherungen"),
     "WECKER_INTERVALL": "0",
     "ADMIN_BENUTZERNAME": "pruefer",
     "ADMIN_PASSWORT": "pruefpasswort",
@@ -2292,12 +2293,14 @@ def test_meinbereich_aufbau(client: TestClient) -> None:
     pruefe("Zu den Aufgaben" in leer, "mit einem Weg dorthin")
     # Der Spaß muss ohne nachgeladenes Bild auskommen (Abschnitt 13) und
     # bei „Bewegung reduzieren" still stehen.
-    pruefe('class="nyan"' in leer and "nyan-regen" in leer,
-           "und einer fliegenden Katze")
+    pruefe('class="faul"' in leer and "faul-tier" in leer,
+           "und einem dösenden Faultier")
+    pruefe("<img" not in leer.split('class="faul"')[1].split("</svg>")[0],
+           "handgezeichnet, ohne nachgeladenes Bild")
     stil = client.get("/static/style.css").text.replace("\n", " ")
     pruefe("prefers-reduced-motion: no-preference" in stil
-           and "nyan-regen" in stil,
-           "die Katze hält still, wenn Bewegung reduziert werden soll")
+           and "faul-schaukeln" in stil,
+           "das Faultier hält still, wenn Bewegung reduziert werden soll")
     with db.db() as con:
         con.execute("UPDATE vorgang SET status='Offen' "
                     "WHERE LOWER(TRIM(zustaendig))='pruefer'")
@@ -2392,6 +2395,161 @@ def test_dringlichkeit(client: TestClient) -> None:
     # tritt dahinter zurück.
     pruefe('class="vk-lage l-ueberfaellig">überfällig<' in seite_beide,
            "überfällig steht als Marke gleich neben dem Titel")
+
+
+def test_automatische_sicherung(client: TestClient) -> None:
+    """Sonntags eine Kopie, hoechstens eine je Tag, hoechstens fuenf."""
+    abschnitt("Automatische Sicherung")
+    from . import main
+
+    for datei in os.listdir(main.SICHERUNG_PFAD):
+        os.remove(os.path.join(main.SICHERUNG_PFAD, datei))
+
+    # Montag bis Samstag passiert nichts.
+    pruefe(all(main.automatische_sicherung(dt.date(2026, 8, 24) + dt.timedelta(t))
+               is None for t in range(6)),
+           "an Werktagen wird nicht gesichert")
+    pruefe(not main.sicherungsdateien(), "und es liegt auch nichts da")
+
+    sonntag = dt.date(2026, 8, 30)
+    name = main.automatische_sicherung(sonntag)
+    pruefe(name == "sicherung-2026-08-30.db", "sonntags wird gesichert")
+    pruefe(main.automatische_sicherung(sonntag) is None,
+           "ein zweiter Anlauf am selben Tag legt nichts Neues an")
+    pfad = os.path.join(main.SICHERUNG_PFAD, name)
+    pruefe(os.path.getsize(pfad) > 0, "die Sicherung ist nicht leer")
+
+    # Die Kopie muss eine lesbare Datenbank sein, keine halbe Datei.
+    import sqlite3 as _s
+    con = _s.connect(pfad)
+    zahl = con.execute("SELECT COUNT(*) FROM eintrag").fetchone()[0]
+    con.close()
+    pruefe(zahl > 0, "und enthaelt die Daten")
+
+    # Sechs Sonntage: die aelteste faellt weg.
+    for w in range(1, 6):
+        main.automatische_sicherung(sonntag + dt.timedelta(days=7 * w))
+    vorhanden = sorted(main.sicherungsdateien())
+    pruefe(len(vorhanden) == 5, "es bleiben fünf Sicherungen liegen")
+    pruefe("sicherung-2026-08-30.db" not in vorhanden,
+           "die älteste wird verworfen")
+
+    seite = client.get("/einstellungen?bereich=system").text
+    pruefe(vorhanden[-1] in seite, "die Einstellungen zeigen die Sicherungen")
+
+
+def test_csrf(client: TestClient) -> None:
+    """Schreibende Anfragen von fremden Seiten werden abgewiesen."""
+    abschnitt("Schutz vor fremden Formularen")
+    daten = {"nr": "1", "text": "Probe"}
+
+    eigen = client.post("/ideen", data=daten, follow_redirects=False,
+                        headers={"sec-fetch-site": "same-origin"})
+    pruefe(eigen.status_code in (200, 303), "die eigene Seite darf schreiben")
+
+    fremd = client.post("/ideen", data=daten, follow_redirects=False,
+                        headers={"sec-fetch-site": "cross-site"})
+    pruefe(fremd.status_code == 403, "eine fremde Seite nicht")
+
+    herkunft = client.post("/ideen", data=daten, follow_redirects=False,
+                           headers={"origin": "http://boese.example"})
+    pruefe(herkunft.status_code == 403, "eine fremde Herkunft ebenso wenig")
+
+    # Ohne jede Angabe (alte Browser, curl) bleibt es erlaubt - sonst
+    # waere die Anwendung fuer sie unbedienbar.
+    ohne = client.get("/einstellungen", follow_redirects=False)
+    pruefe(ohne.status_code == 200, "Lesen bleibt davon unberührt")
+
+
+def test_bewilligungsmail(client: TestClient) -> None:
+    """Der dritte Erinnerungsanlass: auslaufende Bewilligungen."""
+    abschnitt("Erinnerung an Bewilligungen")
+    from . import mail
+    from . import main
+
+    seite = client.get("/einstellungen?bereich=email").text
+    pruefe("bewilligung_aktiv" in seite and "bewilligung_tage" in seite,
+           "die Einstellungen kennen den neuen Anlass")
+    vorlagen = client.get("/einstellungen?bereich=vorlagen").text
+    pruefe("vorlage_bewilligung_betreff" in vorlagen,
+           "und es gibt eine eigene Vorlage dafür")
+
+    antwort = client.post("/einstellungen/bewilligungsmail", data={
+        "bewilligung_aktiv": "1", "bewilligung_tage": "45",
+        "bewilligung_empfaenger": "pruefer"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "die Einstellung lässt sich speichern")
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+    pruefe(k["bewilligung_tage"] == "45" and k["bewilligung_aktiv"] == "1",
+           "und steht danach in der Konfiguration")
+
+    # Die Liste selbst: sie kommt aus derselben Funktion wie die Anzeige.
+    with db.db() as con:
+        faelle = main.bewilligungen_pruefen(con, vorlauf=45)
+    pruefe(isinstance(faelle, list), "die Fallliste ist abrufbar")
+    pruefe(all("name" in f and "art" in f for f in faelle),
+           "jeder Fall nennt Person und Grund")
+
+    antwort = client.post("/einstellungen/bewilligungsmail", data={
+        "bewilligung_aktiv": "", "bewilligung_tage": "60",
+        "bewilligung_empfaenger": ""}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "und wieder abschalten geht auch")
+
+
+def test_texte_nachziehen(client: TestClient) -> None:
+    """strings.txt gewinnt gegen die Standardtexte - deshalb nachziehbar."""
+    abschnitt("Standardtexte nachziehen")
+    from .main import STRINGS_DATEI, TEXTE_STANDARD
+
+    seite = client.get("/einstellungen?bereich=system").text
+    pruefe("/einstellungen/texte" in seite,
+           "die Einstellungen bieten das Nachziehen an")
+
+    # Eine Datei mit genau einem, selbst geaenderten Text.
+    with open(STRINGS_DATEI, "w", encoding="utf-8") as f:
+        f.write("login.lead = Selbst geschrieben\n")
+
+    antwort = client.post("/einstellungen/texte", data={"modus": "fehlende"},
+                          follow_redirects=False)
+    pruefe(antwort.status_code == 303, "„Fehlende ergänzen“ läuft durch")
+    inhalt = open(STRINGS_DATEI, encoding="utf-8").read()
+    pruefe("login.lead = Selbst geschrieben" in inhalt,
+           "der eigene Text bleibt unangetastet")
+    pruefe("einst.fusszeile_lead" in inhalt,
+           "und die fehlenden Schlüssel stehen jetzt drin")
+    fehlend = [s for s in TEXTE_STANDARD if s + " =" not in inhalt]
+    pruefe(not fehlend, f"es fehlt keiner mehr (offen: {fehlend[:3]})")
+
+    antwort = client.post("/einstellungen/texte", data={"modus": "alle"},
+                          follow_redirects=False)
+    pruefe(antwort.status_code == 303, "„Alle zurücksetzen“ läuft durch")
+    inhalt = open(STRINGS_DATEI, encoding="utf-8").read()
+    pruefe("login.lead = Selbst geschrieben" not in inhalt,
+           "danach gilt wieder der ausgelieferte Wortlaut")
+
+
+def test_fusszeile(client: TestClient) -> None:
+    """Drei Zeilen, und der mittlere Satz ist pflegbar."""
+    abschnitt("Fußzeile")
+    seite = client.get("/meinbereich").text
+    fuss = seite[seite.index("<footer"):seite.index("</footer>")]
+    pruefe(fuss.count("fuss-zeile") == 3, "die Fußzeile hat drei Zeilen")
+    pruefe("(<a href=\"/changelog\">Changelog</a>)" in seite,
+           "der Changelog steht in Klammern hinter der Version")
+
+    antwort = client.post("/einstellungen/fusszeile", data={
+        "fusszeile_satz": "Ganz eigener Satz.",
+        "fusszeile_recht": "© 2026 Probe"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "der Text lässt sich ändern")
+    pruefe("Ganz eigener Satz." in client.get("/meinbereich").text,
+           "und steht danach unten auf der Seite")
+
+    # Leeres Feld heisst: wieder der ausgelieferte Wortlaut.
+    client.post("/einstellungen/fusszeile",
+                data={"fusszeile_satz": "", "fusszeile_recht": ""},
+                follow_redirects=False)
+    pruefe("eigentlich nicht organisieren wollen" in client.get("/meinbereich").text,
+           "leer heißt: wieder der Standardtext")
 
 
 def test_versionen() -> None:
@@ -3118,6 +3276,11 @@ def _durchlauf(client: TestClient) -> None:
         test_meinbereich_aufbau(client)
         test_vorgang_anlegen(client)
         test_dringlichkeit(client)
+        test_automatische_sicherung(client)
+        test_csrf(client)
+        test_bewilligungsmail(client)
+        test_texte_nachziehen(client)
+        test_fusszeile(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")

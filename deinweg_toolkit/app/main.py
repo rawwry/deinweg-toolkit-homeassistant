@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.10.1"
+VERSION = "1.11"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -48,6 +48,11 @@ MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "20"))
 SPRUCH_DATEI = os.environ.get("SPRUCH_DATEI", "/texte/quotes.txt")
 IDEEN_DATEI = os.environ.get("IDEEN_DATEI", "/texte/ideen.txt")
 STRINGS_DATEI = os.environ.get("STRINGS_DATEI", "/texte/strings.txt")
+SICHERUNG_PFAD = os.environ.get("SICHERUNG_PFAD", "/sicherungen")
+# Wie viele automatische Sicherungen aufgehoben werden. Fuenf Wochen sind
+# lang genug, um einen Fehler zu bemerken, und kurz genug, dass die
+# Dateien nicht unbemerkt den Speicher fuellen.
+SICHERUNGEN_BEHALTEN = 5
 WIKI_PFAD = os.environ.get("WIKI_PFAD", "/wiki")
 FILES_PFAD = os.environ.get("FILES_PFAD", "/files")
 # Sekunden zwischen zwei Pruefungen auf faellige E-Mail-Erinnerungen.
@@ -158,23 +163,37 @@ def t(schluessel: str, **platzhalter) -> str:
     return Markup(text)
 
 
-def fusstext() -> str:
-    """Der Fusszeilentext, mit dem Changelog-Link hinter der Version.
+# Was in der Fusszeile steht, wenn nichts gepflegt wurde.
+FUSS_STANDARD = {
+    "satz": "Organisation für Menschen, die eigentlich nicht organisieren wollen.",
+    "recht": ('© 2026 <a href="https://timovorwald.de" target="_blank" '
+              'rel="noopener noreferrer">timovorwald.de</a>. '
+              'Alle Rechte vorbehalten.'),
+}
 
-    Der Link steht bewusst hier und nicht in ``footer.text``: eine schon
-    vorhandene ``strings.txt`` gewinnt gegen die Standardtexte, der Link
-    waere dort also bei jeder bestehenden Installation unsichtbar
-    geblieben. So haengt er am Markup und ist immer da.
+
+def fusstext() -> Markup:
+    """Die Fusszeile in drei Zeilen.
+
+    ⚠️ Sie wird aus der Konfiguration gebaut und NICHT aus ``footer.text``:
+    eine schon vorhandene ``strings.txt`` gewinnt gegen die Standardtexte,
+    eine Änderung dort wäre also bei einer bestehenden Installation nie
+    angekommen. Über die Einstellungen ist der Text jetzt ohnehin
+    pflegbar.
+
+    Drei Zeilen, weil sie drei verschiedene Dinge sagen: welches Programm
+    in welcher Fassung, wofür es da ist, und wem es gehört.
     """
-    roh = str(t("footer.text", version=VERSION))
-    link = ' (<a href="/changelog">Changelog</a>)'
-    # Erst hinter dem schliessenden </span> ansetzen: sonst stuende der
-    # Link innerhalb von .version und waere mitgedaempft. Faellt die
-    # Auszeichnung in einer eigenen strings.txt weg, greift der Rueckfall.
-    if VERSION + "</span>" in roh:
-        return Markup(roh.replace(VERSION + "</span>",
-                                  VERSION + "</span>" + link, 1))
-    return Markup(roh.replace(VERSION, VERSION + link, 1))
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+    satz = (k.get("fusszeile_satz") or "").strip() or FUSS_STANDARD["satz"]
+    recht = (k.get("fusszeile_recht") or "").strip() or FUSS_STANDARD["recht"]
+    return Markup(
+        f'<span class="fuss-zeile">{APP_NAME} '
+        f'<span class="version">{escape(VERSION)}</span> '
+        f'(<a href="/changelog">Changelog</a>)</span>'
+        f'<span class="fuss-zeile">{satz}</span>'
+        f'<span class="fuss-zeile fuss-recht">{recht}</span>')
 
 
 def strings_anlegen() -> None:
@@ -378,6 +397,71 @@ def uebernehmen_intern(import_id: int, mit_dubletten: bool = False) -> int:
     return len(zeilen)
 
 
+def datenbank_kopieren(zielpfad: str) -> None:
+    """Sichere Kopie der Datenbank, auch waehrend geschrieben wird.
+
+    sqlite3.backup() statt einfachem Kopieren: im WAL-Modus liegen Teile
+    der Daten sonst in Nebendateien und die Kopie waere unvollstaendig.
+    """
+    import sqlite3 as _sqlite
+    ziel = _sqlite.connect(zielpfad)
+    with db.db() as con, ziel:
+        con.backup(ziel)
+    ziel.close()
+
+
+def sicherungsdateien() -> list[str]:
+    """Namen der abgelegten Sicherungen, unsortiert.
+
+    Eine Stelle fuer die Frage "was zaehlt als Sicherung": das Aufraeumen
+    im Wecker und die Liste in den Einstellungen duerfen sich nicht
+    unterschiedlich entscheiden.
+    """
+    try:
+        return [d for d in os.listdir(SICHERUNG_PFAD)
+                if d.startswith("sicherung-") and d.endswith(".db")]
+    except OSError:
+        return []
+
+
+def automatische_sicherung(heute: dt.date | None = None) -> str | None:
+    """Legt sonntags eine Sicherung an und raeumt alte weg.
+
+    Der Wecker laeuft stuendlich und ruft das hier jedes Mal auf; gesichert
+    wird trotzdem hoechstens einmal je Sonntag. Der Dateiname traegt das
+    Datum, und liegt fuer diesen Tag schon eine Datei, passiert nichts.
+    Damit ist es egal, ob der Rechner nachts aus war oder ob der Wecker
+    zwanzigmal vorbeikommt.
+
+    Gibt den Dateinamen zurueck, wenn etwas geschrieben wurde, sonst None.
+    """
+    heute = heute or dt.date.today()
+    if heute.weekday() != 6:          # 6 = Sonntag
+        return None
+    os.makedirs(SICHERUNG_PFAD, exist_ok=True)
+    name = f"sicherung-{heute:%Y-%m-%d}.db"
+    ziel = os.path.join(SICHERUNG_PFAD, name)
+    if os.path.exists(ziel):
+        return None
+
+    # Erst neben die endgueltige Datei schreiben, dann umbenennen: bricht
+    # der Vorgang ab, liegt dort keine halbe Sicherung, die wie eine
+    # gueltige aussieht.
+    vorlaeufig = ziel + ".teil"
+    datenbank_kopieren(vorlaeufig)
+    os.replace(vorlaeufig, ziel)
+
+    # Aufraeumen: nur die juengsten behalten.
+    vorhanden = sorted(sicherungsdateien(),
+        reverse=True)
+    for alt in vorhanden[SICHERUNGEN_BEHALTEN:]:
+        try:
+            os.remove(os.path.join(SICHERUNG_PFAD, alt))
+        except OSError:
+            pass
+    return name
+
+
 async def wecker_schleife() -> None:
     """Prueft regelmaessig, ob Erinnerungen faellig sind.
 
@@ -387,6 +471,12 @@ async def wecker_schleife() -> None:
     """
     await asyncio.sleep(30)
     while True:
+        try:
+            gesichert = await asyncio.to_thread(automatische_sicherung)
+            if gesichert:
+                print(f"[sicherung] {gesichert} geschrieben", flush=True)
+        except Exception as e:
+            print(f"[sicherung] {type(e).__name__}: {e}", flush=True)
         try:
             zeilen = await asyncio.to_thread(mail.durchlauf)
             for zeile in zeilen:
@@ -720,7 +810,8 @@ def monatsgrenzen(monat: str) -> tuple[str, str]:
 BEWILLIGUNG_BALD_TAGE = 60
 
 
-def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str) -> dict:
+def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
+                     vorlauf: int | None = None) -> dict:
     """Wie steht eine betreute Person heute da?
 
     Eine Stelle fuer die Frage, die in den Einstellungen und in "Mein
@@ -748,7 +839,7 @@ def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str) -> dict:
                         - dt.date.fromisoformat(heute)).days
             except ValueError:
                 tage = None
-            if tage is not None and tage <= BEWILLIGUNG_BALD_TAGE:
+            if tage is not None and tage <= (vorlauf or BEWILLIGUNG_BALD_TAGE):
                 return {"art": "laeuft_aus", "bis": laufend["bis"],
                         "tage": tage, "zeitraum": laufend}
         return {"art": "laufend", "zeitraum": laufend}
@@ -775,7 +866,7 @@ BEWILLIGUNG_HANDLUNG = ("abgelaufen", "leer", "laeuft_aus", "kuenftig",
                         "grundwert")
 
 
-def bewilligungen_pruefen(con) -> list[dict]:
+def bewilligungen_pruefen(con, vorlauf: int | None = None) -> list[dict]:
     """Alle aktiven betreuten Personen, bei denen etwas zu tun ist.
 
     Dringendstes zuerst. Grundlage fuer die Karte in "Mein Bereich".
@@ -792,7 +883,7 @@ def bewilligungen_pruefen(con) -> list[dict]:
             "SELECT id, name, wochenstunden, stundensatz FROM person "
             "WHERE aktiv=1 ORDER BY name"):
         stand = bewilligungslage(zr.get(p["name"], []), p["wochenstunden"],
-                                 p["stundensatz"], heute)
+                                 p["stundensatz"], heute, vorlauf)
         if stand["art"] in BEWILLIGUNG_HANDLUNG:
             offen.append({**stand, "name": p["name"], "id": p["id"],
                           "rang": BEWILLIGUNG_HANDLUNG.index(stand["art"])})
@@ -2277,6 +2368,11 @@ def _eigener_name(request) -> str:
 
 
 _vorgaenge.setup(templates, {"eigener_name": _eigener_name})
+
+# ⚠️ mail.py darf main.py nicht importieren (Ringschluss), braucht aber
+# den Bewilligungsstand. Deshalb haengt die Funktion hier ein - dieselbe
+# Rechnung fuer die Karte in "Mein Bereich" und fuer die Erinnerungsmail.
+mail.bewilligungen_holen = bewilligungen_pruefen
 app.include_router(_vorgaenge.router)
 
 
@@ -2301,6 +2397,10 @@ _einstellungen.setup(templates, {
     "SPRUCH_DATEI": SPRUCH_DATEI,
     "IDEEN_DATEI": IDEEN_DATEI,
     "STRINGS_DATEI": STRINGS_DATEI,
+    "TEXTE_STANDARD": TEXTE_STANDARD,
+    "SICHERUNG_PFAD": SICHERUNG_PFAD,
+    "sicherungsdateien": sicherungsdateien,
+    "FUSS_STANDARD": FUSS_STANDARD,
 })
 app.include_router(_einstellungen.router)
 

@@ -358,9 +358,54 @@ def sitzung_benutzer(con, token: str, sitzung_tage: int):
 
 # --- Middleware ---------------------------------------------------------------
 
+# --- Schutz gegen fremd abgeschickte Formulare (CSRF) -------------------------
+#
+# Eine fremde Seite kann ein Formular auf unseren Server abschicken; das
+# Sitzungs-Cookie geht dabei mit. samesite=lax faengt den Standardfall ab,
+# ist aber kein vollwertiger Ersatz - genau der offene Punkt aus
+# Abschnitt 15.
+#
+# ⚠️ Geprueft wird die HERKUNFT der Anfrage, nicht ein Token im Formular.
+# Beides ist gleich wirksam; der Unterschied ist der Aufwand. Ein Token
+# muesste in jedes einzelne der rund fuenfzig Formulare, und wer eines
+# vergisst, merkt es erst, wenn ein Benutzer davorsteht. Die Herkunft
+# steht dagegen in jeder Anfrage und wird an einer Stelle geprueft.
+#
+# Sec-Fetch-Site setzt der Browser selbst; eine Webseite kann den Kopf
+# nicht faelschen. Fehlt er (sehr alte Browser), greift der Rueckfall auf
+# Origin bzw. Referer. Fehlt auch der, wird durchgelassen: ein Browser,
+# der gar nichts davon schickt, schickt auch bei einem fremden Formular
+# nichts - dann waere die Pruefung nur eine Sperre gegen den eigenen
+# Benutzer.
+SICHERE_METHODEN = ("GET", "HEAD", "OPTIONS", "TRACE")
+
+
+def herkunft_stimmt(request: Request) -> bool:
+    ziel = request.headers.get("sec-fetch-site")
+    if ziel:
+        # "none" = direkt eingegeben oder Lesezeichen, "same-origin" = wir.
+        return ziel in ("same-origin", "none")
+
+    herkunft = request.headers.get("origin") or request.headers.get("referer")
+    if not herkunft:
+        return True
+    eigene = f"{request.url.scheme}://{request.url.netloc}"
+    return herkunft == eigene or herkunft.startswith(eigene + "/")
+
+
 class SessionAuth(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         pfad = request.url.path
+
+        # Vor allem anderen: kommt das Formular von uns? Auch die Anmeldung
+        # wird geprueft - sonst koennte eine fremde Seite jemanden
+        # unbemerkt auf ein anderes Konto umschalten.
+        if request.method not in SICHERE_METHODEN and not herkunft_stimmt(request):
+            return Response(
+                "Diese Anfrage kam nicht von dieser Seite und wurde deshalb "
+                "abgewiesen. Bitte die Seite neu laden und noch einmal "
+                "versuchen.", status_code=403)
+
         if pfad in OEFFENTLICHE_PFADE or pfad.startswith("/static/"):
             return await call_next(request)
 

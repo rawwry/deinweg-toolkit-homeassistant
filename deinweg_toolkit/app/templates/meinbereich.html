@@ -188,79 +188,106 @@
     </div>
     {% else %}
     {# Nichts offen ist eine gute Nachricht und sieht auch so aus - eine
-       leere Karte oder gar keine Karte wirkt dagegen wie ein Fehler. #}
-    {# Nichts offen ist eine gute Nachricht - und darf hier auch mal albern
-       sein. Handgezeichnetes SVG mit CSS-Animation, kein Bild und kein
-       Skript: die Anwendung lädt bewusst nichts nach (Abschnitt 13). Die
-       ganze Bewegung hängt an prefers-reduced-motion; wer sie abgestellt
-       hat, sieht eine stehende Katze. #}
+       leere Karte oder gar keine Karte wirkt dagegen wie ein Fehler.
+       Und sie darf hier auch mal albern sein: handgezeichnetes SVG mit
+       CSS-Animation, kein Bild und kein Skript, die Anwendung lädt
+       bewusst nichts nach (Abschnitt 13). Die ganze Bewegung hängt an
+       prefers-reduced-motion; wer sie abgestellt hat, sieht ein
+       stillhängendes Faultier. #}
     <div class="nichtsoffen">
-      {# Pixelkatze im Original-Raster: alles sitzt auf einem 4px-Gitter,
+      {# Pixelraster wie beim Vorbild: alles sitzt auf einem 4px-Gitter,
          nichts ist rund, nichts hat einen Verlauf. shape-rendering:
          crispEdges hält die Kanten hart, auch wenn das SVG hochskaliert
          wird - sonst weicht der Browser die Pixel auf. #}
-      <div class="nyan" role="img" aria-label="Eine Katze fliegt auf einem Regenbogen durchs Bild">
-        <svg viewBox="0 0 240 120" shape-rendering="crispEdges" aria-hidden="true">
-          {# --- Sternenhimmel: acht Pixelsterne, jeder eigener Takt --- #}
-          {% for st in [(14,20),(52,88),(30,58),(86,14),(64,40),(108,96),(20,104),(96,66)] %}
-          <g class="nyan-stern" style="--takt: {{ loop.index0 * 0.29 }}s">
-            <rect x="{{ st[0] - 2 }}" y="{{ st[1] - 10 }}" width="4" height="20" fill="#fff"/>
-            <rect x="{{ st[0] - 10 }}" y="{{ st[1] - 2 }}" width="20" height="4" fill="#fff"/>
-            <rect x="{{ st[0] - 6 }}" y="{{ st[1] - 6 }}" width="4" height="4" fill="#fff"/>
-            <rect x="{{ st[0] + 2 }}" y="{{ st[1] + 2 }}" width="4" height="4" fill="#fff"/>
-            <rect x="{{ st[0] + 2 }}" y="{{ st[1] - 6 }}" width="4" height="4" fill="#fff"/>
-            <rect x="{{ st[0] - 6 }}" y="{{ st[1] + 2 }}" width="4" height="4" fill="#fff"/>
+      <div class="faul" role="img"
+           aria-label="Ein Faultier hängt an einem Ast und döst vor sich hin">
+        <svg viewBox="0 0 240 132" shape-rendering="crispEdges" aria-hidden="true">
+          {# --- Ast: zwei Töne, damit er nicht wie ein Balken wirkt --- #}
+          <rect x="0" y="12" width="240" height="16" fill="#6b4b2e"/>
+          <rect x="0" y="12" width="240" height="4" fill="#8a6640"/>
+          {% for k in [12, 60, 108, 156, 204] %}
+          <rect x="{{ k }}" y="20" width="8" height="4" fill="#553a22"/>
+          {% endfor %}
+          {# Blätter am Ast #}
+          {% for b in [(28,4),(52,4),(188,4),(212,4)] %}
+          <rect x="{{ b[0] }}" y="{{ b[1] }}" width="12" height="8" fill="#4f8a3a"/>
+          <rect x="{{ b[0] + 4 }}" y="{{ b[1] - 4 }}" width="4" height="4" fill="#66a84c"/>
+          {% endfor %}
+
+          {# --- Zwei Blätter, die langsam durchs Bild segeln --- #}
+          {% for bl in [(72, 0), (168, 4.5)] %}
+          <g class="faul-blatt" style="--takt: {{ bl[1] }}s">
+            <rect x="{{ bl[0] }}" y="28" width="8" height="4" fill="#4f8a3a"/>
+            <rect x="{{ bl[0] + 2 }}" y="24" width="4" height="4" fill="#66a84c"/>
           </g>
           {% endfor %}
 
-          {# --- Regenbogen: zwei Takte, die einander abwechseln.
-                 Jeder Takt ist 24px breit, die Stufe versetzt die zweite
-                 Hälfte um 8px nach unten - das ist das Zickzack des
-                 Originals. --- #}
-          <g class="nyan-regen">
-            {% for i in range(11) %}
-            {% set x = i * 24 %}
-            {% for f in [("#ff0000",0),("#ff9900",12),("#ffff00",24),
-                         ("#33ff00",36),("#0099ff",48),("#6633ff",60)] %}
-            <rect x="{{ x }}" y="{{ 30 + f[1] }}" width="12" height="12" fill="{{ f[0] }}"/>
-            <rect x="{{ x + 12 }}" y="{{ 38 + f[1] }}" width="12" height="12" fill="{{ f[0] }}"/>
+          {# --- Das Faultier. Eine Gruppe, damit das Schaukeln alles
+                 mitnimmt und der Drehpunkt oben an den Armen sitzt. --- #}
+          <g class="faul-tier">
+            {# Arme: sie greifen über den Ast, deshalb liegen sie darüber.
+               Die hellen Pixel sind die Krallen - sie hängen über die
+               Vorderkante des Astes, daran hält sich das Tier fest. #}
+            {% for a in [88, 136] %}
+            <rect x="{{ a }}" y="4" width="20" height="8" fill="#8f7355"/>
+            <rect x="{{ a if a == 88 else a + 12 }}" y="12" width="8" height="12" fill="#8f7355"/>
+            <rect x="{{ a + 8 if a == 88 else a }}" y="24" width="12" height="24" fill="#a38664"/>
+            <rect x="{{ a + 4 }}" y="0" width="4" height="6" fill="#dcd2c0"/>
+            <rect x="{{ a + 12 }}" y="0" width="4" height="6" fill="#c9bda6"/>
             {% endfor %}
+
+            {# Beine: hängen hinter dem Körper heraus, mit Krallen #}
+            {% for l in [84, 144] %}
+            <rect x="{{ l }}" y="52" width="12" height="26" fill="#8f7355"/>
+            <rect x="{{ l }}" y="78" width="4" height="6" fill="#dcd2c0"/>
+            <rect x="{{ l + 8 }}" y="78" width="4" height="6" fill="#c9bda6"/>
             {% endfor %}
+
+            {# Körper #}
+            <rect x="100" y="44" width="40" height="40" fill="#a38664"/>
+            <rect x="108" y="50" width="24" height="30" fill="#d4bb95"/>
+
+            {# Kopf #}
+            <rect x="96" y="80" width="48" height="36" fill="#bfa07c"/>
+            <rect x="100" y="76" width="40" height="4" fill="#bfa07c"/>
+            {# Zottelfell obendrauf #}
+            <rect x="104" y="72" width="4" height="4" fill="#8f7355"/>
+            <rect x="116" y="70" width="4" height="6" fill="#8f7355"/>
+            <rect x="130" y="72" width="4" height="4" fill="#8f7355"/>
+            {# Augenflecken - die dunkle Maske des Faultiers #}
+            <rect x="100" y="86" width="16" height="10" fill="#6b4f36"/>
+            <rect x="124" y="86" width="16" height="10" fill="#6b4f36"/>
+            {# Augen, halb zu #}
+            <rect x="104" y="88" width="8" height="6" fill="#241a12"/>
+            <rect x="128" y="88" width="8" height="6" fill="#241a12"/>
+            {# Halb geschlossen - das ist der müde Blick. Das Lid darüber
+               ist das Blinzeln, dieses hier bleibt immer. #}
+            <rect x="104" y="88" width="8" height="2" fill="#6b4f36"/>
+            <rect x="128" y="88" width="8" height="2" fill="#6b4f36"/>
+            <rect x="106" y="92" width="2" height="2" fill="#f2ece0"/>
+            <rect x="130" y="92" width="2" height="2" fill="#f2ece0"/>
+            {# Lider: liegen darüber und blinzeln alle sieben Sekunden #}
+            <g class="faul-lid">
+              <rect x="104" y="88" width="8" height="6" fill="#6b4f36"/>
+              <rect x="128" y="88" width="8" height="6" fill="#6b4f36"/>
+            </g>
+            {# Nase #}
+            <rect x="114" y="98" width="12" height="6" fill="#4a3626"/>
+            {# Zufriedenes Grinsen #}
+            <rect x="108" y="104" width="4" height="4" fill="#4a3626"/>
+            <rect x="112" y="106" width="16" height="4" fill="#4a3626"/>
+            <rect x="128" y="104" width="4" height="4" fill="#4a3626"/>
           </g>
 
-          {# --- Die Katze: Pop-Tart mit Katzenkopf --- #}
-          <g class="nyan-katze">
-            {# Schwanz #}
-            <rect x="128" y="52" width="12" height="8" fill="#999999"/>
-            <rect x="120" y="44" width="12" height="8" fill="#999999"/>
-            {# Keksrand #}
-            <rect x="140" y="32" width="60" height="52" fill="#ff9dc9"/>
-            {# Teig #}
-            <rect x="148" y="40" width="44" height="36" fill="#ffcc99"/>
-            {# Streusel #}
-            {% for p in [(156,48),(176,44),(164,60),(184,64),(152,68)] %}
-            <rect x="{{ p[0] }}" y="{{ p[1] }}" width="8" height="8" fill="#ff5599"/>
-            {% endfor %}
-            {# Beine #}
-            <rect x="148" y="84" width="12" height="8" fill="#999999"/>
-            <rect x="180" y="84" width="12" height="8" fill="#999999"/>
-            {# Kopf #}
-            <rect x="196" y="36" width="40" height="40" fill="#999999"/>
-            {# Ohren #}
-            <rect x="196" y="28" width="12" height="8" fill="#999999"/>
-            <rect x="224" y="28" width="12" height="8" fill="#999999"/>
-            {# Augen #}
-            <rect x="204" y="48" width="8" height="8" fill="#000000"/>
-            <rect x="220" y="48" width="8" height="8" fill="#000000"/>
-            {# Backen #}
-            <rect x="196" y="60" width="8" height="8" fill="#ff9dc9"/>
-            <rect x="228" y="60" width="8" height="8" fill="#ff9dc9"/>
-            {# Schnauze #}
-            <rect x="208" y="60" width="16" height="4" fill="#000000"/>
-            <rect x="212" y="64" width="4" height="8" fill="#000000"/>
-            <rect x="204" y="68" width="8" height="4" fill="#000000"/>
-            <rect x="216" y="68" width="8" height="4" fill="#000000"/>
+          {# --- Drei Z, die nacheinander davonschweben --- #}
+          {% for z in [(160, 92, 0), (172, 84, 1.5), (184, 76, 3.0)] %}
+          <g class="faul-zzz" style="--takt: {{ z[2] }}s">
+            <rect x="{{ z[0] }}" y="{{ z[1] }}" width="16" height="4" fill="#e6dfd2"/>
+            <rect x="{{ z[0] + 8 }}" y="{{ z[1] + 4 }}" width="4" height="4" fill="#e6dfd2"/>
+            <rect x="{{ z[0] + 4 }}" y="{{ z[1] + 8 }}" width="4" height="4" fill="#e6dfd2"/>
+            <rect x="{{ z[0] }}" y="{{ z[1] + 12 }}" width="16" height="4" fill="#e6dfd2"/>
           </g>
+          {% endfor %}
         </svg>
       </div>
       <p class="stark">Keine offenen Aufgaben</p>

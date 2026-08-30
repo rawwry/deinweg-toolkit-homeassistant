@@ -46,10 +46,12 @@ export FILES_PFAD="${BASIS}/files"
 export SPRUCH_DATEI="${BASIS}/texte/quotes.txt"
 export IDEEN_DATEI="${BASIS}/texte/ideen.txt"
 export STRINGS_DATEI="${BASIS}/texte/strings.txt"
+export SICHERUNG_PFAD="${BASIS}/sicherungen"
 export PYTHONUNBUFFERED=1
 export PYTHONPATH="${PROGRAMM}"
 
-mkdir -p "${BASIS}/db" "${BASIS}/texte" "${BASIS}/wiki" "${BASIS}/files"
+mkdir -p "${BASIS}/db" "${BASIS}/texte" "${BASIS}/wiki" "${BASIS}/files" \
+         "${BASIS}/sicherungen"
 
 echo "[addon] Programm:    ${PROGRAMM} (im Abbild)"
 echo "[addon] Datenordner: ${BASIS} (bleibt bei Updates unberührt)"

@@ -3,6 +3,19 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.11
+
+- Automatische Sicherung jeden Sonntag, die fünf jüngsten bleiben liegen
+- Schutz vor fremden Formularen (Herkunftsprüfung für alle schreibenden
+  Anfragen)
+- E-Mail-Erinnerung an auslaufende, abgelaufene und fehlende
+  Bewilligungen, mit Optionen und Vorlage in den Einstellungen
+- Einstellungen → System: fehlende Standardtexte nachziehen, Fußzeile
+  selbst beschriften, Liste der automatischen Sicherungen
+- Aufgaben: „Erledigte ausblenden" wirkt wieder
+- Keine Animationen mehr im Menü am Handy
+- Neues Bild für „nichts zu tun": ein müdes Faultier
+
 ## 1.10.1
 
 - „Mein Bereich": Tabellen linksbündig, Zeitenliste kleiner mit Balken

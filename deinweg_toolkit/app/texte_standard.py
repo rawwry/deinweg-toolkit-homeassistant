@@ -328,7 +328,7 @@ TEXTE_STANDARD["einst.email_test_hinweis"] = (
     "Schickt sofort eine Nachricht, unabhängig davon, ob der automatische "
     "Versand eingeschaltet ist. Gut geeignet, um die Zugangsdaten zu prüfen.")
 TEXTE_STANDARD["einst.email_pruefen_hinweis"] = (
-    "Führt beide Prüfungen sofort aus, statt bis zum nächsten stündlichen "
+    "Führt alle Prüfungen sofort aus, statt bis zum nächsten stündlichen "
     "Durchlauf zu warten. Bereits verschickte Erinnerungen werden dabei "
     "nicht erneut versendet.")
 TEXTE_STANDARD["einst.email_verlauf_hinweis"] = (
@@ -358,6 +358,31 @@ TEXTE_STANDARD["einst.sicherung_import"] = (
     "Datenbestand wird dabei vollständig ersetzt. Die bisherige Datenbank "
     "wird vorher zur Sicherheit daneben abgelegt, gelöscht wird nichts. "
     "Nach dem Einspielen ist eine neue Anmeldung nötig.")
+TEXTE_STANDARD["einst.sicherung_automatisch"] = (
+    "Jeden Sonntag legt das Tool von selbst eine Kopie der Datenbank ab. "
+    "Die fünf jüngsten bleiben liegen, ältere werden verworfen. Das "
+    "ersetzt keine Sicherung außer Haus – dafür ist der Knopf darunter "
+    "da.")
+TEXTE_STANDARD["einst.bewilligungsmail_lead"] = (
+    "Erinnert an Bewilligungen, die demnächst auslaufen, bereits "
+    "abgelaufen sind oder ganz fehlen. Eine gesammelte Mail je Woche, "
+    "keine einzelne je Person.")
+TEXTE_STANDARD["einst.bewilligungsmail_hinweis"] = (
+    "Der Vorlauf sagt, ab wann eine Bewilligung als auslaufend gilt. "
+    "Abgelaufene und fehlende Bewilligungen stehen unabhängig davon "
+    "immer mit in der Mail.")
+TEXTE_STANDARD["einst.fusszeile_lead"] = (
+    "Der Text ganz unten auf jeder Seite. Bleibt ein Feld leer, gilt "
+    "wieder der ausgelieferte Wortlaut.")
+TEXTE_STANDARD["einst.fusszeile_hinweis"] = (
+    "Programmname, Version und der Verweis auf den Changelog stehen "
+    "fest in der ersten Zeile und lassen sich nicht ändern.")
+TEXTE_STANDARD["einst.texte_lead"] = (
+    "Die erklärenden Texte der Oberfläche liegen in <code>strings.txt</code>. "
+    "Diese Datei gewinnt gegen die ausgelieferten Texte – neue oder "
+    "verbesserte Formulierungen aus einem Update kommen deshalb nicht "
+    "von selbst an. „Fehlende Texte ergänzen“ trägt nur nach, was in der "
+    "Datei noch gar nicht steht, und lässt eigene Änderungen in Ruhe.")
 TEXTE_STANDARD["login.lead"] = (
     "Mit Benutzername und Passwort anmelden, um fortzufahren.")
 TEXTE_STANDARD["vorgaenge.verlauf_leer"] = "Noch keine Einträge."

@@ -1376,6 +1376,45 @@
   <p class="leer">{{ t("einst.email_keine") }}</p>
   {% endif %}
 </section>
+
+{# Dritter Anlass neben Fristen und Monatsabgaben: auslaufende
+   Bewilligungen. Eine Sammelmail je Woche, nicht eine je Person - es geht
+   um eine Liste, die man einmal durchgeht. #}
+<section class="karte">
+  <h2>Erinnerung an Bewilligungen</h2>
+  <p class="lead">{{ t("einst.bewilligungsmail_lead") }}</p>
+
+  <form action="/einstellungen/bewilligungsmail" method="post">
+    <label class="filter-umschalter" style="margin-bottom: 18px;">
+      <input type="checkbox" name="bewilligung_aktiv" value="1"
+             {{ 'checked' if mailkonfig.bewilligung_aktiv == '1' }}>
+      <span>Erinnerung verschicken</span>
+    </label>
+
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Empfängerin oder Empfänger</span>
+        <select name="bewilligung_empfaenger">
+          <option value="">– niemand –</option>
+          {% for m in team %}
+          <option value="{{ m.name }}"
+            {{ 'selected' if mailkonfig.bewilligung_empfaenger == m.name }}>{{ m.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="feld">
+        <span>Vorlauf in Tagen <span class="leise">– wann gilt „läuft aus“</span></span>
+        <input type="number" name="bewilligung_tage" min="1" max="365"
+               value="{{ mailkonfig.bewilligung_tage }}">
+      </label>
+    </div>
+    <p class="klein leise felderklaerung">{{ t("einst.bewilligungsmail_hinweis") }}</p>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Speichern</button>
+    </div>
+  </form>
+</section>
 {% endif %}
 
 {% if bereich == "vorlagen" %}
@@ -1415,6 +1454,19 @@
   <p class="klein leise">Platzhalter: <code>{name}</code> <code>{monat}</code>
     <code>{monat_kurz}</code></p>
 
+  <h2 class="unterkopf">Bewilligungen laufen aus</h2>
+  <label class="feld">
+    <span>Betreff</span>
+    <input type="text" name="vorlage_bewilligung_betreff" required
+           value="{{ mailkonfig.vorlage_bewilligung_betreff }}">
+  </label>
+  <label class="feld">
+    <span>Text</span>
+    <textarea name="vorlage_bewilligung_text" rows="10" required>{{ mailkonfig.vorlage_bewilligung_text }}</textarea>
+  </label>
+  <p class="klein leise">Platzhalter: <code>{name}</code> <code>{anzahl}</code>
+    <code>{liste}</code></p>
+
   <div class="knopfreihe" style="margin-top: 20px;">
     <button class="knopf haupt" type="submit">Vorlagen speichern</button>
   </div>
@@ -1425,7 +1477,7 @@
   <h2>Zurücksetzen</h2>
   <p class="klein leise felderklaerung">{{ t("einst.vorlagen_zuruecksetzen") }}</p>
   <form action="/einstellungen/vorlagen/zuruecksetzen" method="post"
-        onsubmit="return confirm('Beide Vorlagen auf den Auslieferungsstand zurücksetzen? Deine Änderungen gehen dabei verloren.')">
+        onsubmit="return confirm('Alle Vorlagen auf den Auslieferungsstand zurücksetzen? Deine Änderungen gehen dabei verloren.')">
     <button class="knopf warn" type="submit">Auf Auslieferungsstand zurücksetzen</button>
   </form>
 </section>
@@ -1473,7 +1525,65 @@
   </dl>
 </section>
 
+{# Fußzeile und Standardtexte: beides wirkt auf die ganze Anwendung und
+   gehört deshalb hierher, nicht unter „Oberfläche" (das ist je Browser). #}
+<section class="karte">
+  <h2>Fußzeile</h2>
+  <p class="lead">{{ t("einst.fusszeile_lead") }}</p>
+  <form action="/einstellungen/fusszeile" method="post">
+    <label class="feld">
+      <span>Satz unter dem Programmnamen</span>
+      <input type="text" name="fusszeile_satz" maxlength="200"
+             value="{{ mailkonfig.fusszeile_satz }}"
+             placeholder="{{ fuss_standard.satz }}">
+    </label>
+    <label class="feld">
+      <span>Zeile mit den Rechten <span class="leise">– HTML erlaubt</span></span>
+      <input type="text" name="fusszeile_recht" maxlength="300"
+             value="{{ mailkonfig.fusszeile_recht }}"
+             placeholder="© 2026 …">
+    </label>
+    <p class="klein leise felderklaerung">{{ t("einst.fusszeile_hinweis") }}</p>
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Fußzeile speichern</button>
+    </div>
+  </form>
+</section>
+
+<section class="karte">
+  <h2>Standardtexte</h2>
+  <p class="lead">{{ t("einst.texte_lead") }}</p>
+  <div class="knopfreihe">
+    <form class="inline" action="/einstellungen/texte" method="post">
+      <input type="hidden" name="modus" value="fehlende">
+      <button class="knopf haupt" type="submit">Fehlende Texte ergänzen</button>
+    </form>
+    <form class="inline" action="/einstellungen/texte" method="post"
+          onsubmit="return confirm('Alle Texte auf den Auslieferungsstand setzen? Eigene Formulierungen in strings.txt gehen dabei verloren.')">
+      <input type="hidden" name="modus" value="alle">
+      <button class="knopf warn" type="submit">Alle Texte zurücksetzen</button>
+    </form>
+  </div>
+</section>
+
 {% if ist_admin %}
+<section class="karte">
+  <h2>Automatische Sicherung</h2>
+  <p class="lead">{{ t("einst.sicherung_automatisch") }}</p>
+  {% if sicherungen %}
+  <dl class="systemliste breit">
+    {% for si in sicherungen %}
+    <dt>{{ si.datum }}</dt><dd>{{ si.groesse }} · <code>{{ si.name }}</code></dd>
+    {% endfor %}
+  </dl>
+  {% else %}
+  <p class="leer klein">Noch keine automatische Sicherung vorhanden.</p>
+  {% endif %}
+  <p class="klein leise felderklaerung">
+    Ablage: <code>{{ system.sicherung_pfad }}</code>
+  </p>
+</section>
+
 <section class="raster gleich buendig">
   <div class="karte hochkant">
     <h2>Sicherung herunterladen</h2>
