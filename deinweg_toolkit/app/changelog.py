@@ -1345,4 +1345,21 @@ CHANGELOG = [
         "dreizehn Sekunden",
         "Prüfung von 837 auf 862 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.12.1", "titel": "Folgebescheide zählen, Diagramm lesbar", "punkte": [
+        "Ist zu einer auslaufenden Bewilligung bereits ein Folgebescheid "
+        "hinterlegt, wird nicht mehr gewarnt – weder in „Mein Bereich“ "
+        "noch per E-Mail. Genau dafür ist der Hinweis da, und wenn er "
+        "sich nicht abstellen lässt, taugt er nichts",
+        "In den Einstellungen stand bei einer auslaufenden Bewilligung "
+        "„keine Bewilligung hinterlegt“ – auch bei zwei gepflegten "
+        "Zeiträumen. Der Anzeige fehlte schlicht dieser Fall",
+        "Die Zeile nennt jetzt „läuft aus am …“ und, falls vorhanden, "
+        "den Folgebescheid",
+        "Verlaufsdiagramm: die Werte beim Überfahren standen im dunklen "
+        "Thema in Schwarz auf Schwarz – zwei Farbnamen waren falsch "
+        "geschrieben. Die Beschriftungen sind außerdem etwas kleiner",
+        "Die Animation des Diagramms läuft erst, wenn es im Bild steht – "
+        "vorher war sie vorbei, bevor man hingescrollt hatte",
+        "Prüfung von 862 auf 877 Einzelprüfungen erweitert",
+    ]},
 ]

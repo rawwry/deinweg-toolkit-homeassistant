@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.12.1
+
+- Ein hinterlegter Folgebescheid beendet die Warnung „läuft aus"
+- Einstellungen → Betreute Personen: „läuft aus am …" statt fälschlich
+  „keine Bewilligung hinterlegt", dazu der Hinweis auf den Folgebescheid
+- Verlaufsdiagramm: Werte beim Überfahren im dunklen Thema wieder
+  lesbar, Beschriftungen kleiner
+- Die Animation des Diagramms läuft erst, wenn es im Bild steht
+
 ## 1.12
 
 - Verlaufsdiagramm in „Mein Bereich": geteilte Balken (Zuviel bzw.

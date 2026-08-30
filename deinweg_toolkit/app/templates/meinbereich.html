@@ -507,6 +507,31 @@
         {% endif %}
       </svg>
     </div>
+    {# ⚠️ Steht das Diagramm beim Laden weit unten, wäre seine Animation
+       vorbei, bevor jemand hinscrollt. Das Skript hält sie an und lässt
+       sie erst laufen, wenn das Bild wirklich im Sichtfeld steht. Es
+       steht direkt hinter dem Diagramm, damit es noch vor dem ersten
+       Zeichnen greift - sonst blitzte das fertige Bild kurz auf.
+       Ohne Skript läuft alles wie zuvor beim Laden: „pausiert" wird dann
+       nie gesetzt. #}
+    <script>
+      (function () {
+        var bild = document.currentScript.previousElementSibling
+                     .querySelector('.stundendiagramm');
+        if (!bild || !('IntersectionObserver' in window)) return;
+        bild.classList.add('pausiert');
+        var beobachter = new IntersectionObserver(function (eintraege) {
+          for (var i = 0; i < eintraege.length; i++) {
+            if (eintraege[i].isIntersecting) {
+              bild.classList.add('sichtbar');
+              beobachter.disconnect();
+              return;
+            }
+          }
+        }, { threshold: 0.35 });
+        beobachter.observe(bild);
+      })();
+    </script>
 
     <div class="legende">
       <span><i class="punkt balken-gut"></i> Soll erreicht</span>

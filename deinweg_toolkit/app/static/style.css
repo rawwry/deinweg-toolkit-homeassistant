@@ -2447,9 +2447,9 @@ fieldset.feld > span {
   fill: none; stroke: var(--warn); stroke-width: 2.5;
   stroke-linejoin: round; stroke-linecap: round; opacity: .9;
 }
-.stundendiagramm .saldopunkt { fill: var(--warn); stroke: var(--flaeche-1);
+.stundendiagramm .saldopunkt { fill: var(--warn); stroke: var(--flaeche);
                                stroke-width: 1.5; }
-.stundendiagramm .achsentext { fill: var(--leise); font-size: 11px; }
+.stundendiagramm .achsentext { fill: var(--leise); font-size: 9.5px; }
 
 /* Die Trefferfläche liegt über der ganzen Spalte: ein 12px schmaler
    Balken ist mit der Maus sonst kaum zu erwischen. */
@@ -2461,17 +2461,17 @@ fieldset.feld > span {
 /* Der Wert steht erst da, wenn man die Spalte anfasst - zwölf Zahlen
    gleichzeitig über zwölf Balken wären wieder eine Tabelle. */
 .stundendiagramm .wertmarke {
-  fill: var(--text); font-size: 10.5px; font-weight: 600;
+  fill: var(--tinte); font-size: 9px; font-weight: 600;
   font-variant-numeric: tabular-nums;
   opacity: 0; transition: opacity .15s ease;
   /* Der Strich in der Kartenfarbe liegt UNTER der Schrift und hebt sie
      von Balken und Saldolinie ab - billiger als ein Kasten dahinter. */
-  stroke: var(--flaeche-1); stroke-width: 3.5; paint-order: stroke fill;
+  stroke: var(--flaeche); stroke-width: 3; paint-order: stroke fill;
 }
 .saeule:hover .wertmarke, .saeule:focus-within .wertmarke { opacity: 1; }
 /* Ohne Zeiger gibt es kein Überfahren - dort steht der Wert immer. */
 @media (hover: none) {
-  .stundendiagramm .wertmarke { opacity: 1; font-size: 9.5px; }
+  .stundendiagramm .wertmarke { opacity: 1; font-size: 8px; }
 }
 
 /* Die drei Zustände. Der untere Teil trägt die Farbe, das Stück darüber
@@ -2514,6 +2514,18 @@ fieldset.feld > span {
     animation-delay: var(--takt, 0s);
   }
 }
+/* ⚠️ Die Animation soll man SEHEN. Steht das Diagramm beim Laden weit
+   unten auf der Seite, wäre sie vorbei, bevor man hinscrollt. Ein kurzes
+   Skript direkt hinter dem Diagramm setzt deshalb „pausiert" und nimmt
+   es erst zurück, wenn das Bild im Sichtfeld steht.
+   Bewusst über animation-play-state und nicht über opacity: die
+   Animationen stehen dadurch bei Takt 0 auf ihrem Anfangsbild
+   (animation-fill-mode: backwards) und behalten am Ende ihre eigene
+   Deckkraft - „ueber" ist absichtlich halbdurchsichtig.
+   Ohne Skript läuft alles wie bisher beim Laden. */
+.stundendiagramm.pausiert * { animation-play-state: paused; }
+.stundendiagramm.sichtbar * { animation-play-state: running; }
+
 @keyframes dia-wachsen {
   from { transform: scaleY(0); opacity: .3; }
   to   { transform: scaleY(1); opacity: 1; }

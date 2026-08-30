@@ -2641,11 +2641,125 @@ def test_verlaufsdiagramm(client: TestClient) -> None:
     if 'class="saldolinie"' in bild:
         pruefe("--laenge:" in bild, "die Saldolinie bringt ihre Länge mit")
 
+    # Die Animation soll man sehen: sie wartet, bis das Diagramm im Bild
+    # steht. Ohne Skript läuft sie wie zuvor gleich beim Laden.
+    umgebung = seite.split('class="diagrammhuelle"')[1].split("<div class=\"legende\"")[0]
+    pruefe("IntersectionObserver" in umgebung and "pausiert" in umgebung,
+           "die Animation wartet, bis das Diagramm im Bild steht")
+
     stil = client.get("/static/style.css").text.replace("\n", " ")
     pruefe("dia-wachsen" in stil and "dia-strich" in stil,
            "Balken und Linie zeichnen sich ein")
     pruefe("dia-wachsen" in bewegungsbloecke(stil),
            "und stehen still, wenn Bewegung reduziert werden soll")
+    pruefe("animation-play-state: paused" in stil
+           and ".stundendiagramm.sichtbar" in stil,
+           "angehalten wird über animation-play-state, nicht über die Deckkraft")
+
+
+def test_farbvariablen(client: TestClient) -> None:
+    """Jede benutzte CSS-Variable muss es auch geben.
+
+    ⚠️ Ein Tippfehler in einem var(--…) ist unsichtbar: die Eigenschaft
+    fällt still auf ihren Anfangswert zurück. Genau so stand die
+    Wertmarke des Diagramms in Schwarz auf dunklem Grund - sie hieß
+    var(--text), die Variable heißt aber --tinte.
+    """
+    abschnitt("CSS-Variablen")
+    stil = client.get("/static/style.css").text
+
+    definiert = set(re.findall(r"(--[a-z0-9-]+)\s*:", stil))
+    # Ein zweiter Wert in var(…) ist der Rückfall - der darf fehlen.
+    ohne_rueckfall = set(re.findall(r"var\(\s*(--[a-z0-9-]+)\s*\)", stil))
+    # Manches wird erst im Markup gesetzt (style="--takt: …").
+    aus_markup = set()
+    for name in os.listdir("app/templates"):
+        if name.endswith(".html"):
+            with open(os.path.join("app/templates", name), encoding="utf-8") as f:
+                aus_markup |= set(re.findall(r"(--[a-z0-9-]+)\s*:", f.read()))
+
+    fehlend = sorted(ohne_rueckfall - definiert - aus_markup)
+    pruefe(not fehlend, f"keine unbekannte CSS-Variable (offen: {fehlend})")
+
+
+def test_bewilligung_nachfolge(client: TestClient) -> None:
+    """Ein hinterlegter Folgebescheid beendet die Warnung."""
+    abschnitt("Bewilligung mit Folgebescheid")
+    from .main import bewilligungslage
+
+    heute = "2026-08-30"
+
+    def zr(von, bis):
+        return {"von": von, "bis": bis, "wochenstunden": 4, "stundensatz": 70}
+
+    # Absteigend nach „von“, so kommt die Liste überall herein.
+    laufend_allein = [zr("2025-10-01", "2026-09-30")]
+    stand = bewilligungslage(laufend_allein, 0, 0, heute)
+    pruefe(stand["art"] == "laeuft_aus",
+           "ohne Folgebescheid läuft die Bewilligung aus")
+    pruefe(stand["bis"] == "2026-09-30", "und die Meldung nennt das Datum")
+
+    mit_nachfolge = [zr("2026-10-01", "2027-09-30"), zr("2025-10-01", "2026-09-30")]
+    stand = bewilligungslage(mit_nachfolge, 0, 0, heute)
+    pruefe(stand["art"] == "laufend",
+           "mit hinterlegtem Folgebescheid wird nicht mehr gewarnt")
+    pruefe(stand["nachfolge"] and stand["nachfolge"]["von"] == "2026-10-01",
+           "der Folgebescheid wird mitgegeben")
+    pruefe(stand["zeitraum"]["von"] == "2025-10-01",
+           "es gilt weiterhin der heutige Zeitraum")
+
+    # Ein Folgebescheid, der noch VOR dem Ende endet, ist keiner.
+    kein_nachfolger = [zr("2026-09-01", "2026-09-15"), zr("2025-10-01", "2026-09-30")]
+    pruefe(bewilligungslage(kein_nachfolger, 0, 0, heute)["art"] == "laeuft_aus",
+           "ein kürzerer Zeitraum dazwischen zählt nicht als Nachfolger")
+
+    # Ein Folgebescheid ohne Ende gilt bis auf Weiteres.
+    offen = [zr("2026-10-01", None), zr("2025-10-01", "2026-09-30")]
+    pruefe(bewilligungslage(offen, 0, 0, heute)["art"] == "laufend",
+           "ein Folgebescheid ohne Ende zählt auch")
+
+    # ⚠️ Und der Fall, der die ganze Sache aufgedeckt hat: in den
+    # Einstellungen stand „keine Bewilligung hinterlegt“, weil die
+    # Vorlage für „läuft aus“ gar keinen Zweig hatte.
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO person (name, wochenstunden, "
+                    "stundensatz, aktiv, angelegt_am) VALUES "
+                    "('Auslaufperson', 0, 0, 1, '2026-01-01 08:00')")
+        pid = con.execute("SELECT id FROM person WHERE name='Auslaufperson'"
+                          ).fetchone()["id"]
+        con.execute("DELETE FROM person_zeitraum WHERE person_id=?", (pid,))
+        heute_echt = dt.date.today()
+        con.execute("INSERT INTO person_zeitraum (person_id, von, bis, "
+                    "wochenstunden, stundensatz, angelegt_am) "
+                    "VALUES (?,?,?,?,?,'2026-01-01 08:00')",
+                    (pid, (heute_echt - dt.timedelta(days=300)).isoformat(),
+                     (heute_echt + dt.timedelta(days=20)).isoformat(), 4, 70))
+    seite = client.get("/einstellungen?bereich=betreute").text
+    zeile = seite.split("Auslaufperson")[1][:600]
+    pruefe("läuft aus am" in zeile,
+           "die Einstellungen sagen „läuft aus“")
+    pruefe("keine Bewilligung hinterlegt" not in zeile,
+           "und nicht mehr fälschlich „keine Bewilligung hinterlegt“")
+
+    # Mit Folgebescheid verschwindet die Warnung auch dort.
+    with db.db() as con:
+        con.execute("INSERT INTO person_zeitraum (person_id, von, bis, "
+                    "wochenstunden, stundensatz, angelegt_am) "
+                    "VALUES (?,?,?,?,?,'2026-01-01 08:00')",
+                    (pid, (heute_echt + dt.timedelta(days=21)).isoformat(),
+                     (heute_echt + dt.timedelta(days=400)).isoformat(), 5, 72))
+    seite = client.get("/einstellungen?bereich=betreute").text
+    zeile = seite.split("Auslaufperson")[1][:600]
+    pruefe("läuft aus am" not in zeile and "gültig" in zeile,
+           "mit Folgebescheid steht dort wieder „gültig“")
+    pruefe("Folgebescheid ab" in zeile, "und der Folgebescheid wird genannt")
+
+    # Und die Person fällt aus der Karte „Bewilligungen im Blick“.
+    mein = client.get("/meinbereich").text
+    pruefe("Auslaufperson" not in mein.split("Bewilligungen im Blick")[1][:2500],
+           "und nicht mehr in „Bewilligungen im Blick“")
+    with db.db() as con:
+        con.execute("DELETE FROM person WHERE id=?", (pid,))
 
 
 def test_versionen() -> None:
@@ -3378,6 +3492,8 @@ def _durchlauf(client: TestClient) -> None:
         test_texte_nachziehen(client)
         test_fusszeile(client)
         test_verlaufsdiagramm(client)
+        test_farbvariablen(client)
+        test_bewilligung_nachfolge(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")

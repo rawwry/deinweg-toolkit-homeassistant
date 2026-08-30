@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.12"
+VERSION = "1.12.1"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -820,11 +820,18 @@ def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
 
     ``art`` ist eines von:
     * ``laufend``    - alles in Ordnung
-    * ``laeuft_aus`` - gilt noch, endet aber in den naechsten 60 Tagen
+    * ``laeuft_aus`` - gilt noch, endet bald, und es gibt keinen Nachfolger
     * ``abgelaufen`` - der letzte Bescheid ist vorbei
     * ``kuenftig``   - der naechste beginnt erst
     * ``grundwert``  - gar kein Bescheid, aber ein Grundwert
     * ``leer``       - nichts hinterlegt
+
+    ⚠️ **Ein hinterlegter Folgebescheid beendet die Warnung.** "Laeuft
+    aus" heisst: hier muss ein Folgeantrag raus. Steht der naechste
+    Zeitraum schon da, ist genau das erledigt - dann weiter zu warnen
+    macht die Hinweise wertlos, weil man sie nicht mehr abstellen kann.
+    Die Lage bleibt ``laufend`` und traegt den Nachfolger unter
+    ``nachfolge`` mit, damit die Oberflaeche ihn nennen kann.
     """
     laufend = None
     for z in zeitraeume or []:
@@ -833,7 +840,16 @@ def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
             break
 
     if laufend:
-        if laufend["bis"]:
+        # Deckt irgendein spaeterer Zeitraum die Zeit nach diesem hier ab?
+        # Die Liste steht absteigend nach ``von``; alles mit spaeterem
+        # Beginn als der laufende faengt erst in der Zukunft an - was
+        # heute schon gilt, waere oben als ``laufend`` gefunden worden.
+        nachfolge = next(
+            (z for z in zeitraeume or []
+             if z["von"] > laufend["von"]
+             and (not laufend["bis"] or not z["bis"] or z["bis"] > laufend["bis"])),
+            None)
+        if laufend["bis"] and not nachfolge:
             try:
                 tage = (dt.date.fromisoformat(laufend["bis"])
                         - dt.date.fromisoformat(heute)).days
@@ -842,7 +858,7 @@ def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
             if tage is not None and tage <= (vorlauf or BEWILLIGUNG_BALD_TAGE):
                 return {"art": "laeuft_aus", "bis": laufend["bis"],
                         "tage": tage, "zeitraum": laufend}
-        return {"art": "laufend", "zeitraum": laufend}
+        return {"art": "laufend", "zeitraum": laufend, "nachfolge": nachfolge}
 
     if zeitraeume:
         kuenftig = [z for z in zeitraeume if z["von"] > heute]

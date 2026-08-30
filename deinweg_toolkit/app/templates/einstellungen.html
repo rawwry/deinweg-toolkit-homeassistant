@@ -290,7 +290,7 @@
   {% set gilt_heute = zeitraum_aktuell.get(p.id) %}
   {% set stand = zeitraum_lage.get(p.id, {}) %}
   <details class="konto person {{ '' if p.aktiv else 'stillgelegt' }}
-                  {{ 'ohne-bewilligung' if p.aktiv and stand.art in ('abgelaufen', 'kuenftig', 'leer') }}"
+                  {{ 'ohne-bewilligung' if p.aktiv and stand.art in ('abgelaufen', 'kuenftig', 'leer', 'laeuft_aus') }}"
            id="person-{{ p.id }}" {{ 'open' if offen == p.id }}>
     <summary class="konto-kopf">
       <span class="konto-name">
@@ -304,6 +304,15 @@
         {% if stand.art == "laufend" %}
           <span class="marke-status gut">gültig</span>
           {{ gilt_heute.wochenstunden | stunden }} Std/Woche · {{ gilt_heute.stundensatz | euro }}
+          {% if stand.nachfolge %}
+          <span class="leise">· Folgebescheid ab {{ stand.nachfolge.von | deutsch }}</span>
+          {% endif %}
+        {# ⚠️ Dieser Zweig hat bis 1.12.1 gefehlt. „läuft aus“ fiel damit
+           in den else-Zweig und stand als „keine Bewilligung hinterlegt“
+           da - bei einer Person mit zwei gepflegten Zeiträumen. #}
+        {% elif stand.art == "laeuft_aus" %}
+          <span class="marke-status offen">läuft aus am {{ stand.bis | deutsch }}</span>
+          {% if gilt_heute %}{{ gilt_heute.wochenstunden | stunden }} Std/Woche · {{ gilt_heute.stundensatz | euro }}{% endif %}
         {% elif stand.art == "abgelaufen" %}
           <span class="marke-status dopp">Bewilligung ausgelaufen</span>
           {% if stand.seit %}<span class="leise">seit {{ stand.seit | deutsch }}</span>{% endif %}
