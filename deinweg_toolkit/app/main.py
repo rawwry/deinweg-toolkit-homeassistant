@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.11"
+VERSION = "1.12"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1923,55 +1923,112 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
     letzte = list(reversed(monate[:12]))  # chronologisch, aelteste links
     diagramm = None
     if letzte:
-        breite, hoehe = 420, 190
-        oben, unten, links, rechts = 14, 32, 34, 8
+        breite, hoehe = 460, 220
+        oben, unten, links, rechts = 18, 34, 12, 12
         flaeche = hoehe - oben - unten
+        grundlinie = oben + flaeche
         spalte = (breite - links - rechts) / max(len(letzte), 1)
         soll_min = int(round(soll_std * 60))
-        spitze = max([m["ist"] for m in letzte] + [soll_min, 60])
-        spitze = spitze * 1.18
+        spitze = max([m["ist"] for m in letzte] + [soll_min, 60]) * 1.2
+
+        def hoch(minuten: float) -> float:
+            """Minuten in Balkenhoehe."""
+            return flaeche * (minuten / spitze)
 
         balken, saldopunkte, summe = [], [], 0
         for i, m in enumerate(letzte):
-            h = flaeche * (m["ist"] / spitze)
-            x = links + i * spalte + spalte * 0.22
-            balkenbreite = spalte * 0.56
-            erreicht = soll_min and m["ist"] >= soll_min
+            b = spalte * 0.54
+            x = links + i * spalte + (spalte - b) / 2
+            h_ist = hoch(m["ist"])
+
+            # Der Balken zerfaellt in bis zu zwei Stuecke. Das ist der
+            # eigentliche Punkt dieser Darstellung: nicht "wie viel war
+            # es", sondern "wie viel fehlt oder ist zu viel" - und das
+            # sieht man nur, wenn der Unterschied selbst eine Flaeche
+            # bekommt. Ein einzelner Balken neben einer Soll-Linie laesst
+            # einen die Differenz schaetzen.
+            h_ueber = h_fehlt = 0.0
+            if soll_min and not m["laufend"]:
+                if m["ist"] >= soll_min:
+                    h_basis = hoch(soll_min)
+                    h_ueber = h_ist - h_basis
+                    klasse = "saeule-gut"
+                else:
+                    h_basis = h_ist
+                    h_fehlt = hoch(soll_min) - h_ist
+                    klasse = "saeule-unter"
+            else:
+                h_basis = h_ist
+                klasse = "saeule-laufend" if m["laufend"] else "saeule-neutral"
+
+            y_basis = grundlinie - max(h_basis, 2)
+            oberkante = y_basis - max(h_ueber, h_fehlt)
+            saldo = m["saldo"] if soll_min and not m["laufend"] else None
             balken.append({
-                "x": round(x, 1), "y": round(oben + flaeche - h, 1),
-                "b": round(balkenbreite, 1), "h": round(max(h, 1), 1),
-                "mitte": round(x + balkenbreite / 2, 1),
+                "x": round(x, 1), "b": round(b, 1),
+                "mitte": round(x + b / 2, 1),
+                "y_basis": round(y_basis, 1),
+                "h_basis": round(max(h_basis, 2), 1),
+                "y_ueber": round(y_basis - h_ueber, 1),
+                "h_ueber": round(h_ueber, 1) if h_ueber > 0.6 else 0,
+                "y_fehlt": round(y_basis - h_fehlt, 1),
+                "h_fehlt": round(h_fehlt, 1) if h_fehlt > 0.6 else 0,
+                # Die Wertmarke ist breiter als ihre Spalte. Am Rand wuerde
+                # sie deshalb abgeschnitten - dort haengt sie sich an die
+                # Kante statt sich zu zentrieren.
+                "label_y": round(max(oberkante - 7, oben + 2), 1),
+                "label_x": round(links if x + b / 2 - 58 < links else
+                                 breite - rechts if x + b / 2 + 58 > breite - rechts
+                                 else x + b / 2, 1),
+                "label_anker": ("start" if x + b / 2 - 58 < links else
+                                "end" if x + b / 2 + 58 > breite - rechts
+                                else "middle"),
+                "takt": round(i * 0.055, 3),
                 "kurz": MONATSNAMEN.get(m["monat"][5:7], "")[:3],
                 "jahr": m["monat"][:4],
                 "wert": hhmm(m["ist"]),
                 "wort": m["wort"],
-                "klasse": ("balken-laufend" if m["laufend"] else
-                           "balken-gut" if erreicht else
-                           "balken-unter" if soll_min else "balken-neutral"),
+                "laufend": m["laufend"],
+                "saldo_wort": (("+" if saldo > 0 else "−" if saldo < 0 else "±")
+                               + hhmm(abs(saldo))) if saldo is not None else None,
+                "klasse": klasse,
             })
             if soll_min and not m["laufend"]:
                 summe += m["saldo"]
-                saldopunkte.append({"x": round(x + balkenbreite / 2, 1),
-                                    "saldo": summe})
+                saldopunkte.append({"x": round(x + b / 2, 1), "saldo": summe,
+                                    "wort": hhmm(abs(summe)),
+                                    "plus": summe >= 0})
 
         # Der Saldoverlauf bekommt eine eigene Skala, sonst waere er neben
         # den Monatsbalken kaum zu erkennen.
-        linie = ""
+        linie, punkte, linienlaenge = "", [], 0
         if len(saldopunkte) > 1:
             grenze = max(abs(p["saldo"]) for p in saldopunkte) or 1
             mitte = oben + flaeche / 2
-            teile = []
+            teile, vorher = [], None
             for p in saldopunkte:
-                y = mitte - (p["saldo"] / grenze) * (flaeche / 2 * 0.82)
-                teile.append(f"{p['x']},{round(y, 1)}")
+                y = round(mitte - (p["saldo"] / grenze) * (flaeche / 2 * 0.78), 1)
+                teile.append(f"{p['x']},{y}")
+                if vorher:
+                    linienlaenge += ((p["x"] - vorher[0]) ** 2
+                                     + (y - vorher[1]) ** 2) ** 0.5
+                vorher = (p["x"], y)
+                punkte.append({"x": p["x"], "y": y, "wort": p["wort"],
+                               "plus": p["plus"]})
             linie = " ".join(teile)
 
         diagramm = {
             "breite": breite, "hoehe": hoehe, "oben": oben, "links": links,
-            "flaeche": flaeche, "grundlinie": oben + flaeche,
-            "balken": balken, "linie": linie,
-            "soll_y": round(oben + flaeche - flaeche * (soll_min / spitze), 1)
-                      if soll_min else None,
+            "flaeche": flaeche, "grundlinie": grundlinie,
+            "balken": balken, "linie": linie, "punkte": punkte,
+            # ⚠️ Die Laenge wird hier gerechnet, damit die Linie sich per
+            # stroke-dashoffset einzeichnen kann. Im Browser ginge das nur
+            # ueber getTotalLength() - also mit Skript, und das laedt die
+            # Anwendung bewusst nicht (Abschnitt 13).
+            "linienlaenge": round(linienlaenge + 4, 1),
+            "raster": [round(grundlinie - flaeche * a, 1)
+                       for a in (0.25, 0.5, 0.75)],
+            "soll_y": round(grundlinie - hoch(soll_min), 1) if soll_min else None,
             "soll_wert": hhmm(soll_min) if soll_min else None,
             "rechts_x": breite - rechts,
             "mittellinie": round(oben + flaeche / 2, 1),

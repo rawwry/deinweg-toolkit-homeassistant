@@ -362,6 +362,8 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "BEREICHE": auth.BEREICHE, "EINST_BEREICHE": auth.EINST_BEREICHE,
             "eigene_id": request.state.benutzer["id"],
             "mailkonfig": mailkonfig, "passwort_gesetzt": passwort_gesetzt,
+            "bewilligung_empfaenger":
+                mail.empfaengerliste(mailkonfig.get("bewilligung_empfaenger")),
             "letzte_mails": letzte_mails,
             "sprueche": sprueche_lesen() if bereich == "quotes" else [],
             "spruch_bearbeiten": spruch_bearbeiten,
@@ -936,20 +938,32 @@ def email_speichern(smtp_absender: str = Form(""), smtp_absendername: str = Form
 @router.post("/einstellungen/bewilligungsmail")
 def bewilligungsmail_speichern(bewilligung_aktiv: str = Form(""),
                                bewilligung_tage: str = Form("60"),
-                               bewilligung_empfaenger: str = Form("")):
+                               bewilligung_empfaenger: list[str] = Form([])):
+    """Mehrere Empfaenger, kommagetrennt gespeichert.
+
+    Die Namen kommen als Kaestchenliste herein, also als mehrere Felder
+    desselben Namens. Gespeichert wird daraus ein Klartextfeld - dieselbe
+    Form wie bei ``berechtigungen``; eine eigene Tabelle waere fuer eine
+    Handvoll Namen zu viel.
+    """
     try:
         tage = max(1, min(365, int(bewilligung_tage or 60)))
     except ValueError:
         return email_zurueck(fehler="Der Vorlauf muss eine Zahl in Tagen sein.")
-    empfaenger = bewilligung_empfaenger.strip()
-    if bewilligung_aktiv and not empfaenger:
+    namen = []
+    for wert in bewilligung_empfaenger:
+        for teil in wert.split(","):
+            teil = teil.strip()
+            if teil and teil not in namen:
+                namen.append(teil)
+    if bewilligung_aktiv and not namen:
         return email_zurueck(fehler=(
-            "Ohne Empfängerin kann die Erinnerung nicht verschickt werden."))
+            "Ohne Empfänger kann die Erinnerung nicht verschickt werden."))
     with db.db() as con:
         mail.konfig_schreiben(con, {
             "bewilligung_aktiv": "1" if bewilligung_aktiv else "0",
             "bewilligung_tage": str(tage),
-            "bewilligung_empfaenger": empfaenger,
+            "bewilligung_empfaenger": ", ".join(namen),
         })
     return email_zurueck(hinweis="Erinnerung an Bewilligungen gespeichert.")
 

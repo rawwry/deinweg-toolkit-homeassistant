@@ -2295,12 +2295,23 @@ def test_meinbereich_aufbau(client: TestClient) -> None:
     # bei „Bewegung reduzieren" still stehen.
     pruefe('class="faul"' in leer and "faul-tier" in leer,
            "und einem dösenden Faultier")
-    pruefe("<img" not in leer.split('class="faul"')[1].split("</svg>")[0],
-           "handgezeichnet, ohne nachgeladenes Bild")
+    bild = leer.split('class="faul"')[1].split("</svg>")[0]
+    pruefe("<img" not in bild and "<script" not in bild,
+           "handgezeichnet, ohne nachgeladenes Bild und ohne Skript")
+    # Es lebt: Kopf, Atem, Gähnen, Motte und Mond sind eigene Teile.
+    for teil in ("faul-kopf", "faul-bauch", "faul-gaehn", "faul-mund",
+                 "faul-falter", "faul-mond", "faul-stern"):
+        pruefe(teil in bild, f"das Faultier hat den Teil „{teil}“")
     stil = client.get("/static/style.css").text.replace("\n", " ")
     pruefe("prefers-reduced-motion: no-preference" in stil
            and "faul-schaukeln" in stil,
            "das Faultier hält still, wenn Bewegung reduziert werden soll")
+    # ⚠️ Jede Bewegung muss INNERHALB des Blocks stehen. Eine Animation
+    # davor liefe auch dann, wenn jemand Bewegung abgestellt hat.
+    block = bewegungsbloecke(stil)
+    for teil in ("faul-kopf", "faul-bauch", "faul-gaehn", "faul-falter"):
+        pruefe(f".{teil}" in block,
+               f"„{teil}“ bewegt sich nur mit erlaubter Bewegung")
     with db.db() as con:
         con.execute("UPDATE vorgang SET status='Offen' "
                     "WHERE LOWER(TRIM(zustaendig))='pruefer'")
@@ -2483,6 +2494,38 @@ def test_bewilligungsmail(client: TestClient) -> None:
     pruefe(k["bewilligung_tage"] == "45" and k["bewilligung_aktiv"] == "1",
            "und steht danach in der Konfiguration")
 
+    # Mehrere Empfaenger: sie kommen als mehrere Felder desselben Namens
+    # herein und werden kommagetrennt abgelegt.
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, "
+                    "abgabepflicht, monatsstunden, urlaubstage, angelegt_am) "
+                    "VALUES ('Zweite Person',1,1,160,30,'2026-01-01 08:00')")
+    antwort = client.post("/einstellungen/bewilligungsmail", data={
+        "bewilligung_aktiv": "1", "bewilligung_tage": "45",
+        "bewilligung_empfaenger": ["pruefer", "Zweite Person"]},
+        follow_redirects=False)
+    pruefe(antwort.status_code == 303, "mehrere Empfänger lassen sich speichern")
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+    pruefe(mail.empfaengerliste(k["bewilligung_empfaenger"])
+           == ["pruefer", "Zweite Person"], "und stehen beide in der Liste")
+    seite = client.get("/einstellungen?bereich=email").text
+    pruefe(seite.count('name="bewilligung_empfaenger"') >= 2,
+           "die Oberfläche zeigt je Person ein Kästchen")
+    kasten = seite[seite.index('value="Zweite Person"'):][:120]
+    pruefe("checked" in kasten, "und hakt die gespeicherten an")
+
+    # Eingeschaltet, aber niemand angehakt: das muss auffallen.
+    antwort = client.post("/einstellungen/bewilligungsmail", data={
+        "bewilligung_aktiv": "1", "bewilligung_tage": "45"},
+        follow_redirects=False)
+    pruefe("fehler=" in antwort.headers.get("location", ""),
+           "eingeschaltet ohne Empfänger wird abgewiesen")
+
+    client.post("/einstellungen/bewilligungsmail", data={
+        "bewilligung_aktiv": "1", "bewilligung_tage": "45",
+        "bewilligung_empfaenger": ["pruefer"]}, follow_redirects=False)
+
     # Die Liste selbst: sie kommt aus derselben Funktion wie die Anzeige.
     with db.db() as con:
         faelle = main.bewilligungen_pruefen(con, vorlauf=45)
@@ -2550,6 +2593,59 @@ def test_fusszeile(client: TestClient) -> None:
                 follow_redirects=False)
     pruefe("eigentlich nicht organisieren wollen" in client.get("/meinbereich").text,
            "leer heißt: wieder der Standardtext")
+
+
+def bewegungsbloecke(stil: str) -> str:
+    """Alles, was in einem prefers-reduced-motion-Block steht.
+
+    Die Anwendung hat mehrere solcher Blöcke. Ein simples split() träfe
+    immer nur den ersten - deshalb hier über die Klammern gezählt.
+    """
+    marke = "@media (prefers-reduced-motion: no-preference)"
+    teile, stelle = [], stil.find(marke)
+    while stelle != -1:
+        i = stil.find("{", stelle)
+        tiefe, j = 0, i
+        while j < len(stil):
+            if stil[j] == "{":
+                tiefe += 1
+            elif stil[j] == "}":
+                tiefe -= 1
+                if tiefe == 0:
+                    break
+            j += 1
+        teile.append(stil[i:j])
+        stelle = stil.find(marke, j)
+    return "\n".join(teile)
+
+
+def test_verlaufsdiagramm(client: TestClient) -> None:
+    """Das Diagramm: geteilte Balken, gerechnete Linienlänge, kein Skript."""
+    abschnitt("Verlaufsdiagramm")
+    seite = client.get("/meinbereich").text
+    pruefe('class="stundendiagramm"' in seite, "das Diagramm steht auf der Seite")
+    bild = seite.split('class="stundendiagramm"')[1].split("</svg>")[0]
+    pruefe("<script" not in bild and "http" not in bild,
+           "handgebautes SVG, nichts nachgeladen")
+
+    # Der geteilte Balken ist der Kern: unten das Erreichte, darüber das
+    # Zuviel oder das Fehlende.
+    pruefe('class="stueck basis"' in bild, "jeder Monat hat einen Grundbalken")
+    pruefe('class="stueck ueber"' in bild or 'class="stueck fehlt"' in bild,
+           "und ein Stück für die Abweichung zum Soll")
+    pruefe('class="treffer"' in bild, "die ganze Spalte ist anfassbar")
+    pruefe('class="wertmarke"' in bild, "beim Überfahren steht der Wert da")
+
+    # ⚠️ Die Länge der Saldolinie kommt aus Python. Im Browser ginge das
+    # nur über getTotalLength(), also mit Skript.
+    if 'class="saldolinie"' in bild:
+        pruefe("--laenge:" in bild, "die Saldolinie bringt ihre Länge mit")
+
+    stil = client.get("/static/style.css").text.replace("\n", " ")
+    pruefe("dia-wachsen" in stil and "dia-strich" in stil,
+           "Balken und Linie zeichnen sich ein")
+    pruefe("dia-wachsen" in bewegungsbloecke(stil),
+           "und stehen still, wenn Bewegung reduziert werden soll")
 
 
 def test_versionen() -> None:
@@ -3281,6 +3377,7 @@ def _durchlauf(client: TestClient) -> None:
         test_bewilligungsmail(client)
         test_texte_nachziehen(client)
         test_fusszeile(client)
+        test_verlaufsdiagramm(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")

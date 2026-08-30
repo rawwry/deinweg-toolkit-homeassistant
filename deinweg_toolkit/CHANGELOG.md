@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.12
+
+- Verlaufsdiagramm in „Mein Bereich": geteilte Balken (Zuviel bzw.
+  Fehlendes zum Soll), Werte beim Überfahren, Balken und Saldolinie
+  zeichnen sich beim Laden ein
+- Erinnerung an Bewilligungen an mehrere Empfänger gleichzeitig
+- Faultier mit Nachtszene: Mond, Sterne, Motte, Atmen, Kopfwippen,
+  Gähnen
+
 ## 1.11
 
 - Automatische Sicherung jeden Sonntag, die fünf jüngsten bleiben liegen

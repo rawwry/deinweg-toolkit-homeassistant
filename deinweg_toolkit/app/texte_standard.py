@@ -358,6 +358,11 @@ TEXTE_STANDARD["einst.sicherung_import"] = (
     "Datenbestand wird dabei vollständig ersetzt. Die bisherige Datenbank "
     "wird vorher zur Sicherheit daneben abgelegt, gelöscht wird nichts. "
     "Nach dem Einspielen ist eine neue Anmeldung nötig.")
+TEXTE_STANDARD["mein.diagramm_hinweis"] = (
+    "Jeder Balken ist ein Monat. Der farbige Teil ist das, was erfasst "
+    "wurde; das Stück darüber zeigt, wie viel über dem Soll lag oder wie "
+    "viel bis dorthin fehlte. Die Linie ist der aufsummierte Saldo über "
+    "die gezeigten Monate.")
 TEXTE_STANDARD["einst.sicherung_automatisch"] = (
     "Jeden Sonntag legt das Tool von selbst eine Kopie der Datenbank ab. "
     "Die fünf jüngsten bleiben liegen, ältere werden verworfen. Das "

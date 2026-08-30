@@ -318,12 +318,9 @@ def pruefe_bewilligungen(con, k: dict) -> list[str]:
     if bewilligungen_holen is None:
         return ["Bewilligungen: Rechenfunktion nicht eingehängt"]
 
-    empfaenger_name = (k.get("bewilligung_empfaenger") or "").strip()
-    if not empfaenger_name:
-        return ["Bewilligungen: keine Empfängerin eingetragen"]
-    adresse = adresse_fuer(con, empfaenger_name)
-    if not adresse:
-        return [f"Bewilligungen: kein Login mit E-Mail für „{empfaenger_name}“"]
+    namen = empfaengerliste(k.get("bewilligung_empfaenger"))
+    if not namen:
+        return ["Bewilligungen: niemand als Empfänger eingetragen"]
 
     try:
         vorlauf = int(k.get("bewilligung_tage") or 60)
@@ -336,10 +333,11 @@ def pruefe_bewilligungen(con, k: dict) -> list[str]:
         return []
 
     # Ein Bezug je Kalenderwoche: dieselbe Liste kommt nicht taeglich.
+    # ⚠️ Der Bezug traegt den Namen mit. Ohne ihn haette eine bereits an
+    # die erste Person verschickte Mail alle weiteren Empfaenger fuer
+    # diese Woche mitgesperrt.
     jahr, woche, _ = dt.date.today().isocalendar()
-    bezug = f"bewilligung:{jahr}-KW{woche:02d}"
-    if schon_gesendet(con, "bewilligung", bezug, adresse):
-        return []
+    grundbezug = f"bewilligung:{jahr}-KW{woche:02d}"
 
     zeilen = []
     for b in faelle:
@@ -354,14 +352,35 @@ def pruefe_bewilligungen(con, k: dict) -> list[str]:
             wort = "keine Bewilligung hinterlegt"
         zeilen.append(f"  {b['name']}: {wort}")
 
-    werte = {"name": empfaenger_name, "anzahl": len(faelle),
-             "liste": "\n".join(zeilen)}
-    erfolg, meldung = senden(
-        adresse, fuellen(k["vorlage_bewilligung_betreff"], werte),
-        fuellen(k["vorlage_bewilligung_text"], werte), k)
-    vermerken(con, "bewilligung", bezug, adresse, erfolg, meldung)
-    return [f"Bewilligungen ({len(faelle)}) an {adresse}: "
-            f"{'ok' if erfolg else meldung}"]
+    liste = "\n".join(zeilen)
+    protokoll = []
+    for name in namen:
+        adresse = adresse_fuer(con, name)
+        if not adresse:
+            protokoll.append(f"Bewilligungen: kein Login mit E-Mail für „{name}“")
+            continue
+        bezug = f"{grundbezug}:{name}"
+        if schon_gesendet(con, "bewilligung", bezug, adresse):
+            continue
+        werte = {"name": name, "anzahl": len(faelle), "liste": liste}
+        erfolg, meldung = senden(
+            adresse, fuellen(k["vorlage_bewilligung_betreff"], werte),
+            fuellen(k["vorlage_bewilligung_text"], werte), k)
+        vermerken(con, "bewilligung", bezug, adresse, erfolg, meldung)
+        protokoll.append(f"Bewilligungen ({len(faelle)}) an {adresse}: "
+                         f"{'ok' if erfolg else meldung}")
+    return protokoll
+
+
+def empfaengerliste(wert: str | None) -> list[str]:
+    """Aus dem gespeicherten Feld eine Namensliste machen.
+
+    Gespeichert wird kommagetrennt, wie ueberall sonst im Programm auch
+    (``berechtigungen``, ``einst_bereiche``). Eine eigene Tabelle waere
+    fuer eine Handvoll Namen zu viel Aufwand, und die Namen stehen als
+    Klartext ohnehin schon so in ``vorgang.zustaendig``.
+    """
+    return [t.strip() for t in (wert or "").split(",") if t.strip()]
 
 
 def _datum(iso: str | None) -> str:

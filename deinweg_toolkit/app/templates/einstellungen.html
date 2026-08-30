@@ -1391,23 +1391,39 @@
       <span>Erinnerung verschicken</span>
     </label>
 
-    <div class="feldreihe zwei">
-      <label class="feld">
-        <span>Empfängerin oder Empfänger</span>
-        <select name="bewilligung_empfaenger">
-          <option value="">– niemand –</option>
-          {% for m in team %}
-          <option value="{{ m.name }}"
-            {{ 'selected' if mailkonfig.bewilligung_empfaenger == m.name }}>{{ m.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="feld">
-        <span>Vorlauf in Tagen <span class="leise">– wann gilt „läuft aus“</span></span>
-        <input type="number" name="bewilligung_tage" min="1" max="365"
-               value="{{ mailkonfig.bewilligung_tage }}">
-      </label>
-    </div>
+    {# Mehrere Empfaenger: dieselben Kaestchen wie bei den Bereichen in der
+       Benutzerverwaltung. Ein <select multiple> verlangt Strg-Klick und
+       weiss niemand - dieselbe Begruendung wie beim Filter (Abschnitt 10). #}
+    <fieldset class="feld bereichsfeld">
+      <span>Empfänger <span class="leise">– mehrere möglich</span></span>
+      {% if team %}
+      <div class="bereichsraster">
+        {% for m in team %}
+        <label class="bereich-kachel">
+          <input type="checkbox" name="bewilligung_empfaenger" value="{{ m.name }}"
+                 {{ 'checked' if m.name in bewilligung_empfaenger }}>
+          <span>{{ m.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="leer klein">Noch niemand im Team hinterlegt.</p>
+      {% endif %}
+    </fieldset>
+    {# Namen, die nicht mehr im Team stehen, wuerden beim naechsten
+       Speichern still verschwinden - deshalb stehen sie sichtbar da. #}
+    {% set verwaist = bewilligung_empfaenger | reject("in", team | map(attribute="name") | list) | list %}
+    {% if verwaist %}
+    <p class="klein leise felderklaerung">
+      Nicht mehr im Team und daher nicht mehr auswählbar:
+      {{ verwaist | join(", ") }}
+    </p>
+    {% endif %}
+    <label class="feld">
+      <span>Vorlauf in Tagen <span class="leise">– wann gilt „läuft aus“</span></span>
+      <input type="number" name="bewilligung_tage" min="1" max="365"
+             value="{{ mailkonfig.bewilligung_tage }}">
+    </label>
     <p class="klein leise felderklaerung">{{ t("einst.bewilligungsmail_hinweis") }}</p>
 
     <div class="knopfreihe">

@@ -1330,4 +1330,19 @@ CHANGELOG = [
         "Statt der fliegenden Katze hängt jetzt ein müdes Faultier im "
         "Baum, wenn nichts zu tun ist",
     ]},
+    {"version": "1.12", "titel": "Verlauf mit Aussage, Faultier mit Leben", "punkte": [
+        "„Mein Bereich“: das Verlaufsdiagramm zeigt nicht mehr nur, wie "
+        "viel erfasst wurde, sondern auch den Abstand zum Soll – der "
+        "Balken ist geteilt, oben sitzt entweder das Zuviel oder als "
+        "gestrichelter Umriss das Fehlende",
+        "Die Balken wachsen beim Laden aus der Grundlinie, die Saldolinie "
+        "zeichnet sich ein; wer die Maus über einen Monat hält, sieht "
+        "Stunden und Saldo",
+        "Erinnerung an Bewilligungen jetzt an mehrere Empfänger "
+        "gleichzeitig, angehakt statt ausgewählt",
+        "Das Faultier hat eine Nachtszene bekommen: Mond, Sterne, eine "
+        "Motte – und es atmet, wippt mit dem Kopf und gähnt alle "
+        "dreizehn Sekunden",
+        "Prüfung von 837 auf 862 Einzelprüfungen erweitert",
+    ]},
 ]
