@@ -1431,4 +1431,21 @@ CHANGELOG = [
         "Spalten „Satz“ und „Verdienst“ – es steht im Spaltenkopf",
         "Prüfung von 915 auf 949 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.15.1", "titel": "Datenpflege gewarnt, Wiki aufgeräumt", "punkte": [
+        "Über der Datenpflege steht jetzt ein deutlicher Hinweis, und die "
+        "Karte selbst trägt einen rötlichen Ton – auf einem "
+        "Bildschirmfoto ist damit sofort zu sehen, dass das hier nicht "
+        "das übliche Formular ist",
+        "Die Datenpflege ist bei einem normalen Konto nicht mehr "
+        "automatisch dabei. „Kein Haken“ heißt sonst „alles erlaubt“; für "
+        "diesen einen Bereich gilt das ausdrücklich nicht – er muss "
+        "einzeln erteilt werden und ist in der Benutzerverwaltung als "
+        "solcher gekennzeichnet",
+        "Wiki: statt des breiten Knopfes klappt ein kleines Zeichen "
+        "rechts über dem Baum alle Ordner auf und zu",
+        "Wiki: Suchfeld und Lupe stecken in einem gemeinsamen Kasten und "
+        "sind dadurch gleich hoch – vorher standen sie als zwei "
+        "verschieden hohe Kästchen nebeneinander",
+        "Prüfung von 949 auf 956 Einzelprüfungen erweitert",
+    ]},
 ]

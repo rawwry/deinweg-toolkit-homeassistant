@@ -2012,6 +2012,10 @@ body.anmeldeseite {
 .konto-block > .bereichsraster .bereich-kachel { padding: 9px 14px; }
 /* „Oberfläche“ lässt sich nicht abwählen und ist deshalb nur Anzeige. */
 .bereich-kachel.fest { cursor: default; opacity: .7; }
+/* Ein Bereich, der ausdrücklich erteilt werden muss - er sieht anders aus
+   als die übrigen, damit man ihn nicht im Vorbeigehen anhakt. */
+.bereich-kachel.heikel { border-color: var(--dopp); color: var(--dopp); }
+.bereich-kachel.heikel input { accent-color: var(--dopp); }
 
 /* --- Auswertung ---------------------------------------------------------- */
 /*
@@ -2421,8 +2425,36 @@ body.anmeldeseite {
    Rahmen und die Marke im Kopf sind Absicht - überall sonst gilt „keine
    schreienden Kästen", hier gilt das Gegenteil.
 */
-.gefahrenkarte { border-color: var(--dopp); }
-.gefahrenkarte .kopfzeile h1 { margin: 0; }
+/* Das Warnband über dem Formular. Band links und Zeichen in der
+   Warnfarbe, der Grund nur leicht getönt - ein vollflächig roter Kasten
+   schriee über die halbe Seite und wäre nach dem zweiten Mal Tapete. */
+.warnband {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 16px 18px; margin-bottom: var(--abstand);
+  border-radius: 12px; background: var(--dopp-weich);
+  border: 1px solid var(--dopp); border-left-width: 4px;
+}
+.warnband-zeichen { flex: 0 0 auto; color: var(--dopp); line-height: 0;
+                    margin-top: 1px; }
+.warnband-zeichen svg { width: 24px; height: 24px; }
+.warnband-text { min-width: 0; }
+.warnband-text p { margin: 0 0 6px; font-size: 13px; color: var(--tinte-2); }
+.warnband-titel { font-weight: 700; font-size: 14.5px !important;
+                  color: var(--dopp) !important; }
+.warnband-liste {
+  margin: 8px 0 0; padding-left: 18px; font-size: 12.5px;
+  color: var(--leise); display: flex; flex-direction: column; gap: 4px;
+}
+.warnband-liste strong { color: var(--tinte-2); }
+
+/* Die Karte selbst trägt denselben Ton, nur leiser: getönter Grund und
+   ein roter Rahmen. So ist auf jedem Bildschirmfoto sofort zu sehen,
+   dass das hier nicht das übliche Formular ist. */
+.gefahrenkarte {
+  border-color: var(--dopp);
+  background: linear-gradient(var(--dopp-weich), var(--flaeche) 220px);
+}
+.gefahrenkarte .kopfzeile h1 { margin: 0; color: var(--dopp); }
 .pflegeform .ankreuz { margin-top: 4px; }
 .pflegeform .ankreuz[hidden] { display: none !important; }
 
@@ -2924,9 +2956,29 @@ fieldset.feld > span {
 .wiki-seitenleiste { padding: 16px 14px; align-self: start;
                      overflow-x: clip; }
 
-.wiki-suche { display: flex; gap: 6px; margin-bottom: 14px; }
-.wiki-suche input { flex: 1 1 auto; min-width: 0; padding: 7px 10px; font-size: 13.5px; }
-.wiki-suche .knopf-icon { flex: 0 0 auto; }
+/* ⚠️ Ein Kasten, nicht zwei. Feld und Lupenknopf standen als getrennte
+   Kästchen nebeneinander und waren dabei verschieden hoch - der Knopf
+   bringt seine eigene Höhe mit, das Feld seine. Jetzt trägt die Hülle
+   den Rahmen, beide Teile sitzen randlos darin und sind dadurch
+   zwangsläufig gleich hoch. */
+.wiki-suche {
+  display: flex; align-items: stretch; margin-bottom: 14px;
+  border: 1px solid var(--linie); border-radius: 9px;
+  background: var(--flaeche-2); overflow: hidden;
+}
+.wiki-suche:focus-within { border-color: var(--akzent); }
+.wiki-suche input {
+  flex: 1 1 auto; min-width: 0; padding: 8px 11px; font-size: 13.5px;
+  border: 0; background: none; color: inherit; border-radius: 0;
+}
+.wiki-suche input:focus { outline: none; box-shadow: none; }
+.wiki-suchknopf {
+  flex: 0 0 auto; width: 36px; padding: 0; border: 0; cursor: pointer;
+  background: none; color: var(--leise);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.wiki-suchknopf svg { width: 16px; height: 16px; }
+.wiki-suchknopf:hover { color: var(--akzent); background: var(--flaeche); }
 
 .wiki-baum { font-size: 13.5px; }
 /* ⚠️ Die Einrückung ist bewusst knapp. Jede Ebene kostet Breite, und bei
@@ -2937,12 +2989,18 @@ fieldset.feld > span {
 .wiki-baum > .wiki-liste { padding-left: 0; }
 .wiki-liste .wiki-liste { border-left: 1px solid var(--linie-stark); margin-left: 5px; }
 
-/* Der Knopf über dem Baum. */
-.wiki-baumknopf {
-  display: inline-flex; align-items: center; gap: 6px;
-  width: 100%; justify-content: center; margin-bottom: 10px;
+/* Kopfzeile über dem Baum: die Beschriftung wie überall im Programm,
+   der Falt-Knopf als kleines Zeichen rechts. Ein Knopf über die volle
+   Breite stand dort wie eine zweite Suchleiste. */
+.wiki-baumkopf {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin: 0 2px 6px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--leise);
 }
-.wiki-baumknopf svg { width: 14px; height: 14px; }
+.wiki-baumknopf { width: 26px; height: 26px; }
+.wiki-baumknopf svg { width: 15px; height: 15px; }
+/* Aufgeklappt zeigt das Zeichen nach oben - dann klappt es wieder zu. */
 .wiki-baumknopf[data-stand="auf"] svg { transform: rotate(180deg); }
 
 .wiki-knoten {

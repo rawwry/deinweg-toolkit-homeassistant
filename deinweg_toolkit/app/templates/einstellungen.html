@@ -1105,10 +1105,17 @@
       <fieldset class="feld bereichsfeld">
         <span>Bereiche</span>
         <div class="bereichsraster">
+          {# ⚠️ „Kein Haken bei allen“ heißt sonst „alles erlaubt“. Für die
+             Datenpflege gilt das ausdrücklich nicht (auth.NUR_AUSDRUECKLICH):
+             sie ändert Werte quer durch die Datenbank und muss einzeln
+             erteilt werden. Der Haken kommt hier also nur, wenn der Bereich
+             wirklich in der Liste steht. #}
           {% for schluessel, name in BEREICHE.items() %}
-          <label class="bereich-kachel">
+          {% set ausdruecklich = schluessel in NUR_AUSDRUECKLICH %}
+          <label class="bereich-kachel {{ 'heikel' if ausdruecklich }}">
             <input type="checkbox" name="bereiche" value="{{ schluessel }}" form="bn-{{ b.id }}"
-                   {{ 'checked' if not erlaubt or schluessel in erlaubt }}> {{ name }}
+                   {{ 'checked' if (not erlaubt and not ausdruecklich)
+                                    or (erlaubt and schluessel in erlaubt) }}> {{ name }}
           </label>
           {% endfor %}
         </div>
@@ -1221,7 +1228,10 @@
       <p class="klein leise felderklaerung">{{ t("einst.benutzer_bereiche_hinweis") }}</p>
       <div class="bereichsraster">
         {% for schluessel, name in BEREICHE.items() %}
-        <label class="bereich-kachel"><input type="checkbox" name="bereiche" value="{{ schluessel }}" checked> {{ name }}</label>
+        {% set ausdruecklich = schluessel in NUR_AUSDRUECKLICH %}
+        <label class="bereich-kachel {{ 'heikel' if ausdruecklich }}">
+          <input type="checkbox" name="bereiche" value="{{ schluessel }}"
+                 {{ '' if ausdruecklich else 'checked' }}> {{ name }}</label>
         {% endfor %}
       </div>
     </fieldset>

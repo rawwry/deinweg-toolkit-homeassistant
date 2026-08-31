@@ -25,10 +25,13 @@
 
   {# --- Navigation: die Ordnerstruktur ist die Wiki-Struktur --- #}
   <aside class="wiki-seitenleiste karte">
+    {# Ein Kasten, nicht zwei nebeneinander: Feld und Lupe standen vorher
+       als getrennte Kästchen da und waren dabei verschieden hoch. Jetzt
+       trägt die Hülle den Rahmen, beides sitzt darin. #}
     <form class="wiki-suche" action="/wiki/aktion/suche" method="get" role="search">
       <input type="search" name="q" value="{{ suchwort }}" autocomplete="off"
              placeholder="Wiki durchsuchen …" aria-label="Wiki durchsuchen">
-      <button class="knopf-icon" type="submit" title="Suchen" aria-label="Suchen">
+      <button class="wiki-suchknopf" type="submit" title="Suchen" aria-label="Suchen">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="11" cy="11" r="6.2" stroke="currentColor" stroke-width="1.7"/>
           <path d="M15.6 15.6 20 20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
@@ -36,16 +39,20 @@
       </button>
     </form>
 
-    {# Nur mit Skript sinnvoll, deshalb versteckt ausgeliefert und dort
-       eingeblendet - und wieder entfernt, wenn es gar keine Ordner gibt. #}
-    <button type="button" class="knopf leise klein wiki-baumknopf"
-            id="wiki-baum-falten" hidden>
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8"
-              stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span>Alle Ordner ausklappen</span>
-    </button>
+    {# Kopfzeile über dem Baum. Der Knopf ist nur mit Skript sinnvoll -
+       deshalb versteckt ausgeliefert, dort eingeblendet und wieder
+       entfernt, wenn es gar keine Ordner gibt. #}
+    <div class="wiki-baumkopf">
+      <span>Ordner</span>
+      <button type="button" class="knopf-icon wiki-baumknopf"
+              id="wiki-baum-falten" hidden
+              title="Alle Ordner ausklappen" aria-label="Alle Ordner ausklappen">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m7 10 5 5 5-5M7 4l5 5 5-5" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
 
     <nav class="wiki-baum" aria-label="Wiki-Struktur">
       <a class="wiki-knoten wiki-wurzel {{ 'hier' if wurzel_hier }}" href="/wiki"
@@ -582,8 +589,9 @@
         var auf = baumknopf.dataset.stand !== "auf";
         ordner.forEach(function (d) { d.open = auf; });
         baumknopf.dataset.stand = auf ? "auf" : "zu";
-        baumknopf.querySelector("span").textContent =
-          auf ? "Alle Ordner einklappen" : "Alle Ordner ausklappen";
+        var wort = auf ? "Alle Ordner einklappen" : "Alle Ordner ausklappen";
+        baumknopf.title = wort;
+        baumknopf.setAttribute("aria-label", wort);
       });
     }
   }

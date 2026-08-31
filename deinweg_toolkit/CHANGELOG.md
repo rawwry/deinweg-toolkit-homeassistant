@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.15.1
+
+- Datenpflege: deutlicher Hinweis darüber, rötliche Karte
+- Datenpflege muss je Konto ausdrücklich erteilt werden – „kein Haken"
+  heißt hier nicht mehr „alles erlaubt"
+- Wiki: kleines Zeichen statt breitem Knopf zum Auf- und Zuklappen
+- Wiki: Suchfeld und Lupe in einem Kasten, gleiche Höhe
+
 ## 1.15
 
 - Neu: „Arbeitszeit → Datenpflege" für Sammeländerungen an

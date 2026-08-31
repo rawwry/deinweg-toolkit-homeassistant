@@ -222,6 +222,16 @@ def bereich_fuer_pfad(pfad: str) -> str | None:
     return None
 
 
+# ⚠️ Bereiche, die die Regel "leer = alles" NICHT mitnehmen.
+#
+# Ein leeres Berechtigungsfeld heisst sonst "voller Zugriff, auch auf
+# spaeter hinzukommende Bereiche". Fuer die Datenpflege waere das falsch
+# herum: sie aendert Werte quer durch die Datenbank, und niemand soll sie
+# bekommen, weil er zufaellig ein Konto ohne Einschraenkung hat. Wer sie
+# braucht, bekommt den Haken ausdruecklich gesetzt.
+NUR_AUSDRUECKLICH = ("datenpflege",)
+
+
 def hat_zugriff(benutzer, bereich: str) -> bool:
     """True, wenn der Benutzer den angegebenen Bereich nutzen darf.
 
@@ -233,10 +243,12 @@ def hat_zugriff(benutzer, bereich: str) -> bool:
         return False
     if benutzer["rolle"] == "admin":
         return True
-    roh = (benutzer["berechtigungen"] or "").strip()
-    if not roh:
+    erlaubt = {b.strip() for b in (benutzer["berechtigungen"] or "").split(",")
+               if b.strip()}
+    if bereich in NUR_AUSDRUECKLICH:
+        return bereich in erlaubt
+    if not erlaubt:
         return True
-    erlaubt = {b.strip() for b in roh.split(",") if b.strip()}
     return bereich in erlaubt
 
 

@@ -8,6 +8,33 @@
 {% if hinweis %}<p class="meldung gut">{{ hinweis }}</p>{% endif %}
 {% if fehler %}<p class="meldung warn">{{ fehler }}</p>{% endif %}
 
+{# ⚠️ Der Hinweis steht ÜBER dem Formular und nicht darin. Er soll
+   gelesen werden, bevor jemand das erste Feld anfasst - unten wäre er
+   eine Fußnote. Die Warnfarbe trägt er als Band links und im Zeichen,
+   nicht als vollflächiger Kasten: das schriee über die halbe Seite und
+   wäre nach dem zweiten Mal nur noch Tapete (siehe Abschnitt 12). #}
+<section class="warnband">
+  <span class="warnband-zeichen" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M12 3.8 21 19.5H3L12 3.8Z" stroke="currentColor" stroke-width="1.8"
+            stroke-linejoin="round"/>
+      <path d="M12 10v4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+      <circle cx="12" cy="17" r="1.05" fill="currentColor"/>
+    </svg>
+  </span>
+  <div class="warnband-text">
+    <p class="warnband-titel">Diese Seite ändert viele Einträge auf einmal.</p>
+    <p>{{ t("datenpflege.warnung") }}</p>
+    <ul class="warnband-liste">
+      <li>Es passiert nichts ohne <strong>Vorschau</strong> und ohne das
+        eingetippte Wort <strong>ÄNDERN</strong>.</li>
+      <li>Unmittelbar davor entsteht eine <strong>Sicherung</strong> der
+        Datenbank – nur darüber lässt sich der Schritt zurücknehmen.</li>
+      <li>Ein Stammeintrag wird nie gelöscht, höchstens stillgelegt.</li>
+    </ul>
+  </div>
+</section>
+
 <section class="karte gefahrenkarte">
   <div class="kopfzeile">
     <h1>Datenpflege</h1>

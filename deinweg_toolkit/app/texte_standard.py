@@ -217,7 +217,9 @@ TEXTE_STANDARD["einst.benutzer_lead"] = (
 TEXTE_STANDARD["einst.benutzer_bereiche_hinweis"] = (
     "Alle angehakten Bereiche darf das Konto nutzen. Sind alle angehakt, "
     "gilt das als voller Zugriff und schließt auch später neu "
-    "hinzukommende Bereiche automatisch mit ein. Bei der Rolle "
+    "hinzukommende Bereiche automatisch mit ein – mit einer Ausnahme: "
+    "<strong>die Datenpflege</strong> muss immer ausdrücklich angehakt "
+    "werden, sie ändert viele Einträge auf einmal. Bei der Rolle "
     "„Administrator“ hat diese Auswahl keine Wirkung.")
 TEXTE_STANDARD["einst.benutzer_einstpunkte_hinweis"] = (
     "Eine Ebene unter dem Bereich „Einstellungen“: welche Punkte darin "
@@ -414,6 +416,10 @@ TEXTE_STANDARD["datenpflege.lead"] = (
     "sofort: erst kommt eine Vorschau mit den Zahlen und ein paar "
     "Beispielzeilen. Groß- und Kleinschreibung sowie Leerzeichen am Rand "
     "spielen beim Suchen keine Rolle.")
+TEXTE_STANDARD["datenpflege.warnung"] = (
+    "Was hier geändert wird, gilt sofort für alle betroffenen Zeilen – "
+    "auch für die aus vergangenen Jahren, die längst gemeldet sind. "
+    "Nimm dir die Vorschau wirklich vor, bevor du bestätigst.")
 TEXTE_STANDARD["datenpflege.sicherung"] = (
     "Unmittelbar vor der Änderung legt das Tool eine Kopie der Datenbank "
     "unter „System und Sicherung“ ab. Rückgängig machen lässt sich der "

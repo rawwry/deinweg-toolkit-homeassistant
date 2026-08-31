@@ -360,6 +360,7 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "kfz_bezeichnung": kfz.bezeichnung,
             "benutzerliste": benutzerliste, "ist_admin": ist_admin,
             "BEREICHE": auth.BEREICHE, "EINST_BEREICHE": auth.EINST_BEREICHE,
+            "NUR_AUSDRUECKLICH": auth.NUR_AUSDRUECKLICH,
             "eigene_id": request.state.benutzer["id"],
             "mailkonfig": mailkonfig, "passwort_gesetzt": passwort_gesetzt,
             "bewilligung_empfaenger":

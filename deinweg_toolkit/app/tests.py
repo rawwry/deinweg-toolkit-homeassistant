@@ -2954,6 +2954,7 @@ def test_bewilligung_nachfolge(client: TestClient) -> None:
 def test_datenpflege(client: TestClient) -> None:
     """Sammeländerung: zwei Schritte, Sicherung, nichts geht verloren."""
     abschnitt("Datenpflege")
+    from . import auth
     from . import main
 
     def anwenden(daten, wort="ÄNDERN"):
@@ -2965,6 +2966,30 @@ def test_datenpflege(client: TestClient) -> None:
            "die Seite ist erreichbar und führt erst zur Vorschau")
     pruefe(">Datenpflege<" in client.get("/eintraege").text,
            "und steht als Reiter unter „Arbeitszeit“")
+
+    # --- Warnung --------------------------------------------------------
+    pruefe("warnband" in seite and "Sicherung" in seite,
+           "über dem Formular steht ein deutlicher Hinweis")
+    pruefe("gefahrenkarte" in seite, "und die Karte ist als heikel gekennzeichnet")
+
+    # --- Standardmäßig aus ----------------------------------------------
+    # ⚠️ „Kein Haken" heißt sonst „alles erlaubt". Für die Datenpflege
+    # gilt das ausdrücklich nicht - sonst bekäme sie jedes Konto, das
+    # zufällig keine Einschränkung trägt.
+    class _Konto(dict):
+        pass
+    ohne = _Konto(rolle="benutzer", berechtigungen="")
+    pruefe(not auth.hat_zugriff(ohne, "datenpflege"),
+           "ein Konto ohne Einschränkung bekommt die Datenpflege NICHT")
+    pruefe(auth.hat_zugriff(ohne, "auswertung"),
+           "alle übrigen Bereiche bekommt es weiterhin")
+    mit = _Konto(rolle="benutzer", berechtigungen="auswertung,datenpflege")
+    pruefe(auth.hat_zugriff(mit, "datenpflege"),
+           "ausdrücklich erteilt greift sie")
+    verwaltung = client.get("/einstellungen?bereich=benutzer").text
+    kasten = verwaltung.split('value="datenpflege"')[-1][:80]
+    pruefe("checked" not in kasten,
+           "im Anlegeformular ist der Haken nicht vorgesetzt")
 
     # --- Zugriff --------------------------------------------------------
     # ⚠️ Die Seite ändert Werte quer durch die Datenbank. Sie hängt an
