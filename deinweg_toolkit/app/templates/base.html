@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#131416">
+<meta name="theme-color" content="#17121c">
 <title>Dein Weg Toolkit{% block titel %}{% endblock %}</title>
 <link rel="stylesheet" href="/static/style.css?v={{ VERSION }}">
 <link rel="manifest" href="/static/manifest.json?v={{ VERSION }}">
@@ -153,18 +153,29 @@
         var wert = wurzel.dataset[speicher] || standard;
         texte.forEach(function (t) { t.textContent = beschriften(wert); });
         knoepfe.forEach(function (k) {
-          k.setAttribute("aria-checked", wert === standard ? "false" : "true");
+          // Zwei Formen desselben Schalters: der kleine Kippschalter in
+          // den Werkzeugleisten (ohne data-wert) und die Doppelpille in
+          // den Einstellungen, bei der beide Möglichkeiten dastehen.
+          if (k.dataset.wert) {
+            var an = k.dataset.wert === wert;
+            k.classList.toggle("aktiv", an);
+            k.setAttribute("aria-pressed", an ? "true" : "false");
+          } else {
+            k.setAttribute("aria-checked", wert === standard ? "false" : "true");
+          }
         });
         if (speicher === "thema") {
           var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.content = wert === "hell" ? "#f2f3f4" : "#131416";
+          if (meta) meta.content = wert === "hell" ? "#f2f3f4" : "#17121c";
         }
       }
 
       knoepfe.forEach(function (k) {
         k.addEventListener("click", function () {
           var jetzt = wurzel.dataset[speicher] || standard;
-          wurzel.dataset[speicher] = jetzt === standard ? anders : standard;
+          wurzel.dataset[speicher] = k.dataset.wert
+            ? k.dataset.wert
+            : (jetzt === standard ? anders : standard);
           try {
             localStorage.setItem("toolkit-" + speicher, wurzel.dataset[speicher]);
           } catch (e) {}

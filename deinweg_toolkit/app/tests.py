@@ -3639,8 +3639,12 @@ def test_dateien(client: TestClient) -> None:
 
     # --- Umschalter in den Einstellungen ------------------------------------
     einst = client.get("/einstellungen").text
-    pruefe("Dateien-Ansicht" in einst and "dateiliste-knopf" in einst,
+    pruefe("Listen oder Kacheln" in einst and "dateiliste-knopf" in einst,
            "der Umschalter steht unter Einstellungen → Oberfläche")
+    # ⚠️ Beide Möglichkeiten stehen als eigene Knöpfe da, nicht als ein
+    # Kippschalter mit wechselndem Wort.
+    pruefe(einst.count('class="dateiliste-knopf"') == 2,
+           "und zwar als Paar: Liste und Kacheln nebeneinander")
 
     # --- Berechtigung -------------------------------------------------------
     ohne = _konto(client, "ohnedateien", "ohnedateienpasswort", ["datensaetze"])

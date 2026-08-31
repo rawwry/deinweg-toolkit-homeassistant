@@ -1130,15 +1130,50 @@ textarea:focus { border-color: var(--akzent); }
 .seitenmenue a:hover { background: var(--flaeche-2); color: var(--tinte);
                        border-left-color: var(--akzent); }
 
+/* --- Einstellungen: Oberfläche -------------------------------------------
+   ⚠️ Ein Raster, keine Flexbox. Als Flexbox mit flex-wrap rutschte der
+   Schalter unter den Text, sobald die Beschreibung zwei Zeilen brauchte -
+   eine Zeile sah dann anders aus als die drei darüber. Im Raster steht
+   die Steuerung immer in ihrer eigenen Spalte, egal wie lang der Text
+   ist. Erst unterhalb von 620px rutscht sie unter den Text.
+*/
+.optionsgruppe + .optionsgruppe { margin-top: 26px; }
+.optionsgruppe > .unterkopf { margin: 0 0 4px; }
 .optionsliste { display: flex; flex-direction: column; }
 .optionszeile {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 20px; flex-wrap: wrap; padding: 15px 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: 8px 24px; padding: 14px 0;
   border-top: 1px solid var(--linie-fein);
 }
-.optionszeile:first-child { border-top: none; padding-top: 4px; }
-.optionszeile p { margin: 3px 0 0; }
-.optionszeile .schalter { margin-left: 0; }
+.optionszeile:first-child { border-top: none; }
+.optionstext { min-width: 0; }
+.optionszeile p { margin: 3px 0 0; max-width: 62ch; }
+
+/* Beide Möglichkeiten stehen nebeneinander, die gewählte ist gefüllt.
+   Ein Kippschalter mit wechselndem Wort ließ offen, ob das Wort den
+   Zustand meint oder das, was beim Klicken passiert. */
+.wahlpaar {
+  display: inline-flex; padding: 3px; border-radius: 999px;
+  background: var(--flaeche-2); border: 1px solid var(--linie);
+}
+.wahlpaar button {
+  border: 0; background: none; cursor: pointer; color: var(--leise);
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  padding: 6px 15px; border-radius: 999px; white-space: nowrap;
+}
+.wahlpaar button:hover { color: var(--tinte); }
+.wahlpaar button.aktiv {
+  background: var(--akzent); color: #1a1113;
+}
+[data-thema="hell"] .wahlpaar button.aktiv { color: #ffffff; }
+@media (prefers-reduced-motion: no-preference) {
+  .wahlpaar button { transition: background .18s ease, color .18s ease; }
+}
+
+@media (max-width: 620px) {
+  .optionszeile { grid-template-columns: 1fr; }
+  .wahlpaar { justify-self: start; }
+}
 
 .systemraster { display: grid; gap: 20px 34px;
                 grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }

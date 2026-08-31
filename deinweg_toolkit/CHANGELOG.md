@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.15.2
+
+- Einstellungen → Oberfläche: beide Möglichkeiten stehen nebeneinander
+  statt eines Kippschalters mit wechselndem Wort
+- Zwei Gruppen statt vier gleichrangiger Zeilen
+- Die Steuerung rutscht nicht mehr unter den Text
+
 ## 1.15.1
 
 - Datenpflege: deutlicher Hinweis darüber, rötliche Karte

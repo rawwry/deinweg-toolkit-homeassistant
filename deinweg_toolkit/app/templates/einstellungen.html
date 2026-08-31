@@ -68,62 +68,61 @@
   <h1>Oberfläche</h1>
   <p class="lead">{{ t("einst.oberflaeche_lead") }}</p>
 
-  <div class="optionsliste">
-    <div class="optionszeile">
-      <div>
-        <span class="stark">Darkmode</span>
-        <p class="klein leise">{{ t("einst.ansicht") }}</p>
-      </div>
-      <div class="schalter">
-        <span class="thema-text">Dunkel</span>
-        <button type="button" class="thema-knopf" role="switch" aria-checked="false"
-                aria-label="Zwischen dunkler und heller Ansicht wechseln"></button>
-      </div>
+  {# ⚠️ Zwei Möglichkeiten nebeneinander statt eines Kippschalters mit
+     wechselndem Wort. Beim Kippschalter musste man raten, ob das Wort
+     daneben den aktuellen Zustand meint oder das, was beim Klicken
+     passiert – und weil die Wörter verschieden lang sind, standen die
+     Schalter nie untereinander. Hier steht beides da, das Gewählte ist
+     hervorgehoben, und die Spalte hat eine feste Breite. #}
+  {% macro wahlpaar(klasse, titel, text, eins, zwei, beschriftung) %}
+  <div class="optionszeile">
+    <div class="optionstext">
+      <span class="stark">{{ titel }}</span>
+      <p class="klein leise">{{ text }}</p>
     </div>
-
-    <div class="optionszeile">
-      <div>
-        <span class="stark">Inhaltsbreite</span>
-        <p class="klein leise">{{ t("einst.breite") }}</p>
-      </div>
-      <div class="schalter">
-        <span class="breite-text">Volle Breite</span>
-        <button type="button" class="breite-knopf" role="switch" aria-checked="false"
-                aria-label="Zwischen voller und begrenzter Inhaltsbreite wechseln"></button>
-      </div>
+    <div class="wahlpaar" role="group" aria-label="{{ beschriftung }}">
+      <button type="button" class="{{ klasse }}-knopf" data-wert="{{ eins[0] }}"
+              aria-pressed="false">{{ eins[1] }}</button>
+      <button type="button" class="{{ klasse }}-knopf" data-wert="{{ zwei[0] }}"
+              aria-pressed="false">{{ zwei[1] }}</button>
     </div>
-
-    {# Die beiden Ansichtsschalter regeln etwas, das ohne den jeweiligen
-       Bereich gar nicht sichtbar ist. Ohne ihn stehen sie deshalb auch
-       hier nicht. #}
-    {% if hat_zugriff(request.state.benutzer, "wiki") %}
-    <div class="optionszeile">
-      <div>
-        <span class="stark">Wiki-Ansicht</span>
-        <p class="klein leise">{{ t("einst.wikiliste") }}</p>
-      </div>
-      <div class="schalter">
-        <span class="wikiliste-text">Kacheln</span>
-        <button type="button" class="wikiliste-knopf" role="switch" aria-checked="false"
-                aria-label="Zwischen Kachel- und Listenansicht im Wiki wechseln"></button>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if hat_zugriff(request.state.benutzer, "dateien") %}
-    <div class="optionszeile">
-      <div>
-        <span class="stark">Dateien-Ansicht</span>
-        <p class="klein leise">{{ t("einst.dateiliste") }}</p>
-      </div>
-      <div class="schalter">
-        <span class="dateiliste-text">Liste</span>
-        <button type="button" class="dateiliste-knopf" role="switch" aria-checked="false"
-                aria-label="Zwischen Listen- und Kachelansicht in der Dateiverwaltung wechseln"></button>
-      </div>
-    </div>
-    {% endif %}
   </div>
+  {% endmacro %}
+
+  <div class="optionsgruppe">
+    <h2 class="unterkopf">Darstellung</h2>
+    <div class="optionsliste">
+      {{ wahlpaar("thema", "Farben", t("einst.ansicht"),
+                  ("dunkel", "Dunkel"), ("hell", "Hell"),
+                  "Zwischen dunkler und heller Ansicht wechseln") }}
+      {{ wahlpaar("breite", "Inhaltsbreite", t("einst.breite"),
+                  ("voll", "Volle Breite"), ("begrenzt", "Begrenzt"),
+                  "Zwischen voller und begrenzter Inhaltsbreite wechseln") }}
+    </div>
+  </div>
+
+  {# Die beiden Ansichtsschalter regeln etwas, das ohne den jeweiligen
+     Bereich gar nicht sichtbar ist. Ohne ihn stehen sie deshalb auch
+     hier nicht - und die ganze Gruppe verschwindet, wenn beide fehlen. #}
+  {% set darf_wiki = hat_zugriff(request.state.benutzer, "wiki") %}
+  {% set darf_dateien = hat_zugriff(request.state.benutzer, "dateien") %}
+  {% if darf_wiki or darf_dateien %}
+  <div class="optionsgruppe">
+    <h2 class="unterkopf">Listen oder Kacheln</h2>
+    <div class="optionsliste">
+      {% if darf_wiki %}
+      {{ wahlpaar("wikiliste", "Wiki", t("einst.wikiliste"),
+                  ("kacheln", "Kacheln"), ("liste", "Liste"),
+                  "Zwischen Kachel- und Listenansicht im Wiki wechseln") }}
+      {% endif %}
+      {% if darf_dateien %}
+      {{ wahlpaar("dateiliste", "Dateien", t("einst.dateiliste"),
+                  ("liste", "Liste"), ("kacheln", "Kacheln"),
+                  "Zwischen Listen- und Kachelansicht in der Dateiverwaltung wechseln") }}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 </section>
 {% endif %}
 

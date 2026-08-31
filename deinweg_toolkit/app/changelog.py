@@ -1448,4 +1448,17 @@ CHANGELOG = [
         "verschieden hohe Kästchen nebeneinander",
         "Prüfung von 949 auf 956 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.15.2", "titel": "Einstellungen zur Oberfläche neu geordnet", "punkte": [
+        "Statt eines Kippschalters mit wechselndem Wort stehen beide "
+        "Möglichkeiten nebeneinander, die gewählte ist hervorgehoben. "
+        "Vorher musste man raten, ob „Hell“ neben dem Schalter den "
+        "aktuellen Zustand meint oder das, was beim Klicken passiert",
+        "Die vier Einstellungen stehen in zwei Gruppen: „Darstellung“ "
+        "(Farben, Inhaltsbreite) und „Listen oder Kacheln“ (Wiki, "
+        "Dateien)",
+        "Die Steuerung steht in einer eigenen Spalte und rutscht nicht "
+        "mehr unter den Text, sobald eine Beschreibung zwei Zeilen "
+        "braucht – am Handy steht sie bei allen vier gleich",
+        "Prüfung von 956 auf 957 Einzelprüfungen erweitert",
+    ]},
 ]
