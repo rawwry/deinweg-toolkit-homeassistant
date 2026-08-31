@@ -30,5 +30,12 @@
 {% if hat_zugriff(request.state.benutzer, "auswertung") %}
   {% set _ = punkte.append(("/auswertung", "Auswertung", seite == "auswertung")) %}
 {% endif %}
+{# Die Datenpflege steht bewusst als letzter Punkt und nur für
+   Administratoren: sie ändert Werte quer durch die ganze Datenbank und
+   gehört nicht ins Tagesgeschäft. #}
+{% if request.state.benutzer.rolle == "admin"
+      and hat_zugriff(request.state.benutzer, "datenpflege") %}
+  {% set _ = punkte.append(("/datenpflege", "Datenpflege", seite == "datenpflege")) %}
+{% endif %}
 {{ untermenue(punkte, "Arbeitszeit") }}
 {% endmacro %}

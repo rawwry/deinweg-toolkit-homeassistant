@@ -2415,6 +2415,36 @@ body.anmeldeseite {
   100% { opacity: 0; transform: translate(70px, 12px); }
 }
 
+/* --- Datenpflege ---------------------------------------------------------
+   ⚠️ Die Seite ändert Werte quer durch die Datenbank. Sie soll deshalb
+   aussehen wie das, was sie ist: kein Formular unter vielen. Der rote
+   Rahmen und die Marke im Kopf sind Absicht - überall sonst gilt „keine
+   schreienden Kästen", hier gilt das Gegenteil.
+*/
+.gefahrenkarte { border-color: var(--dopp); }
+.gefahrenkarte .kopfzeile h1 { margin: 0; }
+.pflegeform .ankreuz { margin-top: 4px; }
+.pflegeform .ankreuz[hidden] { display: none !important; }
+
+.vorschaukarte { border-color: var(--linie-stark); }
+.vorschaukarte code {
+  padding: 2px 7px; border-radius: 6px;
+  background: var(--flaeche-2); border: 1px solid var(--linie);
+}
+.vorschaukarte code.neu { color: var(--akzent); border-color: var(--akzent); }
+.vorschaukarte .liste { margin-top: 14px; }
+
+/* Der zweite Schritt ist abgesetzt: eine eigene Fläche mit rotem Rand,
+   damit niemand ihn für den Rest des Formulars hält. */
+.anwendform {
+  margin-top: 22px; padding: 16px 18px 14px; border-radius: 12px;
+  background: var(--dopp-weich); border: 1px solid var(--dopp);
+}
+.bestaetigungsfeld input {
+  max-width: 260px; letter-spacing: .12em; font-weight: 700;
+  text-transform: uppercase;
+}
+
 /* --- Bewilligungen in „Mein Bereich“ ------------------------------------ */
 .bewilligungskarte { border-color: var(--linie-stark); }
 .bewilligungsliste { list-style: none; margin: 0; padding: 0;
@@ -2878,7 +2908,12 @@ fieldset.feld > span {
 
 .wiki { display: grid; gap: var(--abstand); grid-template-columns: 1fr; }
 @media (min-width: 900px) {
-  .wiki { grid-template-columns: 320px minmax(0, 1fr); align-items: start; }
+  /* ⚠️ Die Spalte war fest auf 320px. Bei einem tief verschachtelten
+     Baum blieb dadurch für die Titel kaum Platz, und mit jedem
+     aufgeklappten Ordner wurde es enger. Jetzt wächst sie auf breiten
+     Fenstern mit, bis zu 420px. */
+  .wiki { grid-template-columns: clamp(280px, 24vw, 420px) minmax(0, 1fr);
+          align-items: start; }
   /* Unter der klebenden Kopfzeile beginnen, nicht dahinter verschwinden */
   .wiki-seitenleiste { position: sticky; top: calc(var(--kopfhoehe) + 16px);
                        max-height: calc(100vh - var(--kopfhoehe) - 32px);
@@ -2894,12 +2929,24 @@ fieldset.feld > span {
 .wiki-suche .knopf-icon { flex: 0 0 auto; }
 
 .wiki-baum { font-size: 13.5px; }
-.wiki-liste { list-style: none; margin: 0; padding: 0 0 0 13px; }
+/* ⚠️ Die Einrückung ist bewusst knapp. Jede Ebene kostet Breite, und bei
+   vier Ebenen blieb vom Titel nichts mehr übrig - genau das machte den
+   aufgeklappten Baum unbrauchbar. Die Führungslinie trägt die Gliederung
+   auch mit weniger Versatz. */
+.wiki-liste { list-style: none; margin: 0; padding: 0 0 0 9px; }
 .wiki-baum > .wiki-liste { padding-left: 0; }
-.wiki-liste .wiki-liste { border-left: 1px solid var(--linie-stark); margin-left: 8px; }
+.wiki-liste .wiki-liste { border-left: 1px solid var(--linie-stark); margin-left: 5px; }
+
+/* Der Knopf über dem Baum. */
+.wiki-baumknopf {
+  display: inline-flex; align-items: center; gap: 6px;
+  width: 100%; justify-content: center; margin-bottom: 10px;
+}
+.wiki-baumknopf svg { width: 14px; height: 14px; }
+.wiki-baumknopf[data-stand="auf"] svg { transform: rotate(180deg); }
 
 .wiki-knoten {
-  display: flex; align-items: center; gap: 7px;
+  display: flex; align-items: flex-start; gap: 7px;
   padding: 5px 8px; border-radius: 7px; text-decoration: none;
   color: var(--leise); cursor: pointer;
   border: 1px solid transparent;
@@ -2909,7 +2956,8 @@ fieldset.feld > span {
 .wiki-knoten span { overflow-wrap: anywhere; }
 .wiki-knoten:hover { background: var(--flaeche-2); color: var(--tinte); }
 .wiki-knoten.hier { background: var(--akzent-weich); color: var(--akzent); font-weight: 600; }
-.wiki-symbol { width: 15px; height: 15px; flex: 0 0 auto; opacity: .75; }
+.wiki-symbol { width: 15px; height: 15px; flex: 0 0 auto; opacity: .75;
+               margin-top: 2px; }
 .wiki-wurzel { margin-bottom: 6px; font-weight: 600; }
 
 /* Ordner und Seiten auf einen Blick auseinanderhalten. Drei Merkmale
@@ -2919,7 +2967,7 @@ fieldset.feld > span {
    darunter stehen dagegen leicht eingerückt in normaler Stärke. */
 .wiki-ordner > summary { font-weight: 600; color: var(--tinte); }
 .wiki-ordner > summary .wiki-symbol { color: var(--akzent); opacity: 1; }
-.wiki-seitenknoten { font-weight: 400; padding-left: 12px; }
+.wiki-seitenknoten { font-weight: 400; padding-left: 8px; }
 .wiki-seitenknoten .wiki-symbol { width: 13.5px; height: 13.5px; opacity: .55; }
 .wiki-seitenknoten.hier .wiki-symbol { opacity: 1; }
 /* Etwas Luft vor jedem neuen Ordner - so bilden Ordner samt Inhalt

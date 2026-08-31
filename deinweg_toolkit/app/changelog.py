@@ -1407,4 +1407,28 @@ CHANGELOG = [
         "Antwort auf die Frage, mit der man hinklickt",
         "Prüfung von 900 auf 915 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.15", "titel": "Datenpflege, Wiki-Baum, kleinere Politur", "punkte": [
+        "Neu: „Arbeitszeit → Datenpflege“. Damit lassen sich viele "
+        "Einträge auf einen gemeinsamen Wert ziehen – etwa „AU“, „krank“ "
+        "und „Krankheit“ auf eine Schreibweise. Auch Mitarbeiter und "
+        "betreute Personen lassen sich so umbenennen, wahlweise nur in "
+        "den Zeiten oder überall: Stammeintrag, Benutzerkonto, Aufgaben, "
+        "Logbuch und E-Mail-Listen",
+        "Die Datenpflege ist bewusst eng abgesichert: eigener "
+        "Berechtigungsbereich UND fest auf Administratoren begrenzt, "
+        "zwei Schritte mit Vorschau je betroffener Stelle, das Wort "
+        "ÄNDERN muss getippt werden, und unmittelbar davor legt das Tool "
+        "eine Sicherung an",
+        "⚠️ Ein Stammeintrag wird dabei nie gelöscht. Wird auf einen "
+        "Namen umbenannt, den es schon gibt, wird der alte nur "
+        "stillgelegt – bewilligte Zeiträume und Urlaubstage bleiben",
+        "Wiki: ein Knopf über dem Baum klappt alle Ordner auf einmal auf "
+        "und wieder zu",
+        "Wiki: die linke Spalte wächst auf breiten Fenstern mit und "
+        "rückt weniger tief ein – ein voll aufgeklappter Baum passt jetzt "
+        "hinein, statt seitlich abgeschnitten zu werden",
+        "Auswertung: kein Eurozeichen mehr hinter jedem Wert in den "
+        "Spalten „Satz“ und „Verdienst“ – es steht im Spaltenkopf",
+        "Prüfung von 915 auf 949 Einzelprüfungen erweitert",
+    ]},
 ]

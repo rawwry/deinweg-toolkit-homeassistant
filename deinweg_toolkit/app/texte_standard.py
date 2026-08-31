@@ -408,6 +408,17 @@ TEXTE_STANDARD["einst.texte_lead"] = (
     "verbesserte Formulierungen aus einem Update kommen deshalb nicht "
     "von selbst an. „Fehlende Texte ergänzen“ trägt nur nach, was in der "
     "Datei noch gar nicht steht, und lässt eigene Änderungen in Ruhe.")
+TEXTE_STANDARD["datenpflege.lead"] = (
+    "Zieht viele Einträge auf einen gemeinsamen Wert – etwa „AU“, "
+    "„krank“ und „Krankheit“ auf eine Schreibweise. Nichts passiert "
+    "sofort: erst kommt eine Vorschau mit den Zahlen und ein paar "
+    "Beispielzeilen. Groß- und Kleinschreibung sowie Leerzeichen am Rand "
+    "spielen beim Suchen keine Rolle.")
+TEXTE_STANDARD["datenpflege.sicherung"] = (
+    "Unmittelbar vor der Änderung legt das Tool eine Kopie der Datenbank "
+    "unter „System und Sicherung“ ab. Rückgängig machen lässt sich der "
+    "Schritt nur darüber – ein Stammeintrag wird dabei aber nie gelöscht, "
+    "höchstens stillgelegt.")
 TEXTE_STANDARD["login.lead"] = (
     "Mit Benutzername und Passwort anmelden, um fortzufahren.")
 TEXTE_STANDARD["vorgaenge.verlauf_leer"] = "Noch keine Einträge."

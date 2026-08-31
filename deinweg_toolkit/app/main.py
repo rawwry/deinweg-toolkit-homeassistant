@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.14"
+VERSION = "1.15"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -252,14 +252,25 @@ def spruch() -> dict:
 
 def euro(betrag) -> str:
     """1234.5 wird zu 1.234,50 €"""
+    return zahl(betrag) + (" €" if zahl(betrag) != "–" else "")
+
+
+def zahl(betrag) -> str:
+    """Derselbe Betrag ohne Währungszeichen.
+
+    Für Tabellen, deren Spaltenkopf die Einheit schon trägt: das Zeichen
+    hinter jedem einzelnen Wert wiederholt nur, was oben steht, und macht
+    die Spalte breiter als nötig.
+    """
     try:
         text = f"{float(betrag):,.2f}"
     except (TypeError, ValueError):
         return "–"
-    return text.replace(",", "#").replace(".", ",").replace("#", ".") + " €"
+    return text.replace(",", "#").replace(".", ",").replace("#", ".")
 
 
 templates.env.filters["euro"] = euro
+templates.env.filters["zahl"] = zahl
 
 
 def stunden(wert) -> str:
@@ -422,6 +433,30 @@ def sicherungsdateien() -> list[str]:
                 if d.startswith("sicherung-") and d.endswith(".db")]
     except OSError:
         return []
+
+
+def sicherung_anlegen(grund: str) -> str | None:
+    """Eine Sicherung ausserhalb des Wochenrhythmus, mit Grund im Namen.
+
+    Wird vor einer Sammelaenderung gerufen. Der Name folgt demselben
+    Muster wie die woechentliche Sicherung, damit die Liste in den
+    Einstellungen sie mit anzeigt - und damit sie beim Aufraeumen mit
+    unter die fuenf juengsten faellt.
+    """
+    try:
+        os.makedirs(SICHERUNG_PFAD, exist_ok=True)
+        stempel = dt.datetime.now().strftime("%Y-%m-%d-%H%M%S")
+        name = f"sicherung-{stempel}-{grund}.db"
+        ziel = os.path.join(SICHERUNG_PFAD, name)
+        vorlaeufig = ziel + ".teil"
+        datenbank_kopieren(vorlaeufig)
+        os.replace(vorlaeufig, ziel)
+        return name
+    except OSError as fehler:
+        # ⚠️ Eine fehlgeschlagene Sicherung darf die Aenderung nicht
+        # verhindern - aber der Aufrufer muss davon erfahren.
+        print(f"[sicherung] fehlgeschlagen: {fehler}", flush=True)
+        return None
 
 
 def automatische_sicherung(heute: dt.date | None = None) -> str | None:
@@ -2487,6 +2522,15 @@ _vorgaenge.setup(templates, {"eigener_name": _eigener_name})
 mail.bewilligungen_holen = bewilligungen_pruefen
 app.include_router(_vorgaenge.router)
 
+# --- Datenpflege ------------------------------------------------------------
+#
+# ⚠️ Nach demselben Modulmuster wie die uebrigen (Abschnitt 3). Sie
+# bekommt nur, was sie braucht: die Sicherungsfunktion.
+
+from . import datenpflege as _datenpflege  # noqa: E402
+_datenpflege.setup(templates, {"sicherung_anlegen": sicherung_anlegen})
+app.include_router(_datenpflege.router)
+
 
 # --- Einstellungen ----------------------------------------------------------
 #
@@ -2512,6 +2556,7 @@ _einstellungen.setup(templates, {
     "TEXTE_STANDARD": TEXTE_STANDARD,
     "SICHERUNG_PFAD": SICHERUNG_PFAD,
     "sicherungsdateien": sicherungsdateien,
+    "sicherung_anlegen": sicherung_anlegen,
     "FUSS_STANDARD": FUSS_STANDARD,
 })
 app.include_router(_einstellungen.router)

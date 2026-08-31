@@ -36,6 +36,17 @@
       </button>
     </form>
 
+    {# Nur mit Skript sinnvoll, deshalb versteckt ausgeliefert und dort
+       eingeblendet - und wieder entfernt, wenn es gar keine Ordner gibt. #}
+    <button type="button" class="knopf leise klein wiki-baumknopf"
+            id="wiki-baum-falten" hidden>
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Alle Ordner ausklappen</span>
+    </button>
+
     <nav class="wiki-baum" aria-label="Wiki-Struktur">
       <a class="wiki-knoten wiki-wurzel {{ 'hier' if wurzel_hier }}" href="/wiki"
          data-ziel="" title="Oberste Ebene – zum Verschieben hierher ziehen">
@@ -556,6 +567,25 @@
       var block = ziel.closest("details");
       while (block) { block.open = true; block = block.parentElement.closest("details"); }
     });
+  }
+
+  // Derselbe Knopf für den Baum links. Er merkt sich seinen Stand nicht:
+  // welche Ordner offen sind, entscheidet beim Laden der aufgeschlagene
+  // Pfad - das ist fast immer richtiger als ein gemerkter Zustand.
+  var baumknopf = document.getElementById("wiki-baum-falten");
+  if (baumknopf) {
+    var ordner = document.querySelectorAll(".wiki-baum details.wiki-ordner");
+    if (!ordner.length) { baumknopf.remove(); }
+    else {
+      baumknopf.hidden = false;
+      baumknopf.addEventListener("click", function () {
+        var auf = baumknopf.dataset.stand !== "auf";
+        ordner.forEach(function (d) { d.open = auf; });
+        baumknopf.dataset.stand = auf ? "auf" : "zu";
+        baumknopf.querySelector("span").textContent =
+          auf ? "Alle Ordner einklappen" : "Alle Ordner ausklappen";
+      });
+    }
   }
 
   // „Alles auf-/zuklappen" über der Seite. Der Knopf steht nur da, wenn

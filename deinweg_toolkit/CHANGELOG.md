@@ -3,6 +3,16 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.15
+
+- Neu: „Arbeitszeit → Datenpflege" für Sammeländerungen an
+  Beschreibungen, Mitarbeitern und betreuten Personen. Nur für
+  Administratoren, zweistufig mit Vorschau, Tippbestätigung und
+  automatischer Sicherung davor
+- Wiki: Knopf zum Auf- und Zuklappen aller Ordner, breitere Spalte und
+  knappere Einrückung
+- Auswertung: kein Eurozeichen mehr in den Zellen
+
 ## 1.14
 
 - Dunkles Thema in sehr dunklem Aubergine statt neutralem Grau

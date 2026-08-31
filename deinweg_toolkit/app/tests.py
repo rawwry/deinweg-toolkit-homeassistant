@@ -50,6 +50,7 @@ os.environ.update({
 from fastapi.testclient import TestClient  # noqa: E402
 
 from . import db  # noqa: E402
+from . import mail  # noqa: E402
 from .main import app  # noqa: E402
 
 
@@ -231,8 +232,11 @@ def test_menue(client: TestClient) -> None:
                f"{adresse}: „{hier}“ ist als aktueller Punkt markiert")
         pruefe(leiste.count("aria-current=page") == 1,
                f"{adresse}: und zwar nur dieser eine")
-        pruefe(leiste.count("<a ") == 3,
-               f"{adresse}: alle drei Unterpunkte stehen darin")
+        # Seit 1.15 kommt für Administratoren die Datenpflege dazu.
+        pruefe(leiste.count("<a ") == 4,
+               f"{adresse}: alle vier Unterpunkte stehen darin")
+        pruefe(">Datenpflege<" in leiste,
+               f"{adresse}: die Datenpflege steht als letzter Punkt")
 
     seite = client.get("/eintraege").text
     pruefe("<h1>Übersicht</h1>" in seite,
@@ -2947,6 +2951,159 @@ def test_bewilligung_nachfolge(client: TestClient) -> None:
         con.execute("DELETE FROM person WHERE id=?", (pid,))
 
 
+def test_datenpflege(client: TestClient) -> None:
+    """Sammeländerung: zwei Schritte, Sicherung, nichts geht verloren."""
+    abschnitt("Datenpflege")
+    from . import main
+
+    def anwenden(daten, wort="ÄNDERN"):
+        return client.post("/datenpflege/anwenden", data=dict(daten, bestaetigung=wort),
+                           follow_redirects=False)
+
+    seite = client.get("/datenpflege").text
+    pruefe("Datenpflege" in seite and "Vorschau anzeigen" in seite,
+           "die Seite ist erreichbar und führt erst zur Vorschau")
+    pruefe(">Datenpflege<" in client.get("/eintraege").text,
+           "und steht als Reiter unter „Arbeitszeit“")
+
+    # --- Zugriff --------------------------------------------------------
+    # ⚠️ Die Seite ändert Werte quer durch die Datenbank. Sie hängt an
+    # ihrem Bereich UND fest an der Rolle.
+    fremd = _konto(client, "pfleger", "pflegerpasswort",
+                   ["datensaetze", "datenpflege"])
+    pruefe(fremd.get("/datenpflege").status_code == 403,
+           "ein normales Konto kommt auch mit dem Bereich nicht hinein")
+    pruefe(fremd.post("/datenpflege/anwenden", data={
+        "feld": "beschreibung", "suchart": "genau", "suchwert": "x",
+        "neuer_wert": "y", "bestaetigung": "ÄNDERN"}).status_code == 403,
+        "und schon gar nicht ans Anwenden")
+
+    # --- Testdaten ------------------------------------------------------
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, "
+                    "abgabepflicht, angelegt_am) VALUES "
+                    "('Pflegeprobe',1,1,'2026-01-01 08:00')")
+        for nr, text in ((941, "AU"), (942, "au "), (943, "AU-Bescheinigung"),
+                         (944, "Betreuung")):
+            con.execute(
+                "INSERT OR REPLACE INTO eintrag (id, mitarbeiter, datum, monat, "
+                "start, ende, klient, beschreibung, dauer_min, abrechenbar, "
+                "fingerprint, angelegt_am) VALUES "
+                "(?, 'Pflegeprobe','2026-05-04','2026-05','09:00','10:00',"
+                "'Testperson',?,60,1,?, '2026-05-04 09:00')",
+                (nr, text, f"pf{nr}"))
+
+    # --- Schritt 1 ändert nichts ----------------------------------------
+    grund = {"feld": "beschreibung", "suchart": "genau",
+             "suchwert": "AU", "neuer_wert": "Krank"}
+    vorschau = client.post("/datenpflege/vorschau", data=grund).text
+    pruefe("Das würde passieren" in vorschau, "die Vorschau erscheint")
+    pruefe("ÄNDERN" in vorschau,
+           "und verlangt für den zweiten Schritt das Bestätigungswort")
+    with db.db() as con:
+        pruefe(con.execute("SELECT COUNT(*) c FROM eintrag WHERE beschreibung "
+                           "IN ('AU','au ')").fetchone()["c"] == 2,
+               "und ändert selbst noch nichts")
+
+    # ⚠️ Verglichen wird über norm(): „AU“ und „au “ gehören zusammen,
+    # „AU-Bescheinigung“ aber nicht - das ist kein „ist genau“.
+    pruefe(">AU-Bescheinigung<" not in vorschau,
+           "„ist genau“ fasst nur die wirklich gleichen Werte")
+
+    # --- Falsches Wort ändert nichts ------------------------------------
+    antwort = anwenden(grund, "ja")
+    pruefe("Zum Anwenden muss das Wort" in antwort.text,
+           "ohne das Bestätigungswort passiert nichts")
+    with db.db() as con:
+        pruefe(con.execute("SELECT COUNT(*) c FROM eintrag WHERE beschreibung "
+                           "IN ('AU','au ')").fetchone()["c"] == 2,
+               "und die Daten stehen unverändert da")
+
+    # --- Anwenden -------------------------------------------------------
+    vorher = len(main.sicherungsdateien())
+    antwort = anwenden(grund)
+    pruefe(antwort.status_code == 303, "mit dem Wort wird geändert")
+    with db.db() as con:
+        pruefe(con.execute("SELECT COUNT(*) c FROM eintrag WHERE "
+                           "beschreibung='Krank'").fetchone()["c"] == 2,
+               "beide Schreibweisen sind zusammengezogen")
+        pruefe(con.execute("SELECT beschreibung b FROM eintrag WHERE id=943"
+                           ).fetchone()["b"] == "AU-Bescheinigung",
+               "der längere Text blieb unangetastet")
+    pruefe(len(main.sicherungsdateien()) == vorher + 1,
+           "vorher wurde eine Sicherung angelegt")
+
+    # „enthält“ greift weiter.
+    anwenden({"feld": "beschreibung", "suchart": "enthaelt",
+              "suchwert": "bescheinigung", "neuer_wert": "Krank"})
+    with db.db() as con:
+        pruefe(con.execute("SELECT COUNT(*) c FROM eintrag WHERE "
+                           "beschreibung='Krank'").fetchone()["c"] == 3,
+               "„enthält“ findet auch den Teiltext")
+
+    # --- Mitarbeiter global ---------------------------------------------
+    with db.db() as con:
+        con.execute("INSERT INTO vorgang (klient, art, titel, zustaendig, "
+                    "status, prioritaet, angelegt_am, angelegt_von, "
+                    "geaendert_am) VALUES ('Testperson','Sonstiges',"
+                    "'Pflegevorgang','Pflegeprobe','Offen','Normal',"
+                    "'2026-01-01 08:00','pruefer','2026-01-01 08:00')")
+        con.execute("INSERT INTO vorgang_log (vorgang_id, zeitpunkt, wer, "
+                    "aktion, beschreibung, klient) SELECT id,"
+                    "'2026-01-01 08:00','Pflegeprobe','neu','angelegt',"
+                    "'Testperson' FROM vorgang WHERE titel='Pflegevorgang'")
+        mail.konfig_schreiben(con, {"frist_kopie": "Pflegeprobe, pruefer"})
+
+    namen = {"feld": "mitarbeiter", "suchart": "genau",
+             "suchwert": "Pflegeprobe", "neuer_wert": "Pflege Probe",
+             "ueberall": "1"}
+    vorschau = client.post("/datenpflege/vorschau", data=namen).text
+    for stelle in ("Zeiteinträge", "Aufgaben (zuständig)", "Logbuchzeilen",
+                   "Team-Eintrag", "E-Mail-Empfängerliste"):
+        pruefe(stelle in vorschau, f"die Vorschau nennt „{stelle}“")
+
+    anwenden(namen)
+    with db.db() as con:
+        for wort, frage in (
+                ("Zeiten", "SELECT COUNT(*) c FROM eintrag WHERE "
+                           "mitarbeiter='Pflege Probe'"),
+                ("Team", "SELECT COUNT(*) c FROM mitarbeiter WHERE "
+                         "name='Pflege Probe'"),
+                ("Aufgabe", "SELECT COUNT(*) c FROM vorgang WHERE "
+                            "zustaendig='Pflege Probe'"),
+                ("Logbuch", "SELECT COUNT(*) c FROM vorgang_log WHERE "
+                            "wer='Pflege Probe'")):
+            pruefe(con.execute(frage).fetchone()["c"] > 0,
+                   f"{wort} trägt den neuen Namen")
+        pruefe(con.execute("SELECT COUNT(*) c FROM eintrag WHERE "
+                           "mitarbeiter='Pflegeprobe'").fetchone()["c"] == 0,
+               "und nirgends mehr den alten")
+        k = mail.konfig_lesen(con)
+    pruefe("Pflege Probe" in k["frist_kopie"],
+           "auch die E-Mail-Empfängerliste wandert mit")
+
+    # --- Zusammenführung: nichts wird gelöscht --------------------------
+    zusammen = {"feld": "mitarbeiter", "suchart": "genau",
+                "suchwert": "Pflege Probe", "neuer_wert": "pruefer",
+                "ueberall": "1"}
+    vorschau = client.post("/datenpflege/vorschau", data=zusammen).text
+    pruefe("stillgelegt" in vorschau,
+           "die Vorschau sagt, dass zusammengeführt statt umbenannt wird")
+    anwenden(zusammen)
+    with db.db() as con:
+        alt = con.execute("SELECT aktiv FROM mitarbeiter WHERE "
+                          "name='Pflege Probe'").fetchone()
+        pruefe(alt is not None, "⚠️ der alte Stammeintrag ist NICHT gelöscht")
+        pruefe(alt["aktiv"] == 0, "sondern nur stillgelegt")
+        pruefe(con.execute("SELECT COUNT(*) c FROM mitarbeiter WHERE "
+                           "name='pruefer'").fetchone()["c"] == 1,
+               "und den Zielnamen gibt es genau einmal")
+        con.execute("DELETE FROM eintrag WHERE id BETWEEN 941 AND 944")
+        con.execute("DELETE FROM vorgang WHERE titel='Pflegevorgang'")
+        con.execute("DELETE FROM mitarbeiter WHERE name='Pflege Probe'")
+        mail.konfig_schreiben(con, {"frist_kopie": ""})
+
+
 def test_versionen() -> None:
     """Die Versionszaehlung: beginnt bei 0.1, endet beim aktuellen Stand."""
     abschnitt("Versionen")
@@ -3681,6 +3838,7 @@ def _durchlauf(client: TestClient) -> None:
         test_abgaben_verweise(client)
         test_wiki_falten(client)
         test_verlaufsdiagramm(client)
+        test_datenpflege(client)
         test_farbvariablen(client)
         test_bewilligung_nachfolge(client)
         test_versionen()

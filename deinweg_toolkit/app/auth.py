@@ -83,6 +83,7 @@ BEREICHE = {
     "manuelle_eintraege": "Manuelle Einträge",
     "datensaetze": "Übersicht (Datensätze)",
     "auswertung": "Auswertung",
+    "datenpflege": "Datenpflege (Sammeländerung)",
     "verwaltungsvorgaenge": "Aufgaben",
     "fuhrpark": "Fuhrpark",
     "wiki": "Wiki",
@@ -114,6 +115,7 @@ BEREICH_PFADE = [
     ("/export", "datensaetze"),
     ("/erfassung", "manuelle_eintraege"),
     ("/auswertung", "auswertung"),
+    ("/datenpflege", "datenpflege"),
     ("/einstellungen", "einstellungen"),
     ("/ideen", "ideen"),
     ("/upload", "listenimport"),
@@ -205,7 +207,9 @@ def einst_bereiche_speichern(gewaehlt: list[str]) -> str:
 # der allgemeinen "einstellungen"-Berechtigung - Benutzerverwaltung darf
 # niemand ohne Administratorrolle sehen oder aufrufen, sonst koennte sich
 # ein eingeschraenkter Benutzer selbst hochstufen.
-ADMIN_NUR_PFADE = ("/einstellungen/benutzer",)
+# ⚠️ Die Datenpflege schreibt quer durch die ganze Datenbank - sie ist
+# zusaetzlich zur Bereichsberechtigung fest auf Administratoren begrenzt.
+ADMIN_NUR_PFADE = ("/einstellungen/benutzer", "/datenpflege")
 
 # Oeffentlich ohne Anmeldung erreichbar
 OEFFENTLICHE_PFADE = ("/gesundheit", "/login")

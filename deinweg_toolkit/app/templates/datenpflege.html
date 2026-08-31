@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% from "_untermenue.html" import arbeitszeit with context %}
+{% block titel %} – Datenpflege{% endblock %}
+
+{% block inhalt %}
+{{ arbeitszeit("datenpflege") }}
+
+{% if hinweis %}<p class="meldung gut">{{ hinweis }}</p>{% endif %}
+{% if fehler %}<p class="meldung warn">{{ fehler }}</p>{% endif %}
+
+<section class="karte gefahrenkarte">
+  <div class="kopfzeile">
+    <h1>Datenpflege</h1>
+    <span class="marke-status dopp">wirkt auf alle Einträge</span>
+  </div>
+  <p class="lead">{{ t("datenpflege.lead") }}</p>
+
+  <form action="/datenpflege/vorschau" method="post" class="pflegeform">
+    <div class="feldreihe">
+      <label class="feld">
+        <span>Feld</span>
+        <select name="feld" id="pflege-feld">
+          {% for schluessel, f in FELDER.items() %}
+          <option value="{{ schluessel }}" {{ 'selected' if feld == schluessel }}>{{ f.wort }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="feld">
+        <span>Suchart</span>
+        <select name="suchart">
+          {% for schluessel, wort in SUCHARTEN.items() %}
+          <option value="{{ schluessel }}" {{ 'selected' if suchart == schluessel }}>{{ wort }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Bisheriger Wert</span>
+        <input type="text" name="suchwert" value="{{ suchwert }}" list="pflege-werte"
+               autocomplete="off" placeholder="z. B. AU" required>
+      </label>
+      <label class="feld">
+        <span>Neuer Wert</span>
+        <input type="text" name="neuer_wert" value="{{ neuer_wert }}" list="pflege-werte"
+               autocomplete="off" placeholder="z. B. Krank" required>
+      </label>
+    </div>
+
+    {# Die Vorschlagsliste enthält alle drei Felder auf einmal. Sie ist
+       nur eine Hilfe beim Tippen – gesucht wird über den eingegebenen
+       Text, nicht über die Liste. #}
+    <datalist id="pflege-werte">
+      {% for schluessel, werte in auswahl.items() %}
+        {% for w in werte %}<option value="{{ w }}">{% endfor %}
+      {% endfor %}
+    </datalist>
+
+    <label class="ankreuz" id="pflege-ueberall">
+      <input type="checkbox" name="ueberall" value="1" {{ 'checked' if ueberall }}>
+      <span>Auch überall sonst umbenennen – Stammeintrag, Benutzerkonto,
+        Aufgaben, Logbuch und E-Mail-Listen. Nur für Mitarbeiter und
+        betreute Personen.</span>
+    </label>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Vorschau anzeigen</button>
+      <a class="knopf leise" href="/datenpflege">Zurücksetzen</a>
+    </div>
+  </form>
+</section>
+
+{% if vorschau %}
+<section class="karte vorschaukarte">
+  <div class="kopfzeile">
+    <h2>Das würde passieren</h2>
+    <p class="summe">{{ vorschau.gesamt }} Stellen</p>
+  </div>
+
+  {% if vorschau.hinweise %}
+  {% for h in vorschau.hinweise %}
+  <p class="meldung warn">{{ h }}</p>
+  {% endfor %}
+  {% endif %}
+
+  {% if not vorschau.werte %}
+  <p class="leer">Kein einziger Eintrag passt auf diese Suche.</p>
+  {% else %}
+
+  <p class="klein leise">
+    Betroffene Werte:
+    {% for w in vorschau.werte %}<code>{{ w }}</code>{% if not loop.last %} · {% endif %}{% endfor %}
+    → <code class="neu">{{ neuer_wert }}</code>
+  </p>
+
+  <table class="liste dicht">
+    <thead><tr><th>Stelle</th><th>Zeilen</th></tr></thead>
+    <tbody>
+      {% for s in vorschau.stellen %}
+      <tr><td>{{ s.wo }}</td><td class="zahlen stark">{{ s.anzahl }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if vorschau.beispiele %}
+  <h2 class="unterkopf">Beispiele aus den Zeiteinträgen</h2>
+  <div class="tabellenrolle">
+    <table class="liste dicht">
+      <thead><tr><th>Datum</th><th>Mitarbeiter</th><th>Betreuter</th>
+                 <th>Beschreibung</th><th>Dauer</th></tr></thead>
+      <tbody>
+        {% for z in vorschau.beispiele %}
+        <tr>
+          <td class="zahlen nowrap">{{ z.datum | deutsch }}</td>
+          <td class="leise">{{ z.mitarbeiter }}</td>
+          <td class="leise">{{ z.klient }}</td>
+          <td class="leise klein">{{ z.beschreibung }}</td>
+          <td class="zahlen nowrap">{{ z.dauer_min | hhmm }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {# ⚠️ Zweiter Schritt: das Wort muss getippt werden. Ein Knopf allein
+     ließe sich zu leicht im Vorbeigehen treffen, und zurücknehmen lässt
+     sich das nur über die Sicherung. #}
+  <form action="/datenpflege/anwenden" method="post" class="anwendform"
+        onsubmit="return confirm('Wirklich {{ vorschau.gesamt }} Stellen ändern?')">
+    <input type="hidden" name="feld" value="{{ feld }}">
+    <input type="hidden" name="suchart" value="{{ suchart }}">
+    <input type="hidden" name="suchwert" value="{{ suchwert }}">
+    <input type="hidden" name="neuer_wert" value="{{ neuer_wert }}">
+    {% if ueberall %}<input type="hidden" name="ueberall" value="1">{% endif %}
+
+    <label class="feld bestaetigungsfeld">
+      <span>Zum Anwenden das Wort <strong>ÄNDERN</strong> eintippen</span>
+      <input type="text" name="bestaetigung" autocomplete="off"
+             placeholder="ÄNDERN" required>
+    </label>
+    <p class="klein leise felderklaerung">{{ t("datenpflege.sicherung") }}</p>
+
+    <div class="knopfreihe">
+      <button class="knopf warn" type="submit">Jetzt ändern</button>
+      <a class="knopf leise" href="/datenpflege">Abbrechen</a>
+    </div>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+<script>
+  // Der Schalter „überall umbenennen" ergibt nur bei Namen Sinn – bei
+  // einer Beschreibung gibt es keine zweite Stelle. Ohne Skript bleibt
+  // er sichtbar; der Server ignoriert ihn dort ohnehin.
+  (function () {
+    var feld = document.getElementById("pflege-feld"),
+        block = document.getElementById("pflege-ueberall");
+    if (!feld || !block) return;
+    function zeigen() {
+      block.hidden = feld.value === "beschreibung";
+    }
+    feld.addEventListener("change", zeigen);
+    zeigen();
+  })();
+</script>
+{% endblock %}

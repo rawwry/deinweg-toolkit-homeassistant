@@ -108,11 +108,11 @@
           {% else %}<span class="leise">—</span>{% endif %}
         </td>
         <td class="zahlen leise">
-          {% if r.satz is not none %}{{ r.satz | euro }}
+          {% if r.satz is not none %}{{ r.satz | zahl }}
           {% elif r.saetze %}{{ r.saetze | length }} Sätze
           {% else %}<span class="leise">—</span>{% endif %}
         </td>
-        <td class="zahlen stark betrag">{{ r.betrag | euro if r.betrag else "—" }}</td>
+        <td class="zahlen stark betrag">{{ r.betrag | zahl if r.betrag else "—" }}</td>
       </tr>
     {% endfor %}
     </tbody>
@@ -125,7 +125,7 @@
         <td class="zahlen leise">{{ zusammenfassung.soll | hhmm if zusammenfassung.soll else "—" }}</td>
         <td></td>
         <td></td>
-        <td class="zahlen stark betrag gross">{{ verdienst_gesamt | euro }}</td>
+        <td class="zahlen stark betrag gross">{{ verdienst_gesamt | zahl }}</td>
       </tr>
     </tfoot>
     {% endif %}
@@ -209,8 +209,8 @@
           <span class="marke-status {{ 'gut' if z.abweichung >= 0 else 'dopp' }}">{{ '+' if z.abweichung >= 0 }}{{ z.abweichung | hhmm }}</span>
           {% else %}<span class="leise">—</span>{% endif %}
         </td>
-        <td class="zahlen leise">{{ z.satz | euro if z.satz else '—' }}</td>
-        <td class="zahlen stark betrag">{{ z.betrag | euro if z.betrag else '—' }}</td>
+        <td class="zahlen leise">{{ z.satz | zahl if z.satz else '—' }}</td>
+        <td class="zahlen stark betrag">{{ z.betrag | zahl if z.betrag else '—' }}</td>
       </tr>
       {% endfor %}
     </tbody>
