@@ -1,16 +1,26 @@
 /* Dein Weg: Timetool – Dark Mode ist Standard, Hell per Schalter */
 
+/*
+   Der dunkle Grund ist seit 1.14 ein sehr dunkles Aubergine statt eines
+   neutralen Grautons. Die Akzentfarbe ist ein Rosa - auf einem Grau
+   stand sie beziehungslos daneben, auf einem Ton derselben Familie
+   trägt der ganze Bildschirm dieselbe Handschrift.
+   ⚠️ Die Töne sind nach Helligkeit gestaffelt, nicht nach Sättigung:
+   Grund dunkler als Karte, Karte dunkler als eingelassene Fläche. Wer
+   hier etwas ändert, muss die Reihenfolge halten, sonst kippt die Tiefe
+   der ganzen Oberfläche.
+*/
 :root,
 [data-thema="dunkel"] {
-  --grund:      #131416;
-  --flaeche:    #1c1e21;
-  --flaeche-2:  #232629;
-  --tinte:      #eceef0;
-  --tinte-2:    #c2c8cf;
-  --leise:      #949ba3;
-  --linie:      #2e3237;
-  --linie-fein: #26292d;
-  --linie-stark:#454c55;
+  --grund:      #17121c;
+  --flaeche:    #201a27;
+  --flaeche-2:  #29222f;
+  --tinte:      #eeeaf1;
+  --tinte-2:    #c5bccd;
+  --leise:      #9a91a4;
+  --linie:      #352c3d;
+  --linie-fein: #2c2434;
+  --linie-stark:#544961;
   --akzent:     #f285b6;
   --akzent-satt:#f9a8cd;
   /* Vier Stufen derselben Farbe für die Überschriften einer Wiki-Seite.
@@ -21,14 +31,14 @@
   --ueber-2:    #f48fbd;
   --ueber-3:    #f7abd0;
   --ueber-4:    #f8c4de;
-  --akzent-weich:#2c2026;
+  --akzent-weich:#33203a;
   --warn:       #e3b262;
-  --warn-weich: #2e2718;
+  --warn-weich: #322718;
   --dopp:       #e98a7a;
-  --dopp-weich: #331f1b;
+  --dopp-weich: #37201f;
   --gut:        #7fd3ae;
-  --zebra:      #202225;
-  --schatten:   0 1px 2px rgba(0,0,0,.4);
+  --zebra:      #251e2b;
+  --schatten:   0 1px 2px rgba(0,0,0,.45);
   /* Eigene Farbreihe fuer die Kostenkategorien des Fuhrparks. Sie muss
      acht unterscheidbare Toene liefern - die Akzentfarbe allein reicht
      dafuer nicht, und Grautoene waeren in einem Ringdiagramm nicht mehr
@@ -1679,18 +1689,43 @@ label.knopf-icon { cursor: pointer; }
 .dateikachel.k-grafik        { --ton: var(--kfz-inspektion); }
 /* ⚠️ Ordner sehen anders aus als Dateien, nicht nur ein anderes Symbol.
    Vorher unterschieden sich beide nur durch die Zeichnung im Kästchen -
-   auf einen Blick war das nicht zu trennen. Jetzt tragen Ordner die
-   Akzentfarbe, einen getönten Hintergrund und einen kräftigeren Rahmen. */
+   auf einen Blick war das nicht zu trennen.
+
+   ⚠️ Seit 1.14 macht das ein getöntes Feld um das Symbol, kein Balken
+   mehr an der Kante. Die senkrechten Striche in der Liste standen quer
+   zur Leserichtung und sahen aus wie ein Rest von etwas anderem; ein
+   Symbol in seinem eigenen Feld ist dieselbe Auskunft, nur ruhiger.
+   Nicht auf einen Balken zurückbauen. */
 .ordnerkachel .dateikachel-bild.ordner {
   color: var(--akzent); background: var(--akzent-weich);
 }
 .ordnerkachel { border-color: var(--linie-stark); }
 .ordnerkachel .dateikachel-name { color: var(--akzent); }
 .ordnerkachel:hover { border-color: var(--akzent); }
-/* In der Liste stehen Ordner oben und tragen links einen Akzentbalken. */
-.dateizeile[data-art="ordner"] td:first-child { box-shadow: inset 3px 0 0 var(--akzent); }
-.dateizeile[data-art="ordner"] .artspalte .wiki-symbol { color: var(--akzent); }
-.dateizeile[data-art="ordner"] td a.stark { color: var(--akzent); }
+
+/* Das Symbolfeld: in der Liste bei jedem Eintrag, damit die Spalte
+   ruhig bleibt - beim Ordner getönt, sonst nur ein feiner Rahmen. */
+/* ⚠️ Die Selektoren müssen so lang sein. Die Dateiliste trägt beide
+   Klassen (wiki-verzeichnis dateiverzeichnis), und weiter unten steht
+   „.wiki-verzeichnis td.artspalte .wiki-symbol" mit derselben
+   Spezifität - bei Gleichstand gewinnt die spätere Regel. */
+.wiki-verzeichnis.dateiverzeichnis th.artspalte,
+.wiki-verzeichnis.dateiverzeichnis td.artspalte {
+  width: 42px; padding-right: 0; vertical-align: middle;
+}
+.wiki-verzeichnis.dateiverzeichnis td.artspalte .wiki-symbol {
+  box-sizing: content-box; width: 17px; height: 17px; padding: 5px;
+  border-radius: 8px; border: 1px solid var(--linie-fein);
+  background: var(--flaeche-2); opacity: 1; color: var(--leise);
+}
+.dateiverzeichnis .dateizeile[data-art="ordner"] .artspalte .wiki-symbol {
+  color: var(--akzent); background: var(--akzent-weich);
+  border-color: var(--akzent-weich);
+}
+.dateizeile[data-art="ordner"] td a.stark { color: var(--akzent); font-weight: 700; }
+.dateizeile[data-art="ordner"]:hover .artspalte .wiki-symbol {
+  border-color: var(--akzent);
+}
 
 .dateikachel-knoepfe {
   display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
@@ -2105,7 +2140,8 @@ body.anmeldeseite {
    ganzen Platz nimmt. */
 .tabellenrolle .liste.auswertungsblatt { table-layout: auto; min-width: 0; }
 .auswertungsblatt th:first-child { width: 22%; }
-.auswertungsblatt th:nth-child(2) { width: 7%; }
+/* „Einheit" ist länger als „Einh." und soll nicht umbrechen müssen. */
+.auswertungsblatt th.einheitspalte { width: 10%; }
 /* ⚠️ Ab 760px KANN diese Hülle nicht mehr rollen - clip statt auto.
    Die Tabelle passt dort mit Sicherheit hinein (ihre Mindestbreite liegt
    deutlich darunter, siehe unten), also ist ein Rollbalken dort immer ein
@@ -2273,7 +2309,7 @@ body.anmeldeseite {
 */
 .panda {
   width: 100%; max-width: 300px; border-radius: 12px; overflow: hidden;
-  background: linear-gradient(#161f2e, #0d1220 62%, #10161f);
+  background: linear-gradient(#2a2038, #150f1c 62%, #17121c);
   border: 1px solid var(--linie);
 }
 .panda svg { display: block; width: 100%; height: auto; }
@@ -3417,6 +3453,9 @@ fieldset.feld > span {
 .tabellenrolle .liste.zeitentabelle { table-layout: auto; min-width: 0; }
 .zeitentabelle th:first-child { width: 13%; }
 .zeitentabelle th:last-child { width: 78px; }
+/* Dauer und Balken darunter brauchen mehr als die Zahl selbst - sonst
+   drückt der Balken die Zeit in die nächste Zeile. */
+.zeitentabelle th.dauerspalte { width: 84px; }
 .tabellenrolle .liste.zeitentabelle td,
 .tabellenrolle .liste.zeitentabelle th { white-space: normal; }
 .tabellenrolle .liste.zeitentabelle td.nowrap,

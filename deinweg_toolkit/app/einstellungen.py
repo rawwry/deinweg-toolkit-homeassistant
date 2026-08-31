@@ -364,6 +364,7 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "mailkonfig": mailkonfig, "passwort_gesetzt": passwort_gesetzt,
             "bewilligung_empfaenger":
                 mail.empfaengerliste(mailkonfig.get("bewilligung_empfaenger")),
+            "frist_kopie": mail.empfaengerliste(mailkonfig.get("frist_kopie")),
             "letzte_mails": letzte_mails,
             "sprueche": sprueche_lesen() if bereich == "quotes" else [],
             "spruch_bearbeiten": spruch_bearbeiten,
@@ -935,6 +936,21 @@ def email_speichern(smtp_absender: str = Form(""), smtp_absendername: str = Form
     return email_zurueck(hinweis="Zugangsdaten gespeichert.")
 
 
+def namensliste(werte: list[str]) -> list[str]:
+    """Aus mehreren Kaestchenfeldern eine Namensliste ohne Dubletten.
+
+    Eine Stelle fuer alle drei E-Mail-Anlaesse - sonst stuende dieselbe
+    Schleife dreimal da und liefe frueher oder spaeter auseinander.
+    """
+    namen: list[str] = []
+    for wert in werte:
+        for teil in wert.split(","):
+            teil = teil.strip()
+            if teil and teil not in namen:
+                namen.append(teil)
+    return namen
+
+
 @router.post("/einstellungen/bewilligungsmail")
 def bewilligungsmail_speichern(bewilligung_aktiv: str = Form(""),
                                bewilligung_tage: str = Form("60"),
@@ -950,12 +966,7 @@ def bewilligungsmail_speichern(bewilligung_aktiv: str = Form(""),
         tage = max(1, min(365, int(bewilligung_tage or 60)))
     except ValueError:
         return email_zurueck(fehler="Der Vorlauf muss eine Zahl in Tagen sein.")
-    namen = []
-    for wert in bewilligung_empfaenger:
-        for teil in wert.split(","):
-            teil = teil.strip()
-            if teil and teil not in namen:
-                namen.append(teil)
+    namen = namensliste(bewilligung_empfaenger)
     if bewilligung_aktiv and not namen:
         return email_zurueck(fehler=(
             "Ohne Empfänger kann die Erinnerung nicht verschickt werden."))
@@ -966,6 +977,40 @@ def bewilligungsmail_speichern(bewilligung_aktiv: str = Form(""),
             "bewilligung_empfaenger": ", ".join(namen),
         })
     return email_zurueck(hinweis="Erinnerung an Bewilligungen gespeichert.")
+
+
+@router.post("/einstellungen/fristmail")
+def fristmail_speichern(frist_aktiv: str = Form(""),
+                        frist_vorlauf: str = Form("0"),
+                        frist_kopie: list[str] = Form([])):
+    """Erinnerungen aus der Aufgabenverwaltung."""
+    try:
+        vorlauf = max(0, min(365, int(frist_vorlauf or 0)))
+    except ValueError:
+        return email_zurueck(fehler="Der Vorlauf muss eine Zahl in Tagen sein.")
+    with db.db() as con:
+        mail.konfig_schreiben(con, {
+            "frist_aktiv": "1" if frist_aktiv else "0",
+            "frist_vorlauf": str(vorlauf),
+            "frist_kopie": ", ".join(namensliste(frist_kopie)),
+        })
+    return email_zurueck(hinweis="Erinnerung an Fristen gespeichert.")
+
+
+@router.post("/einstellungen/abgabemail")
+def abgabemail_speichern(abgabe_aktiv: str = Form(""),
+                         abgabe_tag: str = Form("1")):
+    """Erinnerung an die fehlende Monatsabgabe."""
+    try:
+        tag = max(1, min(28, int(abgabe_tag or 1)))
+    except ValueError:
+        return email_zurueck(fehler="Der Stichtag muss ein Tag zwischen 1 und 28 sein.")
+    with db.db() as con:
+        mail.konfig_schreiben(con, {
+            "abgabe_aktiv": "1" if abgabe_aktiv else "0",
+            "abgabe_tag": str(tag),
+        })
+    return email_zurueck(hinweis="Erinnerung an die Zeiterfassung gespeichert.")
 
 
 @router.post("/einstellungen/email/test")

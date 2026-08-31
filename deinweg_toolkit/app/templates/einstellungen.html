@@ -1386,6 +1386,74 @@
   {% endif %}
 </section>
 
+{# Die drei Anlässe stehen untereinander und sind gleich gebaut:
+   Schalter, eine Zahl, gegebenenfalls Empfänger. Wer einen vierten
+   ergänzt, hält sich an dieselbe Form. #}
+<section class="karte">
+  <h2>Erinnerung an die Zeiterfassung</h2>
+  <p class="lead">{{ t("einst.abgabemail_lead") }}</p>
+
+  <form action="/einstellungen/abgabemail" method="post">
+    <label class="filter-umschalter" style="margin-bottom: 18px;">
+      <input type="checkbox" name="abgabe_aktiv" value="1"
+             {{ 'checked' if mailkonfig.abgabe_aktiv == '1' }}>
+      <span>Erinnerung verschicken</span>
+    </label>
+
+    <label class="feld">
+      <span>Stichtag <span class="leise">– ab dem wievielten des Folgemonats</span></span>
+      <input type="number" name="abgabe_tag" min="1" max="28"
+             value="{{ mailkonfig.abgabe_tag }}">
+    </label>
+    <p class="klein leise felderklaerung">{{ t("einst.abgabemail_hinweis") }}</p>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Speichern</button>
+    </div>
+  </form>
+</section>
+
+<section class="karte">
+  <h2>Erinnerung an Fristen</h2>
+  <p class="lead">{{ t("einst.fristmail_lead") }}</p>
+
+  <form action="/einstellungen/fristmail" method="post">
+    <label class="filter-umschalter" style="margin-bottom: 18px;">
+      <input type="checkbox" name="frist_aktiv" value="1"
+             {{ 'checked' if mailkonfig.frist_aktiv == '1' }}>
+      <span>Erinnerung verschicken</span>
+    </label>
+
+    <label class="feld">
+      <span>Vorlauf in Tagen <span class="leise">– 0 = erst wenn überfällig</span></span>
+      <input type="number" name="frist_vorlauf" min="0" max="365"
+             value="{{ mailkonfig.frist_vorlauf }}">
+    </label>
+
+    <fieldset class="feld bereichsfeld">
+      <span>Zusätzlich informieren <span class="leise">– mehrere möglich</span></span>
+      {% if team %}
+      <div class="bereichsraster">
+        {% for m in team %}
+        <label class="bereich-kachel">
+          <input type="checkbox" name="frist_kopie" value="{{ m.name }}"
+                 {{ 'checked' if m.name in frist_kopie }}>
+          <span>{{ m.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="leer klein">Noch niemand im Team hinterlegt.</p>
+      {% endif %}
+    </fieldset>
+    <p class="klein leise felderklaerung">{{ t("einst.fristmail_hinweis") }}</p>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Speichern</button>
+    </div>
+  </form>
+</section>
+
 {# Dritter Anlass neben Fristen und Monatsabgaben: auslaufende
    Bewilligungen. Eine Sammelmail je Woche, nicht eine je Person - es geht
    um eine Liste, die man einmal durchgeht. #}

@@ -1977,14 +1977,15 @@ def test_monatsbloecke(client: TestClient) -> None:
     pruefe('class="kmass">Std<' in seite,
            "die Kennzahlen tragen ihre Einheit hinter der Zahl")
     pruefe('class="massangabe">Name<' in seite
-           and 'class="massangabe">Anzahl<' in seite,
+           and 'class="massangabe">Anz<' in seite,
            "auch die beiden Spalten ohne Einheit tragen eine zweite Zeile")
     # Die Spalte "Mitarbeiter" ist mit 1.4.4 entfallen - wer die Zeit
     # erfasst hat, steht in der Übersicht, nicht in der Auswertung.
     pruefe("<th>Mitarbeiter" not in seite,
            "die Spalte „Mitarbeiter“ steht nicht mehr in der Auswertung")
     kopf = seite.split("<thead>")[1].split("</thead>")[0]
-    pruefe(kopf.count("<th>") == 7, f"sieben Spalten (sind: {kopf.count('<th>')})")
+    spalten = kopf.count("<th>") + kopf.count("<th ")
+    pruefe(spalten == 7, f"sieben Spalten (sind: {spalten})")
     pruefe("Std</span></td>" not in seite,
            "in den Zellen selbst steht die Einheit nicht")
     pruefe("01.08.2024" in seite and "31.07.2025" in seite,
@@ -2512,7 +2513,10 @@ def test_bewilligungsmail(client: TestClient) -> None:
     seite = client.get("/einstellungen?bereich=email").text
     pruefe(seite.count('name="bewilligung_empfaenger"') >= 2,
            "die Oberfläche zeigt je Person ein Kästchen")
-    kasten = seite[seite.index('value="Zweite Person"'):][:120]
+    # Der Name steht auf der Seite mehrfach (auch bei den Fristen) -
+    # gesucht ist der Kasten im Block „Erinnerung an Bewilligungen".
+    block = seite.split("Erinnerung an Bewilligungen")[1]
+    kasten = block[block.index('value="Zweite Person"'):][:120]
     pruefe("checked" in kasten, "und hakt die gespeicherten an")
 
     # Eingeschaltet, aber niemand angehakt: das muss auffallen.
@@ -2537,6 +2541,70 @@ def test_bewilligungsmail(client: TestClient) -> None:
         "bewilligung_aktiv": "", "bewilligung_tage": "60",
         "bewilligung_empfaenger": ""}, follow_redirects=False)
     pruefe(antwort.status_code == 303, "und wieder abschalten geht auch")
+
+
+def test_erinnerungsoptionen(client: TestClient) -> None:
+    """Zeiterfassung und Fristen lassen sich ebenso einstellen."""
+    abschnitt("Erinnerungen: Zeiterfassung und Fristen")
+    from . import mail
+
+    seite = client.get("/einstellungen?bereich=email").text
+    for feld in ("abgabe_aktiv", "abgabe_tag", "frist_aktiv",
+                 "frist_vorlauf", "frist_kopie"):
+        pruefe(feld in seite, f"die Einstellungen kennen „{feld}“")
+
+    # --- Zeiterfassung ---------------------------------------------------
+    antwort = client.post("/einstellungen/abgabemail", data={
+        "abgabe_aktiv": "1", "abgabe_tag": "5"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "der Stichtag lässt sich speichern")
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+        pruefe(k["abgabe_tag"] == "5", "und steht in der Konfiguration")
+        # ⚠️ Vor dem Stichtag passiert nichts - vorher ging die Mail in
+        # der Nacht zum Ersten heraus.
+        heute = dt.date.today()
+        k2 = dict(k, abgabe_tag=str(min(28, max(heute.day + 1, 2))))
+        if heute.day < 28:
+            pruefe(mail.pruefe_abgaben(con, k2) == [],
+                   "vor dem Stichtag wird nicht erinnert")
+        pruefe(mail.pruefe_abgaben(con, dict(k, abgabe_aktiv="0")) == [],
+               "abgeschaltet wird gar nicht erinnert")
+
+    # Ein Stichtag außerhalb 1–28 wird auf den Rand gezogen.
+    client.post("/einstellungen/abgabemail",
+                data={"abgabe_aktiv": "1", "abgabe_tag": "99"},
+                follow_redirects=False)
+    with db.db() as con:
+        pruefe(mail.konfig_lesen(con)["abgabe_tag"] == "28",
+               "ein zu großer Stichtag wird begrenzt")
+
+    # --- Fristen ---------------------------------------------------------
+    antwort = client.post("/einstellungen/fristmail", data={
+        "frist_aktiv": "1", "frist_vorlauf": "3",
+        "frist_kopie": ["pruefer", "Zweite Person"]}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "die Fristoptionen lassen sich speichern")
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+    pruefe(k["frist_vorlauf"] == "3", "der Vorlauf steht in der Konfiguration")
+    pruefe(mail.empfaengerliste(k["frist_kopie"]) == ["pruefer", "Zweite Person"],
+           "und beide Mitlesenden ebenso")
+    with db.db() as con:
+        pruefe(mail.pruefe_fristen(con, dict(k, frist_aktiv="0")) == [],
+               "abgeschaltet wird auch hier nicht erinnert")
+
+    seite = client.get("/einstellungen?bereich=email").text
+    block = seite.split("Erinnerung an Fristen")[1]
+    kasten = block[block.index('value="pruefer"'):][:140]
+    pruefe("checked" in kasten, "die Oberfläche hakt die Mitlesenden an")
+
+    # Zurück auf den Auslieferungsstand, damit die übrigen Prüfungen
+    # nicht auf veränderten Werten sitzen.
+    client.post("/einstellungen/fristmail",
+                data={"frist_aktiv": "1", "frist_vorlauf": "0"},
+                follow_redirects=False)
+    client.post("/einstellungen/abgabemail",
+                data={"abgabe_aktiv": "1", "abgabe_tag": "1"},
+                follow_redirects=False)
 
 
 def test_texte_nachziehen(client: TestClient) -> None:
@@ -2666,8 +2734,6 @@ def test_betreute_auswahl(client: TestClient) -> None:
 def test_abgaben_verweise(client: TestClient) -> None:
     """Wer abgegeben hat, ist anklickbar und führt in die Übersicht."""
     abschnitt("Abgaben: Namen führen weiter")
-    # Verwiesen wird nur auf Namen, von denen für den gezeigten Monat
-    # etwas vorliegt - deshalb erst einmal etwas abgeben.
     heute = dt.date.today()
     with db.db() as con:
         con.execute(
@@ -2684,6 +2750,15 @@ def test_abgaben_verweise(client: TestClient) -> None:
            and f"bis_monat={heute:%m}" in verweis,
            "und zwar auf genau diesen Monat")
     pruefe(f"von_jahr={heute:%Y}" in verweis, "und dieses Jahr")
+    # Auch wer nichts abgegeben hat, ist anklickbar - die leere Liste ist
+    # dort die Antwort auf die Frage, mit der man hinklickt.
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, "
+                    "abgabepflicht, angelegt_am) VALUES "
+                    "('Ohne Abgabe',1,1,'2026-01-01 08:00')")
+    seite = client.get("/").text
+    pruefe(seite.count("/eintraege?mitarbeiter=") >= 2,
+           "auch ohne Abgabe führt der Name weiter")
     # Der Verweis liefe ohne den Bereich nur in ein 403 - dann bleibt der
     # Name schlichter Text.
     nutzer = _konto(client, "abgabeleser", "abgabepasswort",
@@ -3599,6 +3674,7 @@ def _durchlauf(client: TestClient) -> None:
         test_automatische_sicherung(client)
         test_csrf(client)
         test_bewilligungsmail(client)
+        test_erinnerungsoptionen(client)
         test_texte_nachziehen(client)
         test_fusszeile(client)
         test_betreute_auswahl(client)

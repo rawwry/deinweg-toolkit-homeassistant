@@ -283,8 +283,10 @@
         </span>
       </div>
 
-      {# Wer etwas abgegeben hat, ist anklickbar: der Name führt in die
-         Übersicht, gefiltert auf genau diese Person und diesen Monat.
+      {# Jeder Name ist anklickbar und führt in die Übersicht, gefiltert
+         auf genau diese Person und diesen Monat. Auch wer nichts
+         abgegeben hat: die leere Liste ist dort die Antwort auf die
+         Frage, mit der man hinklickt.
          Ohne den Bereich „Übersicht (Datensätze)“ liefe der Verweis nur
          in ein 403 – dann bleibt der Name schlichter Text. #}
       {% set darf_liste = hat_zugriff(request.state.benutzer, "datensaetze") %}
@@ -295,7 +297,7 @@
         {% for p in abgabe.stand %}
         <li class="{{ 'da' if p.da else ('fehlt' if p.pflicht else 'ohnepflicht') }}">
           <div class="standkopf">
-            {% if p.da and darf_liste %}
+            {% if darf_liste %}
             <a class="stark standname"
                href="/eintraege?mitarbeiter={{ p.name | urlencode }}&von_jahr={{ jahr }}&von_monat={{ nr }}&bis_jahr={{ jahr }}&bis_monat={{ nr }}"
                title="Zeiten von {{ p.name }} im {{ abgabe.wort }} ansehen">{{ p.name }}</a>

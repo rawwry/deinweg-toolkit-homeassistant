@@ -373,6 +373,21 @@ TEXTE_STANDARD["einst.sicherung_automatisch"] = (
     "Die fünf jüngsten bleiben liegen, ältere werden verworfen. Das "
     "ersetzt keine Sicherung außer Haus – dafür ist der Knopf darunter "
     "da.")
+TEXTE_STANDARD["einst.abgabemail_lead"] = (
+    "Erinnert abgabepflichtige Mitarbeitende, von denen für den "
+    "abgelaufenen Monat noch keine Zeiten vorliegen. Jede Person bekommt "
+    "höchstens eine Nachricht je Monat.")
+TEXTE_STANDARD["einst.abgabemail_hinweis"] = (
+    "Vor dem Stichtag passiert nichts. Wer bis zum Fünften Zeit hat, "
+    "trägt hier eine 5 ein – sonst käme die Erinnerung schon in der "
+    "Nacht zum Ersten.")
+TEXTE_STANDARD["einst.fristmail_lead"] = (
+    "Erinnert die zuständige Person an Fristen aus der "
+    "Aufgabenverwaltung. Abgeschlossene Vorgänge bleiben außen vor.")
+TEXTE_STANDARD["einst.fristmail_hinweis"] = (
+    "Mit einem Vorlauf gibt es zwei Nachrichten je Frist: eine "
+    "Vorwarnung und, falls nichts passiert, die Meldung am Tag danach. "
+    "Wer zusätzlich informiert wird, bekommt dieselbe Nachricht.")
 TEXTE_STANDARD["einst.bewilligungsmail_lead"] = (
     "Erinnert an Bewilligungen, die demnächst auslaufen, bereits "
     "abgelaufen sind oder ganz fehlen. Eine gesammelte Mail je Woche, "

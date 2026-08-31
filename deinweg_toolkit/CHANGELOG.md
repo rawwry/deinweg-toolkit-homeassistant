@@ -3,6 +3,16 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.14
+
+- Dunkles Thema in sehr dunklem Aubergine statt neutralem Grau
+- E-Mail-Versand: eigene Optionen für Zeiterfassung (Stichtag) und
+  Fristen (Vorlauf, Mitlesende)
+- Dateien: getöntes Symbolfeld statt Balken an der Zeilenkante
+- Auswertung: „Einheit" statt „Einh.", breiter, darunter „Anz"
+- „Mein Bereich": „Dauer" breiter und ohne Einheit, „Betreuter"
+- Zeiterfassung: alle Namen in den Abgaben führen in die Übersicht
+
 ## 1.13
 
 - Manuelle Zeiterfassung: „Betreute Person" als durchsuchbares

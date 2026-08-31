@@ -1386,4 +1386,25 @@ CHANGELOG = [
         "Handy seitlich, statt sich unlesbar zu stauchen",
         "Prüfung von 878 auf 900 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.14", "titel": "Aubergine, drei Erinnerungen, ruhigere Ordner", "punkte": [
+        "Der dunkle Grund ist jetzt ein sehr dunkles Aubergine statt "
+        "eines neutralen Grautons – die rosa Akzentfarbe stand darauf "
+        "vorher beziehungslos daneben",
+        "E-Mail-Versand: Erinnerung an die Zeiterfassung und Erinnerung "
+        "an Fristen lassen sich einzeln einstellen, wie die Bewilligungen "
+        "auch. Neu dabei: ein Stichtag für die Monatsabgabe (wer bis zum "
+        "Fünften Zeit hat, wird nicht am Ersten erinnert), ein Vorlauf "
+        "für Fristen (Vorwarnung vor dem Termin) und Mitlesende, die "
+        "dieselbe Fristmeldung bekommen",
+        "Dateien: Ordner und Dateien unterscheiden sich am getönten "
+        "Symbolfeld statt an einem senkrechten Balken an der Zeilenkante",
+        "Auswertung: die Spalte „Einh.“ heißt „Einheit“ und ist breiter, "
+        "darunter steht „Anz“",
+        "„Mein Bereich“: die Spalte „Dauer“ ist breiter und trägt keine "
+        "Einheit mehr, „Betreute Person“ heißt dort wieder „Betreuter“",
+        "Zeiterfassung: in den Abgaben führt jetzt jeder Name in die "
+        "Übersicht, auch der ohne Abgabe – die leere Liste ist dort die "
+        "Antwort auf die Frage, mit der man hinklickt",
+        "Prüfung von 900 auf 915 Einzelprüfungen erweitert",
+    ]},
 ]

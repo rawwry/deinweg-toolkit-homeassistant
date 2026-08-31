@@ -38,15 +38,24 @@ STANDARD = {
     "smtp_passwort": "",
     "smtp_sicherheit": "ssl",
     "mail_aktiv": "0",
-    "vorlage_frist_betreff": "Überfällig: {titel} ({klient})",
+    # Fristen aus der Aufgabenverwaltung. Standard an - das war schon
+    # immer so, und ein stillschweigend abgeschalteter Anlass waere eine
+    # boese Ueberraschung.
+    "frist_aktiv": "1",
+    "frist_vorlauf": "0",
+    "frist_kopie": "",
+    # Fehlende Monatsabgaben. Ebenfalls Standard an.
+    "abgabe_aktiv": "1",
+    "abgabe_tag": "1",
+    "vorlage_frist_betreff": "Fristsache: {titel} ({klient})",
     "vorlage_frist_text": (
         "Hallo {name},\n\n"
-        "der folgende Vorgang ist seit dem {frist} überfällig:\n\n"
+        "der folgende Vorgang ist {lage}:\n\n"
         "  Betreute Person: {klient}\n"
         "  Vorgang:         {titel}\n"
         "  Vorgangsart:     {art}\n"
         "  Status:          {status}\n"
-        "  Frist:           {frist} (seit {tage} Tagen überschritten)\n\n"
+        "  Frist:           {frist}\n\n"
         "Bitte kümmere dich darum oder setze eine neue Wiedervorlage.\n\n"
         "Diese Nachricht wurde automatisch erstellt."
     ),
@@ -222,43 +231,82 @@ ABGESCHLOSSEN = ("Erledigt", "Abgebrochen")
 
 
 def pruefe_fristen(con, k: dict) -> list[str]:
-    """Ueberfaellige Vorgaenge -> Mail an die zustaendige Person."""
+    """Fristen aus der Aufgabenverwaltung -> Mail an die Zustaendige.
+
+    Mit einem Vorlauf gibt es zwei Anlaesse je Frist: einmal die
+    Vorwarnung, sobald sie in den Vorlauf faellt, und einmal die Meldung,
+    wenn sie tatsaechlich ueberschritten ist.
+
+    ⚠️ Deshalb traegt der Bezug bei der Vorwarnung ein ``:vor``. Ohne das
+    haette die Vorwarnung die spaetere Meldung mitgesperrt - man wuerde
+    drei Tage vorher erinnert und danach nie wieder.
+    """
+    if k.get("frist_aktiv") != "1":
+        return []
     protokoll = []
     heute = dt.date.today()
+    try:
+        vorlauf = max(0, min(365, int(k.get("frist_vorlauf") or 0)))
+    except ValueError:
+        vorlauf = 0
+    grenze = (heute + dt.timedelta(days=vorlauf)).isoformat()
     platzhalter = ",".join("?" * len(ABGESCHLOSSEN))
     zeilen = con.execute(
         f"SELECT * FROM vorgang WHERE frist IS NOT NULL AND TRIM(frist) <> '' "
-        f"AND frist < ? AND status NOT IN ({platzhalter})",
-        [heute.isoformat(), *ABGESCHLOSSEN]).fetchall()
+        f"AND frist <= ? AND status NOT IN ({platzhalter})",
+        [grenze, *ABGESCHLOSSEN]).fetchall()
+
+    kopie = empfaengerliste(k.get("frist_kopie"))
 
     for v in zeilen:
+        try:
+            tage = (heute - dt.date.fromisoformat(v["frist"])).days
+        except ValueError:
+            tage = 0
+        ueberfaellig = tage > 0
         # Bezug enthaelt die Frist: wird sie verschoben, darf erneut erinnert
         # werden, ohne dass die alte Mail das blockiert.
         bezug = f"vorgang:{v['id']}:{v['frist']}"
+        if not ueberfaellig:
+            bezug += ":vor"
         adresse = adresse_fuer(con, v["zustaendig"])
         if not adresse:
             protokoll.append(
                 f"Vorgang {v['id']}: kein Login mit E-Mail für „{v['zustaendig']}“")
             continue
-        if schon_gesendet(con, "frist", bezug, adresse):
-            continue
-        try:
-            tage = (heute - dt.date.fromisoformat(v["frist"])).days
-        except ValueError:
-            tage = 0
+        if ueberfaellig:
+            lage = f"seit {tage} Tag{'en' if tage != 1 else ''} überfällig"
+        elif tage == 0:
+            lage = "heute fällig"
+        else:
+            lage = f"in {-tage} Tag{'en' if tage != -1 else ''} fällig"
         werte = {
             "name": v["zustaendig"], "klient": v["klient"], "titel": v["titel"],
-            "art": v["art"], "status": v["status"], "tage": tage,
+            "art": v["art"], "status": v["status"], "tage": abs(tage),
+            "lage": lage,
             "frist": dt.date.fromisoformat(v["frist"]).strftime("%d.%m.%Y")
                      if v["frist"] else "",
             "beschreibung": v["beschreibung"] or "",
         }
-        erfolg, meldung = senden(
-            adresse, fuellen(k["vorlage_frist_betreff"], werte),
-            fuellen(k["vorlage_frist_text"], werte), k)
-        vermerken(con, "frist", bezug, adresse, erfolg, meldung)
-        protokoll.append(
-            f"Vorgang {v['id']} an {adresse}: {'ok' if erfolg else meldung}")
+        betreff = fuellen(k["vorlage_frist_betreff"], werte)
+        text = fuellen(k["vorlage_frist_text"], werte)
+
+        # Die Zustaendige zuerst, dann alle, die mitlesen sollen. Dieselbe
+        # Nachricht, derselbe Bezug - der Sperrvermerk haengt an der
+        # Adresse, also bekommt jede Person ihre Mail genau einmal.
+        ziele = [adresse]
+        for name in kopie:
+            weitere = adresse_fuer(con, name)
+            if weitere and weitere not in ziele:
+                ziele.append(weitere)
+
+        for ziel in ziele:
+            if schon_gesendet(con, "frist", bezug, ziel):
+                continue
+            erfolg, meldung = senden(ziel, betreff, text, k)
+            vermerken(con, "frist", bezug, ziel, erfolg, meldung)
+            protokoll.append(
+                f"Vorgang {v['id']} an {ziel}: {'ok' if erfolg else meldung}")
     return protokoll
 
 
@@ -273,10 +321,23 @@ def monatswort(monat: str) -> str:
 
 
 def pruefe_abgaben(con, k: dict, monat: str | None = None) -> list[str]:
-    """Wer hat fuer den abgelaufenen Monat nichts eingereicht?"""
+    """Wer hat fuer den abgelaufenen Monat nichts eingereicht?
+
+    ``abgabe_tag`` verschiebt den Stichtag: viele Teams haben bis zum
+    fuenften Zeit, und eine Erinnerung am Ersten waere dann nur laestig.
+    Vorher ging sie in der Nacht zum Ersten heraus.
+    """
     protokoll = []
+    if k.get("abgabe_aktiv") != "1":
+        return []
     if monat is None:
         heute = dt.date.today()
+        try:
+            stichtag = max(1, min(28, int(k.get("abgabe_tag") or 1)))
+        except ValueError:
+            stichtag = 1
+        if heute.day < stichtag:
+            return []
         letzter = heute.replace(day=1) - dt.timedelta(days=1)
         monat = letzter.strftime("%Y-%m")
 
