@@ -200,6 +200,11 @@ TEXTE_STANDARD["erfassung.kein_team"] = (
     "Es ist noch niemand im Team eingetragen. Ohne Mitarbeiter lässt "
     "sich keine Zeit erfassen – trag die Namen unter Einstellungen → "
     "Mitarbeiter ein.")
+TEXTE_STANDARD["erfassung.keine_personen"] = (
+    "Es ist noch keine betreute Person angelegt. Die Namen stehen unter "
+    "Einstellungen → Betreute Personen; eigene lassen sich hier bewusst "
+    "nicht eintippen, damit dieselbe Person nicht in drei Schreibweisen "
+    "in der Auswertung landet.")
 TEXTE_STANDARD["erfassung.leistung_leer"] = (
     "Vordefinierte Leistungsbeschreibungen lassen sich unter "
     "<strong>Einstellungen → Leistungsbeschreibungen</strong> anlegen. "

@@ -2293,23 +2293,23 @@ def test_meinbereich_aufbau(client: TestClient) -> None:
     pruefe("Zu den Aufgaben" in leer, "mit einem Weg dorthin")
     # Der Spaß muss ohne nachgeladenes Bild auskommen (Abschnitt 13) und
     # bei „Bewegung reduzieren" still stehen.
-    pruefe('class="faul"' in leer and "faul-tier" in leer,
-           "und einem dösenden Faultier")
-    bild = leer.split('class="faul"')[1].split("</svg>")[0]
+    pruefe('class="panda"' in leer and "panda-tier" in leer,
+           "und einem dösenden Panda")
+    bild = leer.split('class="panda"')[1].split("</svg>")[0]
     pruefe("<img" not in bild and "<script" not in bild,
            "handgezeichnet, ohne nachgeladenes Bild und ohne Skript")
-    # Es lebt: Kopf, Atem, Gähnen, Motte und Mond sind eigene Teile.
-    for teil in ("faul-kopf", "faul-bauch", "faul-gaehn", "faul-mund",
-                 "faul-falter", "faul-mond", "faul-stern"):
-        pruefe(teil in bild, f"das Faultier hat den Teil „{teil}“")
+    # Er lebt: Kopf, Atem, Beine, Bambus, Motte und Mond sind eigene Teile.
+    for teil in ("panda-kopf", "panda-bauch", "panda-bein", "panda-bambus",
+                 "panda-lid", "panda-falter", "panda-mond", "panda-stern"):
+        pruefe(teil in bild, f"der Panda hat den Teil „{teil}“")
     stil = client.get("/static/style.css").text.replace("\n", " ")
     pruefe("prefers-reduced-motion: no-preference" in stil
-           and "faul-schaukeln" in stil,
-           "das Faultier hält still, wenn Bewegung reduziert werden soll")
+           and "panda-wippen" in stil,
+           "der Panda hält still, wenn Bewegung reduziert werden soll")
     # ⚠️ Jede Bewegung muss INNERHALB des Blocks stehen. Eine Animation
     # davor liefe auch dann, wenn jemand Bewegung abgestellt hat.
     block = bewegungsbloecke(stil)
-    for teil in ("faul-kopf", "faul-bauch", "faul-gaehn", "faul-falter"):
+    for teil in ("panda-kopf", "panda-bauch", "panda-bein", "panda-falter"):
         pruefe(f".{teil}" in block,
                f"„{teil}“ bewegt sich nur mit erlaubter Bewegung")
     with db.db() as con:
@@ -2617,6 +2617,116 @@ def bewegungsbloecke(stil: str) -> str:
         teile.append(stil[i:j])
         stelle = stil.find(marke, j)
     return "\n".join(teile)
+
+
+def test_betreute_auswahl(client: TestClient) -> None:
+    """Die betreute Person kommt aus einer Liste, nicht aus einem Textfeld."""
+    abschnitt("Betreute Person als Auswahl")
+    seite = client.get("/").text
+
+    pruefe('<input type="text" name="klient"' not in seite,
+           "kein freies Textfeld mehr für die betreute Person")
+    pruefe('<select name="klient"' in seite, "sondern ein Auswahlfeld")
+    pruefe('<span>Betreute Person</span>' in seite,
+           "und es heißt „Betreute Person“, nicht mehr „Betreuter“")
+    pruefe("<datalist" not in seite, "die alte Vorschlagsliste ist weg")
+    pruefe("Testperson" in seite, "die gepflegten Personen stehen zur Wahl")
+    # Ein Skript macht daraus ein durchsuchbares Feld - ohne Skript bleibt
+    # es ein ganz normales Auswahlfeld.
+    pruefe("suchwahl" in seite and "tippen zum Suchen" in seite,
+           "getippt werden darf trotzdem: das Feld ist durchsuchbar")
+
+    # ⚠️ Das Auswahlfeld allein reicht nicht - ein abgeschicktes Formular
+    # kann alles enthalten. Der Server prüft den Namen deshalb noch einmal.
+    antwort = client.post("/erfassung", data={
+        "mitarbeiter": "pruefer", "datum": "05.03.2026",
+        "klient": "Frei Erfunden", "start": "09:00", "ende": "10:00",
+        "beschreibung": "Probe"}, follow_redirects=False)
+    ziel = antwort.headers.get("location", "")
+    pruefe("fehler=" in ziel, "ein unbekannter Name wird abgewiesen")
+    pruefe("Liste" in ziel or "Einstellungen" in ziel,
+           "und die Meldung sagt, woher die Namen kommen")
+
+    # Eine abweichende Schreibweise wird auf die gepflegte gezogen.
+    antwort = client.post("/erfassung", data={
+        "mitarbeiter": "pruefer", "datum": "06.03.2026",
+        "klient": "  testperson  ", "start": "09:00", "ende": "10:00",
+        "beschreibung": "Schreibweise"}, follow_redirects=False)
+    pruefe("fehler=" not in antwort.headers.get("location", ""),
+           "eine andere Schreibweise wird angenommen")
+    with db.db() as con:
+        z = con.execute("SELECT klient FROM eintrag WHERE beschreibung="
+                        "'Schreibweise'").fetchone()
+    pruefe(z and z["klient"] == "Testperson",
+           "und auf die gepflegte Schreibweise gezogen")
+    with db.db() as con:
+        con.execute("DELETE FROM eintrag WHERE beschreibung='Schreibweise'")
+
+
+def test_abgaben_verweise(client: TestClient) -> None:
+    """Wer abgegeben hat, ist anklickbar und führt in die Übersicht."""
+    abschnitt("Abgaben: Namen führen weiter")
+    # Verwiesen wird nur auf Namen, von denen für den gezeigten Monat
+    # etwas vorliegt - deshalb erst einmal etwas abgeben.
+    heute = dt.date.today()
+    with db.db() as con:
+        con.execute(
+            "INSERT OR REPLACE INTO eintrag (id, mitarbeiter, datum, monat, "
+            "start, ende, klient, beschreibung, dauer_min, abrechenbar, "
+            "fingerprint, angelegt_am) VALUES (960,'pruefer',?,?,'09:00',"
+            "'10:00','Testperson','Abgabeprobe',60,1,'abg1','2026-01-01 08:00')",
+            (heute.isoformat(), heute.strftime("%Y-%m")))
+    seite = client.get("/").text
+    pruefe("/eintraege?mitarbeiter=" in seite,
+           "der Name führt in die gefilterte Übersicht")
+    verweis = seite.split("/eintraege?mitarbeiter=")[1].split('"')[0]
+    pruefe(f"von_monat={heute:%m}" in verweis
+           and f"bis_monat={heute:%m}" in verweis,
+           "und zwar auf genau diesen Monat")
+    pruefe(f"von_jahr={heute:%Y}" in verweis, "und dieses Jahr")
+    # Der Verweis liefe ohne den Bereich nur in ein 403 - dann bleibt der
+    # Name schlichter Text.
+    nutzer = _konto(client, "abgabeleser", "abgabepasswort",
+                    ["listenimport", "manuelle_eintraege"])
+    ohne = nutzer.get("/").text
+    pruefe("/eintraege?mitarbeiter=" not in ohne,
+           "ohne den Bereich „Übersicht“ ist der Name kein Verweis")
+    with db.db() as con:
+        con.execute("DELETE FROM eintrag WHERE id=960")
+
+
+def test_wiki_falten(client: TestClient) -> None:
+    """Überschriften lassen sich samt Inhalt zuklappen."""
+    abschnitt("Wiki: Abschnitte einklappen")
+    from . import markdown as md
+
+    text = ("# Titel\n\nVorspann\n\n## Kapitel A\n\nText A\n\n"
+            "### Unter A1\n\nText A1\n\n## Kapitel B\n\nText B\n")
+    html = str(md.zu_html(text, None, [], faltbar=True))
+    pruefe(html.count('<details class="wiki-falt" open>') == 3,
+           "jede Überschrift ab Stufe 2 bekommt einen eigenen Abschnitt")
+    pruefe("<h1" in html and "<summary" in html
+           and '<summary class="wiki-falt-kopf"><h1' not in html,
+           "die Seitenüberschrift bleibt außen vor")
+    # ⚠️ Die Kennung muss an der Überschrift bleiben, sonst liefe jede
+    # Sprungmarke aus „Auf dieser Seite“ ins Leere.
+    pruefe('id="kapitel-a"' in html and 'id="unter-a1"' in html,
+           "die Sprungmarken bleiben erhalten")
+    # Verschachtelung: das Unterkapitel steckt im Kapitel darüber.
+    innen = html.split('id="kapitel-a"')[1].split('id="kapitel-b"')[0]
+    pruefe('id="unter-a1"' in innen,
+           "ein Unterkapitel liegt im Kapitel darüber")
+    pruefe(str(md.zu_html(text, None, [])).count("wiki-falt") == 0,
+           "ohne faltbar bleibt das HTML wie zuvor")
+
+    with open(os.path.join(_ORDNER, "wiki", "falten.md"), "w",
+              encoding="utf-8") as f:
+        f.write(text)
+    seite = client.get("/wiki/falten.md").text
+    pruefe('class="wiki-falt"' in seite, "die Wiki-Seite liefert die Abschnitte")
+    pruefe('id="wiki-falten"' in seite, "und einen Knopf für alle auf einmal")
+    stil = client.get("/static/style.css").text
+    pruefe(".wiki-falt-kopf" in stil, "die Abschnitte sind gestaltet")
 
 
 def test_verlaufsdiagramm(client: TestClient) -> None:
@@ -3491,6 +3601,9 @@ def _durchlauf(client: TestClient) -> None:
         test_bewilligungsmail(client)
         test_texte_nachziehen(client)
         test_fusszeile(client)
+        test_betreute_auswahl(client)
+        test_abgaben_verweise(client)
+        test_wiki_falten(client)
         test_verlaufsdiagramm(client)
         test_farbvariablen(client)
         test_bewilligung_nachfolge(client)

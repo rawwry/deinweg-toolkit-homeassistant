@@ -199,20 +199,25 @@
          nichts ist rund, nichts hat einen Verlauf. shape-rendering:
          crispEdges hält die Kanten hart, auch wenn das SVG hochskaliert
          wird - sonst weicht der Browser die Pixel auf. #}
-      <div class="faul" role="img"
-           aria-label="Ein Faultier hängt nachts an einem Ast, döst und gähnt">
-        <svg viewBox="0 0 240 132" shape-rendering="crispEdges" aria-hidden="true">
+      <div class="panda" role="img"
+           aria-label="Ein Pixel-Panda sitzt nachts auf einem Ast, kaut Bambus und döst">
+        {# ⚠️ Der Ausschnitt beginnt bei -14 und ist 158 hoch. Damit liegt
+             über den Ohren und unter den Füßen jeweils gleich viel Luft;
+             vorher stieß der Kopf an die obere Kante der Karte. Bewusst
+             über den Ausschnitt und nicht über verschobene Koordinaten -
+             so bleibt jede Zahl im Bild dort, wo sie gezeichnet wurde. #}
+        <svg viewBox="0 -14 240 158" shape-rendering="crispEdges" aria-hidden="true">
           {# --- Nachthimmel: Mond und ein paar Sterne --- #}
-          <g class="faul-mond">
-            <rect x="212" y="4"  width="16" height="4" fill="#f0e6c8"/>
-            <rect x="208" y="8"  width="24" height="4" fill="#f0e6c8"/>
-            <rect x="208" y="12" width="24" height="4" fill="#f0e6c8"/>
-            <rect x="212" y="16" width="16" height="4" fill="#f0e6c8"/>
-            <rect x="216" y="8"  width="4" height="4" fill="#ded2ae"/>
-            <rect x="224" y="12" width="4" height="4" fill="#ded2ae"/>
+          <g class="panda-mond">
+            <rect x="204" y="10" width="16" height="4" fill="#f0e6c8"/>
+            <rect x="200" y="14" width="24" height="4" fill="#f0e6c8"/>
+            <rect x="200" y="18" width="24" height="4" fill="#f0e6c8"/>
+            <rect x="204" y="22" width="16" height="4" fill="#f0e6c8"/>
+            <rect x="208" y="14" width="4" height="4" fill="#ded2ae"/>
+            <rect x="216" y="18" width="4" height="4" fill="#ded2ae"/>
           </g>
-          {% for st in [(14,8,0),(78,10,2.2),(112,4,1.4),(196,34,0.6),(228,46,1.7),(24,44,2.8)] %}
-          <g class="faul-stern" style="--takt: {{ st[2] }}s">
+          {% for st in [(16,16,0),(56,8,1.1),(80,26,2.2),(176,10,0.6),(228,50,1.7),(28,54,2.8)] %}
+          <g class="panda-stern" style="--takt: {{ st[2] }}s">
             <rect x="{{ st[0] }}" y="{{ st[1] }}" width="4" height="4" fill="#cfd8e8"/>
             <rect x="{{ st[0] - 3 }}" y="{{ st[1] + 1 }}" width="2" height="2" fill="#8f9cb5"/>
             <rect x="{{ st[0] + 5 }}" y="{{ st[1] + 1 }}" width="2" height="2" fill="#8f9cb5"/>
@@ -220,134 +225,129 @@
           {% endfor %}
 
           {# --- Ast in vier Tönen: Lichtkante, Grund, Schatten, Rinde --- #}
-          <rect x="0" y="26" width="240" height="4"  fill="#a07c52"/>
-          <rect x="0" y="30" width="240" height="8"  fill="#6b4b2e"/>
-          <rect x="0" y="38" width="240" height="4"  fill="#4a3320"/>
-          {% for k in [8, 34, 62, 158, 186, 214] %}
-          <rect x="{{ k }}" y="32" width="10" height="3" fill="#553a22"/>
+          <rect x="0" y="96"  width="240" height="4"  fill="#a07c52"/>
+          <rect x="0" y="100" width="240" height="10" fill="#6b4b2e"/>
+          <rect x="0" y="110" width="240" height="4"  fill="#4a3320"/>
+          {% for k in [10, 40, 70, 168, 198, 224] %}
+          <rect x="{{ k }}" y="103" width="10" height="3" fill="#553a22"/>
           {% endfor %}
-          {# Blätter auf dem Ast #}
-          {% for bl in [(22,18),(50,18),(160,18),(184,18)] %}
+          {# Blätter unter dem Ast #}
+          {% for bl in [(26,114),(52,114),(186,114),(212,114)] %}
           <rect x="{{ bl[0] }}" y="{{ bl[1] }}" width="12" height="8" fill="#4f8a3a"/>
-          <rect x="{{ bl[0] + 4 }}" y="{{ bl[1] - 4 }}" width="4" height="4" fill="#66a84c"/>
-          <rect x="{{ bl[0] }}" y="{{ bl[1] + 6 }}" width="12" height="2" fill="#3d6d2c"/>
+          <rect x="{{ bl[0] + 4 }}" y="{{ bl[1] + 8 }}" width="4" height="4" fill="#3d6d2c"/>
           {% endfor %}
 
-          {# --- Zwei Blätter segeln durchs Bild --- #}
-          {% for bl in [(78, 0), (162, 4.5)] %}
-          <g class="faul-blatt" style="--takt: {{ bl[1] }}s">
-            <rect x="{{ bl[0] }}" y="42" width="8" height="4" fill="#4f8a3a"/>
-            <rect x="{{ bl[0] + 2 }}" y="38" width="4" height="4" fill="#66a84c"/>
+          {# --- Ein Blatt segelt durchs Bild --- #}
+          {% for bl in [(72, 0), (162, 5)] %}
+          <g class="panda-blatt" style="--takt: {{ bl[1] }}s">
+            <rect x="{{ bl[0] }}" y="118" width="8" height="4" fill="#4f8a3a"/>
+            <rect x="{{ bl[0] + 2 }}" y="114" width="4" height="4" fill="#66a84c"/>
           </g>
           {% endfor %}
 
-          {# --- Das Faultier. Eine Gruppe, damit das Schaukeln alles
-                 mitnimmt und der Drehpunkt oben an den Armen sitzt. --- #}
-          <g class="faul-tier">
-            {# Linker Arm: greift über den Ast, Krallen hängen darüber #}
-            <rect x="92"  y="12" width="4"  height="8"  fill="#e0d7c4"/>
-            <rect x="100" y="12" width="4"  height="8"  fill="#bdb19b"/>
-            <rect x="88"  y="18" width="20" height="10" fill="#9c8262"/>
-            <rect x="88"  y="18" width="20" height="4"  fill="#b89a75"/>
-            <rect x="88"  y="28" width="8"  height="12" fill="#7d6449"/>
-            <rect x="96"  y="38" width="12" height="22" fill="#9c8262"/>
-            <rect x="96"  y="38" width="4"  height="22" fill="#b89a75"/>
-            {# Rechter Arm #}
-            <rect x="136" y="12" width="4"  height="8"  fill="#e0d7c4"/>
-            <rect x="144" y="12" width="4"  height="8"  fill="#bdb19b"/>
-            <rect x="132" y="18" width="20" height="10" fill="#9c8262"/>
-            <rect x="132" y="18" width="20" height="4"  fill="#b89a75"/>
-            <rect x="144" y="28" width="8"  height="12" fill="#7d6449"/>
-            <rect x="132" y="38" width="12" height="22" fill="#9c8262"/>
-            <rect x="140" y="38" width="4"  height="22" fill="#7d6449"/>
-
-            {# Beine, hinter dem Körper, mit Krallen #}
-            {% for l in [86, 142] %}
-            <rect x="{{ l }}" y="60" width="12" height="26" fill="#7d6449"/>
-            <rect x="{{ l if l == 86 else l + 8 }}" y="60" width="4" height="26"
-                  fill="{{ '#9c8262' if l == 86 else '#6b5540' }}"/>
-            <rect x="{{ l }}" y="86" width="4" height="6" fill="#e0d7c4"/>
-            <rect x="{{ l + 8 }}" y="86" width="4" height="6" fill="#bdb19b"/>
-            {% endfor %}
-
-            {# Körper: Umriss, Grund, Lichtkante, Schattenkante #}
-            <rect x="98"  y="52" width="44" height="40" fill="#3b2c1f"/>
-            <rect x="100" y="54" width="40" height="36" fill="#9c8262"/>
-            <rect x="100" y="54" width="6"  height="36" fill="#b89a75"/>
-            <rect x="134" y="54" width="6"  height="36" fill="#7d6449"/>
-            {# Der Bauch hebt und senkt sich - das Atmen #}
-            <g class="faul-bauch">
-              <rect x="108" y="60" width="24" height="28" fill="#cbb190"/>
-              <rect x="110" y="62" width="20" height="8"  fill="#ddc7a8"/>
-              <rect x="112" y="80" width="16" height="4"  fill="#bda27e"/>
+          {# --- Der Panda. Beine zuerst: sie hängen vor dem Ast, der
+                 Körper deckt ihre Ansätze wieder zu. --- #}
+          <g class="panda-tier">
+            <g class="panda-bein">
+              <rect x="104" y="84" width="16" height="30" fill="#3a3a45"/>
+              <rect x="104" y="84" width="4"  height="30" fill="#4d4d5a"/>
+              <rect x="100" y="114" width="22" height="8" fill="#1b1b20"/>
+              <rect x="103" y="116" width="4" height="4" fill="#4a4a55"/>
+              <rect x="110" y="116" width="4" height="4" fill="#4a4a55"/>
+            </g>
+            <g class="panda-bein zwei">
+              <rect x="126" y="84" width="16" height="30" fill="#3a3a45"/>
+              <rect x="126" y="84" width="4"  height="30" fill="#4d4d5a"/>
+              <rect x="122" y="114" width="22" height="8" fill="#1b1b20"/>
+              <rect x="125" y="116" width="4" height="4" fill="#4a4a55"/>
+              <rect x="132" y="116" width="4" height="4" fill="#4a4a55"/>
             </g>
 
-            {# --- Kopf: eigene Gruppe, damit er dem Schaukeln
-                   nachwippt statt starr mitzugehen --- #}
-            <g class="faul-kopf">
-              <rect x="94"  y="84" width="52" height="40" fill="#3b2c1f"/>
-              <rect x="96"  y="86" width="48" height="36" fill="#b89a75"/>
-              <rect x="96"  y="86" width="48" height="4"  fill="#c9ab86"/>
-              <rect x="96"  y="114" width="48" height="8" fill="#9c8262"/>
-              {# Zottelfell am Scheitel - beim hängenden Tier ist das
-                 die untere Kante. Über dem Kopf läge es hinter dem
-                 Körper und wäre nie zu sehen. #}
-              <rect x="102" y="124" width="6" height="4" fill="#9c8262"/>
-              <rect x="114" y="124" width="8" height="5" fill="#9c8262"/>
-              <rect x="128" y="124" width="6" height="4" fill="#9c8262"/>
-              {# Augenflecken - die dunkle Maske des Faultiers #}
-              <rect x="98"  y="92" width="18" height="12" fill="#5e4530"/>
-              <rect x="124" y="92" width="18" height="12" fill="#5e4530"/>
-              {# Augen, dauerhaft halb zu - das ist der müde Blick #}
-              <rect x="102" y="95" width="10" height="7" fill="#1c140e"/>
-              <rect x="128" y="95" width="10" height="7" fill="#1c140e"/>
-              <rect x="102" y="95" width="10" height="2" fill="#5e4530"/>
-              <rect x="128" y="95" width="10" height="2" fill="#5e4530"/>
-              <rect x="104" y="99" width="2"  height="2" fill="#f4eee2"/>
-              <rect x="130" y="99" width="2"  height="2" fill="#f4eee2"/>
-              {# Lider: liegen darüber und blinzeln alle sieben Sekunden #}
-              <g class="faul-lid">
-                <rect x="102" y="95" width="10" height="7" fill="#5e4530"/>
-                <rect x="128" y="95" width="10" height="7" fill="#5e4530"/>
+            {# Arme #}
+            <rect x="86"  y="56" width="14" height="30" fill="#3a3a45"/>
+            <rect x="86"  y="56" width="4"  height="30" fill="#4d4d5a"/>
+            <rect x="84"  y="82" width="18" height="8"  fill="#1b1b20"/>
+            <rect x="148" y="56" width="14" height="26" fill="#3a3a45"/>
+            <rect x="158" y="56" width="4"  height="26" fill="#1b1b20"/>
+
+            {# Bambus in der rechten Pfote - lieber der als eine Zigarette #}
+            <g class="panda-bambus">
+              <rect x="152" y="24" width="6" height="34" fill="#7fb04a"/>
+              <rect x="152" y="24" width="2" height="34" fill="#98c463"/>
+              <rect x="152" y="34" width="6" height="3"  fill="#5d8c34"/>
+              <rect x="152" y="46" width="6" height="3"  fill="#5d8c34"/>
+              <rect x="158" y="26" width="12" height="4" fill="#66a84c"/>
+              <rect x="140" y="18" width="12" height="4" fill="#66a84c"/>
+              <rect x="150" y="20" width="8"  height="4" fill="#7fb04a"/>
+            </g>
+            {# Die Pfote liegt über dem Stängel, sonst hielte sie ihn nicht #}
+            <rect x="146" y="56" width="18" height="9" fill="#1b1b20"/>
+            <rect x="149" y="58" width="4"  height="4" fill="#4a4a55"/>
+            <rect x="156" y="58" width="4"  height="4" fill="#4a4a55"/>
+
+            {# Körper: Umriss, weißes Fell, hellere Bauchmitte #}
+            <rect x="96"  y="48" width="54" height="48" fill="#1b1b20"/>
+            <g class="panda-bauch">
+              <rect x="98"  y="50" width="50" height="44" fill="#e8e3d9"/>
+              <rect x="104" y="56" width="36" height="32" fill="#f7f4ee"/>
+              <rect x="104" y="86" width="36" height="4"  fill="#d8d3c8"/>
+            </g>
+
+            {# --- Kopf: eigene Gruppe, damit er beim Dösen nickt --- #}
+            <g class="panda-kopf">
+              {# Ohren #}
+              <rect x="94"  y="2"  width="18" height="20" fill="#1b1b20"/>
+              <rect x="134" y="2"  width="18" height="20" fill="#1b1b20"/>
+              <rect x="98"  y="6"  width="10" height="12" fill="#4d4d5a"/>
+              <rect x="138" y="6"  width="10" height="12" fill="#4d4d5a"/>
+              {# Kopf #}
+              <rect x="92"  y="16" width="62" height="44" fill="#1b1b20"/>
+              <rect x="94"  y="18" width="58" height="40" fill="#f2efe8"/>
+              <rect x="94"  y="18" width="58" height="4"  fill="#fbf9f5"/>
+              <rect x="94"  y="52" width="58" height="6"  fill="#e0dbd1"/>
+              {# Augenflecken - schräg gestellt, das macht den Panda aus #}
+              <rect x="100" y="26" width="16" height="16" fill="#1b1b20"/>
+              <rect x="98"  y="30" width="4"  height="10" fill="#1b1b20"/>
+              <rect x="130" y="26" width="16" height="16" fill="#1b1b20"/>
+              <rect x="144" y="30" width="4"  height="10" fill="#1b1b20"/>
+              {# Augen, halb zu - der entspannte Blick #}
+              <rect x="104" y="31" width="8" height="7" fill="#f2efe8"/>
+              <rect x="134" y="31" width="8" height="7" fill="#f2efe8"/>
+              <rect x="106" y="34" width="4" height="4" fill="#1b1b20"/>
+              <rect x="136" y="34" width="4" height="4" fill="#1b1b20"/>
+              <rect x="104" y="31" width="8" height="3" fill="#1b1b20"/>
+              <rect x="134" y="31" width="8" height="3" fill="#1b1b20"/>
+              {# Lider: liegen darüber und blinzeln #}
+              <g class="panda-lid">
+                <rect x="104" y="31" width="8" height="7" fill="#1b1b20"/>
+                <rect x="134" y="31" width="8" height="7" fill="#1b1b20"/>
               </g>
-              {# Nase #}
-              <rect x="113" y="105" width="14" height="7" fill="#4a3626"/>
-              <rect x="116" y="103" width="8"  height="2" fill="#4a3626"/>
-              {# Zwei Münder, von denen immer genau einer zu sehen ist:
-                 das zufriedene Grinsen und alle dreizehn Sekunden ein
-                 Gähnen. Zwei fertige Bilder statt einer gerechneten
-                 Verformung - dasselbe Verfahren wie beim Blinzeln. #}
-              <g class="faul-mund">
-                <rect x="108" y="114" width="4"  height="4" fill="#4a3626"/>
-                <rect x="112" y="116" width="16" height="4" fill="#4a3626"/>
-                <rect x="128" y="114" width="4"  height="4" fill="#4a3626"/>
-              </g>
-              <g class="faul-gaehn">
-                <rect x="110" y="112" width="20" height="10" fill="#2c1d12"/>
-                <rect x="112" y="114" width="16" height="6"  fill="#3d2a1a"/>
-                <rect x="116" y="118" width="8"  height="4"  fill="#b5566a"/>
-              </g>
+              {# Nase und zufriedenes Grinsen #}
+              <rect x="116" y="42" width="12" height="7" fill="#1b1b20"/>
+              <rect x="112" y="50" width="5"  height="3" fill="#4a4a55"/>
+              <rect x="117" y="52" width="10" height="3" fill="#4a4a55"/>
+              <rect x="127" y="50" width="5"  height="3" fill="#4a4a55"/>
             </g>
           </g>
+
+          {# --- Drei Z schweben davon --- #}
+          {% for z in [(58, 62, 0), (46, 52, 1.6), (34, 42, 3.2)] %}
+          <g class="panda-zzz" style="--takt: {{ z[2] }}s">
+            <rect x="{{ z[0] }}" y="{{ z[1] }}" width="14" height="4" fill="#e6dfd2"/>
+            <rect x="{{ z[0] + 7 }}" y="{{ z[1] + 4 }}" width="4" height="4" fill="#e6dfd2"/>
+            <rect x="{{ z[0] + 3 }}" y="{{ z[1] + 8 }}" width="4" height="4" fill="#e6dfd2"/>
+            <rect x="{{ z[0] }}" y="{{ z[1] + 12 }}" width="14" height="4" fill="#e6dfd2"/>
+          </g>
+          {% endfor %}
 
           {# --- Eine Motte umkreist den Mond --- #}
-          <g class="faul-falter">
-            <g class="faul-fluegel">
+          <g class="panda-falter">
+            <g class="panda-fluegel">
               <rect x="-4" y="0" width="4" height="6" fill="#d8d2c4"/>
               <rect x="4"  y="0" width="4" height="6" fill="#c2bcae"/>
             </g>
             <rect x="0" y="1" width="4" height="4" fill="#8f8778"/>
           </g>
-
-          {# --- Drei Z, die nacheinander davonschweben --- #}
-          {% for z in [(158, 100, 0), (170, 92, 1.5), (182, 84, 3.0)] %}
-          <g class="faul-zzz" style="--takt: {{ z[2] }}s">
-            <rect x="{{ z[0] }}" y="{{ z[1] }}" width="16" height="4" fill="#e6dfd2"/>
-            <rect x="{{ z[0] + 8 }}" y="{{ z[1] + 4 }}" width="4" height="4" fill="#e6dfd2"/>
-            <rect x="{{ z[0] + 4 }}" y="{{ z[1] + 8 }}" width="4" height="4" fill="#e6dfd2"/>
-            <rect x="{{ z[0] }}" y="{{ z[1] + 12 }}" width="16" height="4" fill="#e6dfd2"/>
-          </g>
-          {% endfor %}
         </svg>
       </div>
       <p class="stark">Keine offenen Aufgaben</p>

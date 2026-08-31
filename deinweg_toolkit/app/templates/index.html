@@ -47,33 +47,37 @@
          abgesetzt in einem eigenen Band - vorher sah er aus wie das
          erste von acht gleichrangigen Feldern. #}
       <div class="erfasser">
-        <label class="feld">
-          <span>Mitarbeiter</span>
-          {# Auswahl statt Freitext: die Namen kommen aus dem gepflegten
-             Team. Namen, die nur noch in alten Zeiten vorkommen, stehen
-             in einer zweiten Gruppe darunter – sonst wären deren Zeiten
-             über dieses Feld nicht mehr erreichbar. #}
-          <select name="mitarbeiter" form="erfassung" required
-                  {{ 'autofocus' if not mitarbeiter }}>
-            <option value="">– bitte auswählen –</option>
-            {% for m in mitarbeiterliste.team %}
+        <div class="erfasser-kopf">
+          <span class="erfasser-titel">Mitarbeiter</span>
+          <span class="erfasser-marke">gilt für alle Zeilen unten</span>
+        </div>
+        {# Auswahl statt Freitext: die Namen kommen aus dem gepflegten
+           Team. Namen, die nur noch in alten Zeiten vorkommen, stehen
+           in einer zweiten Gruppe darunter – sonst wären deren Zeiten
+           über dieses Feld nicht mehr erreichbar. #}
+        <select name="mitarbeiter" form="erfassung" required
+                class="suchwahl" data-titel="Mitarbeiter"
+                aria-label="Mitarbeiter" {{ 'autofocus' if not mitarbeiter }}>
+          <option value="">– bitte auswählen –</option>
+          {% for m in mitarbeiterliste.team %}
+            <option value="{{ m }}" {{ 'selected' if m == mitarbeiter }}>{{ m }}</option>
+          {% endfor %}
+          {% if mitarbeiterliste.weitere %}
+          <optgroup label="nicht mehr im Team">
+            {% for m in mitarbeiterliste.weitere %}
               <option value="{{ m }}" {{ 'selected' if m == mitarbeiter }}>{{ m }}</option>
             {% endfor %}
-            {% if mitarbeiterliste.weitere %}
-            <optgroup label="nicht mehr im Team">
-              {% for m in mitarbeiterliste.weitere %}
-                <option value="{{ m }}" {{ 'selected' if m == mitarbeiter }}>{{ m }}</option>
-              {% endfor %}
-            </optgroup>
-            {% endif %}
-          </select>
-        </label>
-        <span class="erfasser-marke">Gilt für alle Zeilen unten und bleibt
-          stehen, bis du ihn änderst.</span>
+          </optgroup>
+          {% endif %}
+        </select>
+        <p class="erfasser-fuss">Bleibt stehen, bis du ihn änderst.</p>
       </div>
 
       {% if not mitarbeiterliste.team and not mitarbeiterliste.weitere %}
       <p class="meldung offen-hinweis">{{ t("erfassung.kein_team") }}</p>
+      {% endif %}
+      {% if not klientliste.personen and not klientliste.weitere %}
+      <p class="meldung offen-hinweis">{{ t("erfassung.keine_personen") }}</p>
       {% endif %}
 
       <div class="erfasstrenner">
@@ -98,9 +102,26 @@
                      class="datumfeld" autocomplete="off">
             </label>
             <label class="feld">
-              <span>Betreuter</span>
-              <input type="text" name="klient" list="klienten" autocomplete="off" required
-                     form="erfassung" placeholder="Name" {{ 'autofocus' if mitarbeiter }}>
+              <span>Betreute Person</span>
+              {# Auswahl statt Freitext, nach demselben Muster wie beim
+                 Mitarbeiter: erst die gepflegten Personen, darunter
+                 Namen, die nur noch in vorhandenen Zeiten vorkommen.
+                 Ein Skript macht daraus ein durchsuchbares Feld – ohne
+                 Skript bleibt es ein ganz normales Auswahlfeld. #}
+              <select name="klient" required form="erfassung" class="suchwahl"
+                      data-titel="Betreute Person" {{ 'autofocus' if mitarbeiter }}>
+                <option value="">– wählen –</option>
+                {% for k in klientliste.personen %}
+                  <option value="{{ k }}">{{ k }}</option>
+                {% endfor %}
+                {% if klientliste.weitere %}
+                <optgroup label="nur noch in vorhandenen Zeiten">
+                  {% for k in klientliste.weitere %}
+                    <option value="{{ k }}">{{ k }}</option>
+                  {% endfor %}
+                </optgroup>
+                {% endif %}
+              </select>
             </label>
             <label class="feld">
               <span>Startzeit</span>
@@ -163,9 +184,6 @@
         {% endif %}
       </div>
 
-      <datalist id="klienten">
-        {% for k in klienten %}<option value="{{ k }}">{% endfor %}
-      </datalist>
     </div>
     {% endif %}
 
@@ -265,12 +283,25 @@
         </span>
       </div>
 
+      {# Wer etwas abgegeben hat, ist anklickbar: der Name führt in die
+         Übersicht, gefiltert auf genau diese Person und diesen Monat.
+         Ohne den Bereich „Übersicht (Datensätze)“ liefe der Verweis nur
+         in ein 403 – dann bleibt der Name schlichter Text. #}
+      {% set darf_liste = hat_zugriff(request.state.benutzer, "datensaetze") %}
+      {% set jahr = abgabe.monat[:4] %}
+      {% set nr = abgabe.monat[5:7] %}
       {% if abgabe.stand %}
       <ul class="standliste abgabekompakt">
         {% for p in abgabe.stand %}
         <li class="{{ 'da' if p.da else ('fehlt' if p.pflicht else 'ohnepflicht') }}">
           <div class="standkopf">
+            {% if p.da and darf_liste %}
+            <a class="stark standname"
+               href="/eintraege?mitarbeiter={{ p.name | urlencode }}&von_jahr={{ jahr }}&von_monat={{ nr }}&bis_jahr={{ jahr }}&bis_monat={{ nr }}"
+               title="Zeiten von {{ p.name }} im {{ abgabe.wort }} ansehen">{{ p.name }}</a>
+            {% else %}
             <span class="stark">{{ p.name }}</span>
+            {% endif %}
             {% if p.da %}
               <span class="zahlen klein">{{ p.m | hhmm }} Std</span>
             {% elif p.pflicht %}
@@ -313,7 +344,7 @@
   {% if letzte %}
   <table class="liste dicht">
     <thead>
-      <tr><th>Datum</th><th>Zeit</th><th class="num">Dauer</th><th>Betreuter</th>
+      <tr><th>Datum</th><th>Zeit</th><th class="num">Dauer</th><th>Betreute Person</th>
           <th>Leistung</th><th></th></tr>
     </thead>
     <tbody>
@@ -379,6 +410,164 @@
   </table>
 </section>
 {% endif %}
+
+<script>
+  // Aus einem Auswahlfeld ein durchsuchbares machen. Der <select> bleibt
+  // das Feld, das abgeschickt wird - er wird nur unsichtbar und liegt
+  // weiter an derselben Stelle.
+  //
+  // ⚠️ Bewusst nicht display:none. Ein verstecktes Pflichtfeld kann der
+  // Browser nicht anspringen ("An invalid form control is not
+  // focusable"), die eingebaute Prüfung fiele damit aus. Mit opacity: 0
+  // ist das Feld weiterhin vorhanden, und die Meldung erscheint an der
+  // richtigen Stelle.
+  //
+  // Ohne Skript bleibt es ein ganz normales Auswahlfeld - genau die
+  // Sicherung, um die es hier geht: eigene Namen lassen sich so oder so
+  // nicht eintragen.
+  function suchwahl(feld) {
+    if (!feld || feld.dataset.fertig) return;
+    feld.dataset.fertig = "1";
+
+    // ⚠️ Steht das Feld in einem <label>, muss das weg. Ein Klick auf die
+    // Beschriftung würde sonst den unsichtbaren <select> anklicken und
+    // dessen Auswahlliste des Betriebssystems öffnen - neben der eigenen.
+    // Aus dem <label> wird deshalb ein <div> mit derselben Klasse; die
+    // Beschriftung hängt danach über aria-label am Feld.
+    var beschriftung = feld.closest("label");
+    if (beschriftung) {
+      var ersatz = document.createElement("div");
+      ersatz.className = beschriftung.className;
+      while (beschriftung.firstChild) ersatz.appendChild(beschriftung.firstChild);
+      beschriftung.parentNode.replaceChild(ersatz, beschriftung);
+      var titel = ersatz.querySelector("span");
+      if (titel && !feld.getAttribute("aria-label")) {
+        feld.setAttribute("aria-label", titel.textContent.trim());
+      }
+    }
+
+    var huelle = document.createElement("div");
+    huelle.className = "suchwahl-huelle";
+    feld.parentNode.insertBefore(huelle, feld);
+    huelle.appendChild(feld);
+
+    var block = document.createElement("details");
+    block.className = "suchwahl-block";
+    block.innerHTML =
+      '<summary class="suchwahl-kopf"><span class="suchwahl-text"></span></summary>' +
+      '<div class="wahlliste-panel">' +
+      '  <div class="wahlliste-suche">' +
+      '    <input type="text" class="wahlliste-feld" autocomplete="off"' +
+      '           placeholder="tippen zum Suchen"' +
+      '           aria-label="' + (feld.dataset.titel || "Auswahl") + ' durchsuchen"></div>' +
+      '  <div class="wahlliste-eintraege"></div>' +
+      '  <p class="wahlliste-leer klein leise" hidden>Kein Treffer.</p>' +
+      '</div>';
+    huelle.appendChild(block);
+
+    var text    = block.querySelector(".suchwahl-text"),
+        suche   = block.querySelector(".wahlliste-feld"),
+        raum    = block.querySelector(".wahlliste-eintraege"),
+        leer    = block.querySelector(".wahlliste-leer"),
+        knoepfe = [];
+
+    // Die Einträge kommen aus dem Auswahlfeld selbst - so gibt es die
+    // Namen nur einmal im Markup, und Gruppen bleiben erhalten.
+    Array.prototype.forEach.call(feld.children, function (teil) {
+      if (teil.tagName === "OPTGROUP") {
+        var titel = document.createElement("div");
+        titel.className = "wahlliste-gruppe";
+        titel.textContent = teil.label;
+        raum.appendChild(titel);
+        Array.prototype.forEach.call(teil.children, eintragen);
+      } else { eintragen(teil); }
+    });
+
+    function eintragen(option) {
+      if (!option.value) return;          // „bitte auswählen“ ist keiner
+      var k = document.createElement("button");
+      k.type = "button";
+      k.className = "wahlzeile";
+      k.dataset.wert = option.value;
+      k.dataset.name = option.textContent.trim().toLowerCase();
+      k.innerHTML = "<span></span>";
+      k.firstChild.textContent = option.textContent.trim();
+      raum.appendChild(k);
+      knoepfe.push(k);
+    }
+
+    function beschriften() {
+      var gewaehlt = feld.options[feld.selectedIndex];
+      var wert = gewaehlt ? gewaehlt.value : "";
+      text.textContent = wert || (feld.options[0] ? feld.options[0].textContent : "");
+      huelle.classList.toggle("gesetzt", !!wert);
+      knoepfe.forEach(function (k) {
+        k.classList.toggle("hier", k.dataset.wert === wert);
+      });
+    }
+
+    function filtern() {
+      var wort = (suche.value || "").trim().toLowerCase(), treffer = 0;
+      knoepfe.forEach(function (k) {
+        var passt = !wort || k.dataset.name.indexOf(wort) === 0
+                          || k.dataset.name.indexOf(" " + wort) > -1;
+        k.hidden = !passt;
+        if (passt) treffer++;
+      });
+      raum.querySelectorAll(".wahlliste-gruppe").forEach(function (g) {
+        // Eine Gruppenüberschrift ohne sichtbare Einträge darunter
+        // verschwindet mit.
+        var sichtbar = false, n = g.nextElementSibling;
+        while (n && !n.classList.contains("wahlliste-gruppe")) {
+          if (!n.hidden) { sichtbar = true; break; }
+          n = n.nextElementSibling;
+        }
+        g.hidden = !sichtbar;
+      });
+      if (leer) leer.hidden = treffer > 0;
+    }
+
+    function waehlen(wert) {
+      feld.value = wert;
+      feld.dispatchEvent(new Event("change", {bubbles: true}));
+      beschriften();
+      block.open = false;
+      block.querySelector("summary").focus();
+    }
+
+    raum.addEventListener("click", function (e) {
+      var k = e.target.closest(".wahlzeile");
+      if (k) waehlen(k.dataset.wert);
+    });
+    suche.addEventListener("input", filtern);
+    suche.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        var erster = knoepfe.filter(function (k) { return !k.hidden; })[0];
+        if (erster) waehlen(erster.dataset.wert);
+      } else if (e.key === "Escape") { block.open = false; }
+    });
+    block.addEventListener("toggle", function () {
+      if (!block.open) return;
+      suche.value = ""; filtern();
+      suche.focus();
+    });
+    document.addEventListener("click", function (e) {
+      if (block.open && !huelle.contains(e.target)) block.open = false;
+    });
+    // Wird der <select> von außen gesetzt (Zurück-Taste, Autofill),
+    // muss die Beschriftung folgen.
+    feld.addEventListener("change", beschriften);
+    beschriften();
+  }
+
+  // Die Felder in den Eintragszeilen kommen später dran: das Skript
+  // darunter klont die erste Zeile als Vorlage und braucht sie dafür im
+  // Auslieferungszustand.
+  document.querySelectorAll("select.suchwahl").forEach(function (f) {
+    if (!f.closest("#erfassliste")) suchwahl(f);
+  });
+</script>
 
 <script>
   (function () {
@@ -450,6 +639,10 @@
     function verkabeln(zeile) {
       var datum = zeile.querySelector(".datumfeld");
       if (datum) datumsfeld(datum);
+      // Die Vorlage wird ganz oben geklont, bevor das durchsuchbare Feld
+      // gebaut wird - eine neue Zeile bringt also einen blanken <select>
+      // mit und muss hier nachgerüstet werden.
+      zeile.querySelectorAll("select.suchwahl").forEach(suchwahl);
       zeile.querySelectorAll(".zeitfeld").forEach(function (feld) {
         feld.addEventListener("input", function () {
           var z = feld.value.replace(/\D/g, "").slice(0, 4);
@@ -501,7 +694,7 @@
         neue.querySelector(".datumfeld").value =
           vorige.querySelector(".datumfeld").value;
       }
-      var ziel = neue.querySelector("input[name='klient']");
+      var ziel = neue.querySelector("[name='klient']");
       if (ziel) ziel.focus();
     });
 

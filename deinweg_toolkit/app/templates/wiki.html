@@ -86,6 +86,16 @@
     <article class="karte wiki-blatt">
       <div class="wiki-werkzeugleiste">
         <div class="wiki-aktionen">
+          {# Nur mit Skript sinnvoll, deshalb versteckt ausgeliefert und
+             dort eingeblendet - und wieder entfernt, wenn die Seite gar
+             keine Abschnitte hat. #}
+          <button type="button" class="knopf leise klein" id="wiki-falten" hidden>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Alles einklappen</span>
+          </button>
           {{ seitenknoepfe(aktuell, adresse, titel, darf_schreiben) }}
         </div>
         <span class="klein leise">Zuletzt geändert {{ geaendert }}</span>
@@ -532,6 +542,37 @@
       window.addEventListener("scroll", planen, {passive: true});
       window.addEventListener("resize", planen);
       anzeigen();
+    }
+
+    // ⚠️ Abschnitte lassen sich zuklappen. Ein Sprung in einen
+    // zugeklappten Abschnitt liefe sonst ins Leere - die Überschrift
+    // steht zwar da, der Browser scrollt aber nicht zu einem Ziel, das
+    // in einem geschlossenen <details> liegt. Deshalb vorher aufklappen.
+    liste.addEventListener("click", function (e) {
+      var a = e.target.closest("a[href^='#']");
+      if (!a) return;
+      var ziel = document.getElementById(decodeURIComponent(a.hash.slice(1)));
+      if (!ziel) return;
+      var block = ziel.closest("details");
+      while (block) { block.open = true; block = block.parentElement.closest("details"); }
+    });
+  }
+
+  // „Alles auf-/zuklappen" über der Seite. Der Knopf steht nur da, wenn
+  // es überhaupt Abschnitte gibt, und wird erst vom Skript eingeblendet.
+  var faltknopf = document.getElementById("wiki-falten");
+  if (faltknopf) {
+    var abschnitte = document.querySelectorAll("details.wiki-falt");
+    if (!abschnitte.length) { faltknopf.remove(); }
+    else {
+      faltknopf.hidden = false;
+      faltknopf.addEventListener("click", function () {
+        var zu = faltknopf.dataset.stand !== "zu";
+        abschnitte.forEach(function (d) { d.open = !zu; });
+        faltknopf.dataset.stand = zu ? "zu" : "auf";
+        faltknopf.querySelector("span").textContent =
+          zu ? "Alles aufklappen" : "Alles einklappen";
+      });
     }
   }
 

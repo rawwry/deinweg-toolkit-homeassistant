@@ -401,12 +401,72 @@ def _bloecke(zeilen: list[str], aufloesen, verzeichnis=None,
     return ergebnis
 
 
-def zu_html(text: str, aufloesen=None, verzeichnis=None) -> Markup:
+_UEBER_BLOCK = re.compile(r"^<h([2-6])(\s[^>]*)?>(.*)</h\1>$", re.S)
+
+
+def _faltbar(bloecke: list[str]) -> list[str]:
+    """Jede Überschrift ab Stufe 2 bekommt ihren Abschnitt als <details>.
+
+    Damit lässt sich ein Kapitel samt Inhalt zuklappen - bei einem
+    Stammblatt mit fünfzehn Abschnitten der einzige Weg, den einen zu
+    finden, um den es gerade geht.
+
+    ⚠️ Die Überschrift bleibt UNVERÄNDERT im <summary> stehen, mit ihrer
+    Kennung. Sonst liefe jede Sprungmarke aus "Auf dieser Seite" ins
+    Leere. Erlaubt ist das ausdrücklich: ein <summary> darf genau ein
+    Überschriftenelement enthalten.
+
+    Aufgeklappt ist der Anfangszustand - eine Seite, die zugeklappt
+    beginnt, sieht aus, als fehlte ihr Inhalt.
+    """
+    ergebnis: list[str] = []
+    # Je offener Abschnitt seine Stufe und die Liste, in die gerade
+    # geschrieben wird.
+    stapel: list[tuple[int, list[str]]] = []
+
+    def ziel() -> list[str]:
+        return stapel[-1][1] if stapel else ergebnis
+
+    def schliessen(bis_stufe: int) -> None:
+        while stapel and stapel[-1][0] >= bis_stufe:
+            stapel.pop()
+
+    for block in bloecke:
+        treffer = _UEBER_BLOCK.match(block.strip())
+        if not treffer:
+            ziel().append(block)
+            continue
+        stufe = int(treffer.group(1))
+        schliessen(stufe)
+        innen: list[str] = []
+        aussen = ziel()
+        aussen.append('<details class="wiki-falt" open>')
+        aussen.append(f'<summary class="wiki-falt-kopf">{block}</summary>')
+        aussen.append('<div class="wiki-falt-inhalt">')
+        aussen.append(innen)          # Platzhalter, unten aufgelöst
+        aussen.append("</div></details>")
+        stapel.append((stufe, innen))
+
+    # Die verschachtelten Listen zu einer flachen Zeichenkette machen.
+    def flach(teile) -> list[str]:
+        raus = []
+        for t in teile:
+            raus.extend(flach(t) if isinstance(t, list) else [t])
+        return raus
+
+    return flach(ergebnis)
+
+
+def zu_html(text: str, aufloesen=None, verzeichnis=None,
+            faltbar: bool = False) -> Markup:
     """Wandelt Markdown in HTML.
 
     'aufloesen' bekommt die Adresse eines Links und gibt (Adresse, extern)
     zurueck. Damit traegt das Wiki seine eigenen Pfade nach, ohne dass
     dieses Modul etwas ueber Wiki-Ordner wissen muss.
+
+    Mit 'faltbar' wird jeder Abschnitt ab Ueberschriftstufe 2 in ein
+    <details> gepackt und laesst sich damit zuklappen.
 
     Wird eine Liste als 'verzeichnis' uebergeben, sammelt sie die
     Ueberschriften der Seite (Stufe, Titel, Sprungmarke) - daraus baut das
@@ -414,4 +474,7 @@ def zu_html(text: str, aufloesen=None, verzeichnis=None) -> Markup:
     ueberhaupt eine Kennung, sonst bleibt das HTML so schlank wie bisher.
     """
     zeilen = (text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    return Markup("\n".join(_bloecke(zeilen, aufloesen, verzeichnis, set())))
+    bloecke = _bloecke(zeilen, aufloesen, verzeichnis, set())
+    if faltbar:
+        bloecke = _faltbar(bloecke)
+    return Markup("\n".join(bloecke))

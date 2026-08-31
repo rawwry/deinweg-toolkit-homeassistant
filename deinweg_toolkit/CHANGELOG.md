@@ -3,6 +3,17 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.13
+
+- Manuelle Zeiterfassung: „Betreute Person" als durchsuchbares
+  Auswahlfeld, keine freien Namen mehr
+- Mitarbeiterblock in einer Spalte statt zwei ungleicher Hälften
+- Abgaben: Namen führen in die gefilterte Übersicht
+- Übersicht: Kästchen auf Höhe des Datums, Suchfeld vor dem Schalter
+- Wiki: Überschriften samt Inhalt einklappbar, Knopf für alle
+- „Mein Bereich": Panda statt Faultier, mehr Luft zum Kartenrand
+- „Mein Bereich": „Meine Zeiten" und Monatsübersicht rollen am Handy
+
 ## 1.12.1
 
 - Ein hinterlegter Folgebescheid beendet die Warnung „läuft aus"

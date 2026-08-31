@@ -504,7 +504,8 @@ def _seite(request: Request, rel: str, bearbeiten: bool = False,
         # Das Verzeichnis der Ueberschriften wird beim Wandeln gleich
         # mitgesammelt - daraus baut die Vorlage "Auf dieser Seite".
         verzeichnis: list[dict] = []
-        zusatz["html"] = md.zu_html(text, link_aufloeser(ordner), verzeichnis)
+        zusatz["html"] = md.zu_html(text, link_aufloeser(ordner), verzeichnis,
+                                    faltbar=True)
         # Die Ueberschrift der obersten Stufe ist der Seitentitel und steht
         # schon oben; im Verzeichnis waere sie nur eine Dopplung.
         stufen = [u for u in verzeichnis if u["stufe"] >= 2]

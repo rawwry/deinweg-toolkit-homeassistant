@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.12.1"
+VERSION = "1.13"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -623,6 +623,7 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
         leistungen = [r["name"] for r in con.execute(
             "SELECT name FROM leistung WHERE aktiv=1 ORDER BY name COLLATE NOCASE")]
         mitarbeiterliste = mitarbeiterauswahl(con)
+        klientliste = klientenauswahl(con)
         offene = con.execute(
             "SELECT COUNT(*) c FROM import WHERE status='vorschau'").fetchone()["c"]
         if mitarbeiter:
@@ -639,7 +640,7 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
     return templates.TemplateResponse(request=request, name="index.html", context={
         "importe": importe, "summe": summe, "leute": leute,
         "klienten": klienten, "leistungen": leistungen, "letzte": letzte,
-        "mitarbeiterliste": mitarbeiterliste,
+        "mitarbeiterliste": mitarbeiterliste, "klientliste": klientliste,
         "tagessumme": tagessumme, "mitarbeiter": mitarbeiter, "datum": datum,
         "fehler": fehler, "hinweis": hinweis, "seite": "zeiterfassung",
         "offene": offene, "spruch": spruch(),
@@ -1102,6 +1103,28 @@ def mitarbeiterauswahl(con) -> dict:
     return {"team": team, "weitere": weitere}
 
 
+def klientenauswahl(con) -> dict:
+    """Namen fuer das Auswahlfeld "Betreute Person".
+
+    Nach demselben Muster wie ``mitarbeiterauswahl``: erste Gruppe sind
+    die aktiven betreuten Personen aus den Einstellungen, zweite Gruppe
+    Namen, die nur noch in vorhandenen Zeiten vorkommen.
+
+    ⚠️ Die zweite Gruppe ist keine Bequemlichkeit, sondern noetig: ohne
+    sie waeren Zeiten auf einen stillgelegten oder aus einem Fremdexport
+    stammenden Namen ueber das Feld nicht mehr zu erfassen. Und die erste
+    ist noetig, weil eine gerade angelegte Person noch gar keine Zeit hat
+    und sonst nicht auswaehlbar waere.
+    """
+    personen = [r["name"] for r in con.execute(
+        "SELECT name FROM person WHERE aktiv=1 ORDER BY name COLLATE NOCASE")]
+    bekannt = {norm(n) for n in personen}
+    weitere = [r["klient"] for r in con.execute(
+        "SELECT DISTINCT klient FROM eintrag ORDER BY 1 COLLATE NOCASE")
+        if r["klient"] and norm(r["klient"]) not in bekannt]
+    return {"personen": personen, "weitere": weitere}
+
+
 def auswahllisten() -> dict:
     """Jahre, Mitarbeiter und betreute Personen für die Auswahlfelder."""
     heute = dt.date.today()
@@ -1453,6 +1476,15 @@ def erfassung_speichern(mitarbeiter: str = Form(""),
     def feld(liste: list[str], nr: int) -> str:
         return (liste[nr] if nr < len(liste) else "").strip()
 
+    # ⚠️ Der Name der betreuten Person kommt aus einem Auswahlfeld und
+    # darf deshalb nur einer aus der Liste sein. Das Feld allein reicht
+    # als Schutz nicht - ein abgeschicktes Formular kann alles enthalten,
+    # und ein Tippfehler legte hier frueher stillschweigend eine zweite
+    # "Person" an, die in keiner Auswertung mehr auftauchte.
+    with db.db() as con:
+        wahl = klientenauswahl(con)
+    erlaubt = {norm(n): n for n in wahl["personen"] + wahl["weitere"]}
+
     saetze = []
     for nr in range(anzahl):
         d, k = feld(datum, nr), feld(klient, nr)
@@ -1466,11 +1498,18 @@ def erfassung_speichern(mitarbeiter: str = Form(""),
             continue
 
         fehlt = [name for name, wert in
-                 (("Datum", d), ("Betreuter", k), ("Startzeit", a), ("Endzeit", e))
+                 (("Datum", d), ("die betreute Person", k),
+                  ("Startzeit", a), ("Endzeit", e))
                  if not wert]
         if fehlt:
             return zurueck(fehler=f"Zeile {zeile}: Es fehlt noch "
                                   f"{' und '.join(fehlt)}.")
+
+        if norm(k) not in erlaubt:
+            return zurueck(fehler=f"Zeile {zeile}: „{k}“ steht nicht in der "
+                                  "Liste der betreuten Personen. Neue Personen "
+                                  "legst du unter Einstellungen an.")
+        k = erlaubt[norm(k)]     # immer die gepflegte Schreibweise
 
         tag = parse_datum(d)
         if tag is None:

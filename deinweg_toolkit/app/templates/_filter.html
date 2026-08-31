@@ -78,17 +78,19 @@
      Feld aus und landete je nach Umbruch mal am Zeilenende, mal
      mittendrin. #}
   <div class="filter-fuss">
-    {% if abrechenbar_zeigen %}
-    <label class="filter-umschalter">
-      <input type="checkbox" name="nur_abrechenbar" value="1" {{ 'checked' if f.nur_abrechenbar }}>
-      <span>nur abrechenbare Zeiten</span>
-    </label>
-    {% endif %}
+    {# Erst die Suche, dann der Schalter: die Suche wird viel häufiger
+       benutzt und gehört deshalb an die vordere Stelle. #}
     {% if suche_zeigen %}
     <label class="filter-suche">
       <span class="leise">Suche</span>
       <input type="search" name="q" value="{{ f.q or '' }}"
              placeholder="Leistung, Person oder Mitarbeiter">
+    </label>
+    {% endif %}
+    {% if abrechenbar_zeigen %}
+    <label class="filter-umschalter">
+      <input type="checkbox" name="nur_abrechenbar" value="1" {{ 'checked' if f.nur_abrechenbar }}>
+      <span>nur abrechenbare Zeiten</span>
     </label>
     {% endif %}
     <div class="filter-knoepfe">

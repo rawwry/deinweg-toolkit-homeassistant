@@ -1362,4 +1362,28 @@ CHANGELOG = [
         "vorher war sie vorbei, bevor man hingescrollt hatte",
         "Prüfung von 862 auf 877 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.13", "titel": "Auswahl statt Tippfehler, Wiki zum Zuklappen", "punkte": [
+        "Manuelle Zeiterfassung: „Betreuter“ heißt „Betreute Person“ und "
+        "ist ein Auswahlfeld. Eigene Namen lassen sich nicht mehr "
+        "eintippen – dieselbe Person landete sonst in drei Schreibweisen "
+        "in der Auswertung. Getippt werden darf trotzdem: das Feld "
+        "durchsucht die Liste, wie die Filter auch",
+        "Der Mitarbeiterblock darüber steht in einer Spalte statt in zwei "
+        "verschieden hohen Hälften nebeneinander",
+        "Abgaben: wer etwas abgegeben hat, ist anklickbar – der Name "
+        "führt in die Übersicht, gefiltert auf diese Person und diesen "
+        "Monat",
+        "Übersicht: die Kästchen stehen wieder auf der Höhe ihres Datums, "
+        "auch wenn die Leistung über drei Zeilen läuft",
+        "Übersicht: Suchfeld vor dem Schalter „nur abrechenbare Zeiten“",
+        "Wiki: jede Überschrift lässt sich samt Inhalt zuklappen, dazu "
+        "ein Knopf für alle auf einmal. Bei einem Stammblatt mit fünfzehn "
+        "Abschnitten der einzige Weg, den einen zu finden",
+        "„Mein Bereich“: aus dem Faultier ist ein Panda geworden, der "
+        "nachts auf dem Ast sitzt, Bambus kaut und döst – mit mehr Luft "
+        "zum Rand der Karte",
+        "„Mein Bereich“: „Meine Zeiten“ und die Monatsübersicht rollen am "
+        "Handy seitlich, statt sich unlesbar zu stauchen",
+        "Prüfung von 878 auf 900 Einzelprüfungen erweitert",
+    ]},
 ]
