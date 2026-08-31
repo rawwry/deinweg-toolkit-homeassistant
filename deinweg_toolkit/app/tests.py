@@ -2808,6 +2808,58 @@ def test_wiki_falten(client: TestClient) -> None:
     pruefe(".wiki-falt-kopf" in stil, "die Abschnitte sind gestaltet")
 
 
+def test_werkzeuge(client: TestClient) -> None:
+    """Aufgeräumte Werkzeugleisten in Dateien, Wiki und Einstellungen."""
+    abschnitt("Werkzeugleisten")
+
+    # --- Dateien: kein zweiter Weg zum Öffnen ---------------------------
+    with open(os.path.join(_ORDNER, "files", "werkzeug.png"), "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n" + b"0" * 40)
+    seite = client.get("/dateien").text
+    zeile = seite.split("werkzeug.png")[1].split("</tr>")[0]
+    pruefe('title="Öffnen"' not in seite,
+           "⚠️ kein „Öffnen“-Knopf mehr – der Dateiname ist der Verweis")
+    pruefe("/dateien/holen/" in seite, "und der Name führt weiterhin zur Datei")
+
+    # --- Wiki: das Anlegeformular genau einmal --------------------------
+    # ⚠️ Bis 1.15.3 stand es auf einer Ordnerseite doppelt: einmal als
+    # aufklappbare Zeile und einmal als eigene Karte darunter.
+    os.makedirs(os.path.join(_ORDNER, "wiki", "Werkzeugprobe"), exist_ok=True)
+    ordner = client.get("/wiki/Werkzeugprobe").text
+    pruefe(ordner.count('class="wiki-anlegen"') == 1,
+           "das Anlegeformular steht genau einmal auf der Seite")
+    pruefe('id="wiki-neu"' in ordner,
+           "und wird über ein Zeichen in der Seitenleiste ausgelöst")
+    # Auch von einer Seite aus, sonst wäre das Zeichen mal da und mal weg.
+    with open(os.path.join(_ORDNER, "wiki", "werkzeugseite.md"), "w",
+              encoding="utf-8") as f:
+        f.write("# Werkzeugseite\n")
+    einzeln = client.get("/wiki/werkzeugseite.md").text
+    pruefe(einzeln.count('class="wiki-anlegen"') == 1,
+           "auch von einer Seite aus lässt sich etwas anlegen")
+
+    # --- Wiki: erst der Mülleimer, dann der Umschalter ------------------
+    leiste = ordner.split('class="wiki-werkzeugleiste"')[1].split("</div>\n")[0]
+    pruefe(">Ordner löschen<" not in leiste and 'title="Ordner löschen"' in leiste,
+           "„Ordner löschen“ steht nur noch als Zeichen mit Sprechblase da")
+    pruefe(leiste.index("loeschen") < leiste.index("wikiliste-knopf"),
+           "der Mülleimer steht vor dem Umschalter")
+    pruefe("wikiliste-text" in leiste,
+           "der Umschalter behält seinen Text für Vorleseprogramme")
+
+    # --- Einstellungen: gleiche Reihenfolge -----------------------------
+    einst = client.get("/einstellungen?bereich=oberflaeche").text
+    def reihe(klasse):
+        teil = einst.split(klasse + "-knopf")
+        return [t.split('data-wert="')[1].split('"')[0] for t in teil[:-1]
+                if 'data-wert="' in t]
+    pruefe(reihe("wikiliste") == reihe("dateiliste"),
+           "Wiki und Dateien stehen in derselben Reihenfolge")
+    stil = client.get("/static/style.css").text
+    pruefe(".wahlpaar {" in stil and "grid-template-columns: 1fr 1fr" in stil,
+           "die Umschalter sind alle gleich breit")
+
+
 def test_verlaufsdiagramm(client: TestClient) -> None:
     """Das Diagramm: geteilte Balken, gerechnete Linienlänge, kein Skript."""
     abschnitt("Verlaufsdiagramm")
@@ -3866,6 +3918,7 @@ def _durchlauf(client: TestClient) -> None:
         test_betreute_auswahl(client)
         test_abgaben_verweise(client)
         test_wiki_falten(client)
+        test_werkzeuge(client)
         test_verlaufsdiagramm(client)
         test_datenpflege(client)
         test_farbvariablen(client)

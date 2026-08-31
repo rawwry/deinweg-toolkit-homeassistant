@@ -116,8 +116,12 @@
                   "Zwischen Kachel- und Listenansicht im Wiki wechseln") }}
       {% endif %}
       {% if darf_dateien %}
+      {# ⚠️ Dieselbe Reihenfolge wie beim Wiki, obwohl hier die Liste die
+         Voreinstellung ist. Untereinander „Kacheln | Liste" und
+         „Liste | Kacheln" zu lesen war der eigentliche Fehler - welcher
+         Wert voreingestellt ist, sagt die Füllung, nicht der Platz. #}
       {{ wahlpaar("dateiliste", "Dateien", t("einst.dateiliste"),
-                  ("liste", "Liste"), ("kacheln", "Kacheln"),
+                  ("kacheln", "Kacheln"), ("liste", "Liste"),
                   "Zwischen Listen- und Kachelansicht in der Dateiverwaltung wechseln") }}
       {% endif %}
     </div>

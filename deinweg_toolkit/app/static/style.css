@@ -494,9 +494,15 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
   background: var(--flaeche-2); color: inherit;
 }
 
+/* ⚠️ Die Zeilenhöhe muss hier stehen. Ein <button> bringt vom Browser
+   „normal" mit, ein <a> oder <label> erbt dagegen die Zeilenhöhe des
+   Textes - nebeneinander waren die beiden dadurch verschieden hoch.
+   Genau das war auf der Dateienseite zu sehen, wo „Dateien hochladen"
+   ein <label> ist und „Neuer Ordner" ein <button>. */
 .knopf {
   display: inline-block; padding: 9px 16px; border-radius: 8px; cursor: pointer;
-  font: inherit; font-size: 14px; font-weight: 600; text-decoration: none;
+  font: inherit; font-size: 14px; font-weight: 600; line-height: 1.35;
+  text-decoration: none;
   border: 1px solid var(--linie); background: var(--flaeche-2); color: var(--tinte);
 }
 .knopf:hover { border-color: var(--akzent); color: var(--akzent); }
@@ -1152,14 +1158,19 @@ textarea:focus { border-color: var(--akzent); }
 /* Beide Möglichkeiten stehen nebeneinander, die gewählte ist gefüllt.
    Ein Kippschalter mit wechselndem Wort ließ offen, ob das Wort den
    Zustand meint oder das, was beim Klicken passiert. */
+/* ⚠️ Feste Breite, zwei gleich große Hälften. Mit inline-flex war jeder
+   Umschalter so breit wie seine Wörter - „Volle Breite | Begrenzt" weit,
+   „Liste | Kacheln" schmal -, und untereinander sah das aus wie ein
+   Setzfehler. Die Breite reicht für das längste Wortpaar. */
 .wahlpaar {
-  display: inline-flex; padding: 3px; border-radius: 999px;
+  display: grid; grid-template-columns: 1fr 1fr; width: 232px;
+  padding: 3px; border-radius: 999px;
   background: var(--flaeche-2); border: 1px solid var(--linie);
 }
 .wahlpaar button {
   border: 0; background: none; cursor: pointer; color: var(--leise);
   font: inherit; font-size: 12.5px; font-weight: 600;
-  padding: 6px 15px; border-radius: 999px; white-space: nowrap;
+  padding: 6px 8px; border-radius: 999px; white-space: nowrap;
 }
 .wahlpaar button:hover { color: var(--tinte); }
 .wahlpaar button.aktiv {
@@ -1676,7 +1687,8 @@ label.knopf-icon { cursor: pointer; }
 .liste.dateiverzeichnis th:nth-child(5) { width: 96px; }
 .zeitzelle { line-height: 1.35; }
 .zeitzelle > span { display: block; font-size: 11px; opacity: .8; }
-.liste.dateiverzeichnis th:last-child { width: 170px; padding-right: 6px; }
+/* Eine Aktion weniger seit 1.15.3 - der Dateiname ist der Verweis. */
+.liste.dateiverzeichnis th:last-child { width: 136px; padding-right: 6px; }
 .tabellenrolle .liste.dateiverzeichnis td:last-child { white-space: nowrap; }
 .dateizeile[draggable="true"] { cursor: grab; }
 .dateizeile.ziel-aktiv td { background: var(--akzent-weich); }
@@ -3023,6 +3035,21 @@ fieldset.feld > span {
 .wiki-liste { list-style: none; margin: 0; padding: 0 0 0 9px; }
 .wiki-baum > .wiki-liste { padding-left: 0; }
 .wiki-liste .wiki-liste { border-left: 1px solid var(--linie-stark); margin-left: 5px; }
+
+/* Zwei Zeichen nebeneinander: neu anlegen und alles auf-/zuklappen. */
+.wiki-baumwerkzeuge { display: inline-flex; align-items: center; gap: 2px; }
+.wiki-baumknopf.aktiv { border-color: var(--akzent); color: var(--akzent); }
+
+/* Der Umschalter im Ordnerkopf zeigt, WOHIN es geht, nicht wo man ist:
+   bei Kacheln steht dort die Liste und umgekehrt. */
+.wikiliste-knopf .zeigt-kacheln { display: none; }
+[data-wikiliste="liste"] .wikiliste-knopf .zeigt-liste { display: none; }
+[data-wikiliste="liste"] .wikiliste-knopf .zeigt-kacheln { display: block; }
+
+/* ⚠️ Mit Skript ersetzt das Zeichen in der Seitenleiste die aufklappbare
+   Zeile im Inhalt. Ohne Skript bleibt sie stehen - sie ist dann die
+   einzige Bedienung. */
+.wiki-anlegen.mit-knopf > summary { display: none; }
 
 /* Kopfzeile über dem Baum: die Beschriftung wie überall im Programm,
    der Falt-Knopf als kleines Zeichen rechts. Ein Knopf über die volle

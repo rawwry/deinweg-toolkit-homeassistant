@@ -1461,4 +1461,25 @@ CHANGELOG = [
         "braucht – am Handy steht sie bei allen vier gleich",
         "Prüfung von 956 auf 957 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.15.3", "titel": "Werkzeugleisten aufgeräumt", "punkte": [
+        "Dateien: „Dateien hochladen“ und „Neuer Ordner“ sind gleich "
+        "hoch. Der eine ist ein Label, der andere ein Knopf – die "
+        "bringen vom Browser verschiedene Zeilenhöhen mit; die steht "
+        "jetzt fest",
+        "Dateien: der Knopf „Öffnen“ ist entfallen. Ein Klick auf den "
+        "Dateinamen tut dasselbe, und die Spalte „Aktionen“ ist damit "
+        "eine Schaltfläche schmaler",
+        "Wiki: „Neue Seite oder neuen Ordner anlegen“ ist keine "
+        "aufklappbare Zeile mehr, sondern ein Zeichen in der linken "
+        "Spalte neben dem Falt-Zeichen – und funktioniert jetzt auch von "
+        "einer Seite aus, nicht nur aus einem Ordner",
+        "Wiki: dasselbe Anlegeformular stand auf einer Ordnerseite "
+        "doppelt. Jetzt steht es genau einmal",
+        "Wiki: „Ordner löschen“ ist ein kleiner Mülleimer, der "
+        "Ansichtsumschalter ein Zeichen – und beide haben die Plätze "
+        "getauscht",
+        "Einstellungen → Oberfläche: alle vier Umschalter sind gleich "
+        "breit, und Wiki wie Dateien stehen in derselben Reihenfolge",
+        "Prüfung von 957 auf 967 Einzelprüfungen erweitert",
+    ]},
 ]

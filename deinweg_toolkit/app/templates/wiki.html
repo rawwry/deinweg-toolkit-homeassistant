@@ -44,14 +44,31 @@
        entfernt, wenn es gar keine Ordner gibt. #}
     <div class="wiki-baumkopf">
       <span>Ordner</span>
-      <button type="button" class="knopf-icon wiki-baumknopf"
-              id="wiki-baum-falten" hidden
-              title="Alle Ordner ausklappen" aria-label="Alle Ordner ausklappen">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="m7 10 5 5 5-5M7 4l5 5 5-5" stroke="currentColor"
-                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+      <span class="wiki-baumwerkzeuge">
+        {# „Neu anlegen“ stand als aufklappbare Zeile mitten im Inhalt und
+           sah dort aus wie ein vergessener Absatz. Jetzt ist es ein
+           Zeichen hier oben; das Formular selbst bleibt im Hauptfenster,
+           weil es in dem Ordner anlegt, den man gerade ansieht. #}
+        <button type="button" class="knopf-icon wiki-baumknopf"
+                id="wiki-neu" hidden
+                title="Neue Seite oder neuen Ordner anlegen"
+                aria-label="Neue Seite oder neuen Ordner anlegen">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7 3.5h7L19 8v12a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5A1.5 1.5 0 0 1 7 3.5Z"
+                  stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M12.5 11v5M10 13.5h5" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button type="button" class="knopf-icon wiki-baumknopf"
+                id="wiki-baum-falten" hidden
+                title="Alle Ordner ausklappen" aria-label="Alle Ordner ausklappen">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m7 10 5 5 5-5M7 4l5 5 5-5" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </span>
     </div>
 
     <nav class="wiki-baum" aria-label="Wiki-Struktur">
@@ -122,6 +139,17 @@
       <p class="klein leise wiki-fuss">
         Datei <code>{{ aktuell }}</code> · {{ zeichen }} Zeichen
       </p>
+
+      {# Auch von einer Seite aus lässt sich etwas anlegen - angelegt wird
+         dann im Ordner, in dem die Seite liegt. Ohne das wäre das Zeichen
+         in der Seitenleiste mal da und mal weg, je nachdem, worauf man
+         gerade steht. #}
+      {% if darf_schreiben %}
+      <details class="wiki-anlegen">
+        <summary>Neue Seite oder neuen Ordner anlegen</summary>
+        {{ neu_formular(ordner, ordner_auswahl) }}
+      </details>
+      {% endif %}
     </article>
 
     {% elif art == "bearbeiten" %}
@@ -207,21 +235,46 @@
     <article class="karte">
       <div class="wiki-werkzeugleiste">
         <h1>{{ titel }}</h1>
-        {# Derselbe Umschalter wie in der Dateiverwaltung. Beide Ansichten
-           stehen im HTML, umgeschaltet wird per CSS über data-wikiliste
-           am <html> - so blitzt beim Laden nichts auf. #}
-        <div class="schalter wikiansicht">
-          <span class="wikiliste-text">Kacheln</span>
-          <button type="button" class="wikiliste-knopf" role="switch" aria-checked="false"
-                  aria-label="Zwischen Kachel- und Listenansicht wechseln"></button>
+        {# Beide Aktionen als Zeichen, in der Reihenfolge: erst der
+           Ordner selbst, dann die Ansicht. Der Umschalter wechselt nur
+           die Darstellung - beide stehen im HTML, umgeschaltet wird per
+           CSS über data-wikiliste am <html>, so blitzt nichts auf. #}
+        <div class="wiki-aktionen">
+          {% if aktuell and darf_schreiben %}
+          <form class="inline" action="/wiki/aktion/loeschen" method="post"
+                onsubmit="return confirm('Den Ordner „{{ titel }}“ entfernen? Das geht nur, wenn er leer ist.')">
+            <input type="hidden" name="pfad" value="{{ aktuell }}">
+            <button class="knopf-icon warn" type="submit"
+                    title="Ordner löschen" aria-label="Ordner „{{ titel }}“ löschen">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+                      stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7"
+                      stroke-linecap="round"/>
+              </svg>
+            </button>
+          </form>
+          {% endif %}
+          {# ⚠️ Das Zeichen zeigt, wohin es geht - nicht, wo man ist.
+             Bei Kacheln steht dort die Liste und umgekehrt. Der versteckte
+             Text nennt für Vorleseprogramme die aktuelle Ansicht; er wird
+             vom Skript in base.html gefüllt wie überall. #}
+          <button type="button" class="knopf-icon wikiliste-knopf" role="switch"
+                  aria-checked="false" title="Ansicht umschalten">
+            <svg class="zeigt-liste" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round"/>
+            </svg>
+            <svg class="zeigt-kacheln" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="4" y="4" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.7"/>
+              <rect x="13" y="4" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.7"/>
+              <rect x="4" y="13" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.7"/>
+              <rect x="13" y="13" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.7"/>
+            </svg>
+            <span class="visuell-versteckt">Ansicht: <span class="wikiliste-text">Kacheln</span></span>
+          </button>
         </div>
-        {% if aktuell and darf_schreiben %}
-        <form class="inline" action="/wiki/aktion/loeschen" method="post"
-              onsubmit="return confirm('Den Ordner „{{ titel }}“ entfernen? Das geht nur, wenn er leer ist.')">
-          <input type="hidden" name="pfad" value="{{ aktuell }}">
-          <button class="knopf klein warn" type="submit">Ordner löschen</button>
-        </form>
-        {% endif %}
       </div>
 
       {% if einleitung %}
@@ -232,9 +285,13 @@
       </p>
       {% endif %}
 
-      {# „Neu anlegen“ steht im Hauptfenster, nicht in der Seitenleiste:
-         es legt in dem Ordner an, den man gerade ansieht, und gehört
-         deshalb dorthin, wo dessen Inhalt steht. #}
+      {# ⚠️ Das Formular steht im Hauptfenster - es legt in dem Ordner an,
+         den man gerade ansieht, und braucht mehr Platz als die
+         Seitenleiste hat. Ausgelöst wird es aber von dort, über das
+         Zeichen neben „Ordner“; die aufklappbare Zeile hier sieht man
+         nur ohne Skript.
+         Bis 1.15.3 stand dasselbe Formular auf dieser Seite ZWEIMAL -
+         einmal hier und einmal als eigene Karte darunter. #}
       {% if darf_schreiben %}
       <details class="wiki-anlegen">
         <summary>Neue Seite oder neuen Ordner anlegen</summary>
@@ -303,13 +360,6 @@
       <p class="leer">{{ t("wiki.ordner_leer") }}</p>
       {% endif %}
     </article>
-
-    {% if darf_schreiben %}
-    <section class="karte">
-      <h2>Hier etwas anlegen</h2>
-      {{ neu_formular(aktuell, ordner_auswahl) }}
-    </section>
-    {% endif %}
 
     {% elif art == "suche" %}
     <article class="karte">
@@ -592,6 +642,29 @@
         var wort = auf ? "Alle Ordner einklappen" : "Alle Ordner ausklappen";
         baumknopf.title = wort;
         baumknopf.setAttribute("aria-label", wort);
+      });
+    }
+  }
+
+  // Das Zeichen „Neu anlegen" in der Seitenleiste bedient das Formular
+  // im Hauptfenster. Ohne Skript bleibt die aufklappbare Zeile dort die
+  // einzige Bedienung - deshalb versteckt das Stylesheet sie erst, wenn
+  // die Klasse hier gesetzt ist.
+  var neuknopf = document.getElementById("wiki-neu"),
+      neublock = document.querySelector("details.wiki-anlegen");
+  if (neuknopf) {
+    if (!neublock) { neuknopf.remove(); }
+    else {
+      neuknopf.hidden = false;
+      neublock.classList.add("mit-knopf");
+      neuknopf.addEventListener("click", function () {
+        neublock.open = !neublock.open;
+        neuknopf.classList.toggle("aktiv", neublock.open);
+        if (neublock.open) {
+          neublock.scrollIntoView({block: "nearest"});
+          var feld = neublock.querySelector("input, select");
+          if (feld) feld.focus();
+        }
       });
     }
   }

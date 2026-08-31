@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.15.3
+
+- Dateien: beide Knöpfe gleich hoch, „Öffnen" entfallen
+- Wiki: „Neu anlegen" als Zeichen in der Seitenleiste, Formular nur noch
+  einmal, „Ordner löschen" als Mülleimer, Umschalter als Zeichen
+- Einstellungen → Oberfläche: gleiche Breite, gleiche Reihenfolge
+
 ## 1.15.2
 
 - Einstellungen → Oberfläche: beide Möglichkeiten stehen nebeneinander
