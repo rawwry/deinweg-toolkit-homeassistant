@@ -1482,4 +1482,20 @@ CHANGELOG = [
         "breit, und Wiki wie Dateien stehen in derselben Reihenfolge",
         "Prüfung von 957 auf 967 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.16", "titel": "Was ist neu?", "punkte": [
+        "Nach einem Update steht der jüngste Changelog-Eintrag einmal "
+        "im Bild – für jedes Konto einzeln, bis es ihn zur Kenntnis "
+        "genommen hat. Von dort führt ein Weg zum vollständigen Verlauf",
+        "Die Datenpflege ist von „Arbeitszeit“ in die Einstellungen "
+        "unter „Wartung“ gezogen. Dorthin gehört sie: sie ist "
+        "Instandhaltung, kein Tagesgeschäft",
+        "Auswertung: die vier Kennzahlen oben tragen jetzt alle eine "
+        "Farbe – geleistet grün, bewilligt blau, die Abweichung rot oder "
+        "grün je nach Vorzeichen",
+        "Auswertung: ohne eigene Angabe steht das laufende Jahr da statt "
+        "der gesamten Zeit. Bei vierzehn Monatsblöcken war die Seite "
+        "sonst schon beim Aufschlagen unlesbar lang. Wer im Filter "
+        "ausdrücklich „alle“ wählt, bekommt weiterhin alles",
+        "Prüfung von 967 auf 983 Einzelprüfungen erweitert",
+    ]},
 ]

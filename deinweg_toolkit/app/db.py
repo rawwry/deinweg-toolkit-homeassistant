@@ -159,6 +159,9 @@ CREATE TABLE IF NOT EXISTS benutzer (
     -- Kommaliste der erlaubten Punkte INNERHALB der Einstellungen, nach
     -- derselben Regel wie berechtigungen: leer/NULL bedeutet "alle".
     einst_bereiche TEXT,
+    -- Zuletzt zur Kenntnis genommene Version. Leer heisst: der Hinweis
+    -- auf die Neuerungen steht beim naechsten Aufruf da.
+    gesehen_version TEXT,
     angelegt_am    TEXT NOT NULL,
     letzter_login  TEXT
 );
@@ -522,6 +525,10 @@ def init() -> dict | None:
         # wegnehmen, und ein spaeter hinzukommender Punkt bleibt fuer sie
         # erreichbar.
         spalte_ergaenzen(con, "benutzer", "einst_bereiche", "TEXT")
+        # Welche Version hat dieses Konto zuletzt zur Kenntnis genommen?
+        # Leer heisst: noch keine - dann steht beim naechsten Aufruf der
+        # Hinweis auf die Neuerungen da.
+        spalte_ergaenzen(con, "benutzer", "gesehen_version", "TEXT")
         # Titel eines geloeschten Vorgangs, siehe Schema oben.
         spalte_ergaenzen(con, "vorgang_log", "vorgang_titel", "TEXT")
 

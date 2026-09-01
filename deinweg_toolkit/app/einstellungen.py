@@ -814,18 +814,22 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
             "SELECT id FROM benutzer WHERE benutzername=?", (benutzername,)).fetchone()
         if vorhanden:
             return benutzer_zurueck(fehler=f"„{benutzername}“ ist bereits vergeben.")
+        # ⚠️ Die laufende Version gilt fuer ein neues Konto als gesehen -
+        # sonst begruesste die Anwendung eine neue Kollegin mit dem
+        # Changelog einer Fassung, die sie nie anders kannte.
         con.execute(
             "INSERT INTO benutzer (benutzername, passwort_hash, rolle, "
             "berechtigungen, email, mitarbeiter, fremde_loeschen, "
             "fremde_bearbeiten, wiki_schreiben, bewilligungen_sehen, "
-            "einst_bereiche, angelegt_am) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "einst_bereiche, gesehen_version, angelegt_am) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (benutzername, db.passwort_hashen(passwort), rolle,
              auth.berechtigungen_speichern(bereiche), email or None,
              mitarbeiter or None, 1 if fremde_loeschen else 0,
              1 if fremde_bearbeiten else 0,
              1 if wiki_schreiben else 0, 1 if bewilligungen_sehen else 0,
-             auth.einst_bereiche_speichern(einst_bereiche), _u["jetzt"]()))
+             auth.einst_bereiche_speichern(einst_bereiche),
+             _u["VERSION"], _u["jetzt"]()))
     return benutzer_zurueck(hinweis=f"„{benutzername}“ angelegt.")
 
 

@@ -47,11 +47,15 @@
   <div class="kennzahlen kennzahlen-auswertung">
     {# Die Einheit steht klein und gedämpft hinter der Zahl – sie soll
        lesbar sein, aber nicht mit ihr um Aufmerksamkeit ringen. #}
-    <div class="kennzahl">
+    {# Vier Kästen, vier Töne: das Geleistete grün, das Bewilligte blau
+       als Bezugsgröße, die Abweichung rot oder grün je nach Vorzeichen,
+       der Verdienst in der Akzentfarbe. Zwei farblose Kästen dazwischen
+       sahen aus, als fehlte ihnen etwas. #}
+    <div class="kennzahl k-geleistet">
       <span class="kzahl">{{ zusammenfassung.ist | hhmm }}<span class="kmass">Std</span></span>
       <span class="klabel">geleistet · {{ zusammenfassung.n }} Einheiten</span>
     </div>
-    <div class="kennzahl">
+    <div class="kennzahl {{ 'k-bewilligt' if zusammenfassung.soll }}">
       <span class="kzahl">
         {%- if zusammenfassung.soll -%}
           {{ zusammenfassung.soll | hhmm }}<span class="kmass">Std</span>
@@ -59,7 +63,7 @@
       </span>
       <span class="klabel">bewilligt{% if zusammenfassung.prozent %} · {{ zusammenfassung.prozent }} % genutzt{% endif %}</span>
     </div>
-    <div class="kennzahl {{ 'hat k-ueberfaellig' if zusammenfassung.abweichung is not none and zusammenfassung.abweichung < 0 }}">
+    <div class="kennzahl {% if zusammenfassung.abweichung is not none %}{{ 'hat k-ueberfaellig' if zusammenfassung.abweichung < 0 else 'k-plus' }}{% endif %}">
       <span class="kzahl">
         {%- if zusammenfassung.abweichung is not none -%}
           {{ '+' if zusammenfassung.abweichung >= 0 }}{{ zusammenfassung.abweichung | hhmm }}<span class="kmass">Std</span>

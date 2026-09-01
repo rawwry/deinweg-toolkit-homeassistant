@@ -115,7 +115,9 @@ BEREICH_PFADE = [
     ("/export", "datensaetze"),
     ("/erfassung", "manuelle_eintraege"),
     ("/auswertung", "auswertung"),
-    ("/datenpflege", "datenpflege"),
+    # ⚠️ Muss VOR "/einstellungen" stehen: die Liste wird der Reihe nach
+    # geprueft, und der kuerzere Pfad passt sonst zuerst.
+    ("/einstellungen/datenpflege", "datenpflege"),
     ("/einstellungen", "einstellungen"),
     ("/ideen", "ideen"),
     ("/upload", "listenimport"),
@@ -209,7 +211,7 @@ def einst_bereiche_speichern(gewaehlt: list[str]) -> str:
 # ein eingeschraenkter Benutzer selbst hochstufen.
 # ⚠️ Die Datenpflege schreibt quer durch die ganze Datenbank - sie ist
 # zusaetzlich zur Bereichsberechtigung fest auf Administratoren begrenzt.
-ADMIN_NUR_PFADE = ("/einstellungen/benutzer", "/datenpflege")
+ADMIN_NUR_PFADE = ("/einstellungen/benutzer", "/einstellungen/datenpflege")
 
 # Oeffentlich ohne Anmeldung erreichbar
 OEFFENTLICHE_PFADE = ("/gesundheit", "/login")
@@ -357,7 +359,7 @@ def sitzung_benutzer(con, token: str, sitzung_tage: int):
         "SELECT s.erstellt_am, b.id, b.benutzername, b.rolle, "
         "b.berechtigungen, b.email, b.mitarbeiter, b.aktiv, "
         "b.fremde_loeschen, b.fremde_bearbeiten, b.wiki_schreiben, "
-        "b.bewilligungen_sehen, b.einst_bereiche "
+        "b.bewilligungen_sehen, b.einst_bereiche, b.gesehen_version "
         "FROM sitzung s JOIN benutzer b ON b.id = s.benutzer_id "
         "WHERE s.token = ?", (token,)).fetchone()
     if not zeile or not zeile["aktiv"]:

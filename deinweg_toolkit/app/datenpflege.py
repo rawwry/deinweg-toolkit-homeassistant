@@ -289,7 +289,7 @@ def _seite(request: Request, **werte):
                  "auswahl": auswahl, "seite": "datenpflege", **grund})
 
 
-@router.get("/datenpflege", response_class=HTMLResponse)
+@router.get("/einstellungen/datenpflege", response_class=HTMLResponse)
 def datenpflege(request: Request, hinweis: str = "", fehler: str = ""):
     return _seite(request, hinweis=hinweis, fehler=fehler)
 
@@ -308,7 +308,7 @@ def _pruefen(feld: str, suchart: str, suchwert: str, neuer_wert: str) -> str:
     return ""
 
 
-@router.post("/datenpflege/vorschau", response_class=HTMLResponse)
+@router.post("/einstellungen/datenpflege/vorschau", response_class=HTMLResponse)
 def vorschau(request: Request, feld: str = Form("beschreibung"),
              suchart: str = Form("genau"), suchwert: str = Form(""),
              neuer_wert: str = Form(""), ueberall: str = Form("")):
@@ -324,7 +324,7 @@ def vorschau(request: Request, feld: str = Form("beschreibung"),
     return _seite(request, vorschau=bild, **daten)
 
 
-@router.post("/datenpflege/anwenden")
+@router.post("/einstellungen/datenpflege/anwenden")
 def anwenden_route(request: Request, feld: str = Form("beschreibung"),
                    suchart: str = Form("genau"), suchwert: str = Form(""),
                    neuer_wert: str = Form(""), ueberall: str = Form(""),
@@ -354,7 +354,7 @@ def anwenden_route(request: Request, feld: str = Form("beschreibung"),
 
     if not ergebnis["gesamt"]:
         return RedirectResponse(
-            "/datenpflege?fehler=Nichts+gefunden%2C+nichts+ge%C3%A4ndert.",
+            "/einstellungen/datenpflege?fehler=Nichts+gefunden%2C+nichts+ge%C3%A4ndert.",
             status_code=303)
 
     from urllib.parse import urlencode
@@ -363,5 +363,5 @@ def anwenden_route(request: Request, feld: str = Form("beschreibung"),
             f"„{neuer_wert.strip()}“.")
     if sicherung:
         text += f" Sicherung vorher: {sicherung}"
-    return RedirectResponse("/datenpflege?" + urlencode({"hinweis": text}),
+    return RedirectResponse("/einstellungen/datenpflege?" + urlencode({"hinweis": text}),
                             status_code=303)

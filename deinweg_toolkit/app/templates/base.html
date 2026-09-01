@@ -139,6 +139,40 @@
   <p>{{ fusstext() }}</p>
 </footer>
 
+{# --- Was ist neu? ------------------------------------------------------
+   Steht bei jedem Seitenaufbau da, solange dieses Konto die laufende
+   Fassung nicht zur Kenntnis genommen hat. Bewusst nicht nur einmal
+   direkt nach dem Login: wer ihn dort wegklickt oder das Fenster
+   schließt, bekäme ihn sonst nie wieder.
+
+   ⚠️ Ein Formular, kein Skript. Der Hinweis lässt sich damit auch ohne
+   JavaScript schließen – und weil das ein POST ist, geht er durch die
+   Herkunftsprüfung wie jedes andere Formular. #}
+{% set neu = neuigkeiten(request) %}
+{% if neu %}
+<div class="neuheiten-schatten"></div>
+<div class="neuheiten" role="dialog" aria-modal="true"
+     aria-labelledby="neuheiten-titel">
+  <div class="neuheiten-kopf">
+    <span class="neuheiten-marke">Neu in dieser Fassung</span>
+    <p class="neuheiten-version">{{ neu.version }}</p>
+    <h2 id="neuheiten-titel">{{ neu.titel }}</h2>
+  </div>
+
+  <ul class="neuheiten-liste">
+    {% for punkt in neu.punkte %}
+    <li>{{ punkt }}</li>
+    {% endfor %}
+  </ul>
+
+  <form class="neuheiten-fuss" action="/neuigkeiten/gelesen" method="post">
+    <input type="hidden" name="weiter" value="{{ request.url.path }}">
+    <a class="knopf leise" href="/changelog">Alle Änderungen</a>
+    <button class="knopf haupt" type="submit" autofocus>Verstanden</button>
+  </form>
+</div>
+{% endif %}
+
 <script>
   (function () {
     var wurzel = document.documentElement;

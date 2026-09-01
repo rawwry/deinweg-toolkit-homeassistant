@@ -1,9 +1,16 @@
 {% extends "base.html" %}
-{% from "_untermenue.html" import arbeitszeit with context %}
+{% from "_einstellungen_menue.html" import einstellungsmenue with context %}
 {% block titel %} – Datenpflege{% endblock %}
 
 {% block inhalt %}
-{{ arbeitszeit("datenpflege") }}
+<div class="einstellungsseite">
+
+{# Dieselbe Leiste wie in den Einstellungen: die Datenpflege ist eine
+   eigene Seite (sie bringt ihren zweistufigen Ablauf mit), gehört aber
+   dorthin und soll sich auch so anfühlen. #}
+{{ einstellungsmenue("", "datenpflege") }}
+
+<div class="einstellungsinhalt">
 
 {% if hinweis %}<p class="meldung gut">{{ hinweis }}</p>{% endif %}
 {% if fehler %}<p class="meldung warn">{{ fehler }}</p>{% endif %}
@@ -193,4 +200,7 @@
     zeigen();
   })();
 </script>
+
+</div>
+</div>
 {% endblock %}

@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.16
+
+- Nach einem Update steht der jüngste Changelog-Eintrag einmal im Bild,
+  je Konto einzeln
+- Datenpflege von „Arbeitszeit" in die Einstellungen unter „Wartung"
+- Auswertung: alle vier Kennzahlen eingefärbt
+- Auswertung: ohne eigene Angabe das laufende Jahr statt der gesamten
+  Zeit
+
 ## 1.15.3
 
 - Dateien: beide Knöpfe gleich hoch, „Öffnen" entfallen

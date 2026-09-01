@@ -232,11 +232,10 @@ def test_menue(client: TestClient) -> None:
                f"{adresse}: „{hier}“ ist als aktueller Punkt markiert")
         pruefe(leiste.count("aria-current=page") == 1,
                f"{adresse}: und zwar nur dieser eine")
-        # Seit 1.15 kommt für Administratoren die Datenpflege dazu.
-        pruefe(leiste.count("<a ") == 4,
-               f"{adresse}: alle vier Unterpunkte stehen darin")
-        pruefe(">Datenpflege<" in leiste,
-               f"{adresse}: die Datenpflege steht als letzter Punkt")
+        # ⚠️ Drei Punkte, nicht mehr: die Datenpflege ist mit 1.16 in die
+        # Einstellungen gezogen.
+        pruefe(leiste.count("<a ") == 3,
+               f"{adresse}: alle drei Unterpunkte stehen darin")
 
     seite = client.get("/eintraege").text
     pruefe("<h1>Übersicht</h1>" in seite,
@@ -3010,14 +3009,16 @@ def test_datenpflege(client: TestClient) -> None:
     from . import main
 
     def anwenden(daten, wort="ÄNDERN"):
-        return client.post("/datenpflege/anwenden", data=dict(daten, bestaetigung=wort),
+        return client.post("/einstellungen/datenpflege/anwenden", data=dict(daten, bestaetigung=wort),
                            follow_redirects=False)
 
-    seite = client.get("/datenpflege").text
+    seite = client.get("/einstellungen/datenpflege").text
     pruefe("Datenpflege" in seite and "Vorschau anzeigen" in seite,
            "die Seite ist erreichbar und führt erst zur Vorschau")
-    pruefe(">Datenpflege<" in client.get("/eintraege").text,
-           "und steht als Reiter unter „Arbeitszeit“")
+    pruefe(">Datenpflege<" in client.get("/einstellungen?bereich=system").text,
+           "und steht in den Einstellungen unter „Wartung“")
+    pruefe(">Datenpflege<" not in client.get("/eintraege").text,
+           "aber nicht mehr als Reiter unter „Arbeitszeit“")
 
     # --- Warnung --------------------------------------------------------
     pruefe("warnband" in seite and "Sicherung" in seite,
@@ -3048,9 +3049,9 @@ def test_datenpflege(client: TestClient) -> None:
     # ihrem Bereich UND fest an der Rolle.
     fremd = _konto(client, "pfleger", "pflegerpasswort",
                    ["datensaetze", "datenpflege"])
-    pruefe(fremd.get("/datenpflege").status_code == 403,
+    pruefe(fremd.get("/einstellungen/datenpflege").status_code == 403,
            "ein normales Konto kommt auch mit dem Bereich nicht hinein")
-    pruefe(fremd.post("/datenpflege/anwenden", data={
+    pruefe(fremd.post("/einstellungen/datenpflege/anwenden", data={
         "feld": "beschreibung", "suchart": "genau", "suchwert": "x",
         "neuer_wert": "y", "bestaetigung": "ÄNDERN"}).status_code == 403,
         "und schon gar nicht ans Anwenden")
@@ -3073,7 +3074,7 @@ def test_datenpflege(client: TestClient) -> None:
     # --- Schritt 1 ändert nichts ----------------------------------------
     grund = {"feld": "beschreibung", "suchart": "genau",
              "suchwert": "AU", "neuer_wert": "Krank"}
-    vorschau = client.post("/datenpflege/vorschau", data=grund).text
+    vorschau = client.post("/einstellungen/datenpflege/vorschau", data=grund).text
     pruefe("Das würde passieren" in vorschau, "die Vorschau erscheint")
     pruefe("ÄNDERN" in vorschau,
            "und verlangt für den zweiten Schritt das Bestätigungswort")
@@ -3134,7 +3135,7 @@ def test_datenpflege(client: TestClient) -> None:
     namen = {"feld": "mitarbeiter", "suchart": "genau",
              "suchwert": "Pflegeprobe", "neuer_wert": "Pflege Probe",
              "ueberall": "1"}
-    vorschau = client.post("/datenpflege/vorschau", data=namen).text
+    vorschau = client.post("/einstellungen/datenpflege/vorschau", data=namen).text
     for stelle in ("Zeiteinträge", "Aufgaben (zuständig)", "Logbuchzeilen",
                    "Team-Eintrag", "E-Mail-Empfängerliste"):
         pruefe(stelle in vorschau, f"die Vorschau nennt „{stelle}“")
@@ -3163,7 +3164,7 @@ def test_datenpflege(client: TestClient) -> None:
     zusammen = {"feld": "mitarbeiter", "suchart": "genau",
                 "suchwert": "Pflege Probe", "neuer_wert": "pruefer",
                 "ueberall": "1"}
-    vorschau = client.post("/datenpflege/vorschau", data=zusammen).text
+    vorschau = client.post("/einstellungen/datenpflege/vorschau", data=zusammen).text
     pruefe("stillgelegt" in vorschau,
            "die Vorschau sagt, dass zusammengeführt statt umbenannt wird")
     anwenden(zusammen)
@@ -3179,6 +3180,79 @@ def test_datenpflege(client: TestClient) -> None:
         con.execute("DELETE FROM vorgang WHERE titel='Pflegevorgang'")
         con.execute("DELETE FROM mitarbeiter WHERE name='Pflege Probe'")
         mail.konfig_schreiben(con, {"frist_kopie": ""})
+
+
+def test_neuigkeiten(client: TestClient) -> None:
+    """Nach einer neuen Fassung steht der Changelog einmal im Bild."""
+    abschnitt("Hinweis auf Neuerungen")
+    from .changelog import CHANGELOG
+    from .main import VERSION
+
+    with db.db() as con:
+        con.execute("UPDATE benutzer SET gesehen_version=NULL "
+                    "WHERE benutzername='pruefer'")
+    seite = client.get("/").text
+    pruefe('class="neuheiten"' in seite, "der Hinweis steht da")
+    pruefe(VERSION in seite.split('class="neuheiten"')[1][:600],
+           "und nennt die neue Versionsnummer")
+    pruefe(CHANGELOG[-1]["titel"] in seite, "samt Überschrift des Eintrags")
+    pruefe(CHANGELOG[-1]["punkte"][0] in seite, "und den einzelnen Punkten")
+    pruefe('href="/changelog"' in seite.split('class="neuheiten"')[1][:2600],
+           "mit einem Weg zum vollständigen Verlauf")
+    # ⚠️ Auf jeder Seite, nicht nur direkt nach dem Login: wer ihn dort
+    # wegklickt, bekäme ihn sonst nie wieder.
+    pruefe('class="neuheiten"' in client.get("/meinbereich").text,
+           "und zwar auf jeder Seite, bis er zur Kenntnis genommen ist")
+
+    antwort = client.post("/neuigkeiten/gelesen", data={"weiter": "/meinbereich"},
+                          follow_redirects=False)
+    pruefe(antwort.status_code == 303
+           and antwort.headers.get("location") == "/meinbereich",
+           "„Verstanden“ führt zurück, wo man war")
+    pruefe('class="neuheiten"' not in client.get("/").text,
+           "danach ist er weg")
+    with db.db() as con:
+        stand = con.execute("SELECT gesehen_version g FROM benutzer "
+                            "WHERE benutzername='pruefer'").fetchone()["g"]
+    pruefe(stand == VERSION, "und die Fassung ist als gesehen vermerkt")
+
+    # Ein fremdes Ziel darf die Weiterleitung nicht annehmen.
+    antwort = client.post("/neuigkeiten/gelesen",
+                          data={"weiter": "https://boese.example/"},
+                          follow_redirects=False)
+    pruefe(antwort.headers.get("location") == "/",
+           "ein fremdes Ziel wird nicht übernommen")
+
+    # Ein frisch angelegtes Konto kennt die laufende Fassung bereits.
+    _konto(client, "neuling", "neulingpasswort", ["auswertung"])
+    with db.db() as con:
+        neu = con.execute("SELECT gesehen_version g FROM benutzer "
+                          "WHERE benutzername='neuling'").fetchone()["g"]
+    pruefe(neu == VERSION,
+           "ein neues Konto wird nicht mit dem Changelog begrüßt")
+
+
+def test_auswertung_standard(client: TestClient) -> None:
+    """Ohne Angabe zeigt die Auswertung das laufende Jahr."""
+    abschnitt("Auswertung: laufendes Jahr")
+    jahr = str(dt.date.today().year)
+
+    seite = client.get("/auswertung").text
+    pruefe(f"Jahr {jahr}" in seite,
+           "ohne Angabe steht das laufende Jahr im Kopf")
+    pruefe(f'<option value="{jahr}" selected>' in seite,
+           "und die Jahresfelder sind entsprechend vorbelegt")
+
+    # ⚠️ Wer ausdrücklich „alle“ wählt, bekommt weiterhin alles. Erkannt
+    # wird das an der Abfrage: das Filterformular schickt immer alle
+    # Felder mit, auch die leeren.
+    alle = client.get("/auswertung?von_jahr=&bis_jahr=&von_monat=&bis_monat=").text
+    pruefe("alle Zeiten" in alle,
+           "mit ausdrücklich leerem Jahr gilt wieder die ganze Zeit")
+
+    # Die vier Kennzahlen tragen alle eine Farbe.
+    for klasse in ("k-geleistet", "k-bewilligt", "k-verdienst"):
+        pruefe(klasse in seite, f"die Kennzahl „{klasse}“ ist eingefärbt")
 
 
 def test_versionen() -> None:
@@ -3921,6 +3995,8 @@ def _durchlauf(client: TestClient) -> None:
         test_werkzeuge(client)
         test_verlaufsdiagramm(client)
         test_datenpflege(client)
+        test_auswertung_standard(client)
+        test_neuigkeiten(client)
         test_farbvariablen(client)
         test_bewilligung_nachfolge(client)
         test_versionen()

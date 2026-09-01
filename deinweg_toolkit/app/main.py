@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.15.3"
+VERSION = "1.16"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1612,6 +1612,17 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
                mitarbeiter: list[str] = Query([]),
                klient: list[str] = Query([]), q: str = "",
                nur_abrechenbar: str = ""):
+    # ⚠️ Ohne jede Angabe steht das LAUFENDE JAHR da, nicht die gesamte
+    # Zeit. Bei vierzehn Monatsblöcken war die Seite sonst schon beim
+    # Aufschlagen unlesbar lang.
+    #
+    # Erkannt wird das an der leeren Abfrage, nicht an leeren Feldern:
+    # das Filterformular schickt immer alle Felder mit, auch die leeren.
+    # Wer dort ausdrücklich „alle" wählt, bekommt damit weiterhin alles -
+    # sonst gäbe es keinen Weg mehr zur Gesamtansicht.
+    if not request.query_params:
+        von_jahr = bis_jahr = str(dt.date.today().year)
+
     filter_ = bereichsfilter(von_jahr, von_monat, bis_jahr, bis_monat,
                              mitarbeiter, klient, q, nur_abrechenbar=nur_abrechenbar)
 
@@ -2383,6 +2394,48 @@ def konto_speichern(request: Request, email: str = Form(""),
     if not meldungen:
         return _konto_zurueck(hinweis="Es gab nichts zu ändern.")
     return _konto_zurueck(hinweis=" · ".join(meldungen) + ".")
+
+
+def neuigkeiten(request) -> dict | None:
+    """Der jüngste Changelog-Eintrag, solange das Konto ihn nicht kennt.
+
+    Wird von base.html bei jedem Seitenaufbau gefragt - deshalb steht
+    hier kein Datenbankzugriff, wenn es nichts zu zeigen gibt: der
+    Vergleich laeuft gegen das Feld, das die Anmeldung ohnehin schon
+    geladen hat.
+
+    ⚠️ Bewusst nicht nur direkt nach dem Login: wer den Hinweis dort
+    wegklickt oder das Fenster schliesst, bekaeme ihn sonst nie wieder.
+    So steht er, bis er einmal ausdruecklich zur Kenntnis genommen wurde.
+    """
+    benutzer = getattr(request.state, "benutzer", None)
+    if not benutzer:
+        return None
+    try:
+        gesehen = benutzer["gesehen_version"]
+    except (KeyError, IndexError):
+        return None            # Datenbank noch ohne die Spalte
+    if gesehen == VERSION or not CHANGELOG:
+        return None
+    stand = CHANGELOG[-1]
+    if stand["version"] != VERSION:
+        return None            # Version und Changelog laufen auseinander
+    return stand
+
+
+templates.env.globals["neuigkeiten"] = neuigkeiten
+
+
+@app.post("/neuigkeiten/gelesen")
+def neuigkeiten_gelesen(request: Request, weiter: str = Form("/")):
+    """Merkt sich, dass dieses Konto die Fassung kennt."""
+    with db.db() as con:
+        con.execute("UPDATE benutzer SET gesehen_version=? WHERE id=?",
+                    (VERSION, request.state.benutzer["id"]))
+    # ⚠️ Nur eigene Pfade, kein fremdes Ziel: sonst waere das Formular
+    # eine offene Weiterleitung.
+    ziel = weiter if weiter.startswith("/") and not weiter.startswith("//") else "/"
+    return RedirectResponse(ziel, status_code=303)
 
 
 @app.get("/changelog", response_class=HTMLResponse)

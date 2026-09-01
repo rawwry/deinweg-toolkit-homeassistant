@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_einstellungen_menue.html" import einstellungsmenue with context %}
 {% block titel %} – Einstellungen{% endblock %}
 {% block inhalt %}
 
@@ -7,59 +8,7 @@
 
 <div class="einstellungsseite">
 
-{# Elf Punkte in einer flachen Liste ließen sich nicht überfliegen. Sie
-   stehen jetzt in fünf Gruppen, die nach der Frage sortiert sind, mit der
-   man herkommt: Wie sieht es aus? Wer und was gehört zur Einrichtung?
-   Was steht in den Auswahlfeldern? Wer darf was? Was macht der Server? #}
-<aside class="seitenmenue">
-  <span class="seitenmenue-titel">Einstellungen</span>
-
-  {# Jeder Punkt ausser „Oberfläche“ lässt sich je Konto abschalten. Eine
-     Gruppenüberschrift steht nur da, wenn unter ihr auch etwas steht -
-     sonst bliebe eine leere Zwischenzeile stehen. #}
-  {% set b = request.state.benutzer %}
-  <span class="seitenmenue-gruppe">Darstellung</span>
-  <a href="/einstellungen?bereich=oberflaeche" class="{{ 'aktiv' if bereich=='oberflaeche' }}">Oberfläche</a>
-  {% if hat_einst_zugriff(b, "quotes") %}
-  <a href="/einstellungen?bereich=quotes" class="{{ 'aktiv' if bereich=='quotes' }}">Sprüche</a>
-  {% endif %}
-
-  {% if hat_einst_zugriff(b, "betreute") or hat_einst_zugriff(b, "mitarbeiter")
-        or hat_einst_zugriff(b, "kfz") %}
-  <span class="seitenmenue-gruppe">Stammdaten</span>
-  {% if hat_einst_zugriff(b, "betreute") %}
-  <a href="/einstellungen?bereich=betreute" class="{{ 'aktiv' if bereich=='betreute' }}">Betreute Personen</a>
-  {% endif %}
-  {% if hat_einst_zugriff(b, "mitarbeiter") %}
-  <a href="/einstellungen?bereich=mitarbeiter" class="{{ 'aktiv' if bereich=='mitarbeiter' }}">Mitarbeiter</a>
-  {% endif %}
-  {% if hat_einst_zugriff(b, "kfz") %}
-  <a href="/einstellungen?bereich=kfz" class="{{ 'aktiv' if bereich=='kfz' }}">Fahrzeuge</a>
-  {% endif %}
-  {% endif %}
-
-  {% if hat_einst_zugriff(b, "vorgangsarten") or hat_einst_zugriff(b, "leistungen") %}
-  <span class="seitenmenue-gruppe">Auswahllisten</span>
-  {% if hat_einst_zugriff(b, "vorgangsarten") %}
-  <a href="/einstellungen?bereich=vorgangsarten" class="{{ 'aktiv' if bereich=='vorgangsarten' }}">Aufgabenarten</a>
-  {% endif %}
-  {% if hat_einst_zugriff(b, "leistungen") %}
-  <a href="/einstellungen?bereich=leistungen" class="{{ 'aktiv' if bereich=='leistungen' }}">Leistungsbeschreibungen</a>
-  {% endif %}
-  {% endif %}
-
-  {% if ist_admin %}
-  <span class="seitenmenue-gruppe">Konten und E-Mail</span>
-  <a href="/einstellungen?bereich=benutzer" class="{{ 'aktiv' if bereich=='benutzer' }}">Benutzerverwaltung</a>
-  <a href="/einstellungen?bereich=email" class="{{ 'aktiv' if bereich=='email' }}">E-Mail-Versand</a>
-  <a href="/einstellungen?bereich=vorlagen" class="{{ 'aktiv' if bereich=='vorlagen' }}">E-Mail-Vorlagen</a>
-  {% endif %}
-
-  {% if hat_einst_zugriff(b, "system") %}
-  <span class="seitenmenue-gruppe">Wartung</span>
-  <a href="/einstellungen?bereich=system" class="{{ 'aktiv' if bereich=='system' }}">System und Sicherung</a>
-  {% endif %}
-</aside>
+{{ einstellungsmenue(bereich) }}
 
 <div class="einstellungsinhalt">
 

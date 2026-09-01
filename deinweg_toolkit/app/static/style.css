@@ -2276,6 +2276,16 @@ body.anmeldeseite {
 .kennzahlen-auswertung .kzahl { font-size: 22px; }
 .kennzahl.k-verdienst { border-color: var(--akzent); background: var(--akzent-weich); }
 .kennzahl.k-verdienst .kzahl { color: var(--akzent); }
+/* Die übrigen drei Kästen der Auswertung. Zwei davon standen bis 1.16
+   ohne Füllung da und sahen neben den beiden farbigen aus, als fehlte
+   ihnen etwas. Die Töne sind gedämpft - es sind Zahlen, keine
+   Warnungen. */
+.kennzahl.k-geleistet { border-color: var(--gut); background: var(--gut-weich); }
+.kennzahl.k-geleistet .kzahl { color: var(--gut); }
+.kennzahl.k-bewilligt { border-color: var(--info); background: var(--info-weich); }
+.kennzahl.k-bewilligt .kzahl { color: var(--info); }
+.kennzahl.k-plus { border-color: var(--gut); background: var(--gut-weich); }
+.kennzahl.k-plus .kzahl { color: var(--gut); }
 
 /* Am Handy rollt die Tabelle in ihrer eigenen Hülle. Die Spalten stehen
    dort in Pixeln statt in Prozent: bei acht Spalten blieben für „Satz“
@@ -2465,6 +2475,73 @@ body.anmeldeseite {
   94%  { opacity: 1; }
   100% { opacity: 0; transform: translate(70px, 12px); }
 }
+
+/* --- „Neu in dieser Fassung" -----------------------------------------
+   Der Hinweis liegt über der Seite, damit er nicht übersehen wird - aber
+   er verdeckt sie nicht vollständig: der Schatten dahinter ist gedämpft,
+   nicht schwarz. Man soll sehen, dass die Anwendung dahinter da ist.
+*/
+.neuheiten-schatten {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgba(10, 6, 14, .62); backdrop-filter: blur(2px);
+}
+.neuheiten {
+  position: fixed; z-index: 81; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(80vh, 760px); overflow-y: auto;
+  padding: 26px 28px 22px; border-radius: 16px;
+  background: var(--flaeche); border: 1px solid var(--linie-stark);
+  box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .8);
+}
+.neuheiten-kopf { margin-bottom: 18px; }
+.neuheiten-marke {
+  display: inline-block; padding: 3px 11px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--akzent); background: var(--akzent-weich);
+  border: 1px solid var(--linie);
+}
+.neuheiten-version {
+  margin: 12px 0 2px; font-size: 30px; font-weight: 800;
+  letter-spacing: -1px; color: var(--akzent);
+}
+.neuheiten h2 { margin: 0; font-size: 17px; text-transform: none;
+                letter-spacing: -.2px; color: var(--tinte); }
+.neuheiten-liste {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 9px;
+  font-size: 13.5px; line-height: 1.55; color: var(--tinte-2);
+}
+/* Ein Punkt je Zeile mit eigenem Häkchen - eine Aufzählung mit Punkten
+   sah neben der großen Versionsnummer wie Kleingedrucktes aus. */
+.neuheiten-liste li {
+  position: relative; padding-left: 26px;
+}
+.neuheiten-liste li::before {
+  content: ""; position: absolute; left: 4px; top: .5em;
+  width: 9px; height: 5px; border-left: 2px solid var(--akzent);
+  border-bottom: 2px solid var(--akzent);
+  transform: rotate(-45deg);
+}
+.neuheiten-fuss {
+  display: flex; gap: 10px; justify-content: flex-end; align-items: center;
+  margin: 22px 0 0; padding-top: 18px;
+  border-top: 1px solid var(--linie);
+}
+@media (max-width: 520px) {
+  .neuheiten { padding: 20px 18px 16px; }
+  .neuheiten-fuss { flex-direction: column-reverse; align-items: stretch; }
+  .neuheiten-fuss .knopf { text-align: center; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .neuheiten { animation: neuheiten-auf .28s cubic-bezier(.2, .9, .3, 1.08); }
+  .neuheiten-schatten { animation: neuheiten-blende .28s ease; }
+}
+@keyframes neuheiten-auf {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 14px)) scale(.97); }
+}
+@keyframes neuheiten-blende { from { opacity: 0; } }
 
 /* --- Datenpflege ---------------------------------------------------------
    ⚠️ Die Seite ändert Werte quer durch die Datenbank. Sie soll deshalb
