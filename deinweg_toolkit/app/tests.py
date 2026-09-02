@@ -1349,29 +1349,47 @@ def test_marke(client: TestClient) -> None:
                              ("/static/icon-192.png", 5000),
                              ("/static/icon-512.png", 20000),
                              ("/static/apple-touch-icon.png", 5000),
-                             ("/static/logo-fuer-dunkel.png", 5000),
-                             ("/static/logo-fuer-hell.png", 5000),
-                             ("/static/marke-fuer-dunkel.png", 2000),
-                             ("/static/marke-fuer-hell.png", 2000)):
+                             # Seit 1.17.1 sind Logo und Bildmarke SVG - sie
+                             # skalieren damit auf jedem Bildschirm sauber.
+                             ("/static/logo-fuer-dunkel.svg", 5000),
+                             ("/static/logo-fuer-hell.svg", 5000),
+                             ("/static/marke-fuer-dunkel.svg", 1000),
+                             ("/static/marke-fuer-hell.svg", 1000)):
         antwort = client.get(pfad)
         pruefe(antwort.status_code == 200 and len(antwort.content) >= mindestens,
                f"{pfad} wird ausgeliefert")
 
     seite = client.get("/").text
-    pruefe("marke-fuer-dunkel.png" in seite and "marke-fuer-hell.png" in seite,
+    pruefe("marke-fuer-dunkel.svg" in seite and "marke-fuer-hell.svg" in seite,
            "die Kopfzeile trägt das Zeichen in beiden Fassungen")
     pruefe("marke-wort" not in seite,
            "in der Kopfzeile steht allein das Zeichen, kein Schriftzug daneben")
-    pruefe("logo-fuer-dunkel.png" in seite,
+    pruefe("logo-fuer-dunkel.svg" in seite,
            "der vollständige Schriftzug steht in der Fußzeile")
+    # Kein PNG mehr: die vier alten Dateien sind ersetzt, nicht ergänzt.
+    pruefe("logo-fuer-dunkel.png" not in seite
+           and "marke-fuer-dunkel.png" not in seite,
+           "und nirgends mehr als PNG")
+    pruefe(client.get("/static/logo-fuer-dunkel.png").status_code == 404,
+           "die alten PNG-Dateien sind weg")
     # Ohne Versionsanhang hängt der Browser nach einem Bildtausch am alten
     # Stand - genau das war beim Einbau der neuen Grafiken zu sehen.
-    for bild in ("marke-fuer-dunkel.png", "logo-fuer-dunkel.png"):
+    for bild in ("marke-fuer-dunkel.svg", "logo-fuer-dunkel.svg"):
         pruefe(f"{bild}?v=" in seite, f"{bild} trägt einen Versionsanhang")
     pruefe("favicon-32x32.png" in seite, "die kleinen Favicons sind eingebunden")
 
+    # ⚠️ Eine SVG-Schrift, die als <text> mit einer nicht mitgelieferten
+    # Hausschrift dasteht, sieht im Browser irgendwie aus - nur nicht wie
+    # das Logo. In den ausgelieferten Dateien muss die Schrift deshalb in
+    # Pfaden vorliegen.
+    for bild in ("logo-fuer-dunkel.svg", "logo-fuer-hell.svg",
+                 "marke-fuer-dunkel.svg", "marke-fuer-hell.svg"):
+        quelle = client.get("/static/" + bild).text
+        pruefe("<text" not in quelle and "font-family" not in quelle,
+               f"{bild} enthält keine lebende Schrift, nur Pfade")
+
     anmeldung = TestClient(app).get("/login").text
-    pruefe("logo-fuer-dunkel.png?v=" in anmeldung,
+    pruefe("logo-fuer-dunkel.svg?v=" in anmeldung,
            "die Anmeldeseite zeigt den vollständigen Schriftzug")
 
     stil = client.get("/static/style.css").text
@@ -2292,7 +2310,7 @@ def test_meinbereich_aufbau(client: TestClient) -> None:
     leer = client.get("/meinbereich").text
     pruefe("Meine Aufgaben" in leer,
            "die Aufgabenkarte bleibt auch ohne offene Aufgabe stehen")
-    pruefe("Keine offenen Aufgaben" in leer and "nichtsoffen" in leer,
+    pruefe("Hier ist tote Hose" in leer and "nichtsoffen" in leer,
            "und sagt ausdrücklich, dass nichts offen ist")
     pruefe("Zu den Aufgaben" in leer, "mit einem Weg dorthin")
     # Der Spaß muss ohne nachgeladenes Bild auskommen (Abschnitt 13) und
@@ -2643,11 +2661,17 @@ def test_texte_nachziehen(client: TestClient) -> None:
 
 
 def test_fusszeile(client: TestClient) -> None:
-    """Zwei Haelften, und der mittlere Satz ist pflegbar."""
+    """Zwei Haelften, und die Rechtezeile ist pflegbar."""
     abschnitt("Fußzeile")
     seite = client.get("/meinbereich").text
     fuss = seite[seite.index("<footer"):seite.index("</footer>")]
-    pruefe(fuss.count("fuss-zeile") == 3, "die Fußzeile hat drei Zeilen")
+    # Seit 1.17.1 nur noch zwei Zeilen: der Satz unter dem Logo ist weg,
+    # dafuer steht das Logo selbst groesser da.
+    pruefe(fuss.count("fuss-zeile") == 2, "die Fußzeile hat zwei Zeilen")
+    pruefe("fuss-satz" not in fuss,
+           "der Satz unter dem Logo ist entfallen")
+    pruefe("eigentlich nicht organisieren wollen" not in fuss,
+           "und steht auch im Wortlaut nirgends mehr")
     pruefe('class="fussband"' in fuss, "sie stehen in einem gemeinsamen Band")
     pruefe('class="fussmarke"' in fuss and 'class="fussangaben"' in fuss,
            "links die Marke, rechts die Angaben")
@@ -2655,24 +2679,157 @@ def test_fusszeile(client: TestClient) -> None:
            "und zwar in dieser Reihenfolge")
     # Die Logos stehen seit 1.17 in fusstext() und nicht mehr in base.html -
     # beide Fassungen muessen weiterhin da sein, samt Versionsanhang.
-    pruefe("logo-fuer-dunkel.png?v=" in fuss and "logo-fuer-hell.png?v=" in fuss,
+    pruefe("logo-fuer-dunkel.svg?v=" in fuss and "logo-fuer-hell.svg?v=" in fuss,
            "beide Logos hängen mit Versionsanhang in der Fußzeile")
-    pruefe('<a href="/changelog">Was ist neu?</a>' in fuss,
+    pruefe('<a href="/changelog">Changelog</a>' in fuss,
            "der Changelog steht als Verweis daneben")
+    pruefe("Was ist neu?" not in fuss,
+           "und heißt dort nicht mehr „Was ist neu?“")
 
-    antwort = client.post("/einstellungen/fusszeile", data={
-        "fusszeile_satz": "Ganz eigener Satz.",
-        "fusszeile_recht": "© 2026 Probe"}, follow_redirects=False)
-    pruefe(antwort.status_code == 303, "der Text lässt sich ändern")
-    pruefe("Ganz eigener Satz." in client.get("/meinbereich").text,
+    # Das Feld fuer den Satz ist mit ihm verschwunden - ein Eingabefeld,
+    # dessen Wert nirgends erscheint, waere schlimmer als keines.
+    pruefe('name="fusszeile_satz"'
+           not in client.get("/einstellungen?bereich=system").text,
+           "das Eingabefeld dafür gibt es nicht mehr")
+
+    antwort = client.post("/einstellungen/fusszeile",
+                          data={"fusszeile_recht": "© 2026 Probe"},
+                          follow_redirects=False)
+    pruefe(antwort.status_code == 303, "die Rechtezeile lässt sich ändern")
+    pruefe("© 2026 Probe" in client.get("/meinbereich").text,
            "und steht danach unten auf der Seite")
 
     # Leeres Feld heisst: wieder der ausgelieferte Wortlaut.
-    client.post("/einstellungen/fusszeile",
-                data={"fusszeile_satz": "", "fusszeile_recht": ""},
+    client.post("/einstellungen/fusszeile", data={"fusszeile_recht": ""},
                 follow_redirects=False)
-    pruefe("eigentlich nicht organisieren wollen" in client.get("/meinbereich").text,
+    pruefe("Alle Rechte vorbehalten" in client.get("/meinbereich").text,
            "leer heißt: wieder der Standardtext")
+
+
+def test_versandzeit(client: TestClient) -> None:
+    """Erinnerungen gehen morgens ab 8 Uhr heraus, nicht nachts."""
+    abschnitt("Versandzeit der Erinnerungen")
+    from . import mail
+
+    pruefe(mail.VERSANDSTUNDE == 8, "die Versandstunde steht auf 8 Uhr")
+    pruefe(not mail.versandzeit_erreicht(dt.datetime(2026, 5, 4, 3, 30)),
+           "um halb vier nachts ist sie nicht erreicht")
+    pruefe(not mail.versandzeit_erreicht(dt.datetime(2026, 5, 4, 7, 59)),
+           "eine Minute vor acht auch nicht")
+    pruefe(mail.versandzeit_erreicht(dt.datetime(2026, 5, 4, 8, 0)),
+           "um Punkt acht schon")
+    # ⚠️ Bewusst „ab 8 Uhr" und nicht „um genau 8 Uhr": war der Rechner um
+    # acht aus, soll die Erinnerung spaeter am Tag trotzdem noch
+    # herausgehen statt lautlos auszufallen.
+    pruefe(mail.versandzeit_erreicht(dt.datetime(2026, 5, 4, 21, 0)),
+           "und abends noch - eine verpasste Stunde darf sie nicht schlucken")
+
+    # Beide Anlaesse halten sich daran. Geprueft wird ueber eine
+    # vorgezogene Versandstunde: liegt sie hinter der jetzigen Uhrzeit,
+    # darf keiner der beiden etwas tun.
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+        k = dict(k, frist_aktiv="1", abgabe_aktiv="1", abgabe_tag="1")
+        echt = mail.VERSANDSTUNDE
+        try:
+            mail.VERSANDSTUNDE = 25   # nie erreicht
+            pruefe(mail.pruefe_fristen(con, k) == [],
+                   "vor der Versandstunde geht keine Fristmeldung heraus")
+            pruefe(mail.pruefe_abgaben(con, k) == [],
+                   "und keine Erinnerung an die Zeiterfassung")
+            # Ein ausdruecklich angeforderter Monat geht trotzdem: da
+            # drueckt jemand bewusst auf den Knopf.
+            mail.pruefe_abgaben(con, dict(k, mail_aktiv="1"), monat="2026-01")
+            pruefe(True, "ein ausdrücklich angefragter Monat bleibt möglich")
+        finally:
+            mail.VERSANDSTUNDE = echt
+
+    seite = client.get("/einstellungen?bereich=email").text
+    # ⚠️ Der Satz steht im Markup und nicht in strings.txt - eine schon
+    # vorhandene strings.txt gewinnt gegen die Standardtexte, die Angabe
+    # waere sonst bei Timo nie angekommen (CLAUDE.md, Abschnitt 8).
+    pruefe(seite.count('class="klein leise versandzeit"') == 2,
+           "beide Anlässe nennen die Versandzeit in der Oberfläche")
+    pruefe("morgens ab 8 Uhr" in seite, "und zwar im Klartext")
+
+
+def test_zitat_abstand(client: TestClient) -> None:
+    """Über und unter dem Zitat steht derselbe Rand."""
+    abschnitt("Abstände um das Zitat")
+    stil = client.get("/static/style.css").text
+    block = stil[stil.index(".spruch {"):stil.index(".spruch blockquote")]
+    pruefe("margin: 8px auto;" in block,
+           "das Zitat trägt oben und unten denselben Rand")
+    pruefe("26px auto 8px" not in block,
+           "der ausgleichende Randwert von 1.17 ist weg")
+    # ⚠️ Die eigentliche Ursache war der untere Rand der Reiterleiste, der
+    # oberhalb des Zitats zum Abstand dazukam: 18 + 18 + 26 gegen 8 + 18.
+    pruefe("main > .unternavigation:has(+ .spruch) { margin-bottom: 0; }" in stil,
+           "und die Reiterleiste gibt ihren unteren Rand ab, wenn ein Zitat folgt")
+
+
+def test_diagramm_wertmarke(client: TestClient) -> None:
+    """Die Wertmarke steht über allem, nicht im Balken."""
+    abschnitt("Wertmarke des Verlaufsdiagramms")
+    seite = client.get("/meinbereich").text
+    # ⚠️ Erst ab dem Diagramm schneiden, DANN bis zum naechsten </svg>.
+    # Auf der Seite stehen vorher schon die Zeichen der Kopfzeile und der
+    # Panda - ein seite.index("</svg>") faende deren Ende und lieferte
+    # einen leeren Ausschnitt, in dem jede Pruefung stumm durchginge.
+    rest = seite[seite.index('class="stundendiagramm"'):]
+    bild = rest[:rest.index("</svg>")]
+
+    marken = [float(y) for y in re.findall(
+        r'<text x="[-\d.]+" y="([-\d.]+)" class="wertmarke"', bild)]
+    stuecke = [float(y) for y in re.findall(
+        r'<rect x="[-\d.]+" y="([-\d.]+)"[^>]*?class="stueck', bild)]
+    pruefe(len(marken) > 1 and len(stuecke) > 1,
+           "Marken und Balken stehen im Bild")
+    pruefe(len(set(marken)) == 1,
+           "alle Wertmarken stehen auf derselben Höhe – in einem eigenen Band")
+    # ⚠️ Der Kern der Sache: die Marke ist mit „12:30 · +2:15" rund
+    # dreimal so breit wie ihre Spalte und ragte deshalb in die
+    # Nachbarspalten - dort lag sie mitten im Balken. Sie muss über dem
+    # HÖCHSTEN Balken stehen, nicht knapp über ihrem eigenen.
+    pruefe(max(marken) < min(stuecke),
+           "und liegen über dem höchsten Balken, nicht darin")
+
+    # Die Treffflaeche reicht bis an den oberen Rand, sonst verliert man
+    # die Marke beim Hinaufwandern mit der Maus.
+    pruefe('class="treffer"' in bild and 'y="0"' in bild,
+           "die Trefferfläche deckt das Band mit ab")
+
+    stil = client.get("/static/style.css").text
+    pruefe(".stundendiagramm .wertmarke { display: none; }" in stil,
+           "ohne Zeiger steht kein einziger Wert dauerhaft im Bild")
+    pruefe(".stundendiagramm .nebenmonat { display: none; }" in stil,
+           "und auf schmalen Fenstern nur jeder zweite Monatsname")
+    # ⚠️ Gezaehlt wird vom Ende her: der juengste Monat behaelt seinen
+    # Namen, und der ist der, den man zuerst sucht.
+    namen = re.findall(r'class="achsentext ?(nebenmonat)?"', bild)
+    pruefe(len(namen) >= 2 and namen[-1] == "" and namen[-2] == "nebenmonat",
+           "der jüngste Monat trägt seinen Namen auch auf dem Telefon")
+
+
+def test_meinbereich_hinweise(client: TestClient) -> None:
+    """Erklärende Texte stehen über ihrem Inhalt, nicht darunter."""
+    abschnitt("Hinweise in „Mein Bereich“")
+    seite = client.get("/meinbereich").text
+    # Vorbild ist die Karte „Meine Zeiten": Überschrift, Erklärung,
+    # dann der Inhalt. Bis 1.17 stand die Erklärung mal oben, mal unten.
+    for karte, marke in (("Laufender Monat", "systemliste"),
+                         ("Verlauf", "diagrammhuelle"),
+                         ("Urlaub", "urlaubsspur"),
+                         ("Monatsübersicht", "monatstabelle"),
+                         ("Meine Zeiten", "zeitentabelle")):
+        pruefe(karte in seite, f"die Karte „{karte}“ steht auf der Seite")
+        teil = seite[seite.index(karte):]
+        lead = teil.find('class="lead"')
+        inhalt = teil.find(marke)
+        pruefe(0 <= lead < inhalt,
+               f"„{karte}“: die Erklärung steht über dem Inhalt")
+
+    pruefe("mein.laufend_hinweis" not in seite, "Textschlüssel bleiben ersetzt")
 
 
 def test_mehrfachauswahl(client: TestClient) -> None:
@@ -4071,6 +4228,10 @@ def _durchlauf(client: TestClient) -> None:
         test_texte_nachziehen(client)
         test_fusszeile(client)
         test_mehrfachauswahl(client)
+        test_versandzeit(client)
+        test_zitat_abstand(client)
+        test_diagramm_wertmarke(client)
+        test_meinbereich_hinweise(client)
         test_leistungen_umbenannt(client)
         test_betreute_auswahl(client)
         test_abgaben_verweise(client)

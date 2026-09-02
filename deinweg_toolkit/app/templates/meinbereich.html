@@ -17,7 +17,7 @@
     {% endif %}
   </div>
   {% if bewilligungen %}
-  <p class="klein leise">{{ t("mein.bewilligungen_lead") }}</p>
+  <p class="lead">{{ t("mein.bewilligungen_lead") }}</p>
   <ul class="bewilligungsliste">
     {% for b in bewilligungen %}
     <li class="bw-{{ b.art }}">
@@ -350,7 +350,7 @@
           </g>
         </svg>
       </div>
-      <p class="stark">Keine offenen Aufgaben</p>
+      <p class="stark">Hier ist tote Hose</p>
       <p class="klein leise">{{ t("mein.keine_aufgaben") }}</p>
       <a class="knopf leise klein nichtsoffen-knopf"
          href="/vorgaenge?zustaendig={{ name | urlencode }}">Zu den Aufgaben</a>
@@ -414,6 +414,7 @@
   <div class="karte">
     <h2>Laufender Monat</h2>
     {% if laufend %}
+    <p class="lead">{{ t("mein.laufend_hinweis") }}</p>
     <p class="zahl">{{ laufend.ist | gesamtstunden }}</p>
     <p class="zahl-label">von {{ laufend.soll | gesamtstunden }} · {{ laufend.wort }}</p>
     <dl class="systemliste">
@@ -427,7 +428,6 @@
       </dd>
       <dt>Einheiten</dt><dd>{{ laufend.n }}</dd>
     </dl>
-    <p class="klein leise felderklaerung">{{ t("mein.laufend_hinweis") }}</p>
     {% else %}
     <p class="leer">{{ t("mein.kein_laufender") }}</p>
     {% endif %}
@@ -442,6 +442,8 @@
       <h2>Verlauf</h2>
       <p class="klein leise">{{ diagramm.balken | length }} Monate{% if diagramm.soll_wert %} · Soll {{ diagramm.soll_wert }}{% endif %}</p>
     </div>
+
+    <p class="lead">{{ t("mein.diagramm_hinweis") }}</p>
 
     <div class="diagrammhuelle">
       {# Handgebautes SVG, serverseitig gerechnet - keine
@@ -486,11 +488,23 @@
 
           <text x="{{ b.label_x }}" y="{{ b.label_y }}" class="wertmarke"
                 text-anchor="{{ b.label_anker }}">{{ b.wert }}{% if b.saldo_wort %} · {{ b.saldo_wort }}{% endif %}</text>
+          {# ⚠️ Jeder zweite Monat traegt „nebenmonat". Auf dem Telefon
+             ist das Diagramm rund 330px breit; zwölf Kürzel darunter
+             standen dort als graues Gewimmel. Dort bleibt deshalb nur
+             jeder zweite stehen, dafuer groesser lesbar.
+             ⚠️ Gezählt wird vom Ende her (revindex0), nicht vom Anfang:
+             so trägt der jüngste Monat immer seinen Namen - und der ist
+             der, den man zuerst sucht. #}
           <text x="{{ b.mitte }}" y="{{ diagramm.grundlinie + 15 }}"
-                class="achsentext" text-anchor="middle">{{ b.kurz }}</text>
+                class="achsentext {{ 'nebenmonat' if loop.revindex0 % 2 }}"
+                text-anchor="middle">{{ b.kurz }}</text>
 
-          <rect x="{{ b.x - 4 }}" y="{{ diagramm.oben }}" width="{{ b.b + 8 }}"
-                height="{{ diagramm.flaeche }}" class="treffer">
+          {# Die Trefferflaeche reicht bis an den oberen Rand: die
+             Wertmarke steht im Band darueber, und wer mit der Maus
+             hinaufwandert, um sie zu lesen, soll sie nicht dabei
+             verlieren. #}
+          <rect x="{{ b.x - 4 }}" y="0" width="{{ b.b + 8 }}"
+                height="{{ diagramm.grundlinie }}" class="treffer">
             <title>{{ b.wort }}: {{ b.wert }} Std{% if b.saldo_wort %} ({{ b.saldo_wort }} zum Soll){% endif %}</title>
           </rect>
         </g>
@@ -541,7 +555,6 @@
       <span><i class="strich solllinie"></i> Soll</span>
       {% if diagramm.linie %}<span><i class="strich saldolinie"></i> Saldoverlauf</span>{% endif %}
     </div>
-    <p class="klein leise felderklaerung">{{ t("mein.diagramm_hinweis") }}</p>
   </div>
   {% endif %}
 
@@ -552,6 +565,8 @@
       <p class="klein leise">{{ urlaub.anteil }} % genommen</p>
       {% endif %}
     </div>
+
+    <p class="lead">{{ t("mein.urlaub_hinweis") }}</p>
 
     {% if urlaub.anspruch %}
     <p class="zahl {{ 'saldo-minus' if urlaub.ueberzogen }}">
@@ -585,7 +600,6 @@
       {% endfor %}
     </dl>
     {% endif %}
-    <p class="klein leise felderklaerung">{{ t("mein.urlaub_hinweis") }}</p>
   </div>
 </section>
 
@@ -596,6 +610,8 @@
     <a class="knopf klein leise" href="/meinbereich?alle=1">alle Monate anzeigen</a>
     {% endif %}
   </div>
+
+  <p class="lead">{{ t("mein.tabelle_hinweis") }}</p>
 
   {% if monate %}
   <div class="tabellenrolle">
@@ -635,7 +651,6 @@
     </tbody>
   </table>
   </div>
-  <p class="klein leise felderklaerung">{{ t("mein.tabelle_hinweis") }}</p>
   {% else %}
   <p class="leer">{{ t("mein.keine_zeiten", name=name) }}</p>
   {% endif %}

@@ -27,6 +27,26 @@ from email.message import EmailMessage
 
 from . import db
 
+# --- Wann am Tag verschickt wird ----------------------------------------------
+
+# ⚠️ Erinnerungen an die Zeiterfassung und an Fristen gehen ab 8 Uhr
+# morgens heraus, nicht irgendwann in der Nacht. Der Wecker schaut
+# stuendlich vorbei (main.wecker_schleife); vor dieser Stunde tut er
+# nichts, ab ihr genau einmal - dafuer sorgt wie bisher der Vermerk in
+# "benachrichtigung", nicht die Uhrzeit.
+#
+# Bewusst "ab 8 Uhr" und nicht "um genau 8 Uhr": war der Pi um acht aus,
+# soll die Erinnerung beim naechsten Durchlauf trotzdem noch herausgehen
+# statt fuer diesen Tag lautlos auszufallen. Und bewusst die lokale Zeit -
+# dafuer steht tzdata im Dockerfile (siehe CLAUDE.md, Abschnitt 2).
+VERSANDSTUNDE = 8
+
+
+def versandzeit_erreicht(jetzt: dt.datetime | None = None) -> bool:
+    """Ist es an diesem Tag schon nach der Versandstunde?"""
+    return (jetzt or dt.datetime.now()).hour >= VERSANDSTUNDE
+
+
 # --- Standardwerte -----------------------------------------------------------
 
 STANDARD = {
@@ -243,6 +263,10 @@ def pruefe_fristen(con, k: dict) -> list[str]:
     """
     if k.get("frist_aktiv") != "1":
         return []
+    # ⚠️ Erst ab der Versandstunde. Sonst laege die Erinnerung morgens um
+    # halb vier im Postfach - der Wecker schaut stuendlich vorbei.
+    if not versandzeit_erreicht():
+        return []
     protokoll = []
     heute = dt.date.today()
     try:
@@ -330,7 +354,13 @@ def pruefe_abgaben(con, k: dict, monat: str | None = None) -> list[str]:
     protokoll = []
     if k.get("abgabe_aktiv") != "1":
         return []
+    # ⚠️ Wie bei den Fristen: erst ab der Versandstunde. Die Pruefung
+    # steht innerhalb von "monat is None", damit ein ausdruecklich
+    # angefordeter Probeversand aus den Einstellungen jederzeit geht -
+    # da drueckt jemand bewusst auf den Knopf.
     if monat is None:
+        if not versandzeit_erreicht():
+            return []
         heute = dt.date.today()
         try:
             stichtag = max(1, min(28, int(k.get("abgabe_tag") or 1)))

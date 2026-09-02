@@ -298,8 +298,9 @@ TEXTE_STANDARD["mein.bewilligungen_lead"] = (
     "Abgelaufen, läuft in den nächsten 60 Tagen aus oder fehlt ganz – "
     "hier gehört ein Folgeantrag raus.")
 TEXTE_STANDARD["mein.keine_aufgaben"] = (
-    "Auf dich läuft gerade kein offener Vorgang. Neue Aufgaben tauchen "
-    "hier auf, sobald dir eine zugewiesen wird.")
+    "Hier liegt absolut gar nichts an. Schau einfach beschäftigt und "
+    "bewege ab und zu die Maus, bis dir jemand die nächste Katastrophe "
+    "anhängt.")
 TEXTE_STANDARD["mein.ansteht_lead"] = (
     "Was auf deinem Tisch liegt: eigene Aufgaben mit Frist und "
     "Bewilligungen, die nachgehalten werden müssen.")
@@ -399,11 +400,12 @@ TEXTE_STANDARD["einst.bewilligungsmail_hinweis"] = (
     "Abgelaufene und fehlende Bewilligungen stehen unabhängig davon "
     "immer mit in der Mail.")
 TEXTE_STANDARD["einst.fusszeile_lead"] = (
-    "Der Text ganz unten auf jeder Seite. Bleibt ein Feld leer, gilt "
-    "wieder der ausgelieferte Wortlaut.")
+    "Die Rechtezeile ganz unten auf jeder Seite. Bleibt das Feld leer, "
+    "gilt wieder der ausgelieferte Wortlaut.")
 TEXTE_STANDARD["einst.fusszeile_hinweis"] = (
     "Programmname, Version und der Verweis auf den Changelog stehen "
-    "fest in der ersten Zeile und lassen sich nicht ändern.")
+    "fest in der Zeile darüber und lassen sich nicht ändern. Das Logo "
+    "links trägt seinen Satz selbst.")
 TEXTE_STANDARD["einst.texte_lead"] = (
     "Die erklärenden Texte der Oberfläche liegen in <code>strings.txt</code>. "
     "Diese Datei gewinnt gegen die ausgelieferten Texte – neue oder "

@@ -1361,6 +1361,7 @@
              {{ 'checked' if mailkonfig.abgabe_aktiv == '1' }}>
       <span>Erinnerung verschicken</span>
     </label>
+    <p class="klein leise versandzeit">Verschickt wird an den genannten Tagen morgens ab 8 Uhr.</p>
 
     <label class="feld">
       <span>Stichtag <span class="leise">– ab dem wievielten des Folgemonats</span></span>
@@ -1385,6 +1386,7 @@
              {{ 'checked' if mailkonfig.frist_aktiv == '1' }}>
       <span>Erinnerung verschicken</span>
     </label>
+    <p class="klein leise versandzeit">Verschickt wird an den genannten Tagen morgens ab 8 Uhr.</p>
 
     <label class="feld">
       <span>Vorlauf in Tagen <span class="leise">– 0 = erst wenn überfällig</span></span>
@@ -1586,12 +1588,6 @@
   <h2>Fußzeile</h2>
   <p class="lead">{{ t("einst.fusszeile_lead") }}</p>
   <form action="/einstellungen/fusszeile" method="post">
-    <label class="feld">
-      <span>Satz unter dem Programmnamen</span>
-      <input type="text" name="fusszeile_satz" maxlength="200"
-             value="{{ mailkonfig.fusszeile_satz }}"
-             placeholder="{{ fuss_standard.satz }}">
-    </label>
     <label class="feld">
       <span>Zeile mit den Rechten <span class="leise">– HTML erlaubt</span></span>
       <input type="text" name="fusszeile_recht" maxlength="300"

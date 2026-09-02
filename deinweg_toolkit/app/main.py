@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.17"
+VERSION = "1.17.1"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -164,8 +164,9 @@ def t(schluessel: str, **platzhalter) -> str:
 
 
 # Was in der Fusszeile steht, wenn nichts gepflegt wurde.
+# ⚠️ Der Schluessel "satz" ist mit 1.17.1 entfallen: der Satz unter dem Logo
+# steht nicht mehr in der Fusszeile, das Logo hat seinen Platz bekommen.
 FUSS_STANDARD = {
-    "satz": "Organisation für Menschen, die eigentlich nicht organisieren wollen.",
     "recht": ('© 2026 <a href="https://timovorwald.de" target="_blank" '
               'rel="noopener noreferrer">timovorwald.de</a>. '
               'Alle Rechte vorbehalten.'),
@@ -173,7 +174,7 @@ FUSS_STANDARD = {
 
 
 def fusstext() -> Markup:
-    """Die Fusszeile: links die Marke mit ihrem Satz, rechts die Angaben.
+    """Die Fusszeile: links die Marke, rechts die Angaben.
 
     ⚠️ Sie wird aus der Konfiguration gebaut und NICHT aus ``footer.text``:
     eine schon vorhandene ``strings.txt`` gewinnt gegen die Standardtexte,
@@ -184,9 +185,15 @@ def fusstext() -> Markup:
     Bis 1.16 standen hier drei mittige Zeilen untereinander, darüber das
     Logo mit viel Luft - zusammen fast zweihundert Pixel für eine
     Angabe, die niemand liest. Jetzt sind es zwei Halften nebeneinander:
-    links die Marke mit ihrem Satz, rechts Fassung und Recht. Beides
-    steht damit dort, wo es hingehört, und die Fusszeile ist halb so
-    hoch. Unterhalb von 620px stapelt sie wieder mittig.
+    links die Marke, rechts Fassung und Recht. Beides steht damit dort,
+    wo es hingehört, und die Fusszeile ist halb so hoch. Unterhalb von
+    620px stapelt sie wieder mittig.
+
+    ⚠️ Der Satz unter dem Logo ist mit 1.17.1 entfallen (Timos Wunsch), und
+    mit ihm das Feld dafür in den Einstellungen - ein Eingabefeld, dessen
+    Wert nirgends mehr erscheint, ist schlimmer als keines. Das Logo hat
+    den frei gewordenen Platz bekommen und steht jetzt deutlich groesser
+    da. Der Wortlaut selbst steht ohnehin im Logo.
 
     ⚠️ Auch die beiden Logos stehen hier und nicht mehr in ``base.html``:
     die Fusszeile ist ein Stück und wird an einer Stelle gepflegt. Der
@@ -195,20 +202,18 @@ def fusstext() -> Markup:
     """
     with db.db() as con:
         k = mail.konfig_lesen(con)
-    satz = (k.get("fusszeile_satz") or "").strip() or FUSS_STANDARD["satz"]
     recht = (k.get("fusszeile_recht") or "").strip() or FUSS_STANDARD["recht"]
     name, v = escape(APP_NAME), escape(VERSION)
     return Markup(
         '<div class="fussband">'
         '<div class="fussmarke">'
-        f'<img class="nur-dunkel" src="/static/logo-fuer-dunkel.png?v={v}" alt="{name}">'
-        f'<img class="nur-hell" src="/static/logo-fuer-hell.png?v={v}" alt="{name}">'
-        f'<p class="fuss-zeile fuss-satz">{satz}</p>'
+        f'<img class="nur-dunkel" src="/static/logo-fuer-dunkel.svg?v={v}" alt="{name}">'
+        f'<img class="nur-hell" src="/static/logo-fuer-hell.svg?v={v}" alt="{name}">'
         '</div>'
         '<div class="fussangaben">'
         f'<p class="fuss-zeile fuss-fassung">{name}'
         f'<span class="version">{v}</span>'
-        f'<a href="/changelog">Was ist neu?</a></p>'
+        f'<a href="/changelog">Changelog</a></p>'
         f'<p class="fuss-zeile fuss-recht">{recht}</p>'
         '</div></div>')
 
@@ -2042,7 +2047,17 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
     diagramm = None
     if letzte:
         breite, hoehe = 460, 220
-        oben, unten, links, rechts = 18, 34, 12, 12
+        # ⚠️ Die oberen 26px sind das Band fuer die Wertmarke und gehoeren
+        # NICHT zur Zeichenflaeche. Bis 1.17 hing die Marke 7px ueber
+        # ihrem Balken - und weil sie mit "12:30 · +2:15" gut dreimal so
+        # breit ist wie ihre Spalte, ragte sie regelmaessig in die
+        # Nachbarspalten hinein und lag dort mitten im Balken. Ein
+        # Umrandungsstrich in der Kartenfarbe half dagegen nicht.
+        # Jetzt steht sie immer in diesem Band, also ueber allem: kein
+        # Balken reicht dort hinauf (die Skala hat 20% Luft nach oben),
+        # und die Saldolinie auch nicht.
+        marke_band = 26
+        oben, unten, links, rechts = marke_band, 34, 12, 12
         flaeche = hoehe - oben - unten
         grundlinie = oben + flaeche
         spalte = (breite - links - rechts) / max(len(letzte), 1)
@@ -2080,7 +2095,6 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                 klasse = "saeule-laufend" if m["laufend"] else "saeule-neutral"
 
             y_basis = grundlinie - max(h_basis, 2)
-            oberkante = y_basis - max(h_ueber, h_fehlt)
             saldo = m["saldo"] if soll_min and not m["laufend"] else None
             balken.append({
                 "x": round(x, 1), "b": round(b, 1),
@@ -2094,7 +2108,9 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                 # Die Wertmarke ist breiter als ihre Spalte. Am Rand wuerde
                 # sie deshalb abgeschnitten - dort haengt sie sich an die
                 # Kante statt sich zu zentrieren.
-                "label_y": round(max(oberkante - 7, oben + 2), 1),
+                # ⚠️ Die Hoehe ist fest: sie steht im Band ueber der
+                # Zeichenflaeche, nicht ueber ihrem Balken. Siehe oben.
+                "label_y": marke_band - 9,
                 "label_x": round(links if x + b / 2 - 58 < links else
                                  breite - rechts if x + b / 2 + 58 > breite - rechts
                                  else x + b / 2, 1),

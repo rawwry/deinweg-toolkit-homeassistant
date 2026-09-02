@@ -350,6 +350,11 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
    breit sein wie diese - nicht mitwachsen wie die Auswahlfelder. */
 .filter > .filter-umschalter { flex: 0 0 auto; width: fit-content; }
 .filter-umschalter input { accent-color: var(--akzent); margin: 0; }
+
+/* Die feste Versandzeit der Erinnerungen. Steht direkt unter dem
+   Schalter, den sie betrifft - der Schalter bringt seinen eigenen
+   unteren Abstand mit, deshalb wird der hier zurueckgeholt. */
+.versandzeit { margin: -12px 0 18px; }
 .filter-umschalter:has(input:checked) {
   border-color: var(--akzent); background: var(--akzent-weich); color: var(--akzent);
 }
@@ -633,12 +638,16 @@ footer { flex: 0 0 auto; color: var(--leise); font-size: 12.5px;
   gap: 14px 36px; flex-wrap: wrap;
 }
 [data-breite="begrenzt"] .fussband { max-width: 1400px; }
-.fussmarke img { height: 42px; width: auto; opacity: .5; display: block;
-                 transition: opacity .3s ease; }
+/* ⚠️ Das Logo ist mit 1.17.1 gewachsen: der Satz darunter ist entfallen,
+   und die frei gewordene Höhe gehört jetzt der Marke. Die Breite ist
+   gedeckelt, weil der Schriftzug sehr breit läuft (viewBox 2093×537) -
+   ohne max-width drückte er auf schmalen Fenstern die Angaben rechts
+   aus dem Band. */
+.fussmarke img { height: 62px; width: auto; max-width: 100%;
+                 opacity: .5; display: block; transition: opacity .3s ease; }
 .fussmarke:hover img { opacity: .85; }
 .fussangaben { text-align: right; }
 .fuss-zeile { display: block; margin: 0; }
-.fuss-satz { margin-top: 10px; font-size: 12.5px; }
 /* Die Fassung ist die Zeile, die man hier tatsaechlich sucht - sie darf
    etwas kraeftiger stehen als der Rest. */
 .fuss-fassung { display: flex; align-items: center; justify-content: flex-end;
@@ -656,6 +665,13 @@ footer a:hover { border-bottom-color: var(--akzent); }
   .fussband { flex-direction: column; align-items: center; text-align: center; }
   .fussangaben { text-align: center; }
   .fuss-fassung { justify-content: center; }
+  /* ⚠️ align-items zentriert den Kasten, nicht das Bild darin: das Bild
+     ist ein display:block und damit selbst so breit wie sein Kasten,
+     sobald max-width greift. Deshalb hier zusätzlich margin:auto - sonst
+     klebte das Logo auf dem Telefon links, obwohl alles andere mittig
+     stand. */
+  .fussmarke { width: 100%; }
+  .fussmarke img { margin-left: auto; margin-right: auto; height: 54px; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -784,7 +800,7 @@ input[type=date], input[type=time] {
 
   /* Der Balken in der Auswertung leuchtet beim Überfahren kurz auf */
   .balken { transition: filter .25s ease, transform .3s cubic-bezier(.34,1.4,.5,1); }
-  .liste tbody tr:hover .balken { filter: brightness(1.18); transform: scaleY(1.4); }
+  .liste tbody tr:hover .balken { filter: brightness(1.17.1); transform: scaleY(1.4); }
 
   /* Auswahlfelder und Dateifeld reagieren beim Drüberfahren */
   input[type=file]::file-selector-button { transition: border-color .18s ease, color .18s ease,
@@ -968,16 +984,32 @@ tr.stillgelegt:hover { opacity: .85; }
 
 /* --- Spruch ganz oben ----------------------------------------------- */
 
-/* ⚠️ Die beiden Randwerte sind gemessen, nicht gerechnet. Unter dem
-   Zitat sitzt in der Flexspalte von main sichtbar mehr Luft als darüber
-   – Timo hat das gemeldet, und nachgemessen sind es 14px, die dort
-   zusätzlich stehen, auch ohne jeden Rand und ohne den Spaltenabstand.
-   Mit 26 oben und 8 unten stehen beide Lücken bei 48px. Wer die Werte
-   anfasst, misst nach, statt zu rechnen. */
+/* ⚠️ Über und unter dem Zitat steht gleich viel Luft - und zwar ohne
+   ausgleichende Randwerte. Bis 1.17 standen hier 26px oben und 8px
+   unten mit der Begründung, das gleiche eine gemessene Differenz aus.
+   Im Browser nachgemessen kamen dabei 63px oben gegen 27px unten
+   heraus: die Ausgleichsrechnung hat den Unterschied erst gemacht.
+
+   Die Ursache ist einfach. main ist eine Flexspalte mit
+   gap: var(--abstand), und OBERHALB des Zitats steht auf der
+   Zeiterfassung zusätzlich der eigene untere Rand der Reiterleiste:
+   18px Rand + 18px gap + 26px Rand gegen 8px Rand + 18px gap unten.
+   Deshalb jetzt derselbe Rand auf beiden Seiten - und die Reiterleiste
+   gibt ihren unteren Rand ab, wenn ein Zitat auf sie folgt (Regel
+   darunter). In „Mein Bereich“ steht das Zitat als erstes Kind, dort
+   tritt an die Stelle des gap das padding-top von main - derselbe Wert,
+   also stimmt es auch dort.
+   Wer hier etwas anfasst, misst im Browser nach, und zwar an der
+   Schrift, nicht am Kasten. */
 .spruch {
-  margin: 26px auto 8px; padding: 0 16px; max-width: 86ch;
+  margin: 8px auto; padding: 0 16px; max-width: 86ch;
   text-align: center; color: var(--leise); opacity: .88;
 }
+/* ⚠️ Der untere Rand der Reiterleiste gehört zur Leiste, nicht zum
+   Zitat - steht aber ein Zitat dahinter, zählt er zu dessen oberer
+   Lücke und macht sie um genau diesen Betrag größer als die untere.
+   Auf jeder Seite ohne Zitat ändert sich dadurch nichts. */
+main > .unternavigation:has(+ .spruch) { margin-bottom: 0; }
 .spruch blockquote {
   margin: 0;
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
@@ -1421,11 +1453,29 @@ textarea:focus { border-color: var(--akzent); }
     width: auto; height: auto; justify-content: flex-start; gap: 12px;
     padding: 12px 14px; border-radius: 10px; font-size: 16px; font-weight: 500;
   }
-  .werkzeug .werkzeug-text {
+  /* ⚠️ In der Schublade ist die Beschriftung keine Sprechblase mehr,
+     sondern steht als Wort neben dem Zeichen. Die Regeln für die
+     Sprechblase schieben sie beim Anfassen um ihre halbe Breite nach
+     links (translateX(-50%)) - auf dem Telefon löst schon das Antippen
+     :hover aus, und das Wort rutschte damit sichtbar ins Zeichen
+     hinein. Deshalb gilt hier ausdrücklich auch im angefassten Zustand
+     keine Verschiebung. Der lange Selektor ist nötig: er muss die
+     Sonderregel für das letzte Symbol (.werkzeuge > *:last-child …)
+     schlagen. */
+  .menuehuelle .werkzeuge .werkzeug .werkzeug-text,
+  .menuehuelle .werkzeuge .werkzeug:hover .werkzeug-text,
+  .menuehuelle .werkzeuge .werkzeug:focus-visible .werkzeug-text,
+  .menuehuelle .werkzeuge > *:last-child .werkzeug:hover .werkzeug-text,
+  .menuehuelle .werkzeuge > *:last-child .werkzeug:focus-visible .werkzeug-text {
     position: static; opacity: 1; transform: none; padding: 0;
     background: none; color: inherit; font-size: 16px; font-weight: 500;
+    transition: none; left: auto; right: auto;
   }
-  .werkzeug:hover { transform: none; }
+  /* Aus demselben Grund hebt sich in der Schublade nichts an: ein
+     Zeichen, das beim Antippen springt, ist auf dem Telefon kein
+     Auftritt, sondern ein Wackeln. */
+  .menuehuelle .werkzeug:hover, .menuehuelle .werkzeug:active,
+  .menuehuelle nav a:hover, .menuehuelle nav a:active { transform: none; }
 
   .schalter { margin: 14px 0 0; padding: 14px 4px 0; justify-content: space-between;
               border-top: 1px solid var(--linie); font-size: 14px; }
@@ -2777,10 +2827,17 @@ fieldset.feld > span {
 .stundendiagramm .treffer { fill: transparent; cursor: default; }
 
 .stundendiagramm .stueck { transition: filter .18s ease, opacity .18s ease; }
-.saeule:hover .stueck { filter: brightness(1.18); }
+.saeule:hover .stueck { filter: brightness(1.17.1); }
 
 /* Der Wert steht erst da, wenn man die Spalte anfasst - zwölf Zahlen
-   gleichzeitig über zwölf Balken wären wieder eine Tabelle. */
+   gleichzeitig über zwölf Balken wären wieder eine Tabelle.
+
+   ⚠️ Sie steht seit 1.17.1 in einem eigenen Band ganz oben (main.py:
+   marke_band) und nicht mehr knapp über ihrem Balken. Sie ist mit
+   „12:30 · +2:15" rund dreimal so breit wie ihre Spalte und ragte
+   deshalb in die Nachbarspalten hinein - dort lag sie mitten im Balken
+   und war kaum zu lesen. Der Strich in der Kartenfarbe darunter bleibt
+   trotzdem: er hebt sie noch von den Rasterlinien ab. */
 .stundendiagramm .wertmarke {
   fill: var(--tinte); font-size: 9px; font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -2790,9 +2847,21 @@ fieldset.feld > span {
   stroke: var(--flaeche); stroke-width: 3; paint-order: stroke fill;
 }
 .saeule:hover .wertmarke, .saeule:focus-within .wertmarke { opacity: 1; }
-/* Ohne Zeiger gibt es kein Überfahren - dort steht der Wert immer. */
+
+/* ⚠️ Ohne Zeiger stand hier bis 1.17 JEDER Wert dauerhaft da. Bei zwölf
+   Monaten auf einem 350px breiten Bild überlagerten sich die Marken
+   gegenseitig zu einem grauen Streifen - das Diagramm sah auf dem
+   Telefon dadurch nicht nach Diagramm aus. Dort steht der Wert jetzt
+   nirgends: die Zahlen stehen vollständig in „Monatsübersicht" direkt
+   darunter, das Bild trägt den Verlauf. */
 @media (hover: none) {
-  .stundendiagramm .wertmarke { opacity: 1; font-size: 8px; }
+  .stundendiagramm .wertmarke { display: none; }
+}
+@media (max-width: 620px) {
+  /* Das Bild schrumpft auf dem Telefon auf rund 0,72 seiner
+     Zeichenbreite - 9,5px kaemen dort als knapp 7px an. */
+  .stundendiagramm .achsentext { font-size: 14px; }
+  .stundendiagramm .nebenmonat { display: none; }
 }
 
 /* Die drei Zustände. Der untere Teil trägt die Farbe, das Stück darüber

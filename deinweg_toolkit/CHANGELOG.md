@@ -3,6 +3,19 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.17.1
+
+- Logo und Bildmarke als SVG statt PNG
+- Fußzeile: Satz unter dem Logo entfallen, Logo größer, auf dem Telefon
+  mittig; der Verweis heißt „Changelog"
+- Zitat: gleich viel Luft darüber und darunter – diesmal an der Ursache
+- Menü auf dem Telefon: keine Verschiebung des Wortes beim Antippen mehr
+- E-Mail: Erinnerungen an Zeiterfassung und Fristen gehen ab 8 Uhr
+  morgens heraus
+- Verlauf: Werte in einem eigenen Band über dem Diagramm, auf dem Telefon
+  nur jeder zweite Monatsname
+- Mein Bereich: erklärende Texte stehen überall über ihrem Inhalt
+
 ## 1.17
 
 - Übersicht: Kästchen erst auf Wunsch, über den Knopf „Mehrfachauswahl"

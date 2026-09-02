@@ -1512,4 +1512,29 @@ CHANGELOG = [
         "Recht. Sie ist damit nur noch halb so hoch",
         "Prüfung von 983 auf 1002 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.17.1", "titel": "Neue Marke, ruhigere Wege", "punkte": [
+        "Logo und Bildmarke liegen jetzt als SVG vor und sind damit auf "
+        "jedem Bildschirm gestochen scharf – vorher waren es feste PNG",
+        "Fußzeile: der Satz unter dem Logo ist entfallen, das Logo hat "
+        "seinen Platz bekommen und steht deutlich größer da. Auf dem "
+        "Telefon steht es mittig",
+        "Fußzeile: der Verweis heißt „Changelog“ statt „Was ist neu?“",
+        "Zitat: über und unter ihm steht jetzt wirklich gleich viel Luft. "
+        "Die Ursache war der untere Rand der Reiterleiste darüber, nicht "
+        "das Zitat selbst",
+        "Menü auf dem Telefon: beim Antippen schob sich das Wort ins "
+        "Zeichen – die Verschiebung ist raus",
+        "E-Mail: Erinnerungen an die Zeiterfassung und an Fristen gehen "
+        "an den eingestellten Tagen morgens ab 8 Uhr heraus, nicht mehr "
+        "irgendwann in der Nacht",
+        "Verlauf: die Werte stehen beim Überfahren in einem eigenen Band "
+        "über dem Diagramm statt quer über den Nachbarbalken. Auf dem "
+        "Telefon steht statt zwölf Werten nur noch jeder zweite "
+        "Monatsname, dafür lesbar groß",
+        "Mein Bereich: die erklärenden Texte stehen überall über ihrem "
+        "Inhalt, so wie in „Meine Zeiten“ – vorher mal darüber, mal "
+        "darunter",
+        "Mein Bereich: neue Ansage, wenn keine Aufgabe offen ist",
+        "Prüfung von 1002 auf 1043 Einzelprüfungen erweitert",
+    ]},
 ]

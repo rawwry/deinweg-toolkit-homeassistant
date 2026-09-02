@@ -1102,11 +1102,17 @@ def sicherung_herunterladen():
 
 
 @router.post("/einstellungen/fusszeile")
-def fusszeile_speichern(fusszeile_satz: str = Form(""),
-                        fusszeile_recht: str = Form("")):
+def fusszeile_speichern(fusszeile_recht: str = Form("")):
+    """Nur noch die Rechtezeile.
+
+    ⚠️ Der Satz unter dem Logo ist mit 1.17.1 aus der Fusszeile entfallen;
+    das Feld dafuer musste deshalb mit weg. Ein Eingabefeld, dessen Wert
+    nirgends mehr erscheint, ist schlimmer als gar keines. Der alte Wert
+    bleibt in ``konfig`` unangetastet stehen - falls der Satz je
+    zurueckkommt, ist er nicht verloren.
+    """
     with db.db() as con:
         mail.konfig_schreiben(con, {
-            "fusszeile_satz": fusszeile_satz.strip(),
             "fusszeile_recht": fusszeile_recht.strip(),
         })
     return systemseite(hinweis="Fußzeile gespeichert.")
