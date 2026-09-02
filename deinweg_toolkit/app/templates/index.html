@@ -142,7 +142,7 @@
           <div class="feldreihe zwei erfassreihe-text">
             {% if leistungen %}
             <label class="feld">
-              <span>Leistungsbeschreibung <span class="leise">– vorgegebene Auswahl</span></span>
+              <span>Leistung <span class="leise">– vorgegebene Auswahl</span></span>
               <select name="leistung" form="erfassung">
                 <option value="">– keine –</option>
                 {% for l in leistungen %}<option value="{{ l }}">{{ l }}</option>{% endfor %}
@@ -159,7 +159,7 @@
       </div>
 
       {% if not leistungen %}
-      <p class="klein leise">{{ t("erfassung.leistung_leer") }}</p>
+      <p class="klein leise">{{ t("erfassung.leistungen_leer") }}</p>
       {% endif %}
 
       {# Der Knopf steht nur mit Skript zur Verfügung und wird dort

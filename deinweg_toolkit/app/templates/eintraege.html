@@ -22,8 +22,29 @@
      angeklickt – besonders am Handy, wo beide untereinander stehen.
      Beide Formate sehen jetzt gleich aus: es sind zwei gleichwertige
      Wege, dieselbe Liste mitzunehmen, keiner davon ist der Hauptweg. #}
+  {# Der Schalter für die Mehrfachauswahl ist ein Kästchen ohne Namen, das
+     Kleid dazu macht das Stylesheet über den Nachbar-Kombinator. Bewusst
+     kein Skript: die Kästchen in den Zeilen sollen auch dann auftauchen,
+     wenn keines läuft. Und bewusst kein Seitenwechsel über die Adresse –
+     eine Auswahl ist ein Handgriff, kein Zustand, den man verlinkt. #}
+  {% if loeschbar %}
+  <input type="checkbox" id="auswahlmodus" class="auswahlschalter">
+  {% endif %}
+
   <div class="listenkopf">
     <span class="listenkopf-titel">{{ kopf.n }} {{ 'Eintrag' if kopf.n == 1 else 'Einträge' }}</span>
+    <div class="listenwerkzeuge">
+    {% if loeschbar %}
+      <label class="knopf leise klein auswahlknopf" for="auswahlmodus">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" stroke-width="1.7"/>
+          <path class="auswahlhaken" d="m8.4 12.2 2.6 2.6 4.6-5.2" stroke="currentColor"
+                stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="auswahl-aus">Mehrfachauswahl</span>
+        <span class="auswahl-an">Auswahl beenden</span>
+      </label>
+    {% endif %}
     <div class="exportknoepfe">
       <a class="knopf leise klein" href="/export.xlsx?{{ query }}">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -43,6 +64,7 @@
         </svg>
         CSV
       </a>
+    </div>
     </div>
   </div>
 
@@ -208,6 +230,17 @@
       });
     }
     kaesten.forEach(function (k) { k.addEventListener("change", anzeigen); });
+
+    // Wer die Mehrfachauswahl wieder zuklappt, will die Auswahl los sein.
+    // Sonst bliebe sie unsichtbar angekreuzt stehen.
+    var modus = document.getElementById("auswahlmodus");
+    if (modus) {
+      modus.addEventListener("change", function () {
+        if (modus.checked) return;
+        kaesten.forEach(function (k) { k.checked = false; });
+        anzeigen();
+      });
+    }
 
     window.massenwahl_bestaetigen = function () {
       var n = gewaehlt().length;

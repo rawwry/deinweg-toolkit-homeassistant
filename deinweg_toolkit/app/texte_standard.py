@@ -194,7 +194,7 @@ TEXTE_STANDARD["einst.leistungen_stillgelegt"] = (
     "Eintrag, bleiben hier aber erhalten und lassen sich jederzeit wieder "
     "einschalten.")
 TEXTE_STANDARD["einst.leistungen_keine"] = (
-    "Noch keine Leistungsbeschreibung angelegt. Solange die Liste leer ist, "
+    "Noch keine Leistung angelegt. Solange die Liste leer ist, "
     "steht beim manuellen Eintrag nur das freie Textfeld zur Verfügung.")
 TEXTE_STANDARD["erfassung.kein_team"] = (
     "Es ist noch niemand im Team eingetragen. Ohne Mitarbeiter lässt "
@@ -205,9 +205,9 @@ TEXTE_STANDARD["erfassung.keine_personen"] = (
     "Einstellungen → Betreute Personen; eigene lassen sich hier bewusst "
     "nicht eintippen, damit dieselbe Person nicht in drei Schreibweisen "
     "in der Auswertung landet.")
-TEXTE_STANDARD["erfassung.leistung_leer"] = (
-    "Vordefinierte Leistungsbeschreibungen lassen sich unter "
-    "<strong>Einstellungen → Leistungsbeschreibungen</strong> anlegen. "
+TEXTE_STANDARD["erfassung.leistungen_leer"] = (
+    "Vordefinierte Leistungen lassen sich unter "
+    "<strong>Einstellungen → Leistungen</strong> anlegen. "
     "Sie erscheinen dann hier als Auswahl.")
 TEXTE_STANDARD["einst.benutzer_lead"] = (
     "Login-Konten für die Anwendung. Das ist unabhängig von den unter "

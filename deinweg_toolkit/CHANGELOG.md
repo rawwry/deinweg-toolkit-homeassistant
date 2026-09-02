@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.17
+
+- Übersicht: Kästchen erst auf Wunsch, über den Knopf „Mehrfachauswahl"
+- Übersicht: Kästchen auf der Höhe des Datums
+- Zeiterfassung: gleich viel Luft über und unter dem Zitat
+- Einstellungen: „Leistungsbeschreibungen" heißen „Leistungen"
+- Fußzeile in zwei Hälften, halb so hoch
+
 ## 1.16
 
 - Nach einem Update steht der jüngste Changelog-Eintrag einmal im Bild,

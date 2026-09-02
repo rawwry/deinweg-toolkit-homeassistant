@@ -661,17 +661,17 @@
 {% if bereich == "leistungen" %}
 <section class="raster buendig">
   <div class="karte hochkant">
-    <h1>Leistungsbeschreibungen</h1>
+    <h1>Leistungen</h1>
     <p class="lead">{{ t("einst.leistungen_lead") }}</p>
 
     <form action="/einstellungen/leistung" method="post">
       <label class="feld">
-        <span>Neue Leistungsbeschreibung</span>
+        <span>Neue Leistung</span>
         <input type="text" name="name" required autocomplete="off" maxlength="160"
                placeholder="z. B. Begleitung zu einem Amtstermin">
       </label>
       <div class="knopfreihe unten">
-        <button class="knopf haupt" type="submit">Beschreibung anlegen</button>
+        <button class="knopf haupt" type="submit">Leistung anlegen</button>
       </div>
     </form>
   </div>
@@ -699,7 +699,7 @@
 {% endif %}
 
 <section class="karte">
-  <h2>Leistungsbeschreibungen{% if leistungen %} · {{ leistungen | length }}{% endif %}</h2>
+  <h2>Leistungen{% if leistungen %} · {{ leistungen | length }}{% endif %}</h2>
   {% if leistungen %}
   <table class="liste">
     <thead>

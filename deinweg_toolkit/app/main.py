@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.16"
+VERSION = "1.17"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -173,7 +173,7 @@ FUSS_STANDARD = {
 
 
 def fusstext() -> Markup:
-    """Die Fusszeile in drei Zeilen.
+    """Die Fusszeile: links die Marke mit ihrem Satz, rechts die Angaben.
 
     ⚠️ Sie wird aus der Konfiguration gebaut und NICHT aus ``footer.text``:
     eine schon vorhandene ``strings.txt`` gewinnt gegen die Standardtexte,
@@ -181,19 +181,36 @@ def fusstext() -> Markup:
     angekommen. Über die Einstellungen ist der Text jetzt ohnehin
     pflegbar.
 
-    Drei Zeilen, weil sie drei verschiedene Dinge sagen: welches Programm
-    in welcher Fassung, wofür es da ist, und wem es gehört.
+    Bis 1.16 standen hier drei mittige Zeilen untereinander, darüber das
+    Logo mit viel Luft - zusammen fast zweihundert Pixel für eine
+    Angabe, die niemand liest. Jetzt sind es zwei Halften nebeneinander:
+    links die Marke mit ihrem Satz, rechts Fassung und Recht. Beides
+    steht damit dort, wo es hingehört, und die Fusszeile ist halb so
+    hoch. Unterhalb von 620px stapelt sie wieder mittig.
+
+    ⚠️ Auch die beiden Logos stehen hier und nicht mehr in ``base.html``:
+    die Fusszeile ist ein Stück und wird an einer Stelle gepflegt. Der
+    Anhang ``?v=`` an den Bilddateien muss dabei bleiben, sonst hängt der
+    Browser nach einem Bildtausch am alten Stand.
     """
     with db.db() as con:
         k = mail.konfig_lesen(con)
     satz = (k.get("fusszeile_satz") or "").strip() or FUSS_STANDARD["satz"]
     recht = (k.get("fusszeile_recht") or "").strip() or FUSS_STANDARD["recht"]
+    name, v = escape(APP_NAME), escape(VERSION)
     return Markup(
-        f'<span class="fuss-zeile">{APP_NAME} '
-        f'<span class="version">{escape(VERSION)}</span> '
-        f'(<a href="/changelog">Changelog</a>)</span>'
-        f'<span class="fuss-zeile">{satz}</span>'
-        f'<span class="fuss-zeile fuss-recht">{recht}</span>')
+        '<div class="fussband">'
+        '<div class="fussmarke">'
+        f'<img class="nur-dunkel" src="/static/logo-fuer-dunkel.png?v={v}" alt="{name}">'
+        f'<img class="nur-hell" src="/static/logo-fuer-hell.png?v={v}" alt="{name}">'
+        f'<p class="fuss-zeile fuss-satz">{satz}</p>'
+        '</div>'
+        '<div class="fussangaben">'
+        f'<p class="fuss-zeile fuss-fassung">{name}'
+        f'<span class="version">{v}</span>'
+        f'<a href="/changelog">Was ist neu?</a></p>'
+        f'<p class="fuss-zeile fuss-recht">{recht}</p>'
+        '</div></div>')
 
 
 def strings_anlegen() -> None:

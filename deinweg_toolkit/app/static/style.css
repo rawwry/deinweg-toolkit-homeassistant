@@ -175,9 +175,8 @@ body > * { min-width: 0; }
    auf sehr breiten Monitoren wuerden sich Karten sonst so weit dehnen,
    dass Erklaertexte mit ihrer bewusst lesbaren Zeilenlaenge (siehe .lead)
    wie ein Layoutfehler wirken, weil rundherum so viel Leerraum entsteht. */
-main, footer p { max-width: 1800px; margin-left: auto; margin-right: auto; }
-[data-breite="begrenzt"] main,
-[data-breite="begrenzt"] footer p { max-width: 1400px; }
+main { max-width: 1800px; margin-left: auto; margin-right: auto; }
+[data-breite="begrenzt"] main { max-width: 1400px; }
 
 main { width: 100%; margin-top: 0; margin-bottom: 0; padding: var(--abstand) 26px 48px;
        flex: 1 0 auto;
@@ -619,25 +618,45 @@ form.inline { display: inline; }
 code { padding: 1px 5px; font-size: .92em; }
 .statuszeile { margin: 0 0 10px; }
 
-footer { flex: 0 0 auto; text-align: center; color: var(--leise); font-size: 12.5px;
-         padding: 34px 26px 0; }
-footer img { height: 66px; width: auto; opacity: .55; display: block; margin: 0 auto 52px;
-             transition: opacity .3s ease, transform .35s cubic-bezier(.34,1.5,.5,1); }
-footer img:hover { opacity: 1; transform: translateY(-3px) scale(1.03); }
-/* margin muss "auto" bleiben, sonst ueberschreibt die Kurzschreibweise die
-   weiter oben gesetzte Zentrierung (margin-left/right: auto zu max-width).
-   Genau das war der Grund, warum die Fusszeile auf sehr breiten Fenstern
-   links klebte, waehrend das Logo darueber mittig blieb. Der seitliche
-   Abstand kommt jetzt aus dem padding der Fusszeile. */
-/* Drei Zeilen: welches Programm in welcher Fassung, wofür es da ist,
-   wem es gehört. Als ein Absatz mit <br> brach der Satz je nach
-   Fensterbreite an beliebiger Stelle um. */
-.fuss-zeile { display: block; }
-.fuss-recht { margin-top: 2px; opacity: .82; }
-footer p { margin: 0 auto;
-           border-top: 1px solid var(--linie); padding: 18px 0 22px; }
+/* Die Fusszeile ist ein Band mit zwei Haelften: links die Marke mit
+   ihrem Satz, rechts Fassung und Recht. Bis 1.16 standen dort drei
+   mittige Zeilen unter einem grossen Logo - fast zweihundert Pixel fuer
+   eine Angabe, die niemand liest.
+   ⚠️ Die Breite muss dieselbe sein wie die von main (Zeile 178), sonst
+   springt die Trennlinie gegenueber dem Inhalt darueber ein. */
+footer { flex: 0 0 auto; color: var(--leise); font-size: 12.5px;
+         padding: 30px 26px 0; }
+.fussband {
+  max-width: 1800px; margin: 0 auto;
+  border-top: 1px solid var(--linie); padding: 20px 0 24px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 14px 36px; flex-wrap: wrap;
+}
+[data-breite="begrenzt"] .fussband { max-width: 1400px; }
+.fussmarke img { height: 42px; width: auto; opacity: .5; display: block;
+                 transition: opacity .3s ease; }
+.fussmarke:hover img { opacity: .85; }
+.fussangaben { text-align: right; }
+.fuss-zeile { display: block; margin: 0; }
+.fuss-satz { margin-top: 10px; font-size: 12.5px; }
+/* Die Fassung ist die Zeile, die man hier tatsaechlich sucht - sie darf
+   etwas kraeftiger stehen als der Rest. */
+.fuss-fassung { display: flex; align-items: center; justify-content: flex-end;
+                gap: 8px; font-weight: 600; color: var(--tinte-2); }
+.fuss-fassung .version {
+  padding: 1px 7px; border-radius: 20px; font-weight: 600;
+  background: var(--flaeche-2); border: 1px solid var(--linie);
+  color: var(--leise);
+}
+.fuss-recht { margin-top: 5px; opacity: .82; }
 footer a { color: var(--akzent); text-decoration: none; border-bottom: 1px solid transparent; }
 footer a:hover { border-bottom-color: var(--akzent); }
+
+@media (max-width: 620px) {
+  .fussband { flex-direction: column; align-items: center; text-align: center; }
+  .fussangaben { text-align: center; }
+  .fuss-fassung { justify-content: center; }
+}
 
 @media (prefers-reduced-motion: no-preference) {
   .knopf, .liste tbody tr, .kopf nav a { transition: background .13s ease, border-color .13s ease, color .13s ease; }
@@ -949,8 +968,14 @@ tr.stillgelegt:hover { opacity: .85; }
 
 /* --- Spruch ganz oben ----------------------------------------------- */
 
+/* ⚠️ Die beiden Randwerte sind gemessen, nicht gerechnet. Unter dem
+   Zitat sitzt in der Flexspalte von main sichtbar mehr Luft als darüber
+   – Timo hat das gemeldet, und nachgemessen sind es 14px, die dort
+   zusätzlich stehen, auch ohne jeden Rand und ohne den Spaltenabstand.
+   Mit 26 oben und 8 unten stehen beide Lücken bei 48px. Wer die Werte
+   anfasst, misst nach, statt zu rechnen. */
 .spruch {
-  margin: 20px auto 26px; padding: 0 16px; max-width: 86ch;
+  margin: 26px auto 8px; padding: 0 16px; max-width: 86ch;
   text-align: center; color: var(--leise); opacity: .88;
 }
 .spruch blockquote {
@@ -973,6 +998,16 @@ tr.stillgelegt:hover { opacity: .85; }
   .spruch blockquote { font-size: 18px; }
 }
 
+/* ⚠️ main ist eine Flexspalte mit var(--abstand) zwischen den Kindern.
+   Ein leerer Kasten kostet diesen Abstand trotzdem: auf der
+   Zeiterfassung standen unter dem Zitat die Sprungmarke #erfassen (ohne
+   Meldung leer) und das leere Formular der manuellen Erfassung, und
+   schoben damit zweimal 18px zusätzliche Luft dazwischen. Unter dem
+   Zitat war dadurch sichtbar mehr Platz als darüber.
+   Beide werden aus dem Fluss genommen statt ausgeblendet – zu einer
+   Sprungmarke mit display:none springt kein Browser. */
+main > form#erfassung, main > #erfassen:not(:has(*)) { position: absolute; }
+
 .version { font-variant-numeric: tabular-nums; opacity: .8; }
 
 .betrag { white-space: nowrap; }
@@ -993,13 +1028,14 @@ tr.stillgelegt:hover { opacity: .85; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
 }
+.listenwerkzeuge { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .listenkopf-titel {
   font-size: 11px; font-weight: 700; letter-spacing: .09em;
   text-transform: uppercase; color: var(--leise);
 }
 .exportknoepfe { display: flex; gap: 6px; }
-.exportknoepfe .knopf { display: inline-flex; align-items: center; gap: 6px; }
-.exportknoepfe svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.exportknoepfe .knopf, .auswahlknopf { display: inline-flex; align-items: center; gap: 6px; }
+.exportknoepfe svg, .auswahlknopf svg { width: 15px; height: 15px; flex: 0 0 auto; }
 
 .boxumfang {
   margin: -8px 0 16px; padding-bottom: 13px;
@@ -3025,11 +3061,45 @@ fieldset.feld > span {
 .liste th.wahlspalte, .liste td.wahlspalte { width: 34px; padding-right: 0; }
 /* ⚠️ Oben, nicht mittig. Bricht die Leistung auf drei Zeilen um, wanderte
    das Kästchen in die Mitte der Zeile und stand dann neben dem Text
-   statt neben seinem Datum. Die zwei Pixel Versatz gleichen den
-   Zeilenabstand der Nachbarzellen aus, damit beides auf einer Höhe
-   sitzt. */
-.liste td.wahlspalte { vertical-align: top; padding-top: 12px; }
-.liste .wahlspalte input { accent-color: var(--akzent); margin: 0; cursor: pointer; }
+   statt neben seinem Datum.
+   ⚠️ Die Zelle bekommt denselben oberen Abstand wie ihre Nachbarn, und
+   das Kästchen wird von Hand auf die Mitte der ersten Textzeile gerückt:
+   (13,5px × 1,55 − 15px) / 2 ≈ 3px. Ein geratener Wert am padding stand
+   daneben, sobald der Browser das Kästchen anders groß malt – deshalb
+   steht die Größe hier ausdrücklich. */
+.liste td.wahlspalte { vertical-align: top; padding-top: 6px; }
+.liste .wahlspalte input {
+  accent-color: var(--akzent); cursor: pointer;
+  display: block; width: 15px; height: 15px; margin: 3px 0 0;
+}
+.liste th.wahlspalte { vertical-align: bottom; }
+.liste th.wahlspalte input { margin: 0 0 1px; }
+
+/* Mehrfachauswahl erscheint erst auf Wunsch. Bis 1.17 stand vor jeder
+   Zeile ein Kästchen, obwohl man es selten braucht – bei zweihundert
+   Zeilen war das eine Spalte Unruhe für einen Handgriff im Monat.
+   ⚠️ Der Schalter ist ein Kästchen ohne Namen, der Knopf daneben sein
+   Label. Damit schaltet er auch ohne Skript; ein Seitenwechsel über die
+   Adresse wäre der andere Weg gewesen, aber eine Auswahl ist ein
+   Handgriff und kein Zustand, den man verlinkt. */
+.auswahlschalter {
+  position: absolute; width: 1px; height: 1px;
+  opacity: 0; pointer-events: none;
+}
+.auswahlknopf { cursor: pointer; }
+.auswahlknopf .auswahlhaken { opacity: 0; }
+.auswahlknopf .auswahl-an { display: none; }
+.auswahlschalter:checked ~ .listenkopf .auswahlknopf {
+  border-color: var(--akzent); color: var(--akzent); background: var(--akzent-weich);
+}
+.auswahlschalter:checked ~ .listenkopf .auswahlknopf .auswahlhaken { opacity: 1; }
+.auswahlschalter:checked ~ .listenkopf .auswahlknopf .auswahl-an { display: inline; }
+.auswahlschalter:checked ~ .listenkopf .auswahlknopf .auswahl-aus { display: none; }
+.auswahlschalter:focus-visible ~ .listenkopf .auswahlknopf {
+  outline: 2px solid var(--akzent); outline-offset: 2px;
+}
+.auswahlschalter:not(:checked) ~ .massenleiste,
+.auswahlschalter:not(:checked) ~ .liste .wahlspalte { display: none; }
 
 /* Monatsübersicht: erste Spalte breiter, Zahlen schmal */
 .monatstabelle th:first-child { width: 30%; }

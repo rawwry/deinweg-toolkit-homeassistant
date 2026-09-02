@@ -1498,4 +1498,18 @@ CHANGELOG = [
         "ausdrücklich „alle“ wählt, bekommt weiterhin alles",
         "Prüfung von 967 auf 983 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.17", "titel": "Ruhigere Listen, kürzere Fußzeile", "punkte": [
+        "Übersicht: die Kästchen vor den Zeilen erscheinen erst, wenn man "
+        "sie über den Knopf „Mehrfachauswahl“ anfordert. Bei zweihundert "
+        "Zeilen war das eine Spalte Unruhe für einen Handgriff im Monat",
+        "Übersicht: die Kästchen stehen jetzt genau auf der Höhe des "
+        "Datums daneben – vorher saßen sie ein paar Pixel zu tief",
+        "Zeiterfassung: über und unter dem Zitat steht wieder gleich viel "
+        "Luft",
+        "Einstellungen: „Leistungsbeschreibungen“ heißen kurz „Leistungen“",
+        "Fußzeile in zwei Hälften statt drei mittiger Zeilen unter einem "
+        "großen Logo: links die Marke mit ihrem Satz, rechts Fassung und "
+        "Recht. Sie ist damit nur noch halb so hoch",
+        "Prüfung von 983 auf 1002 Einzelprüfungen erweitert",
+    ]},
 ]

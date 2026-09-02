@@ -133,11 +133,7 @@
 {% block inhalt %}{% endblock %}
 </main>
 
-<footer>
-  <img class="nur-dunkel" src="/static/logo-fuer-dunkel.png?v={{ VERSION }}" alt="Dein Weg">
-  <img class="nur-hell"   src="/static/logo-fuer-hell.png?v={{ VERSION }}"   alt="Dein Weg">
-  <p>{{ fusstext() }}</p>
-</footer>
+<footer>{{ fusstext() }}</footer>
 
 {# --- Was ist neu? ------------------------------------------------------
    Steht bei jedem Seitenaufbau da, solange dieses Konto die laufende

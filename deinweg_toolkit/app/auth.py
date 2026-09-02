@@ -146,7 +146,7 @@ EINST_BEREICHE = {
     "mitarbeiter": "Mitarbeiter",
     "kfz": "Fahrzeuge",
     "vorgangsarten": "Aufgabenarten",
-    "leistungen": "Leistungsbeschreibungen",
+    "leistungen": "Leistungen",
     "system": "System und Sicherung",
 }
 

@@ -2643,13 +2643,22 @@ def test_texte_nachziehen(client: TestClient) -> None:
 
 
 def test_fusszeile(client: TestClient) -> None:
-    """Drei Zeilen, und der mittlere Satz ist pflegbar."""
+    """Zwei Haelften, und der mittlere Satz ist pflegbar."""
     abschnitt("Fußzeile")
     seite = client.get("/meinbereich").text
     fuss = seite[seite.index("<footer"):seite.index("</footer>")]
     pruefe(fuss.count("fuss-zeile") == 3, "die Fußzeile hat drei Zeilen")
-    pruefe("(<a href=\"/changelog\">Changelog</a>)" in seite,
-           "der Changelog steht in Klammern hinter der Version")
+    pruefe('class="fussband"' in fuss, "sie stehen in einem gemeinsamen Band")
+    pruefe('class="fussmarke"' in fuss and 'class="fussangaben"' in fuss,
+           "links die Marke, rechts die Angaben")
+    pruefe(fuss.index("fussmarke") < fuss.index("fussangaben"),
+           "und zwar in dieser Reihenfolge")
+    # Die Logos stehen seit 1.17 in fusstext() und nicht mehr in base.html -
+    # beide Fassungen muessen weiterhin da sein, samt Versionsanhang.
+    pruefe("logo-fuer-dunkel.png?v=" in fuss and "logo-fuer-hell.png?v=" in fuss,
+           "beide Logos hängen mit Versionsanhang in der Fußzeile")
+    pruefe('<a href="/changelog">Was ist neu?</a>' in fuss,
+           "der Changelog steht als Verweis daneben")
 
     antwort = client.post("/einstellungen/fusszeile", data={
         "fusszeile_satz": "Ganz eigener Satz.",
@@ -2664,6 +2673,78 @@ def test_fusszeile(client: TestClient) -> None:
                 follow_redirects=False)
     pruefe("eigentlich nicht organisieren wollen" in client.get("/meinbereich").text,
            "leer heißt: wieder der Standardtext")
+
+
+def test_mehrfachauswahl(client: TestClient) -> None:
+    """Die Kästchen der Übersicht erscheinen erst auf Wunsch."""
+    abschnitt("Mehrfachauswahl")
+    seite = client.get("/eintraege").text
+    pruefe('id="auswahlmodus"' in seite and 'class="auswahlschalter"' in seite,
+           "der Schalter steht als Kästchen ohne Namen auf der Seite")
+    pruefe('for="auswahlmodus"' in seite, "der Knopf daneben ist sein Label")
+    pruefe("Mehrfachauswahl" in seite and "Auswahl beenden" in seite,
+           "beide Beschriftungen stehen im Markup")
+    # Ohne Skript muss das genauso gehen - der Knopf ist ein <label>, kein
+    # <button> mit einem Klickhandler daran.
+    knopf = seite[seite.index('for="auswahlmodus"') - 200:
+                  seite.index('for="auswahlmodus"') + 40]
+    pruefe("<label" in knopf, "es ist ein Label und kein Knopf mit Skript")
+    pruefe("onclick" not in knopf, "und hängt an keinem Klickhandler")
+
+    stil = client.get("/static/style.css").text.replace("\n", " ")
+    pruefe(".auswahlschalter:not(:checked) ~ .liste .wahlspalte" in stil,
+           "ohne Schalter ist die Kästchenspalte ausgeblendet")
+    pruefe(".auswahlschalter:not(:checked) ~ .massenleiste" in stil,
+           "und die Leiste mit dem Löschknopf ebenfalls")
+    # ⚠️ Die Groesse des Kaestchens steht ausdruecklich im Stylesheet: der
+    # Rand darueber ist darauf gerechnet, damit es auf der Hoehe des
+    # Datums sitzt. Ohne feste Groesse stuende es je nach Browser daneben.
+    regel = stil[stil.index(".liste .wahlspalte input"):][:220]
+    pruefe("width: 15px" in regel and "height: 15px" in regel,
+           "das Kästchen hat eine feste Größe")
+    pruefe("margin: 3px 0 0" in regel,
+           "und einen darauf gerechneten Abstand nach oben")
+
+    # Ohne Loeschrecht gibt es nichts auszuwaehlen - dann fehlt auch der
+    # Schalter, statt einen Knopf anzubieten, der ins Leere fuehrt.
+    with db.db() as con:
+        vorhanden = con.execute(
+            "SELECT 1 FROM benutzer WHERE benutzername='ohnerecht'").fetchone()
+        if not vorhanden:
+            con.execute(
+                "INSERT INTO benutzer (benutzername, passwort_hash, rolle, "
+                "berechtigungen, aktiv, fremde_loeschen, angelegt_am) "
+                "VALUES ('ohnerecht', ?, 'benutzer', 'datensaetze', 1, 0, ?)",
+                (db.passwort_hashen("ohnerechtpasswort"),
+                 dt.datetime.now().isoformat(" ", "seconds")))
+    gast = TestClient(app)
+    gast.post("/login", data={"benutzername": "ohnerecht",
+                              "passwort": "ohnerechtpasswort"},
+              follow_redirects=False)
+    ohne = gast.get("/eintraege").text
+    pruefe('id="auswahlmodus"' not in ohne,
+           "ohne löschbare Zeilen fehlt der Schalter ganz")
+
+
+def test_leistungen_umbenannt(client: TestClient) -> None:
+    """Der Einstellungspunkt heißt „Leistungen“, der Schlüssel bleibt."""
+    abschnitt("Leistungen")
+    seite = client.get("/einstellungen?bereich=leistungen").text
+    pruefe("<h1>Leistungen</h1>" in seite, "die Seite heißt „Leistungen“")
+    # ⚠️ Nicht auf das blosse Wort pruefen: der Hinweis auf Neuerungen
+    # steht auf jeder Seite und zitiert den Changelog-Eintrag dazu.
+    inhalt = seite.split('<div class="neuheiten"')[0]
+    pruefe("Leistungsbeschreibungen" not in inhalt,
+           "das lange Wort steht nirgends mehr auf der Seite")
+    pruefe('bereich=leistungen" class="aktiv">Leistungen</a>' in seite,
+           "im Menü daneben ebenso")
+    # ⚠️ Der Berechtigungsschluessel bleibt „leistungen" - sonst verloere
+    # jedes eingeschraenkte Konto seinen Zugriff auf diesen Punkt.
+    from . import auth as _a
+    pruefe(_a.EINST_BEREICHE["leistungen"] == "Leistungen",
+           "die Benutzerverwaltung nennt ihn genauso")
+    pruefe("leistungen" in _a.EINST_BEREICHE,
+           "der Schlüssel selbst ist unverändert")
 
 
 def bewegungsbloecke(stil: str) -> str:
@@ -3989,6 +4070,8 @@ def _durchlauf(client: TestClient) -> None:
         test_erinnerungsoptionen(client)
         test_texte_nachziehen(client)
         test_fusszeile(client)
+        test_mehrfachauswahl(client)
+        test_leistungen_umbenannt(client)
         test_betreute_auswahl(client)
         test_abgaben_verweise(client)
         test_wiki_falten(client)
