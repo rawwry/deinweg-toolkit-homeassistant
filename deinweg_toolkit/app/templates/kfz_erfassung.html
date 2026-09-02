@@ -104,9 +104,9 @@
           <th>Datum</th>
           <th>Was</th>
           <th>Angaben</th>
-          <th class="num">Km-Stand</th>
-          <th class="num">Kosten</th>
-          <th class="num">Aktion</th>
+          <th>Km-Stand</th>
+          <th>Kosten</th>
+          <th>Aktion</th>
         </tr>
       </thead>
       <tbody>
@@ -128,9 +128,9 @@
             {% endif %}
             {% if z.notiz %}<br><span class="klein leise">{{ z.notiz }}</span>{% endif %}
           </td>
-          <td class="num zahlen nowrap">{{ z.km | km }}</td>
-          <td class="num zahlen nowrap">{{ z.kosten | euro if z.kosten else '—' }}</td>
-          <td class="num nowrap">
+          <td class="zahlen nowrap">{{ z.km | km }}</td>
+          <td class="zahlen nowrap">{{ z.kosten | euro if z.kosten else '—' }}</td>
+          <td class="nowrap">
             <a class="knopf-icon" title="Eintrag bearbeiten"
                href="/fuhrpark?fahrzeug={{ gewaehlt.id }}&amp;bearbeiten={{ z.id }}#formular">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.17.2
+
+- Wiki: geschützte Ordner – nur ausgewählte Konten sehen und bearbeiten
+  sie, auch Suche und Adresse bleiben ihnen verschlossen
+- Fußzeile: Logo und Angaben bündig zum Inhalt, Logo etwas kleiner
+- Zeiterfassung: kein Springen mehr beim Aktualisieren
+- Fuhrpark: alle Tabellen linksbündig
+- Mein Bereich: Zeitspanne in „Meine Zeiten“ wie in der Übersicht
+
 ## 1.17.1
 
 - Logo und Bildmarke als SVG statt PNG

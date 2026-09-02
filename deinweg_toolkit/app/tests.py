@@ -49,6 +49,7 @@ os.environ.update({
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from . import auth  # noqa: E402
 from . import db  # noqa: E402
 from . import mail  # noqa: E402
 from .main import app  # noqa: E402
@@ -2832,6 +2833,166 @@ def test_meinbereich_hinweise(client: TestClient) -> None:
     pruefe("mein.laufend_hinweis" not in seite, "Textschlüssel bleiben ersetzt")
 
 
+def test_wiki_geschuetzter_ordner(client: TestClient) -> None:
+    """Ein geschuetzter Wiki-Ordner ist ohne Freigabe schlicht nicht da."""
+    abschnitt("Wiki: geschützter Ordner")
+
+    client.post("/wiki/aktion/neu",
+                data={"name": "Geheimkram", "ordner": "", "art": "ordner"})
+    client.post("/wiki/aktion/neu", data={"name": "Vollmacht",
+                                          "ordner": "Geheimkram", "art": "seite"})
+    client.post("/wiki/aktion/speichern",
+                data={"pfad": "Geheimkram/Vollmacht.md", "ordner": "Geheimkram",
+                      "name": "Vollmacht.md",
+                      "inhalt": "# Vollmacht\n\nKennwort Sperrgut.",
+                      "pruefsumme": ""})
+    client.post("/wiki/aktion/neu",
+                data={"name": "Offenes", "ordner": "", "art": "ordner"})
+
+    # Die Liste der schuetzbaren Ordner steht in der Benutzerverwaltung.
+    verwaltung = client.get("/einstellungen?bereich=benutzer").text
+    pruefe('name="ordner" value="Geheimkram"' in verwaltung,
+           "der Ordner steht in der Benutzerverwaltung zur Wahl")
+
+    antwort = client.post("/einstellungen/wiki-geschuetzt",
+                          data={"ordner": ["Geheimkram"]}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "er lässt sich als geschützt markieren")
+    with db.db() as con:
+        pruefe(auth.geschuetzte_ordner(con) == ["Geheimkram"],
+               "und steht danach in der Konfiguration")
+
+    # --- Konto ohne Freigabe -------------------------------------------------
+    # ⚠️ Ohne wiki_ordner heisst hier "keiner" - anders als bei den
+    # Bereichen, wo leer "alles" bedeutet.
+    fremd = _konto(client, "ohne_ordner", "ohneordner123", ["wiki"])
+    seite = fremd.get("/wiki").text
+    pruefe("Geheimkram" not in seite, "im Baum taucht er nicht auf")
+    pruefe("Offenes" in seite, "der ungeschützte Ordner dagegen schon")
+    pruefe(fremd.get("/wiki/Geheimkram").status_code == 403,
+           "der Ordner ist über die Adresse nicht erreichbar")
+    pruefe(fremd.get("/wiki/Geheimkram/Vollmacht.md").status_code == 403,
+           "eine Seite darin ebenso wenig")
+    pruefe(fremd.get("/wiki/aktion/herunterladen?pfad=Geheimkram/Vollmacht.md"
+                     ).status_code == 403, "und herunterladen geht auch nicht")
+
+    # ⚠️ Der Inhalt darf auch nicht durch die Volltextsuche sickern - dort
+    # stuende sonst der Textausschnitt mitsamt Fundstelle.
+    treffer = fremd.get("/wiki/aktion/suche?q=Sperrgut").text
+    pruefe("Vollmacht.md" not in treffer and "Kennwort" not in treffer,
+           "die Suche findet nichts darin")
+    pruefe('value="Geheimkram"' not in fremd.get("/wiki/Offenes").text,
+           "und im Auswahlfeld zum Verschieben steht er nicht")
+
+    # --- Schreibaktionen ------------------------------------------------------
+    # ⚠️ Die Middleware sieht nur die Adresse; diese Pfade stehen im
+    # Formular. Sie muessen trotzdem abgewiesen werden.
+    for pfad, daten in (
+            ("/wiki/aktion/loeschen", {"pfad": "Geheimkram/Vollmacht.md"}),
+            ("/wiki/aktion/speichern", {"pfad": "Geheimkram/Vollmacht.md",
+                                        "inhalt": "kaputt"}),
+            ("/wiki/aktion/neu", {"ordner": "Geheimkram", "name": "Schmuggel",
+                                  "art": "seite"}),
+            ("/wiki/aktion/verschieben", {"pfad": "Offenes",
+                                          "ziel": "Geheimkram"})):
+        pruefe(fremd.post(pfad, data=daten).status_code == 403,
+               f"{pfad} wird abgewiesen")
+    wiki_ordner_pfad = os.path.join(_ORDNER, "wiki")
+    pruefe(os.path.isfile(os.path.join(wiki_ordner_pfad, "Geheimkram",
+                                       "Vollmacht.md")),
+           "die geschützte Seite steht unverändert da")
+    pruefe(os.path.isdir(os.path.join(wiki_ordner_pfad, "Offenes")),
+           "und der offene Ordner wurde nicht verschoben")
+
+    # --- Konto mit Freigabe ---------------------------------------------------
+    mit = _konto(client, "mit_ordner", "mitordner123", ["wiki"],
+                 wiki_ordner=["Geheimkram"])
+    pruefe("Geheimkram" in mit.get("/wiki").text, "mit Freigabe steht er im Baum")
+    pruefe(mit.get("/wiki/Geheimkram").status_code == 200, "und lässt sich öffnen")
+    pruefe(mit.get("/wiki/Geheimkram/Vollmacht.md").status_code == 200,
+           "die Seite darin ebenfalls")
+    pruefe("Vollmacht" in mit.get("/wiki/aktion/suche?q=Sperrgut").text,
+           "und die Suche findet sie")
+
+    # Administratoren sehen ihn immer - sonst koennte sich die Verwaltung
+    # selbst aussperren.
+    pruefe(client.get("/wiki/Geheimkram").status_code == 200,
+           "ein Administrator sieht ihn ohne eigene Freigabe")
+
+    # ⚠️ Solange nichts geschuetzt ist, darf der Filter gar nicht greifen.
+    client.post("/einstellungen/wiki-geschuetzt", data={"ordner": []},
+                follow_redirects=False)
+    pruefe(fremd.get("/wiki/Geheimkram").status_code == 200,
+           "ohne Schutzmarkierung ist der Ordner wieder für alle da")
+    client.post("/einstellungen/wiki-geschuetzt", data={"ordner": ["Geheimkram"]},
+                follow_redirects=False)
+
+
+def test_fusszeile_buendig(client: TestClient) -> None:
+    """Die Fußzeile steht bündig zum Inhalt darüber."""
+    abschnitt("Fußzeile: Bündigkeit")
+    stil = client.get("/static/style.css").text
+    # ⚠️ Der seitliche Abstand gehoert dem Band, nicht dem footer - sonst
+    # deckt sich zwar die Trennlinie mit main, der Inhalt darin steht aber
+    # 26px weiter aussen als die Karten darueber.
+    pruefe("footer { flex: 0 0 auto; color: var(--leise); font-size: 12.5px;\n"
+           "         padding: 30px 0 0; }" in stil,
+           "footer trägt keinen seitlichen Abstand mehr")
+    band = stil[stil.index(".fussband {"):stil.index("[data-breite=\"begrenzt\"] .fussband")]
+    pruefe("padding: 20px 26px 24px;" in band,
+           "das Band bringt seinen eigenen mit – denselben Wert wie main")
+    pruefe("  .fussband { padding-left: 16px; padding-right: 16px; }" in stil,
+           "am Telefon ebenso, dort mit 16px")
+    pruefe(".fussmarke img { height: 54px;" in stil,
+           "das Logo ist eine Spur kleiner geworden")
+
+
+def test_kfz_linksbuendig(client: TestClient) -> None:
+    """Im Fuhrpark steht alles linksbündig, wie in jeder anderen Liste."""
+    abschnitt("Fuhrpark: linksbündig")
+    for pfad in ("/fuhrpark", "/fuhrpark/auswertung"):
+        seite = client.get(pfad).text
+        # ⚠️ Am Dialog abschneiden: der Changelog darin kann das Wort
+        # enthalten und macht die Pruefung sonst unscharf.
+        seite = seite.split('<div class="neuheiten"')[0]
+        pruefe('class="num' not in seite and 'class="rechts' not in seite,
+               f"{pfad} trägt keine rechtsbündige Zelle mehr")
+        pruefe('class="zahlen' in seite,
+               f"{pfad} behält aber die Tabellenziffern")
+
+
+def test_zeitspanne_meinbereich(client: TestClient) -> None:
+    """„Meine Zeiten" zeigt die Zeitspanne wie die Übersicht."""
+    abschnitt("Mein Bereich: Zeitspanne")
+    seite = client.get("/meinbereich").text
+    pruefe('class="zeitspanne"' in seite,
+           "die Zeitspanne steht in derselben Hülle wie in der Übersicht")
+    pruefe('class="bis"' in seite, "die Endzeit ist gedämpft abgesetzt")
+    zeiten = seite[seite.index("zeitentabelle"):] if "zeitentabelle" in seite else ""
+    pruefe("}}–{{" not in zeiten and "–</td>" not in zeiten,
+           "und nicht mehr als Bindestrich dazwischen")
+
+
+def test_spruch_hoehe(client: TestClient) -> None:
+    """Der Zitatblock ist immer gleich hoch."""
+    abschnitt("Zitat: gleichbleibende Höhe")
+    # ⚠️ Ohne Quelle stand bisher gar keine figcaption da - der Block war
+    # dann 29px flacher, und weil bei jedem Aufruf ein anderer Spruch
+    # gezogen wird, sprang die ganze Seite beim Aktualisieren um genau
+    # diesen Betrag.
+    from . import einstellungen as _e
+    with open(_e._u["SPRUCH_DATEI"], "w", encoding="utf-8") as f:
+        f.write("Ein Spruch ganz ohne Quelle.\n")
+    seite = client.get("/").text
+    pruefe("<figcaption>" in seite,
+           "auch ein Spruch ohne Quelle bekommt seine Quellenzeile")
+    pruefe("<figcaption></figcaption>" in seite,
+           "und zwar eine leere")
+    stil = client.get("/static/style.css").text
+    pruefe(".spruch figcaption:empty::before { content: \"\\00a0\"; }" in stil,
+           "eine leere Quellenzeile hält ihre Höhe über ein geschütztes Leerzeichen")
+
+
+
 def test_mehrfachauswahl(client: TestClient) -> None:
     """Die Kästchen der Übersicht erscheinen erst auf Wunsch."""
     abschnitt("Mehrfachauswahl")
@@ -4228,6 +4389,11 @@ def _durchlauf(client: TestClient) -> None:
         test_texte_nachziehen(client)
         test_fusszeile(client)
         test_mehrfachauswahl(client)
+        test_wiki_geschuetzter_ordner(client)
+        test_fusszeile_buendig(client)
+        test_kfz_linksbuendig(client)
+        test_zeitspanne_meinbereich(client)
+        test_spruch_hoehe(client)
         test_versandzeit(client)
         test_zitat_abstand(client)
         test_diagramm_wertmarke(client)

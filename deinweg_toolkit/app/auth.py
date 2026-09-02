@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import datetime as dt
 import secrets
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, unquote, urlencode
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -71,6 +71,7 @@ def setup(templates, sitzung_tage: int) -> None:
     templates.env.globals["darf_bewilligungen_sehen"] = darf_bewilligungen_sehen
     templates.env.globals["darf_fremde_loeschen"] = darf_fremde_loeschen
     templates.env.globals["darf_fremde_bearbeiten"] = darf_fremde_bearbeiten
+    templates.env.globals["darf_wiki_ordner"] = darf_wiki_ordner
 
 
 # --- Bereiche ----------------------------------------------------------------
@@ -211,7 +212,10 @@ def einst_bereiche_speichern(gewaehlt: list[str]) -> str:
 # ein eingeschraenkter Benutzer selbst hochstufen.
 # ⚠️ Die Datenpflege schreibt quer durch die ganze Datenbank - sie ist
 # zusaetzlich zur Bereichsberechtigung fest auf Administratoren begrenzt.
-ADMIN_NUR_PFADE = ("/einstellungen/benutzer", "/einstellungen/datenpflege")
+ADMIN_NUR_PFADE = ("/einstellungen/benutzer", "/einstellungen/datenpflege",
+                   # Welche Wiki-Ordner geschuetzt sind, entscheidet
+                   # die Verwaltung - nicht wer die Einstellungen darf.
+                   "/einstellungen/wiki-geschuetzt")
 
 # Oeffentlich ohne Anmeldung erreichbar
 OEFFENTLICHE_PFADE = ("/gesundheit", "/login")
@@ -320,6 +324,88 @@ def darf_bewilligungen_sehen(benutzer) -> bool:
     return _schalter(benutzer, "bewilligungen_sehen", True)
 
 
+# --- Geschuetzte Wiki-Ordner --------------------------------------------------
+#
+# Ein Wiki-Ordner kann als "geschuetzt" gekennzeichnet werden (die Liste
+# steht in konfig unter "wiki_geschuetzt", gepflegt in der
+# Benutzerverwaltung). Er verschwindet dann fuer jeden, der ihn nicht
+# ausdruecklich zugeteilt bekommen hat: aus dem Baum, aus der
+# Ordneransicht, aus der Suche, aus den Auswahlfeldern - und ueber die
+# Adresse ist er ebenfalls nicht erreichbar.
+#
+# ⚠️ Hier gilt die UMGEKEHRTE Regel zu berechtigungen/einst_bereiche:
+# eine leere Liste an "benutzer.wiki_ordner" heisst "keinen", nicht
+# "alle". Andersherum saehe nach dem Update sofort das ganze Team einen
+# Ordner, der gerade deshalb geschuetzt wurde, weil er nicht jeden
+# angeht. Dieselbe Ueberlegung wie bei NUR_AUSDRUECKLICH.
+#
+# ⚠️ Geschuetzt wird immer ein Ordner MIT allem darin. Der Vergleich
+# laeuft deshalb ueber den Pfad plus "/" - "99_x" schuetzt auch
+# "99_x/unterordner/seite.md", aber nicht "99_xyz".
+
+def geschuetzte_ordner(con=None) -> list[str]:
+    """Die als geschuetzt gekennzeichneten Wiki-Ordner (relative Pfade)."""
+    def holen(c):
+        zeile = c.execute("SELECT wert FROM konfig WHERE schluessel = ?",
+                          ("wiki_geschuetzt",)).fetchone()
+        return ordnerliste_lesen(zeile["wert"] if zeile else "")
+
+    if con is not None:
+        return holen(con)
+    with db.db() as c:
+        return holen(c)
+
+
+def ordnerliste_lesen(wert: str | None) -> list[str]:
+    """Kommaliste -> Liste, ohne Leereintraege und ohne Dubletten."""
+    gesehen, liste = set(), []
+    for teil in (wert or "").split(","):
+        teil = teil.strip().strip("/")
+        if teil and teil not in gesehen:
+            gesehen.add(teil)
+            liste.append(teil)
+    return liste
+
+
+def darf_wiki_ordner(benutzer, pfad: str, geschuetzt: list[str] | None = None) -> bool:
+    """Darf dieses Konto diesen Wiki-Pfad sehen?
+
+    ``pfad`` ist relativ zur Wiki-Wurzel ("" fuer die Wurzel selbst).
+    Beruehrt er keinen geschuetzten Ordner, ist die Antwort immer ja -
+    der Schutz ist die Ausnahme, nicht die Regel.
+    """
+    if geschuetzt is None:
+        geschuetzt = geschuetzte_ordner()
+    if not geschuetzt:
+        return True
+    pfad = (pfad or "").strip("/")
+    betroffen = [g for g in geschuetzt
+                 if pfad == g or pfad.startswith(g + "/")]
+    if not betroffen:
+        return True
+    if not benutzer:
+        return False
+    # Administratoren sehen alles - wie bei jedem anderen Einzelrecht
+    # auch. Sonst koennte sich die Verwaltung selbst aussperren.
+    if benutzer["rolle"] == "admin":
+        return True
+    try:
+        erlaubt = ordnerliste_lesen(benutzer["wiki_ordner"])
+    except (IndexError, KeyError, TypeError):
+        # Sitzung von vor der Migration: dann eben nicht.
+        return False
+    return all(g in erlaubt for g in betroffen)
+
+
+def wiki_ordner_speichern(gewaehlt: list[str], geschuetzt: list[str]) -> str:
+    """Kommaliste der freigegebenen Ordner.
+
+    ⚠️ Kein Sonderfall fuer "alle angeklickt": leer heisst hier schlicht
+    "keiner", und genau das soll es auch heissen.
+    """
+    return ",".join(g for g in geschuetzt if g in gewaehlt)
+
+
 def berechtigungen_speichern(gewaehlt: list[str]) -> str:
     """Kommaliste aus den angeklickten Bereichen - oder leer, wenn wirklich
     alle angeklickt sind (das steht dann fuer "alles", siehe Moduldoku).
@@ -359,7 +445,8 @@ def sitzung_benutzer(con, token: str, sitzung_tage: int):
         "SELECT s.erstellt_am, b.id, b.benutzername, b.rolle, "
         "b.berechtigungen, b.email, b.mitarbeiter, b.aktiv, "
         "b.fremde_loeschen, b.fremde_bearbeiten, b.wiki_schreiben, "
-        "b.bewilligungen_sehen, b.einst_bereiche, b.gesehen_version "
+        "b.bewilligungen_sehen, b.einst_bereiche, b.gesehen_version, "
+        "b.wiki_ordner "
         "FROM sitzung s JOIN benutzer b ON b.id = s.benutzer_id "
         "WHERE s.token = ?", (token,)).fetchone()
     if not zeile or not zeile["aktiv"]:
@@ -409,6 +496,45 @@ def herkunft_stimmt(request: Request) -> bool:
         return True
     eigene = f"{request.url.scheme}://{request.url.netloc}"
     return herkunft == eigene or herkunft.startswith(eigene + "/")
+
+
+# Felder, in denen die Wiki-Routen einen Pfad entgegennehmen. Wer hier
+# eine neue Aktion ergaenzt, traegt ihr Pfadfeld mit ein.
+WIKI_PFADFELDER = ("pfad", "ordner", "ziel")
+
+
+GESPERRT_TEXT = ("Dieser Bereich des Wikis ist für dein Konto nicht "
+                 "freigegeben.")
+
+
+def _wiki_ordner_pruefen(request: Request, benutzer, pfad: str):
+    """403, wenn Adresse oder Abfrage einen gesperrten Ordner beruehren.
+
+    ⚠️ Hier wird bewusst NICHT der Formularkoerper gelesen. In einer
+    BaseHTTPMiddleware wuerde ``await request.form()`` den Datenstrom
+    leeren, und die Route dahinter bekaeme ein leeres Formular. Die
+    Felder eines abgeschickten Formulars prueft deshalb ``wiki.py``
+    selbst (siehe wiki._ordner_erlaubt) - dort liegt das Formular
+    ohnehin schon geparst vor.
+    """
+    geschuetzt = geschuetzte_ordner()
+    if not geschuetzt:
+        return None
+
+    kandidaten = []
+    if pfad.startswith("/wiki/") and not pfad.startswith("/wiki/aktion/"):
+        kandidaten.append(unquote(pfad[len("/wiki/"):]))
+    # /wiki/aktion/herunterladen?pfad=… haengt ihn an die Adresse.
+    for feld in WIKI_PFADFELDER:
+        wert = request.query_params.get(feld)
+        if wert:
+            kandidaten.append(wert)
+
+    for kandidat in kandidaten:
+        sauber = (kandidat or "").replace("\\", "/").strip("/")
+        if sauber and not darf_wiki_ordner(benutzer, sauber, geschuetzt):
+            return Response(GESPERRT_TEXT, status_code=403)
+    return None
 
 
 class SessionAuth(BaseHTTPMiddleware):
@@ -468,6 +594,19 @@ class SessionAuth(BaseHTTPMiddleware):
             return Response(
                 "Kein Schreibrecht im Wiki. Du kannst alle Seiten lesen, "
                 "aber nicht ändern.", status_code=403)
+
+        # Geschuetzte Wiki-Ordner. Auch das hier und nicht in wiki.py:
+        # damit gilt es fuer die Anzeige, fuer das Herunterladen und fuer
+        # jede Schreibaktion gleichermassen, ohne dass eine neue Route es
+        # vergessen kann.
+        # ⚠️ Geprueft wird der Pfad aus der Adresse UND - bei einem
+        # Formular - der Pfad, den es mitschickt. Sonst koennte man eine
+        # geschuetzte Seite ueber /wiki/aktion/loeschen anfassen, ohne
+        # dass ihr Name je in der Adresse steht.
+        if pfad.startswith("/wiki"):
+            antwort = _wiki_ordner_pruefen(request, benutzer, pfad)
+            if antwort is not None:
+                return antwort
 
         request.state.benutzer = benutzer
         return await call_next(request)

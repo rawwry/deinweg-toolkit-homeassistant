@@ -231,6 +231,15 @@ TEXTE_STANDARD["einst.benutzer_admin_hinweis"] = (
     "Die Rolle ist „Administrator“ – dieses Konto hat damit ohnehin "
     "vollen Zugriff. Die Auswahl unten wird trotzdem gespeichert und "
     "greift wieder, sobald die Rolle auf „Benutzer“ zurückgestellt wird.")
+TEXTE_STANDARD["einst.wiki_geschuetzt_lead"] = (
+    "Ein geschützter Ordner verschwindet für alle, die ihn nicht "
+    "ausdrücklich zugeteilt bekommen: aus dem Navigationsbaum, aus der "
+    "Ordneransicht, aus der Volltextsuche und aus den Auswahlfeldern zum "
+    "Verschieben. Auch über die Adresse ist er dann nicht erreichbar.")
+TEXTE_STANDARD["einst.wiki_geschuetzt_hinweis"] = (
+    "Der Schutz gilt für den Ordner samt allem darin. Wer ihn sehen "
+    "darf, wird unten je Konto einzeln angehakt – <strong>ohne Haken "
+    "sieht ihn niemand</strong>. Administratoren sehen immer alles.")
 TEXTE_STANDARD["einst.benutzer_rechte_hinweis"] = (
     "Drei Rechte, die keinen eigenen Bereich bilden, sondern innerhalb "
     "eines Bereichs eine Grenze ziehen. <strong>Einträge anderer "

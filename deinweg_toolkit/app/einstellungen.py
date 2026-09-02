@@ -21,7 +21,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
-from . import auth, db, kfz, mail
+from . import auth, db, kfz, mail, wiki
 from .parser import norm, NICHT_ABRECHENBAR
 
 router = APIRouter()
@@ -244,6 +244,12 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "inaktiv": sum(1 for b in benutzerliste if not b["aktiv"]),
             "admin": sum(1 for b in benutzerliste if b["aktiv"] and b["rolle"] == "admin"),
         }
+        # Geschuetzte Wiki-Ordner: die gepflegte Liste und alle Ordner,
+        # die im Wiki ueberhaupt zur Wahl stehen. Beides braucht die
+        # Benutzerverwaltung - einmal zum Pflegen der Liste, einmal fuer
+        # die Haekchen je Konto.
+        wiki_geschuetzt = auth.geschuetzte_ordner(con)
+        wiki_alle_ordner = [o["pfad"] for o in wiki.ordnerliste()]
         mailkonfig = mail.konfig_lesen(con)
         # Das Passwort verlaesst die Anwendung nicht im Klartext - in der
         # Oberflaeche steht nur, ob eines hinterlegt ist.
@@ -360,6 +366,9 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "kfz_bezeichnung": kfz.bezeichnung,
             "benutzerliste": benutzerliste, "ist_admin": ist_admin,
             "BEREICHE": auth.BEREICHE, "EINST_BEREICHE": auth.EINST_BEREICHE,
+            "wiki_geschuetzt": wiki_geschuetzt,
+            "wiki_alle_ordner": wiki_alle_ordner,
+            "wiki_ordner_lesen": auth.ordnerliste_lesen,
             "NUR_AUSDRUECKLICH": auth.NUR_AUSDRUECKLICH,
             "eigene_id": request.state.benutzer["id"],
             "mailkonfig": mailkonfig, "passwort_gesetzt": passwort_gesetzt,
@@ -791,6 +800,28 @@ def aktive_admins(con, ausser_id: int | None = None) -> int:
         (ausser_id,)).fetchone()["c"]
 
 
+@router.post("/einstellungen/wiki-geschuetzt")
+def wiki_geschuetzt_speichern(ordner: list[str] = Form([])):
+    """Welche Wiki-Ordner sind geschuetzt?
+
+    ⚠️ Steht bewusst in der Benutzerverwaltung und nicht bei den
+    Einstellungen zum Wiki: es ist eine Frage von Rechten, keine von
+    Darstellung, und die Seite ist ohnehin schon Administratoren
+    vorbehalten (auth.ADMIN_NUR_PFADE).
+
+    ⚠️ Wird ein Ordner aus der Liste genommen, bleiben die Freigaben der
+    einzelnen Konten stehen. Das ist Absicht: wer ihn versehentlich
+    herausnimmt und wieder hineinsetzt, findet seine Zuteilung
+    unveraendert vor. Gespeichert wird ohnehin nur, was in der Liste
+    steht (auth.wiki_ordner_speichern).
+    """
+    with db.db() as con:
+        mail.konfig_schreiben(con, {
+            "wiki_geschuetzt": ",".join(auth.ordnerliste_lesen(",".join(ordner))),
+        })
+    return benutzer_zurueck(hinweis="Geschützte Wiki-Ordner gespeichert.")
+
+
 @router.post("/einstellungen/benutzer")
 def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
                      rolle: str = Form("benutzer"), email: str = Form(""),
@@ -800,7 +831,8 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
                      wiki_schreiben: str = Form(""),
                      bewilligungen_sehen: str = Form(""),
                      bereiche: list[str] = Form([]),
-                     einst_bereiche: list[str] = Form([])):
+                     einst_bereiche: list[str] = Form([]),
+                     wiki_ordner: list[str] = Form([])):
     benutzername = benutzername.strip()
     email = email.strip()
     mitarbeiter = mitarbeiter.strip()
@@ -821,14 +853,16 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
             "INSERT INTO benutzer (benutzername, passwort_hash, rolle, "
             "berechtigungen, email, mitarbeiter, fremde_loeschen, "
             "fremde_bearbeiten, wiki_schreiben, bewilligungen_sehen, "
-            "einst_bereiche, gesehen_version, angelegt_am) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "einst_bereiche, wiki_ordner, gesehen_version, angelegt_am) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (benutzername, db.passwort_hashen(passwort), rolle,
              auth.berechtigungen_speichern(bereiche), email or None,
              mitarbeiter or None, 1 if fremde_loeschen else 0,
              1 if fremde_bearbeiten else 0,
              1 if wiki_schreiben else 0, 1 if bewilligungen_sehen else 0,
              auth.einst_bereiche_speichern(einst_bereiche),
+             auth.wiki_ordner_speichern(wiki_ordner,
+                                        auth.geschuetzte_ordner(con)),
              _u["VERSION"], _u["jetzt"]()))
     return benutzer_zurueck(hinweis=f"„{benutzername}“ angelegt.")
 
@@ -843,7 +877,8 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                        wiki_schreiben: str = Form(""),
                        bewilligungen_sehen: str = Form(""),
                        bereiche: list[str] = Form([]),
-                       einst_bereiche: list[str] = Form([])):
+                       einst_bereiche: list[str] = Form([]),
+                       wiki_ordner: list[str] = Form([])):
     benutzername = benutzername.strip()
     email = email.strip()
     mitarbeiter = mitarbeiter.strip()
@@ -876,7 +911,9 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                   "wiki_schreiben": 1 if wiki_schreiben else 0,
                   "bewilligungen_sehen": 1 if bewilligungen_sehen else 0,
                   "berechtigungen": auth.berechtigungen_speichern(bereiche),
-                  "einst_bereiche": auth.einst_bereiche_speichern(einst_bereiche)}
+                  "einst_bereiche": auth.einst_bereiche_speichern(einst_bereiche),
+                  "wiki_ordner": auth.wiki_ordner_speichern(
+                      wiki_ordner, auth.geschuetzte_ordner(con))}
         if neues_passwort:
             felder["passwort_hash"] = db.passwort_hashen(neues_passwort)
         satzstueck = ", ".join(f"{k}=?" for k in felder)

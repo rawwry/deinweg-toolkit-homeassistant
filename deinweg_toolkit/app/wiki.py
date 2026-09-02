@@ -180,7 +180,38 @@ def titel_der_datei(voll: str, name: str) -> str:
     return titel
 
 
-def _eintraege(rel: str) -> tuple[list, list]:
+# --- Geschuetzte Ordner ------------------------------------------------------
+#
+# Ein als geschuetzt gekennzeichneter Ordner (auth.geschuetzte_ordner)
+# ist fuer Konten ohne Freigabe schlicht nicht da: nicht im Baum, nicht
+# in der Ordneransicht, nicht in der Suche, nicht in den Auswahlfeldern.
+#
+# ⚠️ Die Filterung sitzt in _eintraege(), weil dort ALLES durchlaeuft,
+# was jemals Ordner oder Seiten auflistet - Baum, Ordneransicht,
+# Ordnerauswahl und Suche. Eine neue Ansicht, die _eintraege benutzt, ist
+# damit automatisch mit abgedeckt. Der direkte Aufruf ueber die Adresse
+# haengt daneben an der Middleware (auth._wiki_ordner_pruefen): das
+# Ausblenden allein waere keine Sperre, sondern nur eine Tarnung.
+
+
+def sperrfilter(benutzer):
+    """Eine Funktion "darf ich diesen Pfad sehen?" - oder None.
+
+    None heisst: es ist ueberhaupt nichts geschuetzt, dann muss auch
+    nichts geprueft werden. Das ist der Normalfall.
+    """
+    geschuetzt = auth.geschuetzte_ordner()
+    if not geschuetzt:
+        return None
+    return lambda rel: auth.darf_wiki_ordner(benutzer, rel, geschuetzt)
+
+
+def _filter_aus(request):
+    """Der Filter zum angemeldeten Konto der laufenden Anfrage."""
+    return sperrfilter(getattr(request.state, "benutzer", None))
+
+
+def _eintraege(rel: str, sichtbar=None) -> tuple[list, list]:
     """Sichtbare Unterordner und .md-Dateien eines Ordners."""
     voll = voller_pfad(rel)
     ordner, dateien = [], []
@@ -193,6 +224,8 @@ def _eintraege(rel: str) -> tuple[list, list]:
             continue
         pfad = os.path.join(voll, name)
         unter = f"{rel}/{name}" if rel else name
+        if sichtbar is not None and not sichtbar(unter):
+            continue
         if os.path.isdir(pfad):
             ordner.append((name, unter, pfad))
         elif name.lower().endswith(".md"):
@@ -200,11 +233,11 @@ def _eintraege(rel: str) -> tuple[list, list]:
     return ordner, dateien
 
 
-def baum(rel: str = "", tiefe: int = 0) -> list[dict]:
+def baum(rel: str = "", tiefe: int = 0, sichtbar=None) -> list[dict]:
     """Der Navigationsbaum, so wie er links steht."""
     if tiefe > 8:            # Notbremse gegen verschachtelte Symlinks
         return []
-    ordner, dateien = _eintraege(rel)
+    ordner, dateien = _eintraege(rel, sichtbar)
     if tiefe == 0:
         # Die Startseite steht schon als eigener Punkt ueber dem Baum.
         start = _startseite_im("")
@@ -214,7 +247,7 @@ def baum(rel: str = "", tiefe: int = 0) -> list[dict]:
         knoten.append({
             "art": "ordner", "name": name, "pfad": unter,
             "adresse": _adresse(unter), "titel": _name_titel(name),
-            "kinder": baum(unter, tiefe + 1),
+            "kinder": baum(unter, tiefe + 1, sichtbar),
         })
     for name, unter, pfad in dateien:
         knoten.append({
@@ -225,13 +258,13 @@ def baum(rel: str = "", tiefe: int = 0) -> list[dict]:
     return knoten
 
 
-def ordnerliste(rel: str = "", tiefe: int = 0) -> list[dict]:
+def ordnerliste(rel: str = "", tiefe: int = 0, sichtbar=None) -> list[dict]:
     """Flache Liste aller Ordner fuer die Auswahlfelder."""
     liste = []
-    for name, unter, _pfad in _eintraege(rel)[0]:
+    for name, unter, _pfad in _eintraege(rel, sichtbar)[0]:
         liste.append({"pfad": unter, "anzeige": " " * tiefe + name})
         if tiefe < 8:
-            liste += ordnerliste(unter, tiefe + 1)
+            liste += ordnerliste(unter, tiefe + 1, sichtbar)
     return liste
 
 
@@ -338,10 +371,15 @@ def _zurueck(ziel: str, hinweis: str = "", fehler: str = ""):
 
 def _rahmen(request: Request, zusatz: dict, hinweis: str = "", fehler: str = "",
             code: int = 200):
+    # ⚠️ Baum und Ordnerauswahl laufen durch den Sperrfilter des
+    # angemeldeten Kontos. Ohne das stuende ein geschuetzter Ordner zwar
+    # nicht in der Ordneransicht, aber weiterhin links im Baum und in
+    # jedem Auswahlfeld zum Verschieben.
+    sichtbar = _filter_aus(request)
     inhalt = {
         "seite": "wiki",
-        "baum": baum(),
-        "ordner_auswahl": ordnerliste(),
+        "baum": baum(sichtbar=sichtbar),
+        "ordner_auswahl": ordnerliste(sichtbar=sichtbar),
         "hinweis": hinweis,
         "fehler": fehler,
         "aktuell": "",
@@ -374,7 +412,10 @@ def wiki_suche(request: Request, q: str = ""):
     treffer = []
     if len(wort) >= 2:
         muster = re.compile(re.escape(wort), re.I)
-        for rel, voll in _alle_seiten():
+        # ⚠️ Auch die Suche laeuft durch den Filter - sonst stuende der
+        # Inhalt eines gesperrten Ordners in der Trefferliste, samt
+        # Textausschnitt. Genau das soll der Schutz verhindern.
+        for rel, voll in _alle_seiten(sichtbar=_filter_aus(request)):
             try:
                 with open(voll, encoding="utf-8", errors="replace") as f:
                     text = f.read()
@@ -411,13 +452,13 @@ def _lesbar(ausschnitt: str) -> str:
     return " ".join(text.split())
 
 
-def _alle_seiten(rel: str = "", tiefe: int = 0) -> list[tuple[str, str]]:
+def _alle_seiten(rel: str = "", tiefe: int = 0, sichtbar=None) -> list[tuple[str, str]]:
     if tiefe > 8:
         return []
-    ordner, dateien = _eintraege(rel)
+    ordner, dateien = _eintraege(rel, sichtbar)
     seiten = [(unter, pfad) for _n, unter, pfad in dateien]
     for _n, unter, _p in ordner:
-        seiten += _alle_seiten(unter, tiefe + 1)
+        seiten += _alle_seiten(unter, tiefe + 1, sichtbar)
     return seiten
 
 
@@ -514,7 +555,7 @@ def _seite(request: Request, rel: str, bearbeiten: bool = False,
 
 
 def _ordner(request: Request, rel: str, hinweis: str = "", fehler: str = ""):
-    unterordner, dateien = _eintraege(rel)
+    unterordner, dateien = _eintraege(rel, _filter_aus(request))
     start = _startseite_im(rel)
     einleitung = ""
     if start:
@@ -547,12 +588,32 @@ def _ordner(request: Request, rel: str, hinweis: str = "", fehler: str = ""):
 
 # --- Bearbeiten --------------------------------------------------------------
 
+# ⚠️ Die Middleware prueft nur, was in der ADRESSE steht. Ein Formular
+# schickt seine Pfade im Koerper, und den darf sie nicht lesen: in einer
+# BaseHTTPMiddleware wuerde das den Datenstrom leeren und die Route
+# dahinter bekaeme ein leeres Formular. Deshalb prueft jede schreibende
+# Wiki-Route ihre eigenen Pfadfelder hier noch einmal - Quelle UND Ziel,
+# sonst liesse sich eine Seite in einen gesperrten Ordner schieben oder
+# aus ihm heraus.
+def _gesperrt(request: Request, *pfade) -> bool:
+    """Beruehrt einer dieser Pfade einen gesperrten Ordner?"""
+    sichtbar = _filter_aus(request)
+    if sichtbar is None:
+        return False
+    return any(p and not sichtbar(p.strip("/")) for p in pfade)
+
+
+def _abgewiesen():
+    return _zurueck("/wiki", fehler=auth.GESPERRT_TEXT)
+
 @router.post("/wiki/aktion/speichern")
-def wiki_speichern(pfad: str = Form(""), ordner: str = Form(""),
+def wiki_speichern(request: Request, pfad: str = Form(""), ordner: str = Form(""),
                    name: str = Form(""), inhalt: str = Form(""),
                    pruefsumme: str = Form("")):
     """Speichert den Text. Ordner und Dateiname duerfen dabei mit
     geaendert werden - das ist zugleich Umbenennen und Verschieben."""
+    if _gesperrt(request, pfad, ordner):
+        return _abgewiesen()
     rel = sicherer_pfad(pfad)
     if not rel or not os.path.isfile(voller_pfad(rel)):
         return _zurueck("/wiki", fehler="Diese Seite gibt es nicht (mehr).")
@@ -617,8 +678,10 @@ def _schreiben(voll: str, text: str) -> None:
 
 
 @router.post("/wiki/aktion/neu")
-def wiki_neu(ordner: str = Form(""), name: str = Form(""),
+def wiki_neu(request: Request, ordner: str = Form(""), name: str = Form(""),
              art: str = Form("seite")):
+    if _gesperrt(request, ordner):
+        return _abgewiesen()
     ziel_ordner = sicherer_pfad(ordner)
     if ziel_ordner is None or (ziel_ordner and not os.path.isdir(voller_pfad(ziel_ordner))):
         return _zurueck("/wiki", fehler="Diesen Ordner gibt es nicht.")
@@ -645,7 +708,9 @@ def wiki_neu(ordner: str = Form(""), name: str = Form(""),
 
 
 @router.post("/wiki/aktion/loeschen")
-def wiki_loeschen(pfad: str = Form("")):
+def wiki_loeschen(request: Request, pfad: str = Form("")):
+    if _gesperrt(request, pfad):
+        return _abgewiesen()
     rel = sicherer_pfad(pfad)
     if not rel:
         return _zurueck("/wiki", fehler="Kein gültiger Pfad.")
@@ -674,9 +739,11 @@ def wiki_loeschen(pfad: str = Form("")):
 
 
 @router.post("/wiki/aktion/verschieben")
-def wiki_verschieben(pfad: str = Form(""), ziel: str = Form("")):
+def wiki_verschieben(request: Request, pfad: str = Form(""), ziel: str = Form("")):
     """Wird vom Ziehen im Navigationsbaum aufgerufen (und vom Auswahlfeld
     im Bearbeitungsmodus, das ueber /wiki/aktion/speichern laeuft)."""
+    if _gesperrt(request, pfad, ziel):
+        return _abgewiesen()
     rel = sicherer_pfad(pfad)
     ziel_ordner = sicherer_pfad(ziel)
     if not rel or ziel_ordner is None:

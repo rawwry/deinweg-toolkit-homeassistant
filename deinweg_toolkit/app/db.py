@@ -159,6 +159,12 @@ CREATE TABLE IF NOT EXISTS benutzer (
     -- Kommaliste der erlaubten Punkte INNERHALB der Einstellungen, nach
     -- derselben Regel wie berechtigungen: leer/NULL bedeutet "alle".
     einst_bereiche TEXT,
+    -- Kommaliste der geschuetzten Wiki-Ordner, die dieses Konto sehen
+    -- darf. ⚠️ Hier gilt die UMGEKEHRTE Regel: leer/NULL heisst "keinen".
+    -- Ein geschuetzter Ordner ist einer, der ausdruecklich freigegeben
+    -- werden muss - waere leer "alle", bekaeme ihn jedes bestehende
+    -- Konto beim Update stillschweigend zu sehen.
+    wiki_ordner TEXT,
     -- Zuletzt zur Kenntnis genommene Version. Leer heisst: der Hinweis
     -- auf die Neuerungen steht beim naechsten Aufruf da.
     gesehen_version TEXT,
@@ -525,6 +531,12 @@ def init() -> dict | None:
         # wegnehmen, und ein spaeter hinzukommender Punkt bleibt fuer sie
         # erreichbar.
         spalte_ergaenzen(con, "benutzer", "einst_bereiche", "TEXT")
+        # Welche geschuetzten Wiki-Ordner darf dieser Benutzer sehen?
+        # ⚠️ Leer heisst hier "keinen" und NICHT "alle" - genau anders
+        # herum als bei berechtigungen und einst_bereiche. Ein Ordner
+        # wird geschuetzt, weil sein Inhalt nicht jeden angeht; waere
+        # leer "alle", saehe ihn nach dem Update sofort das ganze Team.
+        spalte_ergaenzen(con, "benutzer", "wiki_ordner", "TEXT")
         # Welche Version hat dieses Konto zuletzt zur Kenntnis genommen?
         # Leer heisst: noch keine - dann steht beim naechsten Aufruf der
         # Hinweis auf die Neuerungen da.

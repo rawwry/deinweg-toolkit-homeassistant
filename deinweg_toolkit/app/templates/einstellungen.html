@@ -938,6 +938,40 @@
   <p class="lead">{{ t("einst.benutzer_lead") }}</p>
 </section>
 
+{# Geschützte Wiki-Ordner. Steht hier und nicht bei den Wiki-
+   Einstellungen: es ist eine Frage von Rechten, keine von Darstellung –
+   und diese Seite ist ohnehin Administratoren vorbehalten. #}
+<section class="karte gefahrenkarte">
+  <div class="kopfzeile">
+    <h2>Geschützte Wiki-Ordner</h2>
+    {% if wiki_geschuetzt %}
+    <p class="summe">{{ wiki_geschuetzt | length }}
+      {{ "Ordner" if wiki_geschuetzt | length == 1 else "Ordner" }}</p>
+    {% endif %}
+  </div>
+  <p class="lead">{{ t("einst.wiki_geschuetzt_lead") }}</p>
+
+  {% if wiki_alle_ordner %}
+  <form action="/einstellungen/wiki-geschuetzt" method="post">
+    <div class="bereichsraster">
+      {% for o in wiki_alle_ordner %}
+      <label class="bereich-kachel {{ 'heikel' if o in wiki_geschuetzt }}">
+        <input type="checkbox" name="ordner" value="{{ o }}"
+               {{ 'checked' if o in wiki_geschuetzt }}>
+        {{ o }}
+      </label>
+      {% endfor %}
+    </div>
+    <p class="klein leise felderklaerung">{{ t("einst.wiki_geschuetzt_hinweis") }}</p>
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Geschützte Ordner speichern</button>
+    </div>
+  </form>
+  {% else %}
+  <p class="leer">Im Wiki gibt es noch keine Ordner.</p>
+  {% endif %}
+</section>
+
 <section class="karte">
   <div class="kopfzeile">
     <h2>Konten{% if benutzerliste %} · {{ benutzerliste | length }}{% endif %}</h2>
@@ -1114,6 +1148,27 @@
           </label>
         </div>
       </fieldset>
+
+      {# Geschützte Wiki-Ordner. Der Block erscheint nur, wenn überhaupt
+         einer gepflegt ist – sonst stünde dort ein leeres Feld für eine
+         Funktion, die niemand benutzt. Für Administratoren erscheint er
+         ebenfalls nicht: sie sehen ohnehin alles. #}
+      {% if wiki_geschuetzt and b.rolle != 'admin' %}
+      {% set frei = wiki_ordner_lesen(b.wiki_ordner) %}
+      <fieldset class="feld bereichsfeld">
+        <span>Geschützte Wiki-Ordner
+          <span class="leise">– ohne Haken nicht sichtbar</span></span>
+        <div class="bereichsraster">
+          {% for o in wiki_geschuetzt %}
+          <label class="bereich-kachel heikel">
+            <input type="checkbox" name="wiki_ordner" value="{{ o }}" form="bn-{{ b.id }}"
+                   {{ 'checked' if o in frei }}>
+            {{ o }}
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% endif %}
     </div>
 
     <div class="knopfreihe konto-fuss">
@@ -1222,6 +1277,21 @@
           Bewilligungen in „Mein Bereich“
         </label>
       </div>
+      {# ⚠️ Geschützte Wiki-Ordner sind hier NIE vorbelegt – anders als
+         „Wiki bearbeiten“ oder die Bereiche darüber. Ein neues Konto
+         bekommt sie ausdrücklich zugeteilt oder gar nicht. Dieselbe
+         Überlegung wie bei der Datenpflege (NUR_AUSDRUECKLICH), deshalb
+         auch dieselbe rote Kachel. #}
+      {% if wiki_geschuetzt %}
+      <div class="bereichsraster" style="margin-top: 10px;">
+        {% for o in wiki_geschuetzt %}
+        <label class="bereich-kachel heikel">
+          <input type="checkbox" name="wiki_ordner" value="{{ o }}">
+          Wiki: {{ o }}
+        </label>
+        {% endfor %}
+      </div>
+      {% endif %}
     </fieldset>
     <div class="knopfreihe">
       <button class="knopf haupt" type="submit">Konto anlegen</button>

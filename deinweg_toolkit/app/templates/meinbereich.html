@@ -101,7 +101,12 @@
 {% if spruch.text %}
 <figure class="spruch">
   <blockquote>{{ spruch.text }}</blockquote>
-  {% if spruch.quelle %}<figcaption>{{ spruch.quelle }}</figcaption>{% endif %}
+  {# ⚠️ Die Quellenzeile steht IMMER da, auch wenn der Spruch keine hat -
+     dann leer. Sonst ist der Zitatblock je nach gezogenem Spruch 32px
+     oder 61px hoch, und weil der Spruch bei jedem Seitenaufruf neu
+     gezogen wird, rutschte die ganze Seite darunter bei jedem
+     Aktualisieren um diese 29px hoch oder runter. #}
+  <figcaption>{{ spruch.quelle or "" }}</figcaption>
 </figure>
 {% endif %}
 
@@ -699,9 +704,11 @@
       {% for z in eigene_zeiten %}
       <tr>
         <td class="zahlen nowrap">{{ z.datum | deutsch }}</td>
-        <td class="zahlen nowrap leise">
-          {% if z.start and z.ende %}{{ z.start }}–{{ z.ende }}{% else %}<span class="leise">–</span>{% endif %}
-        </td>
+        {# Dieselbe Darstellung wie in der Übersicht (eintraege.html):
+           die Endzeit steht gedämpft neben der Startzeit statt hinter
+           einem Bindestrich. Beide Listen zeigen dasselbe, also sollen
+           sie auch gleich aussehen. #}
+        <td class="zahlen leise"><span class="zeitspanne">{{ z.start or "—" }}{% if z.ende %} <span class="bis">{{ z.ende }}</span>{% endif %}</span></td>
         <td>{{ z.klient }}</td>
         <td class="leise klein">{{ z.beschreibung }}</td>
         <td class="zahlen nowrap stark">

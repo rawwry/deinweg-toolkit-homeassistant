@@ -217,8 +217,8 @@
       {% for r in je_art %}
         <tr>
           <td><span class="punkt kfz-p-{{ r.art }}"></span> {{ r.wort }}</td>
-          <td class="num zahlen leise">{{ r.anteil | round | int }} %</td>
-          <td class="num zahlen stark betrag">{{ r.betrag | euro }}</td>
+          <td class="zahlen leise">{{ r.anteil | round | int }} %</td>
+          <td class="zahlen stark betrag">{{ r.betrag | euro }}</td>
         </tr>
       {% endfor %}
       </tbody>
@@ -226,7 +226,7 @@
         <tr>
           <td class="stark">Summe</td>
           <td></td>
-          <td class="num zahlen stark betrag gross">{{ kennzahlen.zeitraum_kosten | euro }}</td>
+          <td class="zahlen stark betrag gross">{{ kennzahlen.zeitraum_kosten | euro }}</td>
         </tr>
       </tfoot>
     </table>
@@ -297,11 +297,11 @@
       <thead>
         <tr>
           <th>Fahrzeug</th>
-          <th class="num">Km-Stand</th>
-          <th class="num">gefahren</th>
-          <th class="num">Verbrauch</th>
-          <th class="num">Kosten</th>
-          <th class="num">je km</th>
+          <th>Km-Stand</th>
+          <th>gefahren</th>
+          <th>Verbrauch</th>
+          <th>Kosten</th>
+          <th>je km</th>
           <th class="balkenzelle">Anteil</th>
         </tr>
       </thead>
@@ -313,16 +313,16 @@
             <a class="stark" href="/fuhrpark?fahrzeug={{ r.id }}">{{ r.name }}</a>
             {% if r.kennzeichen %}<br><span class="klein leise">{{ r.kennzeichen }}</span>{% endif %}
           </td>
-          <td class="num zahlen">{{ r.stand | km }}</td>
-          <td class="num zahlen">{{ r.strecke | km if r.strecke else "—" }}</td>
-          <td class="num zahlen">
+          <td class="zahlen">{{ r.stand | km }}</td>
+          <td class="zahlen">{{ r.strecke | km if r.strecke else "—" }}</td>
+          <td class="zahlen">
             {%- if r.verbrauch %}{{ komma(r.verbrauch) }} {{ r.einheit }}
               <span class="klein leise kuerzel">{{ r.messungen }}
                 {{ 'Messung' if r.messungen == 1 else 'Messungen' }}</span>
             {%- else %}<span class="leise">—</span>{% endif %}
           </td>
-          <td class="num zahlen stark betrag">{{ r.kosten | euro }}</td>
-          <td class="num zahlen">
+          <td class="zahlen stark betrag">{{ r.kosten | euro }}</td>
+          <td class="zahlen">
             {%- if r.je_km %}{{ "%.2f" | format(r.je_km) | replace(".", ",") }} €
             {%- else %}<span class="leise">—</span>{% endif %}
           </td>

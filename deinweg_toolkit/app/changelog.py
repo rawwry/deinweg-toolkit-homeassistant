@@ -1537,4 +1537,29 @@ CHANGELOG = [
         "Mein Bereich: neue Ansage, wenn keine Aufgabe offen ist",
         "Prüfung von 1002 auf 1043 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.17.2", "titel": "Geschützte Wiki-Ordner", "punkte": [
+        "Wiki: ein Ordner lässt sich als geschützt kennzeichnen. Er "
+        "verschwindet dann für alle, die ihn nicht ausdrücklich zugeteilt "
+        "bekommen – aus dem Baum, aus der Ordneransicht, aus der "
+        "Volltextsuche und aus den Auswahlfeldern; über die Adresse ist "
+        "er ebenfalls nicht erreichbar. Gepflegt wird das in der "
+        "Benutzerverwaltung",
+        "⚠️ Ohne Haken sieht den Ordner niemand – hier heißt „nichts "
+        "angehakt“ ausdrücklich „nichts“, anders als bei den Bereichen. "
+        "Administratoren sehen ihn immer",
+        "Fußzeile: Logo und Angaben stehen jetzt bündig zum Inhalt "
+        "darüber statt 26px weiter außen; am deutlichsten war das im "
+        "Modus „begrenzt“ zu sehen",
+        "Fußzeile: das Logo ist eine Spur kleiner (62px auf 54px)",
+        "Zeiterfassung: die Seite springt beim Aktualisieren nicht mehr. "
+        "Ursache war der Spruch – einer ohne Quellenzeile ist 29px "
+        "flacher, und gezogen wird bei jedem Aufruf ein anderer. Die "
+        "Quellenzeile steht jetzt immer da, notfalls leer",
+        "Fuhrpark: in allen Tabellen steht alles linksbündig, wie in "
+        "jeder anderen Liste des Programms auch",
+        "Mein Bereich: „Meine Zeiten“ zeigt die Zeitspanne wie die "
+        "Übersicht – die Endzeit gedämpft daneben statt hinter einem "
+        "Bindestrich",
+        "Prüfung von 1043 auf 1079 Einzelprüfungen erweitert",
+    ]},
 ]

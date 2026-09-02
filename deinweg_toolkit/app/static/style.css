@@ -630,10 +630,18 @@ code { padding: 1px 5px; font-size: .92em; }
    ⚠️ Die Breite muss dieselbe sein wie die von main (Zeile 178), sonst
    springt die Trennlinie gegenueber dem Inhalt darueber ein. */
 footer { flex: 0 0 auto; color: var(--leise); font-size: 12.5px;
-         padding: 30px 26px 0; }
+         padding: 30px 0 0; }
+/* ⚠️ Das Band traegt seinen seitlichen Abstand SELBST (26px, derselbe
+   Wert wie bei main) statt ihn von footer zu bekommen. Sonst stimmt zwar
+   die Trennlinie mit dem Rand von main ueberein, aber Logo und Angaben
+   darin stehen 26px weiter aussen als die Karten darueber - genau das
+   war bis 1.17.1 zu sehen, am deutlichsten im Modus „begrenzt".
+   Mit box-sizing: border-box (Zeile 95) deckt sich die Aussenkante des
+   Bandes weiterhin mit der von main, der Inhalt aber jetzt auch mit
+   dessen Inhalt. */
 .fussband {
   max-width: 1800px; margin: 0 auto;
-  border-top: 1px solid var(--linie); padding: 20px 0 24px;
+  border-top: 1px solid var(--linie); padding: 20px 26px 24px;
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 14px 36px; flex-wrap: wrap;
 }
@@ -643,7 +651,7 @@ footer { flex: 0 0 auto; color: var(--leise); font-size: 12.5px;
    gedeckelt, weil der Schriftzug sehr breit läuft (viewBox 2093×537) -
    ohne max-width drückte er auf schmalen Fenstern die Angaben rechts
    aus dem Band. */
-.fussmarke img { height: 62px; width: auto; max-width: 100%;
+.fussmarke img { height: 54px; width: auto; max-width: 100%;
                  opacity: .5; display: block; transition: opacity .3s ease; }
 .fussmarke:hover img { opacity: .85; }
 .fussangaben { text-align: right; }
@@ -671,7 +679,7 @@ footer a:hover { border-bottom-color: var(--akzent); }
      klebte das Logo auf dem Telefon links, obwohl alles andere mittig
      stand. */
   .fussmarke { width: 100%; }
-  .fussmarke img { margin-left: auto; margin-right: auto; height: 54px; }
+  .fussmarke img { margin-left: auto; margin-right: auto; height: 48px; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1025,6 +1033,15 @@ main > .unternavigation:has(+ .spruch) { margin-bottom: 0; }
   font-size: 13px; letter-spacing: .04em; opacity: .72;
 }
 .spruch figcaption::before { content: "— "; }
+/* ⚠️ Ein Spruch ohne Quelle bekommt trotzdem seine Zeile, nur eine
+   leere: sonst ist der Block 32px statt 61px hoch, und da bei jedem
+   Seitenaufruf ein anderer Spruch gezogen wird, sprang die ganze Seite
+   darunter beim Aktualisieren um diese 29px. Das geschuetzte Leerzeichen
+   haelt die Zeile offen, der Gedankenstrich entfaellt.
+   (Ein Spruch, der ueber mehrere Zeilen laeuft, verschiebt weiterhin -
+   dagegen hilft nur ein fester Block, und der kostete oben auf jeder
+   Seite sichtbar Luft.) */
+.spruch figcaption:empty::before { content: "\00a0"; }
 
 @media (max-width: 620px) {
   .spruch blockquote { font-size: 18px; }
@@ -1486,7 +1503,9 @@ textarea:focus { border-color: var(--akzent); }
   }
 
   main { padding: var(--abstand) 16px 40px; }
-  footer { padding-left: 16px; padding-right: 16px; }
+  /* Wie oben: der Rand sitzt am Band, nicht an footer - sonst stehen
+     Logo und Angaben wieder weiter aussen als der Inhalt darueber. */
+  .fussband { padding-left: 16px; padding-right: 16px; }
   .menue-offen { overflow: hidden; }
 }
 
@@ -4095,7 +4114,12 @@ fieldset.feld > span {
 /* Wie die Statusmarken der Vorgangsliste: die Pille trägt white-space:
    nowrap und liefe bei fester Spaltenaufteilung aus ihrer Zelle heraus. */
 .tabellenrolle .liste .kfz-marke { white-space: normal; }
-.kfz-historie th:last-child { width: 74px; text-align: right; padding-right: 6px; }
+/* ⚠️ Kein text-align: right mehr. Im Fuhrpark steht seit 1.17.2 alles
+   linksbündig - wie in jeder anderen Liste des Programms auch
+   (dieselbe Begründung wie in der Auswertung: rechtsbündige
+   Zahlenspalten sahen daneben wie ein Fremdkörper aus). Die Breite
+   bleibt: dort stehen Icon-Knöpfe. */
+.kfz-historie th:last-child { width: 74px; padding-right: 6px; }
 .tabellenrolle .liste.kfz-historie td:last-child {
   white-space: nowrap; padding-left: 6px; padding-right: 6px;
 }
