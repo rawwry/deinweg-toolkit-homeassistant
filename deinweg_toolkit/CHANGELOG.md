@@ -3,6 +3,11 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.18.2
+
+- Einstellungen → Sprüche: der Bearbeiten-Stift springt zur Zeile statt
+  an den Seitenanfang
+
 ## 1.18.1
 
 - Betreute Personen: Zeilen nach Status eingefärbt (grün/rot/orange/blau/grau)

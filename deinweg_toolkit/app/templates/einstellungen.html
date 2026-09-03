@@ -103,7 +103,8 @@
   {% if sprueche %}
   <ul class="ideenreihen spruchreihen">
     {% for s in sprueche %}
-    <li class="ideenreihe {{ 'wirdbearbeitet' if spruch_bearbeiten == s.nr }}">
+    <li class="ideenreihe {{ 'wirdbearbeitet' if spruch_bearbeiten == s.nr }}"
+        id="spruch-{{ s.nr }}">
       {% if spruch_bearbeiten == s.nr %}
         <form action="/einstellungen/spruch/{{ s.nr }}/bearbeiten" method="post"
               class="ideenformular">
@@ -117,7 +118,7 @@
           </label>
           <div class="knopfreihe">
             <button class="knopf haupt" type="submit">Änderung speichern</button>
-            <a class="knopf leise" href="/einstellungen?bereich=quotes">Abbrechen</a>
+            <a class="knopf leise" href="/einstellungen?bereich=quotes#spruch-{{ s.nr }}">Abbrechen</a>
           </div>
         </form>
       {% else %}
@@ -130,7 +131,7 @@
         </div>
         <div class="ideenaktionen">
           <a class="knopf-icon"
-             href="/einstellungen?bereich=quotes&spruch_bearbeiten={{ s.nr }}"
+             href="/einstellungen?bereich=quotes&spruch_bearbeiten={{ s.nr }}#spruch-{{ s.nr }}"
              title="Bearbeiten" aria-label="Bearbeiten">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"

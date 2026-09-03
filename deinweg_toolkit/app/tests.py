@@ -684,6 +684,13 @@ def test_sprueche(client: TestClient) -> None:
     pruefe("Quotemanager" in seite, "der Quotemanager ist ein eigener Bereich")
     pruefe("Testspruch eins" in seite, "der Spruch erscheint in der Liste")
     pruefe("Prüfer" in seite, "die Quelle erscheint darunter")
+    # ⚠️ Der Stift springt zur Zeile, nicht an den Seitenanfang: die Zeile
+    # trägt eine Sprungmarke, der Bearbeiten-Link zeigt darauf.
+    nr_erster = len(liste) - 1
+    pruefe(f'id="spruch-{nr_erster}"' in seite,
+           "jede Spruchzeile trägt eine Sprungmarke")
+    pruefe(f"spruch_bearbeiten={nr_erster}#spruch-{nr_erster}" in seite,
+           "und der Bearbeiten-Stift springt genau dorthin")
     pruefe("Testspruch eins" not in
            client.get("/einstellungen?bereich=oberflaeche").text,
            "unter Oberfläche stehen die Sprüche nicht mehr")

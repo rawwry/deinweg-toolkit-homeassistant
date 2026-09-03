@@ -1598,4 +1598,9 @@ CHANGELOG = [
         "entfernt",
         "Prüfung von 1112 auf 1121 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.18.2", "titel": "Sprung zum Spruch", "punkte": [
+        "Einstellungen → Sprüche: Ein Klick auf den Bearbeiten-Stift "
+        "springt jetzt direkt zur passenden Zeile, statt an den "
+        "Seitenanfang zu springen",
+    ]},
 ]
