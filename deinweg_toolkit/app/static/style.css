@@ -563,6 +563,7 @@ form.inline { display: inline; }
 .marke-status.offen{ background: var(--warn-weich);  color: var(--warn); }
 .marke-status.dopp { background: var(--dopp-weich);  color: var(--dopp); }
 .marke-status.weg  { background: var(--flaeche-2);   color: var(--leise); }
+.marke-status.info { background: var(--info-weich);  color: var(--info); }
 
 .balkenzelle { width: 168px; padding-top: 11px !important; }
 .balkenspur { display: block; height: 7px; border-radius: 4px;
@@ -1671,7 +1672,6 @@ textarea:focus { border-color: var(--akzent); }
 .dateiwerkzeuge .inline { display: flex; align-items: center; gap: 6px; }
 .dateiwerkzeuge .knopf { display: inline-flex; align-items: center; gap: 7px; }
 .dateiwerkzeuge .knopf svg { width: 15px; height: 15px; }
-.dateiziehhinweis { margin-left: auto; }
 
 /* Der ganze Hauptbereich nimmt Dateien vom Rechner an. Die gestrichelte
    Kante erscheint erst, während etwas darüber schwebt - dauerhaft wäre
@@ -2413,6 +2413,26 @@ body.anmeldeseite {
    der Grund, warum eine Auswertung nicht mehr stimmt, und muss deshalb
    in der Liste sofort auffallen - nicht erst beim Aufklappen. */
 .konto.person.ohne-bewilligung { border-left: 3px solid var(--dopp); }
+
+/* Jede Personenzeile bekommt zusätzlich zur Marke einen farbigen Balken
+   links und einen sehr leichten Farbschimmer, passend zu ihrem Stand -
+   so sieht man den Zustand schon beim Überfliegen, ohne jede Zeile zu
+   lesen. Die p-*-Regeln stehen NACH .ohne-bewilligung und gewinnen bei
+   gleicher Spezifität, damit „läuft aus" und „künftig" orange statt rot
+   werden. Der Schimmer ist bewusst dezent: die Marke trägt die Aussage,
+   die Farbe unterstützt sie nur. */
+.konto.person.p-laufend      { border-left: 3px solid var(--gut);  background: var(--gut-weich); }
+.konto.person.p-selbstzahler { border-left: 3px solid var(--info); background: var(--info-weich); }
+.konto.person.p-laeuft_aus,
+.konto.person.p-kuenftig     { border-left: 3px solid var(--warn); background: var(--warn-weich); }
+.konto.person.p-abgelaufen,
+.konto.person.p-leer         { border-left: 3px solid var(--dopp); background: var(--dopp-weich); }
+.konto.person.p-grundwert    { border-left: 3px solid var(--linie-stark); }
+/* ⚠️ Der Schimmer darf den Aufklapp-Kopf beim Überfahren nicht
+   verschlucken: .konto-kopf:hover setzt eine eigene Fläche, die soll
+   sichtbar bleiben. Deshalb tönt der Schimmer nur die Zeile, nicht den
+   Kopf - der Kopf ist durchsichtig und zeigt die Tönung dahinter. */
+.konto.person[class*="p-"] .konto-kopf:hover { background: var(--flaeche); }
 .konto.person .konto-daten {
   display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }

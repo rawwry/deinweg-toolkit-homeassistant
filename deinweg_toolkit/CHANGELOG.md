@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.18.1
+
+- Betreute Personen: Zeilen nach Status eingefärbt (grün/rot/orange/blau/grau)
+- „Selbstzahler“ als Marke in der Statusspalte, bündig zu den anderen
+- Auswertung: „Selbstzahler“ statt „Grundwert … ohne Bescheid“
+- E-Mail auch bei Übergabe einer Aufgabe an eine andere Person
+- Dateien: Ziehhinweis entfernt
+
 ## 1.18
 
 - E-Mail bei neu zugewiesener Aufgabe, mit Sammelverzug für mehrere

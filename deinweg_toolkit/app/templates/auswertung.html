@@ -313,7 +313,14 @@
         {% endfor %}
       </ul>
       {% endif %}
-      {% if p.grundwert %}
+      {% if p.selbstzahler %}
+      {# Ein Selbstzahler braucht keinen Bescheid – hier steht deshalb
+         nicht „Grundwert … ohne Bescheid", sondern seine Rolle. #}
+      <p class="klein leise" style="margin: 6px 0 0;">
+        <span class="marke-status info">Selbstzahler</span>
+        Satz je Stunde, kein Bescheid nötig
+      </p>
+      {% elif p.grundwert %}
       <p class="klein leise" style="margin: 6px 0 0;">
         <span class="marke-status weg">Grundwert</span>
         in {{ p.grundwert }} {{ "Monat" if p.grundwert == 1 else "Monaten" }} ohne Bescheid

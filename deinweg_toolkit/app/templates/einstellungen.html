@@ -249,20 +249,21 @@
   {% set gilt_heute = zeitraum_aktuell.get(p.id) %}
   {% set stand = zeitraum_lage.get(p.id, {}) %}
   <details class="konto person {{ '' if p.aktiv else 'stillgelegt' }}
-                  {{ 'ohne-bewilligung' if p.aktiv and stand.art in ('abgelaufen', 'kuenftig', 'leer', 'laeuft_aus') }}"
+                  {{ 'ohne-bewilligung' if p.aktiv and stand.art in ('abgelaufen', 'kuenftig', 'leer', 'laeuft_aus') }}
+                  {{ ('p-' ~ stand.art) if p.aktiv and stand.art }}"
            id="person-{{ p.id }}" {{ 'open' if offen == p.id }}>
     <summary class="konto-kopf">
       <span class="konto-name">
         <span class="stark">{{ p.name }}</span>
         {% if not p.aktiv %}<span class="marke-status weg">stillgelegt</span>{% endif %}
-        {% if p.selbstzahler %}<span class="marke-status gut">Selbstzahler</span>{% endif %}
         {% if not p.abrechenbar %}<span class="marke-status offen">nicht abrechenbar</span>{% endif %}
       </span>
       <span class="konto-daten">
         {# Was gilt heute? Das ist die Frage, mit der man herkommt - und
            eine ausgelaufene Bewilligung muss dabei sofort auffallen. #}
         {% if stand.art == "selbstzahler" %}
-          <span class="leise">Selbstzahler · {{ p.stundensatz | euro }} je Stunde</span>
+          <span class="marke-status info">Selbstzahler</span>
+          <span class="leise">{{ p.stundensatz | euro }} je Stunde</span>
         {% elif stand.art == "laufend" %}
           <span class="marke-status gut">gültig</span>
           {{ gilt_heute.wochenstunden | stunden }} Std/Woche · {{ gilt_heute.stundensatz | euro }}

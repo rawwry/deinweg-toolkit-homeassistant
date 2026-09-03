@@ -1584,4 +1584,18 @@ CHANGELOG = [
         "sodass Datei- und Ordneroptionen erreichbar bleiben",
         "Prüfung von 1079 auf 1112 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.18.1", "titel": "Selbstzahler sichtbar, farbige Personenliste", "punkte": [
+        "Einstellungen → Betreute Personen: jede Zeile wird nach ihrem "
+        "Stand eingefärbt – gültig grün, abgelaufen/ohne Bewilligung rot, "
+        "läuft aus/künftig orange, Selbstzahler blau, nur Grundwert grau",
+        "„Selbstzahler“ steht jetzt als Marke in der Statusspalte, bündig "
+        "zu „gültig“ oder „keine Bewilligung hinterlegt“",
+        "Auswertung: für einen Selbstzahler steht in der Seitenspalte "
+        "„Selbstzahler“ statt „Grundwert … ohne Bescheid“",
+        "E-Mail: Wird eine bestehende Aufgabe an eine andere Person "
+        "übergeben, bekommt auch sie die Zuweisungs-Mail",
+        "Dateien: der Hinweis „oder Dateien einfach hierher ziehen“ ist "
+        "entfernt",
+        "Prüfung von 1112 auf 1121 Einzelprüfungen erweitert",
+    ]},
 ]

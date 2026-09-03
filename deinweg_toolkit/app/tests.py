@@ -3698,9 +3698,16 @@ def test_selbstzahler(client: TestClient) -> None:
         "name": "Selbstzahler Probe", "wochenstunden": "0",
         "stundensatz": "60,00", "abrechenbar": "1", "selbstzahler": "1"})
     seite = client.get("/einstellungen?bereich=betreute").text
-    block = seite[seite.index("Selbstzahler Probe"):]
-    block = block[:block.find("</details>")] if "</details>" in block else block
+    # Die Zeile beginnt am <details> VOR dem Namen, dort steht die
+    # Statusklasse; sie endet am nächsten </details>.
+    anfang = seite.rindex("<details", 0, seite.index("Selbstzahler Probe"))
+    ende = seite.index("</details>", seite.index("Selbstzahler Probe"))
+    block = seite[anfang:ende]
     pruefe("Selbstzahler" in block, "die Person trägt die Marke „Selbstzahler“")
+    pruefe('class="marke-status info"' in block,
+           "die Marke steht als blaue Pille in der Statusspalte, wie „gültig“")
+    pruefe("p-selbstzahler" in block,
+           "und die Zeile trägt die Statusklasse für die blaue Färbung")
     pruefe("ohne-bewilligung" not in block,
            "und keinen roten Balken für eine fehlende Bewilligung")
 
@@ -3717,6 +3724,37 @@ def test_selbstzahler(client: TestClient) -> None:
         offen = bewilligungen_pruefen(con)
     pruefe(not any(b["name"] == "Selbstzahler Probe" for b in offen),
            "und steht in keiner Bewilligungsliste")
+
+    # In der Auswertung steht für einen Selbstzahler „Selbstzahler“ statt
+    # „Grundwert … ohne Bescheid“. Dafür braucht die Person erfasste Zeit.
+    with db.db() as con:
+        con.execute(
+            "INSERT OR IGNORE INTO eintrag (mitarbeiter, datum, monat, start, "
+            "ende, klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2026-05-04','2026-05','09:00',"
+            "'11:00','Selbstzahler Probe','Besuch',120,1,'szp1','2026-05-04 09:00')")
+    ausw = client.get("/auswertung?von_jahr=2026&von_monat=05&"
+                      "bis_jahr=2026&bis_monat=05").text
+    seitenspalte = ausw[ausw.index("Selbstzahler Probe"):] \
+        if "Selbstzahler Probe" in ausw else ""
+    pruefe('<span class="marke-status info">Selbstzahler</span>' in ausw,
+           "die Auswertung nennt den Selbstzahler beim Namen, nicht „Grundwert“")
+
+    # Zeilenfärbung nach Status: eine gültige Person grün, eine leere rot.
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO person (name, wochenstunden, "
+                    "stundensatz, aktiv, angelegt_am) VALUES "
+                    "('Leer Probe', 0, 0, 1, '2026-01-01 08:00')")
+    seite2 = client.get("/einstellungen?bereich=betreute").text
+    def zeile(name):
+        a = seite2.rindex("<details", 0, seite2.index(name))
+        return seite2[a:seite2.index("</details>", seite2.index(name))]
+    pruefe("p-leer" in zeile("Leer Probe"),
+           "eine Person ohne alles trägt die rote Statusklasse")
+    css = client.get("/static/style.css").text
+    pruefe(".konto.person.p-leer" in css and ".konto.person.p-laufend" in css
+           and ".konto.person.p-selbstzahler" in css,
+           "und das Stylesheet färbt die Zeilen je nach Stand")
 
 
 def test_zuweisungsmail(client: TestClient) -> None:
@@ -3809,6 +3847,45 @@ def test_zuweisung_altbestand(client: TestClient) -> None:
         ).fetchone()
     pruefe(frisch is not None and frisch["zuweis_gemeldet"] == 0,
            "ein neu angelegter Vorgang steht auf „noch nicht gemeldet“")
+
+    # ⚠️ Wird eine bereits gemeldete Aufgabe an eine ANDERE Person
+    # übergeben, wird der Vermerk zurückgesetzt - die neue Zuständige
+    # bekommt dann ihrerseits eine Zuweisungs-Mail.
+    with db.db() as con:
+        vid = con.execute(
+            "SELECT id FROM vorgang WHERE titel='Frischer Vorgang'"
+        ).fetchone()["id"]
+        con.execute("UPDATE vorgang SET zuweis_gemeldet=1 WHERE id=?", (vid,))
+    # Übergabe an dieselbe Person: kein Wechsel, Vermerk bleibt.
+    client.post(f"/vorgaenge/{vid}/zustaendig",
+                data={"zustaendig": "pruefer", "notiz": ""})
+    with db.db() as con:
+        gleich = con.execute(
+            "SELECT zuweis_gemeldet FROM vorgang WHERE id=?", (vid,)
+        ).fetchone()["zuweis_gemeldet"]
+    pruefe(gleich == 1, "Übergabe auf denselben Namen löst keine neue Mail aus")
+    # Übergabe an eine andere Person: Wechsel, Vermerk wird zurückgesetzt.
+    client.post(f"/vorgaenge/{vid}/zustaendig",
+                data={"zustaendig": "Neue Zuständige", "notiz": ""})
+    with db.db() as con:
+        neu_wert = con.execute(
+            "SELECT zustaendig, zuweis_gemeldet FROM vorgang WHERE id=?", (vid,)
+        ).fetchone()
+    pruefe(neu_wert["zustaendig"] == "Neue Zuständige"
+           and neu_wert["zuweis_gemeldet"] == 0,
+           "eine Übergabe an eine andere Person meldet die Aufgabe neu")
+
+
+def test_dateien_kein_ziehhinweis(client: TestClient) -> None:
+    """Der Ziehhinweis in der Dateiverwaltung ist entfernt."""
+    abschnitt("Dateien: kein Ziehhinweis")
+    # ⚠️ Der Hinweis-auf-Neuerungen zitiert den Changelog, in dem der
+    # entfernte Satz vorkommt - vor der Prüfung also am Dialog abschneiden.
+    seite = client.get("/dateien").text.split('<div class="neuheiten"')[0]
+    pruefe("einfach hierher ziehen" not in seite,
+           "der Hinweis „oder Dateien einfach hierher ziehen“ ist weg")
+    pruefe("dateiziehhinweis" not in seite,
+           "auch die zugehörige Klasse steht nicht mehr im Markup")
 
 
 def test_wiki_bildgroesse(client: TestClient) -> None:
@@ -4607,6 +4684,7 @@ def _durchlauf(client: TestClient) -> None:
         test_selbstzahler(client)
         test_zuweisungsmail(client)
         test_zuweisung_altbestand(client)
+        test_dateien_kein_ziehhinweis(client)
         test_wiki_bildgroesse(client)
         test_wiki_hauptknoepfe(client)
         test_mobile_tabellen(client)

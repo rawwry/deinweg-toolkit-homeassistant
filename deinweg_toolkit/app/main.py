@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.18"
+VERSION = "1.18.1"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1757,7 +1757,8 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
             je_monat.setdefault(r["klient"], {})[r["monat"]] = {
                 "n": r["n"], "m": r["m"] or 0, "leute": r["leute"] or ""}
         stamm = {r["name"]: r for r in con.execute(
-            "SELECT name, wochenstunden, stundensatz FROM person WHERE aktiv=1")}
+            "SELECT name, wochenstunden, stundensatz, selbstzahler "
+            "FROM person WHERE aktiv=1")}
         zeitraeume = zeitraeume_lesen(con)
         # Welche Monate deckt die Auswahl tatsächlich ab? Grundlage für das Soll.
         vorhandene = [r["monat"] for r in con.execute(
@@ -1897,12 +1898,15 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
                    if z["von"] <= filterende
                    and (not z["bis"] or z["bis"] >= filterbeginn)]
         grund = grundwert_monate.get(r["klient"], 0)
+        p_stamm = stamm.get(r["klient"])
+        selbstzahler = bool(p_stamm["selbstzahler"]) if p_stamm else False
         if treffer or grund:
             zeitraum_liste.append({
                 "klient": r["klient"],
                 # aufsteigend lesen, so wie die Bescheide aufeinander folgen
                 "zeitraeume": list(reversed(treffer)),
                 "grundwert": grund,
+                "selbstzahler": selbstzahler,
             })
 
     gesamt_ist = sum(r["m"] for r in je_klient)

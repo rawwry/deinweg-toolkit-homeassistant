@@ -778,8 +778,21 @@ def zustaendig_aendern(request: Request, vorgang_id: int,
     with db.db() as con:
         v = lade(con, vorgang_id)
         alt = v["zustaendig"]
-        con.execute("UPDATE vorgang SET zustaendig=?, geaendert_am=? WHERE id=?",
-                    (neu, jetzt(), vorgang_id))
+        # ⚠️ Wird die Aufgabe an eine ANDERE Person übergeben, soll die neue
+        # Zuständige eine Zuweisungs-Mail bekommen - genau wie beim Anlegen.
+        # Dafür wird der Melde-Vermerk zurückgesetzt; die schnelle Schleife
+        # (mail.pruefe_zuweisungen) liest dann die jetzt gültige Zuständige.
+        # Nur bei echtem Wechsel, sonst löste jedes Speichern auf denselben
+        # Namen eine neue Mail aus.
+        gewechselt = (alt or "").strip().casefold() != neu.strip().casefold()
+        if gewechselt:
+            con.execute(
+                "UPDATE vorgang SET zustaendig=?, geaendert_am=?, "
+                "zuweis_gemeldet=0 WHERE id=?", (neu, jetzt(), vorgang_id))
+        else:
+            con.execute(
+                "UPDATE vorgang SET zustaendig=?, geaendert_am=? WHERE id=?",
+                (neu, jetzt(), vorgang_id))
         text = f"Zuständigkeit von {alt} auf {neu} übergeben."
         if notiz.strip():
             text += " Notiz: " + mehrzeilig(notiz, 1000)

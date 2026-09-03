@@ -400,9 +400,10 @@ TEXTE_STANDARD["einst.abgabemail_hinweis"] = (
     "trägt hier eine 5 ein – sonst käme die Erinnerung schon in der "
     "Nacht zum Ersten.")
 TEXTE_STANDARD["einst.zuweisungsmail_lead"] = (
-    "Meldet der zuständigen Person, wenn ihr eine neue Aufgabe zugewiesen "
-    "wurde. Anders als die drei Erinnerungen darüber hängt sie nicht am "
-    "Kalender, sondern löst beim Anlegen aus.")
+    "Meldet der zuständigen Person, wenn ihr eine Aufgabe zugewiesen wird – "
+    "beim Anlegen und wenn eine bestehende Aufgabe an sie übergeben wird. "
+    "Anders als die drei Erinnerungen darüber hängt sie nicht am Kalender, "
+    "sondern löst bei der Zuweisung aus.")
 TEXTE_STANDARD["einst.zuweisungsmail_hinweis"] = (
     "Der Sammelverzug wartet nach der zuletzt angelegten Aufgabe so viele "
     "Minuten, bevor die Mail rausgeht. Werden in dieser Zeit weitere "
