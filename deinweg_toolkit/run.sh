@@ -35,6 +35,7 @@ setze("ADMIN_BENUTZERNAME", "admin_benutzername",  "timo")
 setze("ADMIN_PASSWORT",     "admin_passwort",      "")
 setze("SITZUNG_TAGE",       "sitzung_tage",        30)
 setze("WECKER_INTERVALL",   "wecker_intervall",    3600)
+setze("ZUWEISUNG_INTERVALL","zuweisung_intervall", 60)
 setze("MAX_UPLOAD_MB",      "max_upload_mb",       20)
 PY
 )"

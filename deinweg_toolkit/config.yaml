@@ -8,7 +8,7 @@
 # steigt "version", bietet der Store die neue Fassung an. Sie muss also
 # bei jeder Auslieferung mit main.py VERSION uebereinstimmen.
 name: Dein Weg Toolkit
-version: "1.17.2"
+version: "1.18"
 slug: deinweg_toolkit
 description: >-
   Betreuungszeiten, Verwaltungsvorgaenge, Fuhrpark und Wiki
@@ -51,6 +51,7 @@ options:
   admin_passwort: ""
   sitzung_tage: 30
   wecker_intervall: 3600
+  zuweisung_intervall: 60
   max_upload_mb: 20
   zeitzone: Europe/Berlin
 
@@ -60,5 +61,6 @@ schema:
   admin_passwort: str?
   sitzung_tage: int(1,365)
   wecker_intervall: int(0,86400)
+  zuweisung_intervall: int(0,3600)
   max_upload_mb: int(1,200)
   zeitzone: str

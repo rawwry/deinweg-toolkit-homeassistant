@@ -1562,4 +1562,26 @@ CHANGELOG = [
         "Bindestrich",
         "Prüfung von 1043 auf 1079 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.18", "titel": "Aufgaben-Mails, Selbstzahler, halbe Urlaubstage", "punkte": [
+        "E-Mail: Wird eine neue Aufgabe zugewiesen, bekommt die zuständige "
+        "Person eine Nachricht. Mehrere kurz nacheinander angelegte "
+        "Aufgaben wandern über einen einstellbaren Sammelverzug in eine "
+        "einzige Mail (Einstellungen → E-Mail-Versand, eigene Vorlage)",
+        "Betreute Personen: neuer Schalter „Selbstzahler“. Diese Personen "
+        "brauchen keinen Bescheid – es gilt ihr Stundensatz als Satz je "
+        "Stunde, und es erscheint keine Bewilligungswarnung",
+        "Urlaub: halbe Urlaubstage über die Leistung „Urlaub (Halber "
+        "Tag)“. Die Auswertung in „Mein Bereich“ zählt sie als halben Tag",
+        "Wiki: verlinkte Bilder lassen sich skalieren – „![…](adresse "
+        "=50%)“ zeigt das Bild auf 50 % der Textbreite",
+        "Wiki: Seite und Ordner lassen sich jetzt auch aus dem "
+        "Hauptfenster anlegen, nicht nur über die Seitenleiste",
+        "Wiki: auf dem Telefon rollen breite Tabellen sauber, statt die "
+        "Spalten Buchstabe für Buchstabe zu stauchen",
+        "Wiki: keine doppelte Linie mehr unter der Überschrift eines "
+        "Ordners ohne Einleitung",
+        "Dateien: die Liste lässt sich auf dem Telefon seitlich rollen, "
+        "sodass Datei- und Ordneroptionen erreichbar bleiben",
+        "Prüfung von 1079 auf 1112 Einzelprüfungen erweitert",
+    ]},
 ]

@@ -228,7 +228,13 @@ CREATE TABLE IF NOT EXISTS vorgang (
     datum_eingang      TEXT,
     datum_rueckmeldung TEXT,
     datum_erledigt     TEXT,
-    dateiverweis       TEXT
+    dateiverweis       TEXT,
+    -- Wurde die Zuweisungs-Mail fuer diesen Vorgang schon verschickt?
+    -- ⚠️ Standard 0 (= noch offen) gilt nur fuer NEU angelegte Vorgaenge.
+    -- Bestehende Vorgaenge werden in der Migration ausdruecklich auf 1
+    -- gesetzt, sonst bekaeme das Team beim Update eine Sammelmail ueber
+    -- jede jemals angelegte Aufgabe.
+    zuweis_gemeldet    INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_vorgang_klient ON vorgang(klient);
@@ -543,6 +549,23 @@ def init() -> dict | None:
         spalte_ergaenzen(con, "benutzer", "gesehen_version", "TEXT")
         # Titel eines geloeschten Vorgangs, siehe Schema oben.
         spalte_ergaenzen(con, "vorgang_log", "vorgang_titel", "TEXT")
+
+        # ⚠️ Zuweisungs-Mail: die Spalte kommt mit Standard 0, aber jeder
+        # SCHON VORHANDENE Vorgang muss auf 1 - sonst schickt der erste
+        # Durchlauf nach dem Update eine Sammelmail ueber die gesamte
+        # Aufgabenhistorie. Deshalb hier von Hand: erst pruefen, ob die
+        # Spalte fehlt, dann anlegen UND die Altbestaende markieren.
+        if "zuweis_gemeldet" not in {
+                r["name"] for r in con.execute("PRAGMA table_info(vorgang)")}:
+            con.execute("ALTER TABLE vorgang ADD COLUMN "
+                        "zuweis_gemeldet INTEGER NOT NULL DEFAULT 0")
+            con.execute("UPDATE vorgang SET zuweis_gemeldet = 1")
+
+        # Selbstzahler: betreute Person ohne Kostentraeger. Standard 0.
+        # Ein bestehender Bestand bleibt damit unveraendert - niemand wird
+        # ploetzlich zum Selbstzahler.
+        spalte_ergaenzen(con, "person", "selbstzahler",
+                         "INTEGER NOT NULL DEFAULT 0")
 
         # --- mit 0.8.9 weggeraeumt ------------------------------------------
         # Alle vier wurden nirgends gelesen und standen nur noch im Schema:

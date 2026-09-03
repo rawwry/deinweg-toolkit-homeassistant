@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.17.2"
+VERSION = "1.18"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -58,6 +58,10 @@ FILES_PFAD = os.environ.get("FILES_PFAD", "/files")
 # Sekunden zwischen zwei Pruefungen auf faellige E-Mail-Erinnerungen.
 # 0 = Wecker aus. Standard: einmal pro Stunde.
 WECKER_INTERVALL = int(os.environ.get("WECKER_INTERVALL", "3600"))
+# Sekunden zwischen zwei Pruefungen auf neu zugewiesene Aufgaben. Deutlich
+# haeufiger als der Stundenwecker, weil der Sammelverzug in Minuten misst
+# (siehe mail.pruefe_zuweisungen). Laeuft nur, wenn auch der Wecker laeuft.
+ZUWEISUNG_INTERVALL = int(os.environ.get("ZUWEISUNG_INTERVALL", "60"))
 
 ENDUNGEN = ("xlsx", "xlsm", "csv")
 
@@ -544,6 +548,28 @@ async def wecker_schleife() -> None:
         await asyncio.sleep(WECKER_INTERVALL)
 
 
+async def zuweisungs_schleife() -> None:
+    """Verschickt gesammelte Mails ueber neu zugewiesene Aufgaben.
+
+    Eigene Schleife statt im Stundenwecker: der Sammelverzug misst in
+    Minuten, ein Stundentakt waere dafuer zu grob. Der Verzug selbst
+    steckt in mail.pruefe_zuweisungen; hier wird nur oft genug
+    nachgesehen, ob ein Sammelfenster inzwischen zu ist.
+    """
+    await asyncio.sleep(20)
+    while True:
+        try:
+            zeilen = await asyncio.to_thread(mail.durchlauf, False, False,
+                                             False, True)
+            for zeile in zeilen:
+                if zeile not in ("nichts zu tun",
+                                 "E-Mail-Versand ist ausgeschaltet"):
+                    print(f"[zuweisung] {zeile}", flush=True)
+        except Exception as e:
+            print(f"[zuweisung] {type(e).__name__}: {e}", flush=True)
+        await asyncio.sleep(ZUWEISUNG_INTERVALL)
+
+
 @app.on_event("startup")
 async def start() -> None:
     initialer_admin = db.init()
@@ -566,6 +592,8 @@ async def start() -> None:
         print(f"[start] {FILES_PFAD} nicht verfuegbar: {e}", flush=True)
     if WECKER_INTERVALL > 0:
         asyncio.create_task(wecker_schleife())
+        if ZUWEISUNG_INTERVALL > 0:
+            asyncio.create_task(zuweisungs_schleife())
     print(f"[start] {APP_NAME} {VERSION} bereit · E-Mail-Wecker "
           f"{'alle ' + str(WECKER_INTERVALL) + 's' if WECKER_INTERVALL else 'aus'}",
           flush=True)
@@ -869,7 +897,8 @@ BEWILLIGUNG_BALD_TAGE = 60
 
 
 def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
-                     vorlauf: int | None = None) -> dict:
+                     vorlauf: int | None = None,
+                     selbstzahler: bool = False) -> dict:
     """Wie steht eine betreute Person heute da?
 
     Eine Stelle fuer die Frage, die in den Einstellungen und in "Mein
@@ -877,12 +906,19 @@ def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
     nach ``von`` herein, wie ueberall (siehe kontingent_im_monat).
 
     ``art`` ist eines von:
+    * ``selbstzahler`` - braucht gar keinen Bescheid (eigener Satz je Stunde)
     * ``laufend``    - alles in Ordnung
     * ``laeuft_aus`` - gilt noch, endet bald, und es gibt keinen Nachfolger
     * ``abgelaufen`` - der letzte Bescheid ist vorbei
     * ``kuenftig``   - der naechste beginnt erst
     * ``grundwert``  - gar kein Bescheid, aber ein Grundwert
     * ``leer``       - nichts hinterlegt
+
+    ⚠️ Ein Selbstzahler zahlt aus eigener Tasche und braucht keinen
+    Kostentraeger-Bescheid. Fuer ihn ist die ganze Frage gegenstandslos -
+    deshalb ganz oben abgefangen und "selbstzahler" zurueckgegeben, was
+    NICHT in BEWILLIGUNG_HANDLUNG steht und damit nie eine Warnung
+    ausloest. Sein Stundensatz ist der Grundwert an ``person``.
 
     ⚠️ **Ein hinterlegter Folgebescheid beendet die Warnung.** "Laeuft
     aus" heisst: hier muss ein Folgeantrag raus. Steht der naechste
@@ -891,6 +927,9 @@ def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
     Die Lage bleibt ``laufend`` und traegt den Nachfolger unter
     ``nachfolge`` mit, damit die Oberflaeche ihn nennen kann.
     """
+    if selbstzahler:
+        return {"art": "selbstzahler"}
+
     laufend = None
     for z in zeitraeume or []:
         if z["von"] <= heute and (not z["bis"] or z["bis"] >= heute):
@@ -940,6 +979,55 @@ BEWILLIGUNG_HANDLUNG = ("abgelaufen", "leer", "laeuft_aus", "kuenftig",
                         "grundwert")
 
 
+# --- Urlaub -------------------------------------------------------------------
+#
+# Ein Urlaubstag ist ein Kalendertag mit einem Eintrag, dessen Beschreibung
+# mit "Urlaub" beginnt. Bewusst "beginnt mit" und nicht "enthaelt": in den
+# echten Daten steht eine Zeile "Entlastungsgespraech, Erarbeitung
+# Strukturplan Urlaub", die kein Urlaubstag ist.
+#
+# Seit 1.17.3 zaehlt ein halber Tag auch als halber. Erkannt wird er an
+# der Leistung "Urlaub (Halber Tag)" - genauer: daran, dass in der
+# Beschreibung "halber tag" vorkommt. Bewusst kein eigenes Feld an
+# "eintrag": die Leistung ist Klartext (siehe Abschnitt 10), und ein
+# zusaetzliches Feld muesste beim Import, beim Bearbeiten und in der
+# Datenpflege mitgefuehrt werden - fuer eine Angabe, die ohnehin schon im
+# Text steht.
+URLAUB_ANFANG = "urlaub"
+URLAUB_HALB = "halber tag"
+
+
+def urlaubswert(beschreibung: str) -> float:
+    """Wie viel Urlaub steckt in dieser Zeile? 1.0, 0.5 oder 0."""
+    text = (beschreibung or "").strip().lower()
+    if not text.startswith(URLAUB_ANFANG):
+        return 0.0
+    return 0.5 if URLAUB_HALB in text else 1.0
+
+
+def urlaubstage_zaehlen(zeilen) -> dict[str, float]:
+    """Urlaubstage je Jahr aus den Eintraegen einer Person.
+
+    ⚠️ Gezaehlt wird je KALENDERTAG, nicht je Zeile - an einem Tag koennen
+    mehrere Eintraege stehen. Steht an einem Tag irgendwo ein ganzer
+    Urlaubstag, zaehlt der Tag ganz; sonst reicht ein halber, und der Tag
+    zaehlt halb. Zwei halbe Eintraege am selben Tag ergeben also einen
+    halben Tag, keinen ganzen: es bleibt derselbe Kalendertag, an dem
+    jemand einen halben Tag frei hatte.
+    """
+    je_tag: dict[tuple[str, str], float] = {}
+    for z in zeilen:
+        wert = urlaubswert(z["beschreibung"])
+        if not wert:
+            continue
+        schluessel = (z["datum"][:4], z["datum"])
+        je_tag[schluessel] = max(je_tag.get(schluessel, 0.0), wert)
+    jahre: dict[str, float] = {}
+    for (jahr, _datum), wert in je_tag.items():
+        jahre[jahr] = jahre.get(jahr, 0.0) + wert
+    return jahre
+
+
 def bewilligungen_pruefen(con, vorlauf: int | None = None) -> list[dict]:
     """Alle aktiven betreuten Personen, bei denen etwas zu tun ist.
 
@@ -954,10 +1042,11 @@ def bewilligungen_pruefen(con, vorlauf: int | None = None) -> list[dict]:
     zr = zeitraeume_lesen(con)
     offen = []
     for p in con.execute(
-            "SELECT id, name, wochenstunden, stundensatz FROM person "
-            "WHERE aktiv=1 ORDER BY name"):
+            "SELECT id, name, wochenstunden, stundensatz, selbstzahler "
+            "FROM person WHERE aktiv=1 ORDER BY name"):
         stand = bewilligungslage(zr.get(p["name"], []), p["wochenstunden"],
-                                 p["stundensatz"], heute, vorlauf)
+                                 p["stundensatz"], heute, vorlauf,
+                                 selbstzahler=p["selbstzahler"])
         if stand["art"] in BEWILLIGUNG_HANDLUNG:
             offen.append({**stand, "name": p["name"], "id": p["id"],
                           "rang": BEWILLIGUNG_HANDLUNG.index(stand["art"])})
@@ -1933,15 +2022,15 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "ORDER BY CASE WHEN frist IS NULL OR frist='' THEN 1 ELSE 0 END, "
             "frist, id LIMIT 6", (name,)).fetchall()
 
-        # Urlaub: gezaehlt werden Kalendertage, an denen ein Eintrag steht,
-        # dessen Beschreibung mit "Urlaub" beginnt. Bewusst DISTINCT nach
-        # Datum, damit mehrere Zeilen am selben Tag nur einen Tag ergeben.
-        # "beginnt mit" statt "enthaelt", damit z.B. eine Notiz wie
-        # "Strukturplan Urlaub" nicht faelschlich als Urlaubstag zaehlt.
-        urlaubsjahre = {r["jahr"]: r["tage"] for r in con.execute(
-            "SELECT substr(datum,1,4) jahr, COUNT(DISTINCT datum) tage "
-            "FROM eintrag WHERE mitarbeiter=? AND beschreibung LIKE 'Urlaub%' "
-            "GROUP BY jahr", (name,))}
+        # Urlaub. ⚠️ Gezaehlt wird in Python (urlaubstage_zaehlen), nicht
+        # in SQL: ein halber Tag traegt 0.5, und SQLites LIKE vergleicht
+        # nur bei ASCII ohne Ruecksicht auf Gross-/Kleinschreibung. Die
+        # Vorauswahl per LIKE bleibt trotzdem stehen - sie holt nur die
+        # wenigen Urlaubszeilen aus der Datenbank statt aller Eintraege.
+        urlaubsjahre = urlaubstage_zaehlen(con.execute(
+            "SELECT datum, beschreibung FROM eintrag "
+            "WHERE mitarbeiter=? AND beschreibung LIKE 'Urlaub%'",
+            (name,)).fetchall())
 
         # Die eigenen Zeiten. Bewusst ohne jede Bereichspruefung: sie
         # gehoeren dem angemeldeten Konto, und "Mein Bereich" ist die eine

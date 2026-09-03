@@ -1795,6 +1795,16 @@ label.knopf-icon { cursor: pointer; }
 /* Eine Aktion weniger seit 1.15.3 - der Dateiname ist der Verweis. */
 .liste.dateiverzeichnis th:last-child { width: 136px; padding-right: 6px; }
 .tabellenrolle .liste.dateiverzeichnis td:last-child { white-space: nowrap; }
+/* ⚠️ Ohne diese Regel war die Dateiliste auf dem Telefon eine Sackgasse:
+   .tabellenrolle steht auf „overflow-x: clip", die Tabelle bringt aber
+   ihre 660px Mindestbreite mit - die Aktionsspalte lag damit hinter dem
+   rechten Rand und war auf keinem Weg zu erreichen. Dieselbe Lösung wie
+   bei allen anderen Tabellen des Programms (Fuhrpark, Aufgabenliste,
+   „Meine Zeiten"): unterhalb von 760px rollt die Hülle. */
+@media (max-width: 760px) {
+  .tabellenrolle:has(.dateiverzeichnis),
+  .tabellenrolle:has(.wiki-verzeichnis) { overflow-x: auto; }
+}
 .dateizeile[draggable="true"] { cursor: grab; }
 .dateizeile.ziel-aktiv td { background: var(--akzent-weich); }
 
@@ -3285,6 +3295,14 @@ fieldset.feld > span {
    Zeile im Inhalt. Ohne Skript bleibt sie stehen - sie ist dann die
    einzige Bedienung. */
 .wiki-anlegen.mit-knopf > summary { display: none; }
+/* ⚠️ Ist die Zeile zugeklappt UND ihre Beschriftung vom Skript versteckt,
+   steht dort nichts als ein Strich - direkt unter dem Strich der
+   Werkzeugleiste. Zwei Linien mit 14px Luft dazwischen und nichts darin:
+   genau das sah auf einer Ordnerseite ohne Einleitung seltsam aus.
+   Zugeklappt bringt der Block deshalb weder Linie noch Abstand mit. */
+.wiki-anlegen.mit-knopf:not([open]) {
+  border-top: none; margin-top: 0; padding-top: 0;
+}
 
 /* Kopfzeile über dem Baum: die Beschriftung wie überall im Programm,
    der Falt-Knopf als kleines Zeichen rechts. Ein Knopf über die volle
@@ -3560,9 +3578,25 @@ fieldset.feld > span {
      rollt in diesem Kasten statt die Seite zu verbreitern. */
   overflow-x: auto;
 }
+/* ⚠️ „width: auto" statt „width: 100%", dazu „min-width: 100%".
+   Mit festen 100% muss die Tabelle in ihre Karte passen, egal wie
+   schmal die ist - der Browser staucht dann die Spalten, bis der Text
+   darin Buchstabe für Buchstabe umbricht. Auf dem Telefon war davon
+   nichts mehr zu lesen. Jetzt richtet sie sich nach ihrem Inhalt, füllt
+   die Karte mindestens aus und rollt darüber hinaus in ihrer eigenen
+   .wiki-tabellenrolle. */
 .wiki-tabelle {
-  width: 100%; border-collapse: collapse;
+  width: auto; min-width: 100%; border-collapse: collapse;
   font-size: 14px; line-height: 1.55;
+}
+/* ⚠️ .wiki-inhalt steht auf „overflow-wrap: anywhere" - nötig, damit ein
+   langer Pfad im Fließtext nicht aus seiner Spalte läuft. In einer
+   Tabellenzelle ist genau das aber der Grund, warum dort jedes Wort
+   mitten drin brach. Hier gilt deshalb die normale Regel: umbrochen wird
+   zwischen Wörtern, und ein einzelnes zu langes Wort erst als letzter
+   Ausweg. */
+.wiki-tabelle th, .wiki-tabelle td {
+  word-break: normal; overflow-wrap: break-word;
 }
 .wiki-tabelle th {
   text-align: left; font-weight: 600; font-size: 12.5px;

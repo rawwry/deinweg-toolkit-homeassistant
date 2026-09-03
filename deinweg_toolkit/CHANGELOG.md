@@ -3,6 +3,17 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.18
+
+- E-Mail bei neu zugewiesener Aufgabe, mit Sammelverzug für mehrere
+  Aufgaben in einer Nachricht
+- Betreute Personen: Schalter „Selbstzahler“ (kein Bescheid nötig,
+  eigener Satz je Stunde)
+- Halbe Urlaubstage über die Leistung „Urlaub (Halber Tag)“
+- Wiki: Bildgröße in Prozent, Anlegen-Knöpfe im Hauptfenster, mobile
+  Tabellen rollbar, keine doppelte Linie unter Ordner-Überschriften
+- Dateien: Liste auf dem Telefon seitlich rollbar
+
 ## 1.17.2
 
 - Wiki: geschützte Ordner – nur ausgewählte Konten sehen und bearbeiten

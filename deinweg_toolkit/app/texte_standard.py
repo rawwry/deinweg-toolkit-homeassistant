@@ -118,6 +118,11 @@ TEXTE_STANDARD["einst.zeitraum_hinweis"] = (
     "Zeitraum gilt für jeden Monat, den er berührt.")
 TEXTE_STANDARD["einst.zeitraum_leer"] = (
     "Noch kein Zeitraum hinterlegt – es gilt der Grundwert oben.")
+TEXTE_STANDARD["einst.selbstzahler_hinweis"] = (
+    "Selbstzahler zahlen aus eigener Tasche und brauchen keinen "
+    "Kostenträger-Bescheid. Für sie erscheint keine Bewilligungswarnung; "
+    "als Satz je Stunde gilt der Grundwert-Stundensatz oben. Zeiträume "
+    "musst du hier nicht pflegen.")
 TEXTE_STANDARD["einst.abrechenbar"] = (
     "Legt fest, ob Zeiten dieser Person beim Filter „nur abrechenbare Zeiten“ auf den Seiten Datensätze und Auswertung mitgezählt werden. Betrifft nur diesen Filter, nicht die Soll-Rechnung oder sonstige Zahlen.")
 TEXTE_STANDARD["einst.system_lead"] = (
@@ -293,8 +298,9 @@ TEXTE_STANDARD["mein.diagramm_hinweis"] = (
     "sie, baust du Überstunden auf.")
 TEXTE_STANDARD["mein.urlaub_hinweis"] = (
     "Gezählt werden Tage, an denen ein Eintrag mit der Beschreibung „Urlaub“ "
-    "steht – ein Tag zählt einmal, auch bei mehreren Zeilen. Halbe "
-    "Urlaubstage erkennt die Zählung nicht, sie zählen als ganzer Tag.")
+    "steht – ein Tag zählt einmal, auch bei mehreren Zeilen. Die Leistung "
+    "„Urlaub (Halber Tag)“ zählt einen halben Tag; steht am selben Tag "
+    "auch ein ganzer, zählt der ganze.")
 TEXTE_STANDARD["mein.kein_urlaubsanspruch"] = (
     "Für dich ist noch kein Urlaubsanspruch hinterlegt, deshalb wird nur "
     "gezählt, aber nichts gegengerechnet. Ein Administrator trägt ihn unter "
@@ -393,6 +399,15 @@ TEXTE_STANDARD["einst.abgabemail_hinweis"] = (
     "Vor dem Stichtag passiert nichts. Wer bis zum Fünften Zeit hat, "
     "trägt hier eine 5 ein – sonst käme die Erinnerung schon in der "
     "Nacht zum Ersten.")
+TEXTE_STANDARD["einst.zuweisungsmail_lead"] = (
+    "Meldet der zuständigen Person, wenn ihr eine neue Aufgabe zugewiesen "
+    "wurde. Anders als die drei Erinnerungen darüber hängt sie nicht am "
+    "Kalender, sondern löst beim Anlegen aus.")
+TEXTE_STANDARD["einst.zuweisungsmail_hinweis"] = (
+    "Der Sammelverzug wartet nach der zuletzt angelegten Aufgabe so viele "
+    "Minuten, bevor die Mail rausgeht. Werden in dieser Zeit weitere "
+    "Aufgaben angelegt, stehen sie alle in einer Nachricht. 0 verschickt "
+    "beim nächsten Durchlauf, also innerhalb einer Minute.")
 TEXTE_STANDARD["einst.fristmail_lead"] = (
     "Erinnert die zuständige Person an Fristen aus der "
     "Aufgabenverwaltung. Abgeschlossene Vorgänge bleiben außen vor.")

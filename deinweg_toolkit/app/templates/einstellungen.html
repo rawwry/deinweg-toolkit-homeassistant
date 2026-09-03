@@ -190,6 +190,13 @@
           <span>Zeiten dieser Person zählen als abrechenbar</span>
         </label>
       </label>
+      <label class="feld">
+        <span>Selbstzahler</span>
+        <label class="ankreuz">
+          <input type="checkbox" name="selbstzahler" value="1">
+          <span>zahlt selbst – kein Bescheid nötig, der Stundensatz gilt als Satz je Stunde</span>
+        </label>
+      </label>
       <p class="klein leise felderklaerung">{{ t("einst.grundwert_hinweis") }}</p>
       <div class="knopfreihe unten">
         <button class="knopf haupt" type="submit">Person anlegen</button>
@@ -248,12 +255,15 @@
       <span class="konto-name">
         <span class="stark">{{ p.name }}</span>
         {% if not p.aktiv %}<span class="marke-status weg">stillgelegt</span>{% endif %}
+        {% if p.selbstzahler %}<span class="marke-status gut">Selbstzahler</span>{% endif %}
         {% if not p.abrechenbar %}<span class="marke-status offen">nicht abrechenbar</span>{% endif %}
       </span>
       <span class="konto-daten">
         {# Was gilt heute? Das ist die Frage, mit der man herkommt - und
            eine ausgelaufene Bewilligung muss dabei sofort auffallen. #}
-        {% if stand.art == "laufend" %}
+        {% if stand.art == "selbstzahler" %}
+          <span class="leise">Selbstzahler · {{ p.stundensatz | euro }} je Stunde</span>
+        {% elif stand.art == "laufend" %}
           <span class="marke-status gut">gültig</span>
           {{ gilt_heute.wochenstunden | stunden }} Std/Woche · {{ gilt_heute.stundensatz | euro }}
           {% if stand.nachfolge %}
@@ -442,7 +452,13 @@
                  {{ 'checked' if p.aktiv }} form="person-f-{{ p.id }}">
           Person aktiv
         </label>
+        <label class="bereich-kachel">
+          <input type="checkbox" name="selbstzahler" value="1"
+                 {{ 'checked' if p.selbstzahler }} form="person-f-{{ p.id }}">
+          Selbstzahler
+        </label>
       </div>
+      <p class="klein leise felderklaerung">{{ t("einst.selbstzahler_hinweis") }}</p>
     </div>
 
     {# Eine Knopfzeile, ganz unten, und „entfernen“ rechts abgesetzt -
@@ -1542,6 +1558,35 @@
     </div>
   </form>
 </section>
+
+{# Vierter Anlass: eine neu zugewiesene Aufgabe. Anders als die drei
+   darueber haengt diese Mail nicht am Kalender, sondern loest beim
+   Anlegen aus - mit einem kurzen Sammelverzug, damit mehrere Aufgaben
+   auf einmal in eine Mail wandern. #}
+<section class="karte">
+  <h2>Erinnerung an neue Aufgaben</h2>
+  <p class="lead">{{ t("einst.zuweisungsmail_lead") }}</p>
+
+  <form action="/einstellungen/zuweisungsmail" method="post">
+    <label class="filter-umschalter" style="margin-bottom: 18px;">
+      <input type="checkbox" name="zuweisung_aktiv" value="1"
+             {{ 'checked' if mailkonfig.zuweisung_aktiv == '1' }}>
+      <span>Erinnerung verschicken</span>
+    </label>
+
+    <label class="feld">
+      <span>Sammelverzug in Minuten
+        <span class="leise">– 0 = sofort</span></span>
+      <input type="number" name="zuweisung_verzug" min="0" max="1440"
+             value="{{ mailkonfig.zuweisung_verzug }}">
+    </label>
+    <p class="klein leise felderklaerung">{{ t("einst.zuweisungsmail_hinweis") }}</p>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Speichern</button>
+    </div>
+  </form>
+</section>
 {% endif %}
 
 {% if bereich == "vorlagen" %}
@@ -1593,6 +1638,22 @@
   </label>
   <p class="klein leise">Platzhalter: <code>{name}</code> <code>{anzahl}</code>
     <code>{liste}</code></p>
+
+  <h2 class="unterkopf">Neue Aufgabe zugewiesen</h2>
+  <label class="feld">
+    <span>Betreff</span>
+    <input type="text" name="vorlage_zuweisung_betreff" required
+           value="{{ mailkonfig.vorlage_zuweisung_betreff }}">
+  </label>
+  <label class="feld">
+    <span>Text</span>
+    <textarea name="vorlage_zuweisung_text" rows="10" required>{{ mailkonfig.vorlage_zuweisung_text }}</textarea>
+  </label>
+  {# {mehrzahl} wird zu „n", wenn es mehrere Aufgaben sind, sonst leer;
+     {wurde} zu „wurden"/„wurde". So passt ein Satz für Ein- und
+     Mehrzahl. #}
+  <p class="klein leise">Platzhalter: <code>{name}</code> <code>{anzahl}</code>
+    <code>{liste}</code> <code>{mehrzahl}</code> <code>{wurde}</code></p>
 
   <div class="knopfreihe" style="margin-top: 20px;">
     <button class="knopf haupt" type="submit">Vorlagen speichern</button>

@@ -147,8 +147,28 @@ def _inline(text: str, aufloesen) -> str:
         return adresse, True
 
     def bild(m):
-        adresse, _extern = ziel(m.group(2))
-        return merken(f'<img src="{escape(adresse)}" alt="{m.group(1)}">')
+        # ⚠️ Eine Groessenangabe wie „=50%" hinter der Adresse skaliert das
+        # Bild auf diesen Anteil der Textbreite. Sie steht bewusst IN der
+        # Klammer und nicht als eigene Auszeichnung: so bleibt die Zeile
+        # gueltiges Markdown, und jeder andere Wandler zeigt schlicht das
+        # Bild in voller Groesse statt einer kaputten Zeile.
+        #
+        # ⚠️ Die Groesse MUSS aus dem rohen Ziel gelesen werden, BEVOR es
+        # durch ziel()/link_aufloeser laeuft: der Aufloeser URL-kodiert die
+        # Adresse, aus „ =30%" wuerde „%20%3D30%25" und die Angabe waere
+        # verloren (genau dieser Fehler steckte in der ersten Fassung).
+        roh_ziel = m.group(2)
+        stil = ""
+        groesse = re.search(r"\s+=\s*(\d{1,3})\s*%\s*$", roh_ziel)
+        if groesse:
+            prozent = min(100, max(1, int(groesse.group(1))))
+            roh_ziel = roh_ziel[:groesse.start()].rstrip()
+            # ⚠️ Auch max-width muss mit: .wiki-inhalt img deckelt sonst
+            # bei 68% und eine gewuenschte Breite darueber kaeme nie an.
+            stil = f' style="width: {prozent}%; max-width: {prozent}%"'
+        adresse, _extern = ziel(roh_ziel)
+        return merken(
+            f'<img src="{escape(adresse)}" alt="{m.group(1)}"{stil}>')
 
     roh = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", bild, roh)
 

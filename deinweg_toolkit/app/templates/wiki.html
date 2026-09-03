@@ -240,6 +240,32 @@
            die Darstellung - beide stehen im HTML, umgeschaltet wird per
            CSS über data-wikiliste am <html>, so blitzt nichts auf. #}
         <div class="wiki-aktionen">
+          {# Anlegen geht seit 1.17.3 auch von hier aus, nicht nur über
+             das Zeichen in der Seitenleiste – man ist ja schon in dem
+             Ordner, in dem angelegt werden soll. Beide Knöpfe öffnen
+             dasselbe Formular darunter und merken sich nur, was gemeint
+             war; ohne Skript bleiben sie weg und die aufklappbare Zeile
+             ist wie bisher die Bedienung. #}
+          {% if darf_schreiben %}
+          <button type="button" class="knopf-icon wiki-neu-knopf" data-wunsch="seite"
+                  hidden title="Neue Seite anlegen" aria-label="Neue Seite anlegen">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M7 3.5h7L19 8v12a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5A1.5 1.5 0 0 1 7 3.5Z"
+                    stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              <path d="M12.5 11v5M10 13.5h5" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button type="button" class="knopf-icon wiki-neu-knopf" data-wunsch="ordner"
+                  hidden title="Neuen Ordner anlegen" aria-label="Neuen Ordner anlegen">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M3.5 6.5c0-.83.67-1.5 1.5-1.5h4l2 2.5h7.5c.83 0 1.5.67 1.5 1.5v9c0 .83-.67 1.5-1.5 1.5H5c-.83 0-1.5-.67-1.5-1.5v-11Z"
+                    stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              <path d="M12 11.5v5M9.5 14h5" stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round"/>
+            </svg>
+          </button>
+          {% endif %}
           {% if aktuell and darf_schreiben %}
           <form class="inline" action="/wiki/aktion/loeschen" method="post"
                 onsubmit="return confirm('Den Ordner „{{ titel }}“ entfernen? Das geht nur, wenn er leer ist.')">
@@ -651,21 +677,62 @@
   // einzige Bedienung - deshalb versteckt das Stylesheet sie erst, wenn
   // die Klasse hier gesetzt ist.
   var neuknopf = document.getElementById("wiki-neu"),
-      neublock = document.querySelector("details.wiki-anlegen");
+      neublock = document.querySelector("details.wiki-anlegen"),
+      hauptknoepfe = document.querySelectorAll(".wiki-neu-knopf");
+
+  // Öffnet das Formular und stellt ein, was gemeint war. „wunsch" ist
+  // "seite" oder "ordner"; ohne Angabe bleibt die bisherige Vorauswahl.
+  function neuOeffnen(wunsch, knopf) {
+    if (!neublock) return;
+    var wechsel = wunsch && neublock.dataset.wunsch !== wunsch;
+    neublock.open = wechsel ? true : !neublock.open;
+    if (wunsch) neublock.dataset.wunsch = wunsch;
+    if (neuknopf) neuknopf.classList.toggle("aktiv", neublock.open && !wunsch);
+    hauptknoepfe.forEach(function (k) {
+      k.classList.toggle("aktiv", neublock.open && k.dataset.wunsch === wunsch);
+    });
+    // Der gemeinte Knopf im Formular wird der auffällige - und die
+    // Eingabetaste im Namensfeld löst genau ihn aus. Ohne das schickt
+    // der Browser immer den ERSTEN Absendeknopf ab, also „Seite".
+    if (wunsch) {
+      neublock.querySelectorAll("button[name=art]").forEach(function (b) {
+        b.classList.toggle("haupt", b.value === wunsch);
+      });
+    }
+    if (neublock.open) {
+      neublock.scrollIntoView({block: "nearest"});
+      var feld = neublock.querySelector("input[name=name]");
+      if (feld) feld.focus();
+    }
+  }
+
+  if (neublock) {
+    neublock.classList.add("mit-knopf");
+    var namensfeld = neublock.querySelector("input[name=name]");
+    if (namensfeld) {
+      namensfeld.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter") return;
+        var wunsch = neublock.dataset.wunsch;
+        if (!wunsch) return;          // ohne Vorauswahl wie bisher
+        var ziel = neublock.querySelector('button[name=art][value="' + wunsch + '"]');
+        if (ziel) { e.preventDefault(); ziel.click(); }
+      });
+    }
+    hauptknoepfe.forEach(function (k) {
+      k.hidden = false;
+      k.addEventListener("click", function () {
+        neuOeffnen(k.dataset.wunsch, k);
+      });
+    });
+  } else {
+    hauptknoepfe.forEach(function (k) { k.remove(); });
+  }
+
   if (neuknopf) {
     if (!neublock) { neuknopf.remove(); }
     else {
       neuknopf.hidden = false;
-      neublock.classList.add("mit-knopf");
-      neuknopf.addEventListener("click", function () {
-        neublock.open = !neublock.open;
-        neuknopf.classList.toggle("aktiv", neublock.open);
-        if (neublock.open) {
-          neublock.scrollIntoView({block: "nearest"});
-          var feld = neublock.querySelector("input, select");
-          if (feld) feld.focus();
-        }
-      });
+      neuknopf.addEventListener("click", function () { neuOeffnen("", neuknopf); });
     }
   }
 

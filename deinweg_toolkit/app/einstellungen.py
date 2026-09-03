@@ -342,7 +342,8 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
     for p in personen:
         stand = _u["bewilligungslage"](zeitraeume.get(p["id"], []),
                                        p["wochenstunden"], p["stundensatz"],
-                                       heute_wert)
+                                       heute_wert,
+                                       selbstzahler=p["selbstzahler"])
         lage[p["id"]] = stand
         if stand["art"] in ("laufend", "laeuft_aus"):
             aktuell[p["id"]] = stand["zeitraum"]
@@ -409,7 +410,8 @@ def betrag_lesen(wert: str):
 
 @router.post("/einstellungen/person")
 def person_anlegen(name: str = Form(""), wochenstunden: str = Form("0"),
-                   stundensatz: str = Form("0"), abrechenbar: str = Form("")):
+                   stundensatz: str = Form("0"), abrechenbar: str = Form(""),
+                   selbstzahler: str = Form("")):
     name = name.strip()
     if not name:
         return einstellungen_zurueck(fehler="Ohne Namen geht es nicht.")
@@ -428,15 +430,17 @@ def person_anlegen(name: str = Form(""), wochenstunden: str = Form("0"),
                 fehler=f"{name} ist bereits angelegt.")
         con.execute(
             "INSERT INTO person (name, wochenstunden, stundensatz, aktiv, "
-            "abrechenbar, angelegt_am) VALUES (?,?,?,1,?,?)",
-            (name, stunden, satz, 1 if abrechenbar else 0, _u["jetzt"]()))
+            "abrechenbar, selbstzahler, angelegt_am) VALUES (?,?,?,1,?,?,?)",
+            (name, stunden, satz, 1 if abrechenbar else 0,
+             1 if selbstzahler else 0, _u["jetzt"]()))
     return einstellungen_zurueck(hinweis=f"{name} angelegt.")
 
 
 @router.post("/einstellungen/person/{person_id}")
 def person_speichern(person_id: int, name: str = Form(""),
                      wochenstunden: str = Form("0"), stundensatz: str = Form("0"),
-                     abrechenbar: str = Form(""), aktiv: str = Form("")):
+                     abrechenbar: str = Form(""), aktiv: str = Form(""),
+                     selbstzahler: str = Form("")):
     name = name.strip()
     if not name:
         return einstellungen_zurueck(fehler="Ohne Namen geht es nicht.")
@@ -455,8 +459,9 @@ def person_speichern(person_id: int, name: str = Form(""),
             return einstellungen_zurueck(fehler=f"{name} ist bereits angelegt.")
         con.execute(
             "UPDATE person SET name=?, wochenstunden=?, stundensatz=?, "
-            "abrechenbar=?, aktiv=? WHERE id=?",
-            (name, stunden, satz, 1 if abrechenbar else 0, 1 if aktiv else 0, person_id))
+            "abrechenbar=?, aktiv=?, selbstzahler=? WHERE id=?",
+            (name, stunden, satz, 1 if abrechenbar else 0, 1 if aktiv else 0,
+             1 if selbstzahler else 0, person_id))
     return einstellungen_zurueck(hinweis=f"{name} gespeichert.")
 
 
@@ -1055,6 +1060,27 @@ def abgabemail_speichern(abgabe_aktiv: str = Form(""),
     return email_zurueck(hinweis="Erinnerung an die Zeiterfassung gespeichert.")
 
 
+@router.post("/einstellungen/zuweisungsmail")
+def zuweisungsmail_speichern(zuweisung_aktiv: str = Form(""),
+                             zuweisung_verzug: str = Form("2")):
+    """Mail an die zustaendige Person bei neu zugewiesenen Aufgaben.
+
+    Der Verzug sammelt mehrere kurz nacheinander angelegte Aufgaben in
+    eine Mail (siehe mail.pruefe_zuweisungen).
+    """
+    try:
+        verzug = max(0, min(1440, int(zuweisung_verzug or 0)))
+    except ValueError:
+        return email_zurueck(fehler=(
+            "Der Sammelverzug muss eine Zahl zwischen 0 und 1440 Minuten sein."))
+    with db.db() as con:
+        mail.konfig_schreiben(con, {
+            "zuweisung_aktiv": "1" if zuweisung_aktiv else "0",
+            "zuweisung_verzug": str(verzug),
+        })
+    return email_zurueck(hinweis="Erinnerung an neue Aufgaben gespeichert.")
+
+
 @router.post("/einstellungen/email/test")
 def email_test(request: Request, empfaenger: str = Form("")):
     empfaenger = empfaenger.strip() or (request.state.benutzer["email"] or "")
@@ -1084,7 +1110,9 @@ def vorlagen_speichern(vorlage_frist_betreff: str = Form(""),
                        vorlage_abgabe_betreff: str = Form(""),
                        vorlage_abgabe_text: str = Form(""),
                        vorlage_bewilligung_betreff: str = Form(""),
-                       vorlage_bewilligung_text: str = Form("")):
+                       vorlage_bewilligung_text: str = Form(""),
+                       vorlage_zuweisung_betreff: str = Form(""),
+                       vorlage_zuweisung_text: str = Form("")):
     werte = {
         "vorlage_frist_betreff": vorlage_frist_betreff.strip(),
         "vorlage_frist_text": vorlage_frist_text.replace("\r\n", "\n").strip(),
@@ -1093,6 +1121,9 @@ def vorlagen_speichern(vorlage_frist_betreff: str = Form(""),
         "vorlage_bewilligung_betreff": vorlage_bewilligung_betreff.strip(),
         "vorlage_bewilligung_text":
             vorlage_bewilligung_text.replace("\r\n", "\n").strip(),
+        "vorlage_zuweisung_betreff": vorlage_zuweisung_betreff.strip(),
+        "vorlage_zuweisung_text":
+            vorlage_zuweisung_text.replace("\r\n", "\n").strip(),
     }
     leer = [k for k, v in werte.items() if not v]
     if leer:

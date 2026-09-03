@@ -3654,6 +3654,215 @@ def test_auswertung_standard(client: TestClient) -> None:
         pruefe(klasse in seite, f"die Kennzahl „{klasse}“ ist eingefärbt")
 
 
+def test_urlaub_halbe_tage(client: TestClient) -> None:
+    """Halbe Urlaubstage zählen halb, ganze ganz."""
+    abschnitt("Urlaub: halbe Tage")
+    from .main import urlaubswert, urlaubstage_zaehlen
+    pruefe(urlaubswert("Urlaub") == 1.0, "„Urlaub“ ist ein ganzer Tag")
+    pruefe(urlaubswert("Urlaub (Halber Tag)") == 0.5,
+           "„Urlaub (Halber Tag)“ ist ein halber")
+    pruefe(urlaubswert("urlaub (halber tag) – vormittags") == 0.5,
+           "Groß-/Kleinschreibung ist egal")
+    pruefe(urlaubswert("Entlastungsgespräch, Strukturplan Urlaub") == 0.0,
+           "„Urlaub“ mitten im Text zählt nicht (beginnt nicht damit)")
+    zeilen = [
+        {"datum": "2026-03-02", "beschreibung": "Urlaub"},
+        {"datum": "2026-03-03", "beschreibung": "Urlaub (Halber Tag)"},
+        {"datum": "2026-03-03", "beschreibung": "Hausbesuch"},
+        {"datum": "2026-03-04", "beschreibung": "Urlaub (Halber Tag)"},
+        {"datum": "2026-03-04", "beschreibung": "Urlaub (Halber Tag)"},
+        {"datum": "2026-03-05", "beschreibung": "Urlaub (Halber Tag)"},
+        {"datum": "2026-03-05", "beschreibung": "Urlaub"},
+        {"datum": "2025-12-30", "beschreibung": "Urlaub"},
+    ]
+    jahre = urlaubstage_zaehlen(zeilen)
+    pruefe(jahre.get("2026") == 3.0,
+           "3 Tage 2026: ganz + halb + halb (zwei halbe am Tag = ein halber) + ganz")
+    pruefe(jahre.get("2025") == 1.0, "und ein ganzer Tag 2025")
+
+
+def test_selbstzahler(client: TestClient) -> None:
+    """Ein Selbstzahler braucht keinen Bescheid und wirft keine Warnung."""
+    abschnitt("Betreute Person: Selbstzahler")
+    from .main import bewilligungslage
+    # Ohne Zeitraum und ohne Grundwert waere die Lage sonst „leer".
+    stand = bewilligungslage([], 0, 0, "2026-06-01", selbstzahler=True)
+    pruefe(stand["art"] == "selbstzahler",
+           "die Lage ist „selbstzahler“, nicht „leer“")
+    from .main import BEWILLIGUNG_HANDLUNG
+    pruefe("selbstzahler" not in BEWILLIGUNG_HANDLUNG,
+           "und löst damit keine Bewilligungswarnung aus")
+
+    # Anlegen mit gesetztem Haken, dann pruefen: Badge da, keine Warnung.
+    client.post("/einstellungen/person", data={
+        "name": "Selbstzahler Probe", "wochenstunden": "0",
+        "stundensatz": "60,00", "abrechenbar": "1", "selbstzahler": "1"})
+    seite = client.get("/einstellungen?bereich=betreute").text
+    block = seite[seite.index("Selbstzahler Probe"):]
+    block = block[:block.find("</details>")] if "</details>" in block else block
+    pruefe("Selbstzahler" in block, "die Person trägt die Marke „Selbstzahler“")
+    pruefe("ohne-bewilligung" not in block,
+           "und keinen roten Balken für eine fehlende Bewilligung")
+
+    with db.db() as con:
+        wert = con.execute("SELECT selbstzahler FROM person WHERE name=?",
+                           ("Selbstzahler Probe",)).fetchone()
+        pruefe(wert and wert["selbstzahler"] == 1,
+               "der Haken steht in der Datenbank")
+
+    # Sie taucht nicht in „Bewilligungen im Blick" auf (bewilligungen_pruefen
+    # liefert nur, was in BEWILLIGUNG_HANDLUNG steht).
+    from .main import bewilligungen_pruefen
+    with db.db() as con:
+        offen = bewilligungen_pruefen(con)
+    pruefe(not any(b["name"] == "Selbstzahler Probe" for b in offen),
+           "und steht in keiner Bewilligungsliste")
+
+
+def test_zuweisungsmail(client: TestClient) -> None:
+    """Neue Aufgaben lösen eine gesammelte Mail aus."""
+    abschnitt("E-Mail: neue Aufgabe zugewiesen")
+    from . import mail
+
+    # Optionen sind in der Oberflaeche vorhanden und speicherbar.
+    seite = client.get("/einstellungen?bereich=email").text
+    pruefe('action="/einstellungen/zuweisungsmail"' in seite,
+           "die Einstellungen kennen die Zuweisungsmail")
+    pruefe("zuweisung_verzug" in seite, "samt Sammelverzug")
+    client.post("/einstellungen/zuweisungsmail",
+                data={"zuweisung_aktiv": "1", "zuweisung_verzug": "0"})
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+    pruefe(k["zuweisung_aktiv"] == "1" and k["zuweisung_verzug"] == "0",
+           "und speichern die Werte")
+
+    # Ein zu grosser Verzug wird begrenzt.
+    client.post("/einstellungen/zuweisungsmail",
+                data={"zuweisung_aktiv": "1", "zuweisung_verzug": "99999"})
+    with db.db() as con:
+        pruefe(mail.konfig_lesen(con)["zuweisung_verzug"] == "1440",
+               "ein zu großer Verzug wird auf 1440 Minuten begrenzt")
+
+    # --- die Sammel-Logik selbst -------------------------------------------
+    gesendet = []
+    echt_senden, echt_adresse = mail.senden, mail.adresse_fuer
+    try:
+        mail.senden = lambda adr, betr, txt, kk=None: (
+            gesendet.append((adr, betr, txt)) or (True, "ok"))
+        mail.adresse_fuer = lambda con, name: (
+            "post@x" if name.strip().lower() == "zuweisungs-tester" else None)
+        with db.db() as con:
+            con.execute(
+                "INSERT OR IGNORE INTO person (name, aktiv, angelegt_am) "
+                "VALUES ('Z-Klient', 1, '2026-01-01 08:00')")
+            # ein ALTER Vorgang, schon gemeldet - darf nicht mitkommen
+            con.execute(
+                "INSERT INTO vorgang (klient, art, titel, zustaendig, status, "
+                "prioritaet, angelegt_am, angelegt_von, zuweis_gemeldet) VALUES "
+                "('Z-Klient','Antrag','Alt','Zuweisungs-Tester','Offen','Normal',"
+                "'2026-01-01 08:00','timo',1)")
+            # zwei NEUE Vorgaenge fuer dieselbe Person
+            for titel in ("Neu A", "Neu B"):
+                con.execute(
+                    "INSERT INTO vorgang (klient, art, titel, zustaendig, status, "
+                    "prioritaet, angelegt_am, angelegt_von, zuweis_gemeldet) VALUES "
+                    "('Z-Klient','Antrag',?,'Zuweisungs-Tester','Offen','Normal',"
+                    "'2026-01-01 08:00','timo',0)", (titel,))
+            k = mail.konfig_lesen(con)
+            k = dict(k, mail_aktiv="1", zuweisung_aktiv="1", zuweisung_verzug="0")
+            prot = mail.pruefe_zuweisungen(con, k)
+        pruefe(len(gesendet) == 1,
+               "beide neuen Aufgaben kommen in EINE Mail, nicht zwei")
+        if gesendet:
+            _adr, betreff, text = gesendet[0]
+            pruefe("Neu A" in text and "Neu B" in text,
+                   "und die Mail nennt beide Aufgaben")
+            pruefe("Alt" not in text,
+                   "die schon gemeldete alte Aufgabe steht nicht drin")
+            pruefe("(2)" in betreff,
+                   "der Betreff nennt die Anzahl")
+        with db.db() as con:
+            offen = con.execute(
+                "SELECT COUNT(*) c FROM vorgang WHERE zuweis_gemeldet=0 "
+                "AND zustaendig='Zuweisungs-Tester'").fetchone()["c"]
+        pruefe(offen == 0, "nach dem Versand ist nichts mehr offen")
+    finally:
+        mail.senden, mail.adresse_fuer = echt_senden, echt_adresse
+
+
+def test_zuweisung_altbestand(client: TestClient) -> None:
+    """Bestehende Aufgaben lösen beim Update keine Sammelmail aus."""
+    abschnitt("E-Mail: Altbestand bleibt still")
+    # ⚠️ Der Kern der Migration: waere zuweis_gemeldet fuer alte Vorgaenge
+    # 0, bekaeme das Team beim Update eine Mail ueber die ganze Historie.
+    # Die Migration setzt sie deshalb auf 1. Neu angelegte Vorgaenge (ueber
+    # die Route) stehen dagegen auf 0.
+    with db.db() as con:
+        # Ein ueber die normale Route angelegter Vorgang ist "offen".
+        pass
+    client.post("/vorgaenge", data={
+        "klient": "Testperson", "art": "Antrag", "titel": "Frischer Vorgang",
+        "zustaendig": "pruefer"})
+    with db.db() as con:
+        frisch = con.execute(
+            "SELECT zuweis_gemeldet FROM vorgang WHERE titel='Frischer Vorgang'"
+        ).fetchone()
+    pruefe(frisch is not None and frisch["zuweis_gemeldet"] == 0,
+           "ein neu angelegter Vorgang steht auf „noch nicht gemeldet“")
+
+
+def test_wiki_bildgroesse(client: TestClient) -> None:
+    """Eine Prozentangabe hinter der Bildadresse skaliert das Bild."""
+    abschnitt("Wiki: Bildgröße in Prozent")
+    from . import markdown as md
+    # ⚠️ Die Groesse muss VOR der Adressaufloesung gelesen werden, sonst
+    # kodiert der Aufloeser das „ =30%" weg. Deshalb hier mit einem
+    # Aufloeser, der die Adresse veraendert - so faellt der Fehler auf.
+    html = md.zu_html("![x](/dateien/holen/plan.png =30%)")
+    pruefe('style="width: 30%; max-width: 30%"' in html,
+           "die Prozentangabe wird zu width und max-width")
+    pruefe("=30%" not in html and "%3D30" not in html,
+           "und steht nicht mehr in der Bildadresse")
+    pruefe('src="/dateien/holen/plan.png"' in html,
+           "die Adresse selbst bleibt sauber")
+    # Werte ausserhalb 1-100 werden geklemmt.
+    pruefe('width: 100%' in md.zu_html("![x](/a.png =250%)"),
+           "über 100 % wird auf 100 begrenzt")
+    # Ohne Angabe kein style.
+    pruefe("style=" not in md.zu_html("![x](/a.png)"),
+           "ohne Angabe bleibt das Bild unverändert")
+
+
+def test_wiki_hauptknoepfe(client: TestClient) -> None:
+    """Anlegen geht auch aus dem Hauptfenster, nicht nur der Seitenleiste."""
+    abschnitt("Wiki: Anlegen-Knöpfe im Hauptfenster")
+    client.post("/wiki/aktion/neu",
+                data={"name": "Knopftest", "ordner": "", "art": "ordner"})
+    seite = client.get("/wiki/Knopftest").text
+    pruefe(seite.count('class="knopf-icon wiki-neu-knopf"') == 2,
+           "in der Ordner-Werkzeugleiste stehen zwei Anlegen-Knöpfe")
+    pruefe('data-wunsch="seite"' in seite and 'data-wunsch="ordner"' in seite,
+           "einer für eine Seite, einer für einen Ordner")
+    stil = client.get("/static/style.css").text
+    pruefe(".wiki-anlegen.mit-knopf:not([open])" in stil,
+           "zugeklappt bringt der Anlegen-Block weder Linie noch Abstand mit")
+
+
+def test_mobile_tabellen(client: TestClient) -> None:
+    """Wiki-Tabellen und die Dateiliste rollen auf dem Telefon statt zu stauchen."""
+    abschnitt("Mobile Tabellen")
+    stil = client.get("/static/style.css").text
+    # Wiki-Tabelle: an ihrem Inhalt ausgerichtet, Zellen brechen normal um.
+    pruefe("min-width: 100%; border-collapse: collapse;" in stil,
+           "die Wiki-Tabelle richtet sich nach ihrem Inhalt (min-width statt fix)")
+    pruefe(".wiki-tabelle th, .wiki-tabelle td {" in stil
+           and "word-break: normal;" in stil,
+           "und ihre Zellen brechen zwischen Wörtern um, nicht mittendrin")
+    # Dateiliste: rollt unterhalb von 760px.
+    pruefe(".tabellenrolle:has(.dateiverzeichnis)," in stil,
+           "die Dateiliste rollt am Telefon in ihrer eigenen Hülle")
+
+
 def test_versionen() -> None:
     """Die Versionszaehlung: beginnt bei 0.1, endet beim aktuellen Stand."""
     abschnitt("Versionen")
@@ -4394,6 +4603,13 @@ def _durchlauf(client: TestClient) -> None:
         test_kfz_linksbuendig(client)
         test_zeitspanne_meinbereich(client)
         test_spruch_hoehe(client)
+        test_urlaub_halbe_tage(client)
+        test_selbstzahler(client)
+        test_zuweisungsmail(client)
+        test_zuweisung_altbestand(client)
+        test_wiki_bildgroesse(client)
+        test_wiki_hauptknoepfe(client)
+        test_mobile_tabellen(client)
         test_versandzeit(client)
         test_zitat_abstand(client)
         test_diagramm_wertmarke(client)

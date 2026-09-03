@@ -35,6 +35,7 @@ zurück, das zweite startet es neu, falls es je abstürzen sollte.
 | `admin_passwort` | leer = wird erzeugt und ins Protokoll geschrieben |
 | `sitzung_tage` | wie lange eine Anmeldung gültig bleibt (30) |
 | `wecker_intervall` | Sekunden zwischen zwei Prüfungen auf fällige E-Mail-Erinnerungen (3600), `0` schaltet ab |
+| `zuweisung_intervall` | Sekunden zwischen zwei Prüfungen auf neu zugewiesene Aufgaben (60); der Sammelverzug selbst steht in den Einstellungen |
 | `max_upload_mb` | Obergrenze beim Hochladen von Zeitlisten und Dateien (20) |
 | `zeitzone` | `Europe/Berlin`. **Nicht ändern** — davon hängen Monatsgrenzen, Fristen und der Wecker ab |
 

@@ -1,9 +1,12 @@
 """E-Mail-Benachrichtigungen: Zugangsdaten, Vorlagen und der Wecker.
 
-Zwei Anlaesse:
+Anlaesse:
 1. Ein Verwaltungsvorgang wird ueberfaellig -> Mail an die zustaendige Person.
 2. Monatsanfang -> Mail an alle abgabepflichtigen Mitarbeitenden, die fuer
    den abgelaufenen Monat noch keine Zeiten eingereicht haben.
+3. Bewilligungen laufen aus/fehlen -> eine Sammelmail an feste Empfaenger.
+4. Neue Aufgabe zugewiesen -> gesammelte Mail an die zustaendige Person.
+   Als einziger Anlass minuten- statt stundengenau (main.zuweisungs_schleife).
 
 Grundgedanken:
 * Zugangsdaten und Vorlagen liegen in der Tabelle "konfig" (Datenbank), nicht
@@ -100,6 +103,19 @@ STANDARD = {
         "für {monat} liegen von dir noch keine erfassten Zeiten vor.\n\n"
         "Bitte reiche deine Arbeitsliste nach oder trage die Zeiten von Hand "
         "ein.\n\n"
+        "Diese Nachricht wurde automatisch erstellt."
+    ),
+    # Neue Aufgabe zugewiesen -> Mail an die zustaendige Person. Standard
+    # aus: erst wenn jemand es einschaltet, ergibt es Sinn. Der Verzug
+    # sammelt mehrere kurz nacheinander angelegte Aufgaben in eine Mail.
+    "zuweisung_aktiv": "0",
+    "zuweisung_verzug": "2",
+    "vorlage_zuweisung_betreff": "Neue Aufgabe{mehrzahl} für dich ({anzahl})",
+    "vorlage_zuweisung_text": (
+        "Hallo {name},\n\n"
+        "dir {wurde} folgende Aufgabe{mehrzahl} zugewiesen:\n\n"
+        "{liste}\n\n"
+        "Du findest sie unter „Aufgaben“.\n\n"
         "Diese Nachricht wurde automatisch erstellt."
     ),
 }
@@ -463,6 +479,92 @@ def pruefe_bewilligungen(con, k: dict) -> list[str]:
     return protokoll
 
 
+def pruefe_zuweisungen(con, k: dict) -> list[str]:
+    """Neu zugewiesene Aufgaben -> eine gesammelte Mail je Zustaendiger.
+
+    ⚠️ Gesammelt, nicht je Aufgabe: wer in fuenf Minuten drei Aufgaben
+    bekommt, soll eine Mail mit drei Zeilen erhalten, nicht drei Mails.
+    Dafuer der Verzug ``zuweisung_verzug`` (Minuten): verschickt wird
+    erst, wenn seit der ZULETZT angelegten offenen Zuweisung dieser Person
+    so lange nichts Neues mehr kam (Ruhephase). So schliesst sich das
+    Sammelfenster von selbst, sobald der Schwung Aufgaben durch ist.
+
+    ⚠️ Welche Aufgaben noch nicht gemeldet sind, steht an ``vorgang``
+    selbst (``zuweis_gemeldet``), nicht in ``benachrichtigung``: nur so
+    laesst sich in einem Rutsch abfragen, was fuer eine Person aussteht.
+    Der Vermerk wird erst nach erfolgreichem Versand gesetzt - schlaegt
+    der SMTP-Versand fehl, bleibt die Aufgabe offen und wird beim
+    naechsten Durchlauf erneut versucht.
+    """
+    if k.get("zuweisung_aktiv") != "1":
+        return []
+    try:
+        verzug = max(0, min(1440, int(k.get("zuweisung_verzug") or 0)))
+    except ValueError:
+        verzug = 0
+    grenze = (dt.datetime.now() - dt.timedelta(minutes=verzug)).strftime(
+        "%Y-%m-%d %H:%M")
+
+    zeilen = con.execute(
+        "SELECT id, klient, titel, art, prioritaet, frist, zustaendig, "
+        "angelegt_am FROM vorgang WHERE zuweis_gemeldet = 0 "
+        "AND TRIM(zustaendig) <> '' "
+        "ORDER BY zustaendig COLLATE NOCASE, angelegt_am").fetchall()
+
+    nach_person: dict[str, list] = {}
+    for z in zeilen:
+        nach_person.setdefault(z["zustaendig"], []).append(z)
+
+    protokoll = []
+    for name, aufgaben in nach_person.items():
+        # Ruhephase noch nicht vorbei? Dann weiter sammeln.
+        neueste = max(a["angelegt_am"] for a in aufgaben)
+        if neueste > grenze:
+            continue
+        ids = [a["id"] for a in aufgaben]
+        platz = ",".join("?" * len(ids))
+        adresse = adresse_fuer(con, name)
+        if not adresse:
+            # Kein Login mit E-Mail: nicht ewig wiederholen, sonst bliebe
+            # die Aufgabe fuer immer "offen" und blockierte kuenftige
+            # Sammelmails dieser Person.
+            con.execute(
+                f"UPDATE vorgang SET zuweis_gemeldet = 1 WHERE id IN ({platz})",
+                ids)
+            protokoll.append(
+                f"Zuweisung: kein Login mit E-Mail für „{name}“ "
+                f"({len(ids)} Aufgabe(n))")
+            continue
+
+        eintraege = []
+        for a in aufgaben:
+            teil = f"  • {a['titel']} (Art: {a['art']}, Person: {a['klient']}"
+            if a["prioritaet"] and a["prioritaet"] != "Normal":
+                teil += f", Priorität: {a['prioritaet']}"
+            if a["frist"]:
+                teil += f", Frist: {_datum(a['frist'])}"
+            teil += ")"
+            eintraege.append(teil)
+        mehrere = len(aufgaben) != 1
+        werte = {
+            "name": name, "anzahl": len(aufgaben),
+            "liste": "\n".join(eintraege),
+            "mehrzahl": "n" if mehrere else "",
+            "wurde": "wurden" if mehrere else "wurde",
+        }
+        erfolg, meldung = senden(
+            adresse, fuellen(k["vorlage_zuweisung_betreff"], werte),
+            fuellen(k["vorlage_zuweisung_text"], werte), k)
+        if erfolg:
+            con.execute(
+                f"UPDATE vorgang SET zuweis_gemeldet = 1 WHERE id IN ({platz})",
+                ids)
+        protokoll.append(
+            f"Zuweisung ({len(ids)}) an {adresse}: "
+            f"{'ok' if erfolg else meldung}")
+    return protokoll
+
+
 def empfaengerliste(wert: str | None) -> list[str]:
     """Aus dem gespeicherten Feld eine Namensliste machen.
 
@@ -482,14 +584,31 @@ def _datum(iso: str | None) -> str:
 
 
 def durchlauf(nur_fristen: bool = False, nur_abgaben: bool = False,
-              nur_bewilligungen: bool = False) -> list[str]:
-    """Ein kompletter Durchlauf aller Pruefungen."""
+              nur_bewilligungen: bool = False,
+              nur_zuweisungen: bool = False) -> list[str]:
+    """Ein kompletter Durchlauf aller Pruefungen.
+
+    ⚠️ Die Zuweisungsmail wird bewusst NICHT im stuendlichen Wecker
+    mitgeprueft, sondern in einer eigenen, schnelleren Schleife
+    (main.zuweisungs_schleife): ihr Verzug misst in Minuten, ein
+    Stundentakt waere dafuer zu grob. ``nur_zuweisungen`` ist der Haken
+    fuer diese Schleife.
+    """
     k = konfig_lesen()
     if k.get("mail_aktiv") != "1":
         return ["E-Mail-Versand ist ausgeschaltet"]
-    einzeln = nur_fristen or nur_abgaben or nur_bewilligungen
+    einzeln = (nur_fristen or nur_abgaben or nur_bewilligungen
+               or nur_zuweisungen)
     protokoll = []
     with db.db() as con:
+        # ⚠️ Zuweisungen laufen NUR ausdruecklich (nur_zuweisungen), nicht
+        # im vollen Lauf. Sonst pruefte sie sowohl die schnelle
+        # Zuweisungs-Schleife als auch der stuendliche Wecker - und wenn
+        # beide zufaellig gleichzeitig liefen, koennte dieselbe Aufgabe
+        # zweimal gemeldet werden (beide lesen zuweis_gemeldet=0, beide
+        # senden). Die schnelle Schleife ist die eine zustaendige Stelle.
+        if nur_zuweisungen:
+            protokoll += pruefe_zuweisungen(con, k)
         if nur_fristen or not einzeln:
             protokoll += pruefe_fristen(con, k)
         if nur_abgaben or not einzeln:
