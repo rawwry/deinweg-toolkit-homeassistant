@@ -3099,25 +3099,44 @@ fieldset.feld > span {
   background: var(--flaeche-2); border: 1px solid var(--linie);
   border-left: 3px solid var(--linie-stark);
 }
-/* ⚠️ Die ganze Karte trägt ihre Lage als Farbe, nicht nur der Balken
-   links (seit 1.19.1): erledigt grün, überfällig rot, offen mit Frist
-   orange, offen ohne Frist gedämpft-neutral. So sieht man den Stand
-   schon beim Überfliegen. Die Töne sind die -weich-Varianten, also
-   dezent - die Marken und der Balken tragen die eigentliche Aussage.
-   ⚠️ „überfällig" bleibt rot und nicht orange, obwohl es auch eine Frist
-   hat: eine überschrittene Frist wiegt schwerer als eine kommende. */
+/* ⚠️ Die Karten folgen einer Ampel nach DRINGLICHKEIT (seit 1.19.2), und
+   die Farbe bedeutet überall dasselbe:
+     rot     = überfällig (Frist überschritten)
+     orange  = fällig heute oder in den nächsten Tagen
+     neutral = offen, aber keine nahe Frist (weiter weg oder keine)
+     grün    = erledigt/abgebrochen (steht ohnehin ganz unten)
+   Das ist einfacher als die frühere Regel „jede Frist ist orange": eine
+   Frist in drei Monaten ist keine Dringlichkeit und bekommt deshalb auch
+   keinen Warnton mehr. Die Töne sind die dezenten -weich-Varianten; die
+   Legende über der Liste (.vk-legende) nennt die Bedeutung ausdrücklich.
+   ⚠️ „überfällig" bleibt rot und nicht orange: eine überschrittene Frist
+   wiegt schwerer als eine kommende. */
 .vorgangskarte.vk-ueberfaellig { border-left-color: var(--dopp);
                                  background: var(--dopp-weich); }
 .vorgangskarte.vk-heute,
 .vorgangskarte.vk-bald         { border-left-color: var(--warn);
                                  background: var(--warn-weich); }
-.vorgangskarte.vk-offen        { background: var(--warn-weich); }
-/* Ohne eingetragene Frist gibt es keine Dringlichkeit - die Karte tritt
-   zurück (var(--grund) ist in beiden Themen recessiver als der
-   Kartengrund darüber). */
-.vorgangskarte.vk-offen.vk-ohne-frist { background: var(--grund); }
+/* „offen" ohne nahe Frist bleibt der neutrale Kartengrund - kein Ton,
+   weil es nichts Dringendes gibt. (Kein eigener Regelblock nötig, die
+   Karte behält var(--flaeche-2); der Balken bleibt --linie-stark.) */
 .vorgangskarte.vk-zu           { border-left-color: var(--gut);
-                                 background: var(--gut-weich); opacity: .85; }
+                                 background: var(--gut-weich); opacity: .8; }
+
+/* Farblegende über der Kartenliste - macht die Ampel ohne Nachdenken
+   lesbar. */
+.vk-legende {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
+  margin: 0 0 14px; font-size: 11.5px; color: var(--leise);
+}
+.vk-legende .chip { display: inline-flex; align-items: center; gap: 6px; }
+.vk-legende i {
+  width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto;
+  border: 1px solid var(--linie);
+}
+.vk-legende i.lg-ueberfaellig { background: var(--dopp-weich); border-color: var(--dopp); }
+.vk-legende i.lg-faellig      { background: var(--warn-weich); border-color: var(--warn); }
+.vk-legende i.lg-offen        { background: var(--flaeche-2);  border-color: var(--linie-stark); }
+.vk-legende i.lg-zu           { background: var(--gut-weich);  border-color: var(--gut); }
 
 .vk-kopf { display: flex; align-items: flex-start; gap: 10px; }
 .vk-titel {

@@ -1627,4 +1627,15 @@ CHANGELOG = [
         "leeres Feld zeigt „TT.MM.JJJJ“ statt „tt.mm.jjjj“",
         "Prüfung von 1141 auf 1149 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.19.2", "titel": "Aufgaben klarer sortiert und gefärbt", "punkte": [
+        "Abgeschlossene Vorgänge (erledigt/abgebrochen) stehen jetzt in "
+        "JEDER Sortierung ganz unten – vorher rutschte ein erledigter "
+        "Vorgang mit alter Frist unter „Dringlichkeit“ nach oben",
+        "Die Kartenfarbe folgt einer klaren Ampel nach Dringlichkeit: rot "
+        "= überfällig, orange = fällig (heute/bald), neutral = offen ohne "
+        "nahe Frist, grün = erledigt. Eine ferne Frist ist damit nicht "
+        "mehr orange",
+        "Neu: eine kleine Farblegende über der Liste erklärt die Ampel",
+        "Prüfung von 1149 auf 1161 Einzelprüfungen erweitert",
+    ]},
 ]

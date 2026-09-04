@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.19.2
+
+- Aufgaben: erledigte/abgebrochene Vorgänge stehen in jeder Sortierung
+  ganz unten
+- Kartenfarbe als Ampel nach Dringlichkeit (rot/orange/neutral/grün) plus
+  eine erklärende Legende
+
 ## 1.19.1
 
 - Aufgabenliste: ganze Karte nach Lage gefärbt (erledigt grün, überfällig

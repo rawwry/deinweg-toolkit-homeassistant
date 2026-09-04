@@ -406,7 +406,24 @@ _PRIO_RANG = ("CASE prioritaet WHEN 'Dringend' THEN 0 WHEN 'Hoch' THEN 1 "
 _UEBERFAELLIG_ZUERST = ("CASE WHEN frist <> '' AND frist < date('now','localtime') "
                         "THEN 0 ELSE 1 END")
 
-SORTIERUNGEN = {
+# ⚠️ Abgeschlossene Vorgaenge sinken IMMER nach ganz unten, egal welche
+# Sortierung gewaehlt ist - sie sind erledigt und sollen die offene
+# Arbeit nicht mehr durchmischen. Ohne diese fuehrende Stufe sortierte
+# ein erledigter Vorgang mit alter Frist unter „Dringlichkeit" ganz nach
+# OBEN, weil seine Frist ueberschritten ist (der Status zaehlt in den
+# uebrigen Stufen nicht mit). Die Werte in ABGESCHLOSSEN sind fest, kein
+# Nutzereingabewert - sie duerfen inline stehen.
+_GESCHLOSSEN_ZULETZT = ("CASE WHEN status IN (%s) THEN 1 ELSE 0 END"
+                        % ",".join("'%s'" % z for z in ABGESCHLOSSEN))
+
+# Innerhalb der abgeschlossenen: die zuletzt erledigten oben - so steht
+# das gerade Abgehakte griffbereit, ganz Altes verschwindet nach unten.
+_ZULETZT_ERLEDIGT = "COALESCE(NULLIF(datum_erledigt,''), geaendert_am) DESC"
+
+# Die eigentliche Sortierung innerhalb der offenen Vorgaenge. Die Stufe
+# „geschlossen zuletzt" und das Nachsortieren der Erledigten kommen
+# gleich programmatisch davor bzw. dahinter.
+_SORT_OFFEN = {
     "dringlichkeit": (f"{_UEBERFAELLIG_ZUERST}, "
                       "CASE WHEN frist IS NULL OR frist = '' THEN 1 ELSE 0 END, "
                       f"frist ASC, {_PRIO_RANG}, id DESC"),
@@ -420,6 +437,16 @@ SORTIERUNGEN = {
     "zustaendig": "zustaendig COLLATE NOCASE ASC, frist ASC",
     "neu": "id DESC",
     "alt": "id ASC",
+}
+
+# ⚠️ Aufbau jeder Sortierklausel: erst offen/geschlossen trennen, dann die
+# gewaehlte Ordnung fuer die Offenen, ganz am Ende die Erledigten nach
+# Erledigungsdatum. Die letzte Stufe wirkt nur auf die geschlossenen
+# (bei offenen ist datum_erledigt leer und geaendert_am ihre eigene
+# Reihenfolge - dort hat die erste, gewaehlte Ordnung laengst entschieden).
+SORTIERUNGEN = {
+    name: f"{_GESCHLOSSEN_ZULETZT}, {klausel}, {_ZULETZT_ERLEDIGT}"
+    for name, klausel in _SORT_OFFEN.items()
 }
 
 

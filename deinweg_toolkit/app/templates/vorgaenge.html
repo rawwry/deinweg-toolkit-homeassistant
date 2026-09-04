@@ -219,6 +219,15 @@
   </div>
 
   {% if liste %}
+  {# Kleine Legende, damit die Farben der Karten ohne Nachdenken lesbar
+     sind: rot = überfällig, orange = fällig (heute oder bald), neutral =
+     offen ohne nahe Frist, grün = erledigt. #}
+  <div class="vk-legende" aria-label="Bedeutung der Farben">
+    <span class="chip"><i class="lg-ueberfaellig"></i> überfällig</span>
+    <span class="chip"><i class="lg-faellig"></i> fällig (heute/bald)</span>
+    <span class="chip"><i class="lg-offen"></i> offen</span>
+    <span class="chip"><i class="lg-zu"></i> erledigt</span>
+  </div>
   {# Eine Karte je Vorgang statt einer achtspaltigen Tabelle. In der
      Tabelle stand der Titel - das Einzige, wonach man wirklich sucht -
      als schmale Spalte zwischen sieben anderen, und bei zwanzig Zeilen
@@ -227,7 +236,7 @@
      Balken links sagt schon vor dem Lesen, wie dringend es ist. #}
   <div class="vorgangskarten">
     {% for z in liste %}
-    <article class="vorgangskarte vk-{{ z.lage }}{{ ' vk-zu' if z.v.status in V_ABGESCHLOSSEN }}{{ ' vk-ohne-frist' if not z.v.frist }}">
+    <article class="vorgangskarte vk-{{ z.lage }}{{ ' vk-zu' if z.v.status in V_ABGESCHLOSSEN }}">
       <div class="vk-kopf">
         <a class="vk-titel" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}{%
           if z.lage == "ueberfaellig" %}<span class="vk-lage l-ueberfaellig">überfällig</span>{%

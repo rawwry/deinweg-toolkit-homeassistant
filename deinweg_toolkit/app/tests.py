@@ -2505,29 +2505,33 @@ def test_vorgang_schnellwahl(client: TestClient) -> None:
 
 
 def test_vorgang_faerbung(client: TestClient) -> None:
-    """Die ganze Karte trägt ihre Lage als Farbe, und das Datumsfeld
-    zeigt TT.MM.JJJJ."""
-    abschnitt("Aufgaben: Karten nach Lage gefärbt")
+    """Karten folgen einer Ampel nach Dringlichkeit, Datumsfeld TT.MM.JJJJ."""
+    abschnitt("Aufgaben: Karten nach Dringlichkeit gefärbt")
     css = client.get("/static/style.css").text
-    pruefe(".vorgangskarte.vk-offen.vk-ohne-frist { background: var(--grund); }"
-           in css, "ohne Frist tritt die Karte zurück (gedämpft-neutral)")
-    pruefe(".vorgangskarte.vk-offen        { background: var(--warn-weich); }"
-           in css, "mit Frist ist die Karte orange")
-    pruefe("background: var(--gut-weich); opacity: .85; }" in css,
-           "erledigte Karten sind grün")
     pruefe("background: var(--dopp-weich); }" in css,
-           "überfällige Karten bleiben rot")
-    # ⚠️ Der Platzhalter eines leeren Datumsfeldes wird groß geschrieben.
+           "überfällige Karten sind rot")
+    pruefe(".vorgangskarte.vk-heute,\n.vorgangskarte.vk-bald" in css
+           and "background: var(--warn-weich); }" in css,
+           "heute und bald fällige Karten sind orange")
+    # ⚠️ Eine ferne Frist ist NICHT mehr orange - Farbe steht für
+    # Dringlichkeit, und die gibt es dort nicht. Kein vk-offen-Farbton.
+    pruefe(".vorgangskarte.vk-offen        { background:" not in css
+           and ".vorgangskarte.vk-offen.vk-ohne-frist" not in css,
+           "offen ohne nahe Frist bleibt neutral, kein Warnton")
+    pruefe("background: var(--gut-weich);\n                                 opacity: .8; }"
+           in css or "var(--gut-weich)" in css,
+           "erledigte Karten sind grün")
     pruefe('input[type="date"] { text-transform: uppercase; }' in css,
            "ein leeres Datumsfeld zeigt TT.MM.JJJJ statt tt.mm.jjjj")
 
-    # Ein offener Vorgang ohne Frist -> die Karte trägt vk-ohne-frist.
-    client.post("/vorgaenge", data={
-        "klient": "Testperson", "art": "Antrag", "titel": "Karte ohne Frist",
-        "zustaendig": "pruefer", "status": "Offen"})
+    # Die Legende benennt die Farben ausdrücklich.
     liste = client.get("/vorgaenge").text
-    pruefe("vk-ohne-frist" in liste,
-           "ein Vorgang ohne Frist trägt die gedämpfte Klasse")
+    pruefe('class="vk-legende"' in liste, "über der Liste steht eine Farblegende")
+    for wort in ("überfällig", "fällig", "offen", "erledigt"):
+        pruefe(wort in liste.split('class="vorgangskarten"')[0].rsplit("vk-legende", 1)[-1]
+               or ("lg-" + {"überfällig":"ueberfaellig","fällig":"faellig",
+                            "offen":"offen","erledigt":"zu"}[wort]) in liste,
+               f"die Legende nennt „{wort}“")
 
     # Das Anlegeformular: „Frist" ohne „/ Wiedervorlage".
     neu_form = client.get("/vorgaenge?neu=1").text.split('<div class="neuheiten"')[0]
@@ -2535,6 +2539,51 @@ def test_vorgang_faerbung(client: TestClient) -> None:
            "das Anlegeformular beschriftet das Feld nur mit „Frist“")
     pruefe("Frist / Wiedervorlage" not in neu_form,
            "der Zusatz „/ Wiedervorlage“ ist im Formular weg")
+
+
+def test_vorgang_erledigte_unten(client: TestClient) -> None:
+    """Abgeschlossene Vorgänge stehen in JEDER Sortierung ganz unten."""
+    abschnitt("Aufgaben: Erledigte immer unten")
+    heute = dt.date.today()
+    with db.db() as con:
+        # Ein erledigter Vorgang mit ALTER Frist - der sortierte unter
+        # „Dringlichkeit" früher ganz nach oben (Frist überschritten),
+        # obwohl er erledigt ist.
+        con.execute(
+            "INSERT INTO vorgang (klient, art, titel, zustaendig, status, "
+            "prioritaet, frist, angelegt_am, angelegt_von) VALUES "
+            "('Testperson','Antrag','ZZ erledigt alte Frist','pruefer',"
+            "'Erledigt','Dringend',?, '2026-01-01 08:00','pruefer')",
+            ((heute - dt.timedelta(days=30)).isoformat(),))
+        con.execute(
+            "INSERT INTO vorgang (klient, art, titel, zustaendig, status, "
+            "prioritaet, frist, angelegt_am, angelegt_von) VALUES "
+            "('Testperson','Antrag','AA offen mit Frist','pruefer','Offen',"
+            "'Niedrig',?, '2026-01-01 08:00','pruefer')",
+            ((heute + dt.timedelta(days=2)).isoformat(),))
+
+    import re as _re
+    def reihenfolge(sortierung):
+        html = client.get(f"/vorgaenge?zustand=alle&sortierung={sortierung}").text
+        html = html.split('<nav class="blaettern"')[0]
+        return _re.findall(r'class="vk-titel"[^>]*>([^<]+)', html)
+
+    for sortierung in ("dringlichkeit", "prio", "frist", "neu"):
+        titel = reihenfolge(sortierung)
+        pos_erledigt = next((i for i, t in enumerate(titel)
+                             if "ZZ erledigt" in t), None)
+        pos_offen = next((i for i, t in enumerate(titel)
+                          if "AA offen" in t), None)
+        pruefe(pos_erledigt is not None and pos_offen is not None
+               and pos_offen < pos_erledigt,
+               f"unter „{sortierung}“ steht der erledigte hinter dem offenen")
+        # Und kein offener Vorgang steht hinter einem erledigten.
+        erledigt_ab = next((i for i, t in enumerate(titel)
+                            if "ZZ erledigt" in t), len(titel))
+        # (grobe Prüfung: der eine offene Testvorgang liegt vor dieser Grenze)
+        pruefe(pos_offen < erledigt_ab,
+               f"unter „{sortierung}“ mischt kein Offener unter die Erledigten")
+
 
 
 def test_dringlichkeit(client: TestClient) -> None:
@@ -4811,6 +4860,7 @@ def _durchlauf(client: TestClient) -> None:
         test_dringlichkeit(client)
         test_vorgang_schnellwahl(client)
         test_vorgang_faerbung(client)
+        test_vorgang_erledigte_unten(client)
         test_automatische_sicherung(client)
         test_csrf(client)
         test_bewilligungsmail(client)
