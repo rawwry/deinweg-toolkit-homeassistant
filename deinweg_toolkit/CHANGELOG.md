@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.19.1
+
+- Aufgabenliste: ganze Karte nach Lage gefärbt (erledigt grün, überfällig
+  rot, mit Frist orange, ohne Frist gedämpft)
+- Neuer Vorgang: Feld „Frist“ (ohne „/ Wiedervorlage“), leeres Datumsfeld
+  zeigt „TT.MM.JJJJ“
+
 ## 1.19
 
 - Aufgabenliste: Status direkt auf der Karte umstellbar

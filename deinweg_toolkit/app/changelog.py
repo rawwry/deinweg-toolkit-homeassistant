@@ -1619,4 +1619,12 @@ CHANGELOG = [
         "überfällige zuerst“",
         "Prüfung von 1124 auf 1141 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.19.1", "titel": "Aufgaben-Karten nach Lage gefärbt", "punkte": [
+        "Aufgabenliste: die ganze Karte trägt jetzt ihre Farbe, nicht nur "
+        "der Balken links – erledigt grün, überfällig rot, mit Frist "
+        "orange, ohne Frist gedämpft-neutral",
+        "Neuer Vorgang: das Fristfeld heißt nur noch „Frist“, und ein "
+        "leeres Feld zeigt „TT.MM.JJJJ“ statt „tt.mm.jjjj“",
+        "Prüfung von 1141 auf 1149 Einzelprüfungen erweitert",
+    ]},
 ]

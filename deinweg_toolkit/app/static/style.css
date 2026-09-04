@@ -781,6 +781,11 @@ input[type=date], input[type=time] {
   input, select { transition: border-color .15s ease, background .15s ease,
                               box-shadow .2s ease; }
   input:focus, select:focus { box-shadow: 0 0 0 4px var(--akzent-weich); }
+/* ⚠️ Der Platzhalter eines leeren Datumsfeldes („tt.mm.jjjj") kommt vom
+   Browser und lässt sich nicht über placeholder setzen. text-transform
+   greift aber bis in die datetime-edit-Felder durch und macht daraus ein
+   gleichmäßiges „TT.MM.JJJJ"; eingetragene Zahlen sind davon unberührt. */
+input[type="date"] { text-transform: uppercase; }
 }
 
 /* --- Bewegung, zweite Schicht --------------------------------------- */
@@ -3094,15 +3099,25 @@ fieldset.feld > span {
   background: var(--flaeche-2); border: 1px solid var(--linie);
   border-left: 3px solid var(--linie-stark);
 }
-/* ⚠️ Überfällige Karten sind zusätzlich zum roten Balken leicht rot
-   getönt (seit 1.19) - „überfällig" ist die eine Lage, die sofort ins
-   Auge springen soll. Der Ton ist derselbe wie hinter einer roten
-   Marke, also dezent, nicht schreiend. */
+/* ⚠️ Die ganze Karte trägt ihre Lage als Farbe, nicht nur der Balken
+   links (seit 1.19.1): erledigt grün, überfällig rot, offen mit Frist
+   orange, offen ohne Frist gedämpft-neutral. So sieht man den Stand
+   schon beim Überfliegen. Die Töne sind die -weich-Varianten, also
+   dezent - die Marken und der Balken tragen die eigentliche Aussage.
+   ⚠️ „überfällig" bleibt rot und nicht orange, obwohl es auch eine Frist
+   hat: eine überschrittene Frist wiegt schwerer als eine kommende. */
 .vorgangskarte.vk-ueberfaellig { border-left-color: var(--dopp);
                                  background: var(--dopp-weich); }
-.vorgangskarte.vk-heute        { border-left-color: var(--warn); }
-.vorgangskarte.vk-bald         { border-left-color: var(--warn); opacity: .95; }
-.vorgangskarte.vk-zu           { border-left-color: var(--gut); opacity: .68; }
+.vorgangskarte.vk-heute,
+.vorgangskarte.vk-bald         { border-left-color: var(--warn);
+                                 background: var(--warn-weich); }
+.vorgangskarte.vk-offen        { background: var(--warn-weich); }
+/* Ohne eingetragene Frist gibt es keine Dringlichkeit - die Karte tritt
+   zurück (var(--grund) ist in beiden Themen recessiver als der
+   Kartengrund darüber). */
+.vorgangskarte.vk-offen.vk-ohne-frist { background: var(--grund); }
+.vorgangskarte.vk-zu           { border-left-color: var(--gut);
+                                 background: var(--gut-weich); opacity: .85; }
 
 .vk-kopf { display: flex; align-items: flex-start; gap: 10px; }
 .vk-titel {

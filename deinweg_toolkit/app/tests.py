@@ -2504,6 +2504,39 @@ def test_vorgang_schnellwahl(client: TestClient) -> None:
            "ohne den Zusatz")
 
 
+def test_vorgang_faerbung(client: TestClient) -> None:
+    """Die ganze Karte trägt ihre Lage als Farbe, und das Datumsfeld
+    zeigt TT.MM.JJJJ."""
+    abschnitt("Aufgaben: Karten nach Lage gefärbt")
+    css = client.get("/static/style.css").text
+    pruefe(".vorgangskarte.vk-offen.vk-ohne-frist { background: var(--grund); }"
+           in css, "ohne Frist tritt die Karte zurück (gedämpft-neutral)")
+    pruefe(".vorgangskarte.vk-offen        { background: var(--warn-weich); }"
+           in css, "mit Frist ist die Karte orange")
+    pruefe("background: var(--gut-weich); opacity: .85; }" in css,
+           "erledigte Karten sind grün")
+    pruefe("background: var(--dopp-weich); }" in css,
+           "überfällige Karten bleiben rot")
+    # ⚠️ Der Platzhalter eines leeren Datumsfeldes wird groß geschrieben.
+    pruefe('input[type="date"] { text-transform: uppercase; }' in css,
+           "ein leeres Datumsfeld zeigt TT.MM.JJJJ statt tt.mm.jjjj")
+
+    # Ein offener Vorgang ohne Frist -> die Karte trägt vk-ohne-frist.
+    client.post("/vorgaenge", data={
+        "klient": "Testperson", "art": "Antrag", "titel": "Karte ohne Frist",
+        "zustaendig": "pruefer", "status": "Offen"})
+    liste = client.get("/vorgaenge").text
+    pruefe("vk-ohne-frist" in liste,
+           "ein Vorgang ohne Frist trägt die gedämpfte Klasse")
+
+    # Das Anlegeformular: „Frist" ohne „/ Wiedervorlage".
+    neu_form = client.get("/vorgaenge?neu=1").text.split('<div class="neuheiten"')[0]
+    pruefe(">Frist <span class=\"leise\">– optional" in neu_form,
+           "das Anlegeformular beschriftet das Feld nur mit „Frist“")
+    pruefe("Frist / Wiedervorlage" not in neu_form,
+           "der Zusatz „/ Wiedervorlage“ ist im Formular weg")
+
+
 def test_dringlichkeit(client: TestClient) -> None:
     """Überfällig wiegt schwerer als „Dringend“."""
     abschnitt("Dringlichkeit vor Priorität")
@@ -4777,6 +4810,7 @@ def _durchlauf(client: TestClient) -> None:
         test_vorgang_anlegen(client)
         test_dringlichkeit(client)
         test_vorgang_schnellwahl(client)
+        test_vorgang_faerbung(client)
         test_automatische_sicherung(client)
         test_csrf(client)
         test_bewilligungsmail(client)

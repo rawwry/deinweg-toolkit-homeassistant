@@ -127,7 +127,7 @@
           </select>
         </label>
         <label class="feld">
-          <span>Frist / Wiedervorlage <span class="leise">– optional</span></span>
+          <span>Frist <span class="leise">– optional</span></span>
           <input type="date" name="frist" min="2020-01-01">
         </label>
       </div>
@@ -227,7 +227,7 @@
      Balken links sagt schon vor dem Lesen, wie dringend es ist. #}
   <div class="vorgangskarten">
     {% for z in liste %}
-    <article class="vorgangskarte vk-{{ z.lage }}{{ ' vk-zu' if z.v.status in V_ABGESCHLOSSEN }}">
+    <article class="vorgangskarte vk-{{ z.lage }}{{ ' vk-zu' if z.v.status in V_ABGESCHLOSSEN }}{{ ' vk-ohne-frist' if not z.v.frist }}">
       <div class="vk-kopf">
         <a class="vk-titel" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}{%
           if z.lage == "ueberfaellig" %}<span class="vk-lage l-ueberfaellig">überfällig</span>{%
