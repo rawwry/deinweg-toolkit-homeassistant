@@ -718,26 +718,55 @@ def loeschen(request: Request, vorgang_id: int,
 @router.post("/{vorgang_id}/status")
 def status_aendern(request: Request, vorgang_id: int, status: str = Form(""),
                    notiz: str = Form(""), frist: str = Form(""),
+                   prioritaet: str = Form(""), zustaendig: str = Form(""),
                    zurueck: str = Form("")):
+    """Ein Handgriff für den Alltag: Status, Priorität, Zuständigkeit,
+    Wiedervorlage und eine Lognotiz in EINEM Formular.
+
+    ⚠️ Bewusst über diese eine Route statt vier getrennter Formulare -
+    die Detailseite hatte vorher „Stand ändern", „Zuständigkeit
+    übergeben" und „Notiz nachtragen" nebeneinander, und zwei davon
+    schrieben dasselbe (eine Logzeile). Priorität lag nur im großen
+    Bearbeiten-Aufklapper. Die Schnellwahl auf der Kartenliste postet
+    hierher ebenfalls, dann nur mit ``status`` (+ ``zurueck``) - alle
+    anderen Felder sind optional und bleiben leer, also unverändert.
+    """
     wer = handelnde_person(request)
     if status not in STATUS_LISTE:
         return _fehler(vorgang_id, "Unbekannter Status.")
 
     with db.db() as con:
         v = lade(con, vorgang_id)
-        alt = v["status"]
+        alt_status = v["status"]
         teile = []
         neue_werte: dict = {"status": status, "geaendert_am": jetzt()}
 
-        if alt != status:
-            teile.append(f"Status von „{alt}“ auf „{status}“ geändert.")
+        if alt_status != status:
+            teile.append(f"Status von „{alt_status}“ auf „{status}“ geändert.")
             # passende Datumsfelder mitziehen, sofern noch leer
             if status == "Eingereicht" and not v["datum_eingereicht"]:
                 neue_werte["datum_eingereicht"] = heute()
             if status == "Erledigt" and not v["datum_erledigt"]:
                 neue_werte["datum_erledigt"] = heute()
-        else:
-            teile.append(f"Status bleibt „{status}“.")
+
+        # Priorität (optional)
+        if (prioritaet and prioritaet in PRIORITAETEN
+                and prioritaet != v["prioritaet"]):
+            neue_werte["prioritaet"] = prioritaet
+            teile.append(
+                f"Priorität von „{v['prioritaet']}“ auf „{prioritaet}“ geändert.")
+
+        # Zuständigkeit (optional). ⚠️ Bei echtem Wechsel wird der
+        # Melde-Vermerk zurückgesetzt, damit die neue Zuständige eine
+        # Zuweisungs-Mail bekommt - dieselbe Regel wie in
+        # zustaendig_aendern.
+        neu_z = sauber(zustaendig, 80)
+        z_gewechselt = (neu_z and
+            (v["zustaendig"] or "").strip().casefold() != neu_z.strip().casefold())
+        if z_gewechselt:
+            neue_werte["zustaendig"] = neu_z
+            neue_werte["zuweis_gemeldet"] = 0
+            teile.append(f"Zuständigkeit von {v['zustaendig']} auf {neu_z} übergeben.")
 
         neue_frist = datum_lesen(frist)
         if frist.strip() and neue_frist and neue_frist != (v["frist"] or ""):
@@ -746,26 +775,42 @@ def status_aendern(request: Request, vorgang_id: int, status: str = Form(""),
         elif frist.strip() and not neue_frist:
             return _fehler(vorgang_id, "Das Datum der Wiedervorlage ist unklar.")
 
-        if status in ABGESCHLOSSEN and not neue_werte.get("frist"):
+        if status in ABGESCHLOSSEN and "frist" not in neue_werte:
             # abgeschlossene Vorgaenge brauchen keine Wiedervorlage mehr
-            neue_werte["frist"] = ""
             if v["frist"]:
+                neue_werte["frist"] = ""
                 teile.append("Wiedervorlage entfernt.")
+
+        notiz_text = mehrzeilig(notiz, 1000).strip()
+        # Nichts geändert und keine Notiz? Dann nichts ins Logbuch.
+        if not teile and not notiz_text:
+            return zurueck_zu(zurueck or f"/vorgaenge/{vorgang_id}",
+                              hinweis="Keine Änderung festgestellt.")
 
         satz = ", ".join(f"{k}=?" for k in neue_werte)
         con.execute(f"UPDATE vorgang SET {satz} WHERE id=?",
                     [*neue_werte.values(), vorgang_id])
 
         text = " ".join(teile)
-        if notiz.strip():
-            text += " Notiz: " + mehrzeilig(notiz, 1000)
-        aktion = ("Vorgang erledigt" if status == "Erledigt" else
-                  "Vorgang abgebrochen" if status == "Abgebrochen" else
-                  "Status geändert")
+        if notiz_text:
+            text = (text + " Notiz: " + notiz_text).strip() if text else notiz_text
+        # Die Aktion bestimmt die Farbe im Logbuch (LOG_KLASSE).
+        if status == "Erledigt" and alt_status != status:
+            aktion = "Vorgang erledigt"
+        elif status == "Abgebrochen" and alt_status != status:
+            aktion = "Vorgang abgebrochen"
+        elif alt_status != status:
+            aktion = "Status geändert"
+        elif "zustaendig" in neue_werte:
+            aktion = "Zuständigkeit geändert"
+        elif not teile:
+            aktion = "Notiz"
+        else:
+            aktion = "Vorgang bearbeitet"
         protokoll(con, vorgang_id, v["klient"], wer, aktion, text)
 
     return zurueck_zu(zurueck or f"/vorgaenge/{vorgang_id}",
-                      hinweis="Status aktualisiert.")
+                      hinweis="Vorgang aktualisiert.")
 
 
 @router.post("/{vorgang_id}/zustaendig")
@@ -877,7 +922,11 @@ def daten_speichern(request: Request, vorgang_id: int, titel: str = Form(""),
         "titel": titel,
         "art": art,
         "beschreibung": mehrzeilig(beschreibung),
-        "prioritaet": prioritaet if prioritaet in PRIORITAETEN else "Normal",
+        # ⚠️ Priorität wird hier NICHT mehr gesetzt - sie steht seit 1.19
+        # in der Schnellwahl „Aktualisieren" oben. Stünde sie in beiden
+        # Formularen, überschriebe das Bearbeiten-Formular still eine
+        # gerade in der Schnellwahl geänderte Priorität mit seinem alten
+        # Wert. Der Parameter bleibt nur, um alte Aufrufe nicht zu brechen.
         "beteiligte": sauber(beteiligte, 200),
         "dateiverweis": sauber(dateiverweis, 300),
         "datum_eingereicht": datum_lesen(datum_eingereicht),

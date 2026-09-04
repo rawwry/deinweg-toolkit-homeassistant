@@ -1430,9 +1430,14 @@ def test_marke(client: TestClient) -> None:
     # dass Titel und Notiz umbrechen.
     pruefe("grid-template-columns: repeat(2, minmax(0, 1fr));" in einzeilig,
            "höchstens zwei Karten nebeneinander")
-    pruefe(".vorgangskarte.vk-ueberfaellig { border-left-color: var(--dopp); }"
+    pruefe(".vorgangskarte.vk-ueberfaellig { border-left-color: var(--dopp);"
            in einzeilig,
            "eine überfällige Karte ist am Balken links zu erkennen")
+    # Seit 1.19 zusätzlich leicht rot getönt - überfällig ist die Lage,
+    # die sofort auffallen soll.
+    pruefe("background: var(--dopp-weich); }" in einzeilig
+           or "background: var(--dopp-weich)" in einzeilig,
+           "und ist zusätzlich leicht rot eingefärbt")
     # Dasselbe für die Tabellen der Auswertung - acht Spalten.
     # ⚠️ Diese eine Tabelle steht auf table-layout: auto. Bei fixed muss
     # man jede Spaltenbreite raten, und eine zu knapp geratene Spalte
@@ -2401,6 +2406,102 @@ def test_vorgang_anlegen(client: TestClient) -> None:
     pruefe(zeile is not None and zeile["wer"] == "pruefer",
            f"im Verlauf steht das angemeldete Konto (ist: "
            f"{zeile['wer'] if zeile else None})")
+
+
+def test_vorgang_schnellwahl(client: TestClient) -> None:
+    """Status auf der Karte umstellen, und ein Formular auf der Detailseite."""
+    abschnitt("Aufgaben: Schnellwahl und ein Formular")
+
+    # Ein frischer Vorgang zum Spielen.
+    client.post("/vorgaenge", data={
+        "klient": "Testperson", "art": "Antrag", "titel": "Schnellwahl-Probe",
+        "zustaendig": "pruefer", "status": "Offen", "prioritaet": "Normal"})
+    with db.db() as con:
+        vid = con.execute("SELECT id FROM vorgang WHERE titel='Schnellwahl-Probe'"
+                          ).fetchone()["id"]
+
+    # --- Karte: die Statusmarke ist ein Auswahlfeld ------------------------
+    liste = client.get("/vorgaenge").text
+    pruefe('class="vk-statusform"' in liste,
+           "jede Karte trägt ein Schnellwahl-Formular für den Status")
+    pruefe('class="vk-statuswahl' in liste,
+           "und darin ein Status-Auswahlfeld")
+    pruefe("vk-statussenden" in liste,
+           "samt Absende-Knopf für den Fall ohne Skript")
+    css = client.get("/static/style.css").text
+    pruefe(".vk-statuswahl {" in css, "das Auswahlfeld ist als Pille gestaltet")
+
+    # Ein Status-Post von der Karte (nur status + zurueck) stellt um und
+    # kehrt zur gefilterten Liste zurück.
+    antwort = client.post(f"/vorgaenge/{vid}/status", data={
+        "status": "In Bearbeitung", "zurueck": "/vorgaenge?status=Offen"},
+        follow_redirects=False)
+    pruefe(antwort.status_code == 303
+           and "status=Offen" in antwort.headers.get("location", ""),
+           "die Schnellwahl kehrt zur gefilterten Liste zurück")
+    with db.db() as con:
+        pruefe(con.execute("SELECT status FROM vorgang WHERE id=?", (vid,)
+                          ).fetchone()["status"] == "In Bearbeitung",
+               "und der Status ist umgestellt")
+
+    # --- kombiniertes „Aktualisieren": Status, Priorität, Zuständig, Notiz -
+    client.post(f"/vorgaenge/{vid}/status", data={
+        "status": "Eingereicht", "prioritaet": "Hoch",
+        "zustaendig": "andere kollegin", "notiz": "alles in einem Schritt"},
+        follow_redirects=False)
+    with db.db() as con:
+        v = con.execute("SELECT status, prioritaet, zustaendig, zuweis_gemeldet "
+                        "FROM vorgang WHERE id=?", (vid,)).fetchone()
+        log = con.execute("SELECT beschreibung FROM vorgang_log WHERE vorgang_id=? "
+                          "ORDER BY id DESC LIMIT 1", (vid,)).fetchone()["beschreibung"]
+    pruefe(v["status"] == "Eingereicht" and v["prioritaet"] == "Hoch"
+           and v["zustaendig"] == "andere kollegin",
+           "Status, Priorität und Zuständigkeit werden zusammen gesetzt")
+    pruefe("Priorität" in log and "Zuständigkeit" in log and "Notiz" in log,
+           "und landen als EIN Logeintrag mit allen Änderungen")
+    pruefe(v["zuweis_gemeldet"] == 0,
+           "der Zuständigkeitswechsel setzt den Melde-Vermerk zurück")
+
+    # Ein Post ohne jede Änderung schreibt nichts ins Logbuch.
+    with db.db() as con:
+        vorher = con.execute("SELECT COUNT(*) c FROM vorgang_log WHERE vorgang_id=?",
+                             (vid,)).fetchone()["c"]
+    client.post(f"/vorgaenge/{vid}/status", data={"status": "Eingereicht"},
+                follow_redirects=False)
+    with db.db() as con:
+        nachher = con.execute("SELECT COUNT(*) c FROM vorgang_log WHERE vorgang_id=?",
+                             (vid,)).fetchone()["c"]
+    pruefe(nachher == vorher, "ein Post ohne Änderung schreibt nichts ins Logbuch")
+
+    # --- Detailseite: ein „Aktualisieren", die alten drei Formulare weg ----
+    detail = client.get(f"/vorgaenge/{vid}").text
+    pruefe(detail.count("<h2>Aktualisieren</h2>") == 1,
+           "die Detailseite hat eine Karte „Aktualisieren“")
+    pruefe('action="/vorgaenge/' + str(vid) + '/zustaendig"' not in detail
+           and 'action="/vorgaenge/' + str(vid) + '/notiz"' not in detail,
+           "die getrennten Formulare für Übergabe und Notiz sind zusammengeführt")
+    pruefe('name="prioritaet"' in detail.split("Angaben zum Vorgang")[0],
+           "die Priorität steht oben in der Schnellwahl")
+    pruefe('name="prioritaet"' not in detail.split("Angaben zum Vorgang")[1],
+           "und nicht mehr im großen Bearbeiten-Aufklapper")
+
+    # ⚠️ Sicherheit: der Bearbeiten-Aufklapper darf die Priorität nicht mehr
+    # überschreiben - er sendet sie gar nicht.
+    client.post(f"/vorgaenge/{vid}/daten", data={
+        "titel": "Schnellwahl-Probe", "art": "Antrag",
+        "beschreibung": "geändert"}, follow_redirects=False)
+    with db.db() as con:
+        pruefe(con.execute("SELECT prioritaet FROM vorgang WHERE id=?", (vid,)
+                          ).fetchone()["prioritaet"] == "Hoch",
+               "Angaben speichern lässt die Priorität unangetastet")
+
+    # Sortierungs-Beschriftung gekürzt. ⚠️ Vor der Prüfung am Hinweis auf
+    # Neuerungen abschneiden - der Changelog zitiert die alte Bezeichnung.
+    liste_ohne = liste.split('<div class="neuheiten"')[0]
+    pruefe(">Dringlichkeit</option>" in liste_ohne,
+           "die Sortierung heißt nur noch „Dringlichkeit“")
+    pruefe("Dringlichkeit – überfällige zuerst" not in liste_ohne,
+           "ohne den Zusatz")
 
 
 def test_dringlichkeit(client: TestClient) -> None:
@@ -4675,6 +4776,7 @@ def _durchlauf(client: TestClient) -> None:
         test_meinbereich_aufbau(client)
         test_vorgang_anlegen(client)
         test_dringlichkeit(client)
+        test_vorgang_schnellwahl(client)
         test_automatische_sicherung(client)
         test_csrf(client)
         test_bewilligungsmail(client)

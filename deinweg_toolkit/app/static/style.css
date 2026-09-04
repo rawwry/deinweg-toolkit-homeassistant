@@ -3094,7 +3094,12 @@ fieldset.feld > span {
   background: var(--flaeche-2); border: 1px solid var(--linie);
   border-left: 3px solid var(--linie-stark);
 }
-.vorgangskarte.vk-ueberfaellig { border-left-color: var(--dopp); }
+/* ⚠️ Überfällige Karten sind zusätzlich zum roten Balken leicht rot
+   getönt (seit 1.19) - „überfällig" ist die eine Lage, die sofort ins
+   Auge springen soll. Der Ton ist derselbe wie hinter einer roten
+   Marke, also dezent, nicht schreiend. */
+.vorgangskarte.vk-ueberfaellig { border-left-color: var(--dopp);
+                                 background: var(--dopp-weich); }
 .vorgangskarte.vk-heute        { border-left-color: var(--warn); }
 .vorgangskarte.vk-bald         { border-left-color: var(--warn); opacity: .95; }
 .vorgangskarte.vk-zu           { border-left-color: var(--gut); opacity: .68; }
@@ -3133,6 +3138,35 @@ fieldset.feld > span {
   font-size: 12px;
 }
 .vk-fuss .marke-status { padding: 3px 9px; font-size: 11px; }
+
+/* Die Status-Schnellwahl sieht aus wie die frühere Statusmarke, ist aber
+   ein Auswahlfeld: ein Klick stellt den Status um, ohne die Aufgabe zu
+   öffnen. Der Chevron rechts zeigt, dass es aufklappt; der „ändern"-Knopf
+   daneben ist nur die Bedienung ohne Skript. */
+.vk-statusform { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.vk-statuswahl {
+  appearance: none; -webkit-appearance: none;
+  max-width: 170px;
+  padding: 3px 22px 3px 9px; border-radius: 20px;
+  font: inherit; font-size: 11px; font-weight: 600; line-height: 1.45;
+  border: 1px solid var(--linie); cursor: pointer;
+  background-color: var(--flaeche-2); color: var(--leise);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat; background-position: right 6px center; background-size: 11px;
+}
+.vk-statuswahl.vs-offen       { background-color: var(--flaeche-2);   color: var(--tinte); }
+.vk-statuswahl.vs-arbeit      { background-color: var(--akzent-weich); color: var(--akzent); }
+.vk-statuswahl.vs-eingereicht { background-color: var(--info-weich);  color: var(--info); }
+.vk-statuswahl.vs-warten      { background-color: var(--warn-weich);  color: var(--warn); }
+.vk-statuswahl.vs-rueckfrage  { background-color: var(--dopp-weich);  color: var(--dopp); }
+.vk-statuswahl.vs-erledigt    { background-color: var(--gut-weich);   color: var(--gut); }
+.vk-statuswahl.vs-abgebrochen { background-color: var(--flaeche-2);   color: var(--leise); }
+.vk-statuswahl:hover { border-color: var(--linie-stark); }
+.vk-statuswahl:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
+/* ⚠️ Die aufgeklappte Optionsliste soll nicht die Pillenfarbe erben -
+   sonst steht z.B. orange Schrift auf orangem Grund. Zurück auf neutral. */
+.vk-statuswahl option { background: var(--flaeche); color: var(--tinte); font-weight: 500; }
+.vk-statussenden { padding: 2px 9px; }
 /* Datum und Wort („27.08.2026 überfällig“) gehören zusammen und sollen
    nicht auf zwei Zeilen zerfallen. */
 .vk-frist { display: inline-flex; align-items: baseline; gap: 5px;

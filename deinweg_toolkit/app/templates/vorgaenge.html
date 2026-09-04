@@ -173,7 +173,7 @@
     </label>
     <label><span>Sortierung</span>
       <select name="sortierung">
-        <option value="dringlichkeit" {{ 'selected' if sortierung == 'dringlichkeit' }}>Dringlichkeit – überfällige zuerst</option>
+        <option value="dringlichkeit" {{ 'selected' if sortierung == 'dringlichkeit' }}>Dringlichkeit</option>
         <option value="prio" {{ 'selected' if sortierung == 'prio' }}>Priorität</option>
         <option value="frist" {{ 'selected' if sortierung == 'frist' }}>Frist, nächste zuerst</option>
         <option value="frist_neu" {{ 'selected' if sortierung == 'frist_neu' }}>Frist, späteste zuerst</option>
@@ -265,7 +265,21 @@
       {% endif %}
 
       <div class="vk-fuss">
-        {{ statusmarke(z.v.status) }}
+        {# Schnellwahl statt starrer Marke: der Status lässt sich direkt
+           hier umstellen, ohne die Aufgabe zu öffnen - der häufigste
+           Handgriff in der Fristenarbeit. Ohne Skript bleibt der kleine
+           „ändern"-Knopf sichtbar und tut dasselbe; mit Skript schickt
+           schon die Auswahl ab. Der versteckte „zurueck"-Wert hält die
+           gefilterte Liste. #}
+        <form class="vk-statusform" method="post"
+              action="/vorgaenge/{{ z.v.id }}/status">
+          <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
+          <select name="status" class="vk-statuswahl {{ V_STATUS_KLASSE.get(z.v.status, 'weg') }}"
+                  aria-label="Status von „{{ z.v.titel }}“ ändern">
+            {% for stt in V_STATUS %}<option value="{{ stt }}" {{ 'selected' if stt == z.v.status }}>{{ stt }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="knopf klein leise vk-statussenden">ändern</button>
+        </form>
         <span class="vk-frist">{{ frist(z.v, z.lage) }}</span>
         <span class="vk-zustaendig" title="Zuständig">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -334,6 +348,19 @@
       adresse.searchParams.set("zustand", schalter.checked ? "offen" : "alle");
       adresse.searchParams.delete("seite_nr");
       window.location.href = adresse.toString();
+    });
+  })();
+
+  // Schnellwahl des Status auf den Karten: die Auswahl schickt selbst ab,
+  // der „ändern"-Knopf wird dann überflüssig und verschwindet. Ohne
+  // Skript bleibt er sichtbar und bedient dasselbe Formular.
+  (function () {
+    document.querySelectorAll(".vk-statusform").forEach(function (form) {
+      var wahl = form.querySelector(".vk-statuswahl"),
+          knopf = form.querySelector(".vk-statussenden");
+      if (!wahl) { return; }
+      if (knopf) { knopf.hidden = true; }
+      wahl.addEventListener("change", function () { form.submit(); });
     });
   })();
 </script>

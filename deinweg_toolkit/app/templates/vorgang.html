@@ -63,68 +63,51 @@
   {% endif %}
 </section>
 
-<section class="raster gleich buendig">
-  <div class="karte">
-    <h2>Stand ändern</h2>
+<section class="karte">
+  <h2>Aktualisieren</h2>
+  <p class="lead">{{ t("vorgaenge.aktualisieren_hinweis") }}</p>
+  {# ⚠️ Ein Formular statt vorher drei („Stand ändern", „Zuständigkeit
+     übergeben", „Notiz nachtragen"). Zwei davon schrieben dasselbe -
+     eine Logzeile -, und die Priorität lag nur im großen Bearbeiten-
+     Aufklapper. Alles, was man im Alltag umstellt, steht jetzt hier
+     zusammen. Die Route /status nimmt die zusätzlichen Felder entgegen. #}
+  <form action="/vorgaenge/{{ v.id }}/status" method="post">
+    <div class="feldreihe">
+      <label class="feld">
+        <span>Status</span>
+        <select name="status">
+          {% for st in V_STATUS %}<option value="{{ st }}" {{ 'selected' if st == v.status }}>{{ st }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="feld">
+        <span>Priorität</span>
+        <select name="prioritaet">
+          {% for pr in V_PRIO %}<option value="{{ pr }}" {{ 'selected' if pr == v.prioritaet }}>{{ pr }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Zuständige Person</span>
+        <select name="zustaendig" required>
+          {% for m in leute %}<option value="{{ m }}" {{ 'selected' if m == v.zustaendig }}>{{ m }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="feld">
+        <span>Wiedervorlage <span class="leise">– leer = unverändert</span></span>
+        <input type="date" name="frist" value="" min="2020-01-01">
+      </label>
+    </div>
+    <label class="feld">
+      <span>Was wurde getan? <span class="leise">– landet im Logbuch</span></span>
+      <textarea name="notiz" rows="2"
+                placeholder="z. B. Fortschreibung mit allen Anlagen beim LWL eingereicht"></textarea>
+    </label>
     <p class="klein leise felderklaerung">{{ t("vorgaenge.stand_hinweis") }}</p>
-    <form action="/vorgaenge/{{ v.id }}/status" method="post">
-      <div class="feldreihe">
-        <label class="feld">
-          <span>Neuer Status</span>
-          <select name="status">
-            {% for s in V_STATUS %}<option value="{{ s }}" {{ 'selected' if s == v.status }}>{{ s }}</option>{% endfor %}
-          </select>
-        </label>
-        <label class="feld">
-          <span>Wiedervorlage <span class="leise">– optional</span></span>
-          <input type="date" name="frist" value="" min="2020-01-01">
-        </label>
-      </div>
-      <label class="feld">
-        <span>Was wurde getan? <span class="leise">– landet im Logbuch</span></span>
-        <textarea name="notiz" rows="2"
-                  placeholder="z. B. Fortschreibung mit allen Anlagen beim LWL eingereicht"></textarea>
-      </label>
-      <div class="knopfreihe">
-        <button class="knopf haupt" type="submit">Status speichern</button>
-      </div>
-    </form>
-  </div>
-
-  <div class="karte">
-    <h2>Zuständigkeit übergeben</h2>
-    <form action="/vorgaenge/{{ v.id }}/zustaendig" method="post">
-      <div class="feldreihe zwei">
-        <label class="feld">
-          <span>Neue zuständige Person</span>
-          <select name="zustaendig" required>
-            {% for m in leute %}<option value="{{ m }}" {{ 'selected' if m == v.zustaendig }}>{{ m }}</option>{% endfor %}
-          </select>
-        </label>
-      </div>
-      <label class="feld">
-        <span>Notiz <span class="leise">– optional</span></span>
-        <input type="text" name="notiz" maxlength="400" placeholder="z. B. Übergabe wegen Urlaub">
-      </label>
-      <div class="knopfreihe">
-        <button class="knopf" type="submit">Übergeben</button>
-      </div>
-    </form>
-
-    <h2 class="unterkopf">Notiz nachtragen</h2>
-    <form action="/vorgaenge/{{ v.id }}/notiz" method="post">
-      <div class="feldreihe zwei">
-      </div>
-      <label class="feld">
-        <span>Eintrag für das Logbuch</span>
-        <textarea name="notiz" rows="2" required
-                  placeholder="z. B. telefonisch nachgefragt, Sachbearbeitung bittet um Geduld"></textarea>
-      </label>
-      <div class="knopfreihe">
-        <button class="knopf" type="submit">In den Verlauf schreiben</button>
-      </div>
-    </form>
-  </div>
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Speichern</button>
+    </div>
+  </form>
 </section>
 
 <section class="karte">
@@ -148,13 +131,10 @@
         <span>Beschreibung</span>
         <textarea name="beschreibung" rows="3">{{ v.beschreibung or "" }}</textarea>
       </label>
-      <div class="feldreihe">
-        <label class="feld">
-          <span>Priorität</span>
-          <select name="prioritaet">
-            {% for p in V_PRIO %}<option value="{{ p }}" {{ 'selected' if p == v.prioritaet }}>{{ p }}</option>{% endfor %}
-          </select>
-        </label>
+      {# Priorität steht seit 1.19 oben in „Aktualisieren", nicht mehr
+         hier - sonst überschriebe dieses Formular sie still mit dem alten
+         Wert. #}
+      <div class="feldreihe zwei">
         <label class="feld">
           <span>Weitere Beteiligte</span>
           <input type="text" name="beteiligte" value="{{ v.beteiligte or '' }}" maxlength="200">

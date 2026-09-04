@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.19
+
+- Aufgabenliste: Status direkt auf der Karte umstellbar
+- Überfällige Aufgaben leicht rot eingefärbt
+- Aufgaben-Detailseite: ein Formular „Aktualisieren“ statt dreier
+  getrennter (Status/Priorität/Zuständigkeit/Wiedervorlage/Notiz)
+- Sortierung heißt nur noch „Dringlichkeit“
+
 ## 1.18.2
 
 - Einstellungen → Sprüche: der Bearbeiten-Stift springt zur Zeile statt

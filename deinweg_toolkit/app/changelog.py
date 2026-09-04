@@ -1603,4 +1603,20 @@ CHANGELOG = [
         "springt jetzt direkt zur passenden Zeile, statt an den "
         "Seitenanfang zu springen",
     ]},
+    {"version": "1.19", "titel": "Aufgaben schneller bedienen", "punkte": [
+        "Aufgabenliste: der Status lässt sich direkt auf der Karte "
+        "umstellen – ein Auswahlfeld statt einer starren Marke, ohne die "
+        "Aufgabe erst zu öffnen",
+        "Überfällige Aufgaben sind auf der Liste zusätzlich zum roten "
+        "Balken leicht rot eingefärbt",
+        "Detailseite einer Aufgabe: Status, Priorität, Zuständigkeit, "
+        "Wiedervorlage und Notiz stehen jetzt in EINEM Formular "
+        "„Aktualisieren“ zusammen – vorher waren es drei getrennte "
+        "Formulare, zwei davon schrieben dasselbe",
+        "Priorität steht damit oben in der Schnellwahl statt vergraben im "
+        "Bearbeiten-Aufklapper",
+        "Filter → Sortierung: „Dringlichkeit“ statt „Dringlichkeit – "
+        "überfällige zuerst“",
+        "Prüfung von 1124 auf 1141 Einzelprüfungen erweitert",
+    ]},
 ]

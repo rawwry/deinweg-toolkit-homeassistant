@@ -157,6 +157,10 @@ TEXTE_STANDARD["vorgaenge.keine_personen"] = (
     "oder erfasse Zeiten von Hand, dann steht die Auswahl hier bereit.")
 TEXTE_STANDARD["vorgaenge.leer"] = (
     "Kein Vorgang für diesen Filter.")
+TEXTE_STANDARD["vorgaenge.aktualisieren_hinweis"] = (
+    "Status, Priorität, Zuständigkeit und Wiedervorlage in einem Schritt. "
+    "Alles, was du hier änderst, landet gemeinsam als ein Eintrag im "
+    "Logbuch – mit Notiz, wenn du eine dazuschreibst.")
 TEXTE_STANDARD["vorgaenge.stand_hinweis"] = (
     "Der Status wird nicht einfach überschrieben: jede Änderung landet mit "
     "Zeitpunkt, Namen und Notiz im Logbuch der betreuten Person.")
