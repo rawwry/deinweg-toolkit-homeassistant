@@ -262,6 +262,41 @@
       });
     }
   })();
+
+  // --- Ein Osterei ------------------------------------------------------
+  // Fünfmal auf die Versionsnummer in der Fußzeile: das Logo schlägt
+  // einen Purzelbaum, und die Rechtezeile erinnert vier Sekunden lang an
+  // den alten Untertitel des Toolkits. Danach ist alles wie vorher.
+  //
+  // Bewusst gut versteckt: eine Versionsnummer klickt niemand aus
+  // Versehen fünfmal an. Und bewusst folgenlos - es wird nichts
+  // gespeichert und nichts abgeschickt. Der Purzelbaum hängt an
+  // "prefers-reduced-motion"; wer Bewegung abgestellt hat, bekommt nur
+  // den Spruch zu sehen.
+  (function () {
+    var marke = document.querySelector(".fussmarke"),
+        zahl  = document.querySelector(".fuss-fassung .version"),
+        recht = document.querySelector(".fuss-recht");
+    if (!marke || !zahl || !recht) { return; }
+    var klicks = 0, letzter = 0, laeuft = false;
+    zahl.addEventListener("click", function () {
+      var jetzt = Date.now();
+      klicks = (jetzt - letzter > 1200) ? 1 : klicks + 1;
+      letzter = jetzt;
+      if (klicks < 5 || laeuft) { return; }
+      klicks = 0; laeuft = true;
+      var vorher = recht.textContent;
+      marke.classList.add("purzelt");
+      recht.textContent = "Kontrolliertes Chaos. In Digital.";
+      recht.classList.add("geheim");
+      setTimeout(function () {
+        marke.classList.remove("purzelt");
+        recht.textContent = vorher;
+        recht.classList.remove("geheim");
+        laeuft = false;
+      }, 4000);
+    });
+  })();
 </script>
 </body>
 </html>

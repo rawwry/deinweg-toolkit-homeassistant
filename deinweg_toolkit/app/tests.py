@@ -4495,6 +4495,84 @@ def test_abrechnungsart(client: TestClient) -> None:
            "die alten, inzwischen falschen sind weg")
 
 
+def test_kosmetik(client: TestClient) -> None:
+    """Kopfzeile, Tabellen am Telefon, Mülleimer – und ein Osterei."""
+    abschnitt("Kosmetik")
+    stil = client.get("/static/style.css").text
+
+    # --- Kopfzeile: kein seitlicher Scrollbalken mehr -------------------
+    # ⚠️ Die Sprechblasen der Werkzeugsymbole sind unter ihrem Symbol
+    # zentriert und breiter als dieses. Bis 1.20.4 hing nur die LETZTE
+    # rechtsbündig; „Einstellungen" ist aber das längste Wort und ragte
+    # als vorletzte neun Pixel über den Fensterrand - der Scrollbalken
+    # war also nie ganz weg.
+    pruefe(".werkzeuge > *:nth-last-child(-n+2) .werkzeug-text {" in stil,
+           "die letzten zwei Sprechblasen hängen rechtsbündig")
+    pruefe(".werkzeuge > *:last-child .werkzeug-text {" not in stil,
+           "die alte Regel für nur die letzte ist ersetzt")
+    pruefe(".menuehuelle .werkzeuge > *:nth-last-child(-n+2) .werkzeug:hover"
+           in stil,
+           "und die Sonderregel der Menüschublade zieht mit – sonst "
+           "verlöre sie den Spezifitätskampf")
+
+    # --- Tabellen am Telefon: einheitlich, einzeilige Titel, rollbar ----
+    telefon = stil.split("@media (max-width: 760px)")[-1]
+    pruefe(".tabellenrolle .liste { table-layout: auto; }" in telefon,
+           "am Telefon rechnen alle Tabellen nach Inhalt")
+    pruefe(".tabellenrolle .liste.auswertungsblatt th:first-child," in telefon,
+           "auch die Namensspalte der Auswertung hält ihren Titel einzeilig")
+    pruefe(".tabellenrolle { overflow-x: auto; }" in telefon,
+           "und jede Hülle rollt seitlich")
+    # ⚠️ table-layout: auto ist die Bedingung, nicht die Zutat: bei fester
+    # Aufteilung liefe ein nicht umbrechender Titel aus seiner Zelle.
+    pruefe(telefon.index(".tabellenrolle .liste { table-layout: auto; }")
+           < telefon.index("white-space: nowrap"),
+           "die Aufteilung steht vor dem Umbruchverbot")
+
+    # Eingabefelder in den pflegbaren Listen behalten eine lesbare Breite.
+    pruefe(".liste td input.mini," in telefon and "min-width: 132px" in telefon,
+           "Eingabefelder fallen nicht auf die Breite ihres Spaltentitels "
+           "zusammen")
+    pruefe(".tabellenrolle .liste td input.mini," not in telefon,
+           "die Regel gilt auch außerhalb einer Rolle – die Team-Tabelle "
+           "steht direkt in ihrer Karte")
+
+    # --- „Mein Bereich": Abstand über dem Knopf --------------------------
+    pruefe(".aufgabenliste ~ .knopfreihe { margin-top: 14px; }" in stil,
+           "„Alle meine Aufgaben“ klebt nicht mehr an der letzten Aufgabe")
+
+    # --- Einstellungen: überall der rote Mülleimer -----------------------
+    for bereich in ("betreute", "mitarbeiter", "vorgangsarten", "leistungen",
+                    "quotes"):
+        seite = client.get(f"/einstellungen?bereich={bereich}").text
+        seite = seite.split('<div class="neuheiten"')[0]
+        pruefe(">entfernen<" not in seite,
+               f"„{bereich}“ hat keinen Wortknopf „entfernen“ mehr")
+    seite = client.get("/einstellungen?bereich=mitarbeiter").text
+    pruefe('class="knopf-icon warn"' in seite and "M4 7h16M9.5 7V4.8" in seite,
+           "sondern den roten Mülleimer")
+    # ⚠️ Ein verstecktes Feld als direktes Kind von <tr> ist ungültiges
+    # HTML: der Browser hebt es aus der Tabelle heraus und lässt eine
+    # leere Zeile stehen.
+    pruefe("</td>\n        <input type=\"hidden\" name=\"notiz\"" not in seite,
+           "und das versteckte Notizfeld steht in seiner Zelle, nicht "
+           "zwischen zwei Zellen")
+
+    # --- Das Osterei ------------------------------------------------------
+    seite = client.get("/meinbereich").text
+    pruefe("fuss-fassung" in seite and 'class="version"' in seite,
+           "die Versionsnummer steht als eigenes Element in der Fußzeile")
+    pruefe("Kontrolliertes Chaos. In Digital." in seite,
+           "und fünf Klicks darauf holen den alten Untertitel zurück")
+    pruefe("fussmarke" in seite and "purzelt" in seite,
+           "dazu schlägt das Logo einen Purzelbaum")
+    pruefe("fuss-purzel" in stil,
+           "der Takt dafür steht im Stylesheet")
+    ruhig = stil.split("@media (prefers-reduced-motion: no-preference)")
+    pruefe(all("fuss-purzel" not in t for t in ruhig[:1]),
+           "und läuft nur mit ausdrücklicher Erlaubnis für Bewegung")
+
+
 def test_versionen() -> None:
     """Die Versionszaehlung: beginnt bei 0.1, endet beim aktuellen Stand."""
     abschnitt("Versionen")
@@ -5265,6 +5343,7 @@ def _durchlauf(client: TestClient) -> None:
         test_konto_zugeklappt(client)
         test_meine_zeiten_namensspalte(client)
         test_abrechnungsart(client)
+        test_kosmetik(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")

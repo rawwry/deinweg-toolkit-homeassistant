@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.20.5
+
+- Kopfzeile: kein waagerechter Rollbalken mehr durch die Sprechblasen
+- Tabellen am Telefon einheitlich: Spaltentitel einzeilig, seitlich
+  rollbar
+- Einstellungen: Eingabefelder in Tabellen bleiben am Telefon lesbar,
+  „entfernen“ überall als roter Mülleimer
+- „Mein Bereich“: Abstand über „Alle meine Aufgaben“
+
 ## 1.20.4
 
 - Zeitraum-Picker: Darstellungsfehler behoben (Namenskonflikt der Klasse

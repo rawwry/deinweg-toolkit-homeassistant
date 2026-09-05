@@ -1638,20 +1638,28 @@ textarea:focus { border-color: var(--akzent); }
 .werkzeug:hover .werkzeug-text, .werkzeug:focus-visible .werkzeug-text {
   opacity: 1; transform: translateX(-50%) translateY(0);
 }
-/* Die Sprechblase des letzten Symbols ragte über den rechten Bildschirm-
-   rand hinaus: sie ist unter ihrem Symbol zentriert, breiter als dieses,
-   und das letzte Symbol steht am Rand. Sichtbar war davon nichts (sie ist
-   ohne Mauszeiger durchsichtig) – sie machte die Seite aber ein bis zwei
-   Pixel breiter als das Fenster und erzeugte damit einen seitlichen
-   Scrollbalken auf jeder Seite. Deshalb hängt die letzte Blase rechts
-   bündig statt mittig. */
-.werkzeuge > *:last-child .werkzeug-text {
+/* Die Sprechblasen am rechten Rand ragten über den rechten Bildschirm-
+   rand hinaus: sie sind unter ihrem Symbol zentriert, breiter als dieses,
+   und die Symbole stehen ganz rechts. Sichtbar war davon nichts (sie sind
+   ohne Mauszeiger durchsichtig) – sie machten die Seite aber ein paar
+   Pixel breiter als das Fenster und erzeugten damit einen seitlichen
+   Scrollbalken auf jeder Seite. Deshalb hängen sie rechtsbündig statt
+   mittig.
+
+   ⚠️ Die letzten ZWEI, nicht nur die letzte (seit 1.20.5). Die letzte
+   Blase („Mein Bereich") war damit zwar gebändigt, die vorletzte
+   („Einstellungen") ist aber das längste Wort der drei und ragte
+   ihrerseits neun Pixel hinaus – der Scrollbalken war also nie ganz
+   weg. „-n+2" statt einer festen Zahl, weil je nach Rechten ein, zwei
+   oder drei Symbole dastehen; bei nur einem ist es zugleich das letzte
+   und das vorletzte, was nichts kaputt macht. */
+.werkzeuge > *:nth-last-child(-n+2) .werkzeug-text {
   left: auto; right: 0; transform: translateX(0) translateY(-3px);
 }
-.werkzeuge > *:last-child .werkzeug:hover .werkzeug-text,
-.werkzeuge > *:last-child .werkzeug:focus-visible .werkzeug-text,
-.werkzeuge > *:last-child.werkzeug:hover .werkzeug-text,
-.werkzeuge > *:last-child.werkzeug:focus-visible .werkzeug-text {
+.werkzeuge > *:nth-last-child(-n+2) .werkzeug:hover .werkzeug-text,
+.werkzeuge > *:nth-last-child(-n+2) .werkzeug:focus-visible .werkzeug-text,
+.werkzeuge > *:nth-last-child(-n+2).werkzeug:hover .werkzeug-text,
+.werkzeuge > *:nth-last-child(-n+2).werkzeug:focus-visible .werkzeug-text {
   transform: translateX(0) translateY(0);
 }
 
@@ -1802,13 +1810,13 @@ textarea:focus { border-color: var(--akzent); }
      :hover aus, und das Wort rutschte damit sichtbar ins Zeichen
      hinein. Deshalb gilt hier ausdrücklich auch im angefassten Zustand
      keine Verschiebung. Der lange Selektor ist nötig: er muss die
-     Sonderregel für das letzte Symbol (.werkzeuge > *:last-child …)
-     schlagen. */
+     Sonderregel für die letzten Symbole
+     (.werkzeuge > *:nth-last-child(-n+2) …) schlagen. */
   .menuehuelle .werkzeuge .werkzeug .werkzeug-text,
   .menuehuelle .werkzeuge .werkzeug:hover .werkzeug-text,
   .menuehuelle .werkzeuge .werkzeug:focus-visible .werkzeug-text,
-  .menuehuelle .werkzeuge > *:last-child .werkzeug:hover .werkzeug-text,
-  .menuehuelle .werkzeuge > *:last-child .werkzeug:focus-visible .werkzeug-text {
+  .menuehuelle .werkzeuge > *:nth-last-child(-n+2) .werkzeug:hover .werkzeug-text,
+  .menuehuelle .werkzeuge > *:nth-last-child(-n+2) .werkzeug:focus-visible .werkzeug-text {
     position: static; opacity: 1; transform: none; padding: 0;
     background: none; color: inherit; font-size: 16px; font-weight: 500;
     transition: none; left: auto; right: auto;
@@ -2835,6 +2843,12 @@ body.anmeldeseite {
   border-left: 3px solid var(--linie-stark);
 }
 .aufgabenliste li.ueberfaellig { border-left-color: var(--dopp); }
+/* ⚠️ „Alle meine Aufgaben" klebte an der letzten Aufgabe: die Liste
+   bringt keinen unteren Rand mit und die Knopfreihe keinen oberen, und
+   weil beide Kästen sind, sah der Knopf wie eine vierte, halb
+   abgeschnittene Aufgabe aus. Der Nachbarschafts-Selektor greift auch,
+   wenn dazwischen noch „… und 3 weitere" steht. */
+.aufgabenliste ~ .knopfreihe { margin-top: 14px; }
 .au-titel { display: block; font-weight: 600; color: var(--tinte);
             text-decoration: none; }
 .au-titel:hover { color: var(--akzent); }
@@ -4795,4 +4809,81 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 @media (max-width: 620px) {
   .kfz-faellig-datum { margin-left: 0; }
   .kfz-aktivitaet-betrag, .kfz-aktivitaet-datum { min-width: 0; }
+}
+
+/* --- Tabellen am Telefon: einheitlich und rollbar ------------------------
+   Bis 1.20.4 verhielten sich die Tabellen unterhalb von 760px
+   verschieden: die einen stauchten ihre Spaltentitel, bis „Betreute
+   Person" als „Betreute / Person" und „Abweichung" über drei Zeilen
+   stand - die Monatsblöcke der Auswertung kamen so auf 160px hohe
+   Kopfzeilen -, die anderen rollten seitlich. Jetzt gilt überall
+   dasselbe: Spaltentitel bleiben einzeilig, die Tabelle wird so breit
+   wie ihr Inhalt, und die Hülle rollt. Am Schreibtisch ändert sich
+   nichts.
+
+   ⚠️ „table-layout: auto" ist dabei keine Zutat, sondern die Bedingung:
+   bei fester Aufteilung läuft ein nicht umbrechender Titel aus seiner
+   Zelle heraus, statt die Tabelle zu verbreitern (Abschnitt 12). Erst
+   mit „auto" wächst die Tabelle und die Hülle bekommt etwas zu rollen.
+
+   ⚠️ Die Selektoren nennen die Sondertabellen ausdrücklich mit: sie
+   setzen ihre Titel weiter oben mit höherer Spezifität auf „normal",
+   ein kurzes „.tabellenrolle .liste th" verlöre gegen sie. Die erste
+   Spalte der Auswertung braucht sogar „th:first-child" - dort steht
+   eine eigene Regel für die Namensspalte (0,3,2), und genau die hielt
+   „BETREUTE PERSON" dreizeilig, während alle anderen Titel längst
+   einzeilig waren.
+*/
+@media (max-width: 760px) {
+  .tabellenrolle { overflow-x: auto; }
+  .tabellenrolle .liste { table-layout: auto; }
+  .tabellenrolle .liste th,
+  .tabellenrolle .liste th.nowrap,
+  .tabellenrolle .liste.auswertungsblatt th,
+  .tabellenrolle .liste.auswertungsblatt th:first-child,
+  .tabellenrolle .liste.zeitentabelle th { white-space: nowrap; }
+  /* Was in einer Zeile stehen soll, steht in einer Zeile: Datumsangaben,
+     Uhrzeiten, Beträge und die Statuspillen. Bei fester Aufteilung war
+     das verboten, weil es aus der Zelle lief - hier wird die Tabelle
+     stattdessen breiter. */
+  .tabellenrolle .liste td.nowrap,
+  .tabellenrolle .liste td.zahlen,
+  .tabellenrolle .liste .marke-status,
+  .tabellenrolle .liste .kfz-marke { white-space: nowrap; }
+  /* Fließtext darf weiter umbrechen - aber an Wortgrenzen. „anywhere"
+     (aus der Grundregel) zerlegte Namen mitten im Wort; nötig war das
+     nur, solange die Tabelle nicht breiter werden durfte. */
+  .tabellenrolle .liste td { overflow-wrap: break-word; }
+  /* ⚠️ Eingabefelder in den Einstellungstabellen dürfen nicht auf die
+     Breite ihres Spaltentitels zusammenfallen. In der Team-Tabelle ist
+     „Name" 57px breit - von „Anna Beispiel" war darin nichts mehr zu
+     lesen, und dasselbe traf jede andere pflegbare Liste. Die Tabelle
+     rollt hier ohnehin, Platz ist also da.
+     ⚠️ Bewusst OHNE „.tabellenrolle" davor: die pflegbaren Listen der
+     Einstellungen (Team, Vorgangsarten, Leistungen) stehen gar nicht in
+     einer Rolle, sondern direkt in ihrer Karte - und genau sie waren
+     betroffen. „.liste td input.mini" schlägt dabei die Sonderregel der
+     Zeitraumtabelle, die die Felder ausdrücklich schrumpfen lässt. */
+  .liste td input.mini,
+  .liste td select { min-width: 132px; }
+  .liste td input.mini.kurz { min-width: 84px; }
+  .liste td input.mini[type="date"] { min-width: 136px; }
+}
+
+/* --- Ein Osterei ---------------------------------------------------------
+   Fünfmal auf die Versionsnummer in der Fußzeile: das Logo schlägt einen
+   Purzelbaum, und die Rechtezeile erinnert vier Sekunden lang an den
+   alten Untertitel. Gut versteckt, folgenlos, und der Purzelbaum hängt
+   wie jede andere Bewegung im Programm an „prefers-reduced-motion" - wer
+   sie abgestellt hat, bekommt nur den Spruch zu sehen. */
+.fuss-fassung .version { cursor: default; -webkit-user-select: none; user-select: none; }
+.fuss-recht.geheim { color: var(--akzent); font-style: italic; }
+@media (prefers-reduced-motion: no-preference) {
+  .fuss-recht { transition: color .3s ease; }
+  .fussmarke.purzelt img { animation: fuss-purzel 1.5s cubic-bezier(.5, 0, .3, 1); }
+  @keyframes fuss-purzel {
+    0%   { transform: rotate(0) scale(1); }
+    35%  { transform: rotate(200deg) scale(.9); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
 }

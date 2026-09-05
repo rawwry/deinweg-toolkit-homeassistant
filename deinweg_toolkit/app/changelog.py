@@ -1732,4 +1732,27 @@ CHANGELOG = [
         "seitliches Rollen",
         "Prüfung von 1236 auf 1241 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.20.5", "titel": "Kosmetik quer durchs Haus", "punkte": [
+        "Kopfzeile: die Sprechblase am Zahnrad ragte über den rechten "
+        "Fensterrand hinaus und erzeugte damit auf jeder Seite einen "
+        "schmalen waagerechten Rollbalken – jetzt hängen die letzten "
+        "beiden rechtsbündig",
+        "Tabellen am Telefon: die Spaltentitel brechen nirgends mehr um. "
+        "Statt „Betreute / Person“ über drei Zeilen (die Monatsblöcke der "
+        "Auswertung kamen auf 160px hohe Kopfzeilen) steht der Titel in "
+        "einer Zeile, und die Tabelle rollt seitlich – überall gleich",
+        "Einstellungen am Telefon: in der Team-Liste war vom Namen nichts "
+        "mehr zu lesen, weil die Spalte auf die Breite des Wortes „Name“ "
+        "zusammenfiel. Eingabefelder halten jetzt überall eine lesbare "
+        "Mindestbreite",
+        "Team-Liste: die Zeilen sind wieder gleich hoch – ein verstecktes "
+        "Feld stand zwischen zwei Zellen statt in einer und zog eine "
+        "leere Zeile nach sich",
+        "Einstellungen: „entfernen“ ist überall der rote Mülleimer, auch "
+        "dort, wo bisher ein Wortknopf stand",
+        "„Mein Bereich“: „Alle meine Aufgaben“ klebte an der letzten "
+        "Aufgabe und sah aus wie eine vierte, halb abgeschnittene",
+        "Und irgendwo ist ein Osterei versteckt",
+        "Prüfung von 1241 auf 1263 Einzelprüfungen erweitert",
+    ]},
 ]

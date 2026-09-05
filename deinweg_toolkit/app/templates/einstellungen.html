@@ -1,5 +1,19 @@
 {% extends "base.html" %}
 {% from "_einstellungen_menue.html" import einstellungsmenue with context %}
+
+{# Der Mülleimer. Er stand bis 1.20.4 an manchen Stellen als Wortknopf
+   „entfernen" und an anderen als Symbol - in derselben Liste sogar
+   nebeneinander. Jetzt gibt es ihn genau einmal, und jede Stelle in den
+   Einstellungen benutzt ihn. #}
+{% macro muelleimer(was="Entfernen") %}
+<button class="knopf-icon warn" type="submit" title="{{ was }}" aria-label="{{ was }}">
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </svg>
+</button>
+{% endmacro %}
 {% block titel %} – Einstellungen{% endblock %}
 {% block inhalt %}
 
@@ -141,13 +155,7 @@
           </a>
           <form class="inline" action="/einstellungen/spruch/{{ s.nr }}/loeschen" method="post"
                 onsubmit="return confirm('Diesen Spruch endgültig entfernen?')">
-            <button class="knopf-icon warn" type="submit" title="Entfernen" aria-label="Entfernen">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
-                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              </svg>
-            </button>
+            {{ muelleimer("Spruch entfernen") }}
           </form>
         </div>
       {% endif %}
@@ -453,14 +461,7 @@
               <form class="inline" method="post"
                     action="/einstellungen/person/zeitraum/{{ z.id }}/loeschen"
                     onsubmit="return confirm('Diesen Zeitraum entfernen?')">
-                <button class="knopf-icon warn" type="submit"
-                        title="Entfernen" aria-label="Entfernen">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
-                          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                  </svg>
-                </button>
+                {{ muelleimer("Zeitraum entfernen") }}
               </form>
             </td>
           </tr>
@@ -591,7 +592,7 @@
       <button class="knopf haupt" type="submit" form="person-f-{{ p.id }}">speichern</button>
       <form class="inline entfernen-rechts" action="/einstellungen/person/{{ p.id }}/loeschen" method="post"
             onsubmit="return confirm('{{ p.name }} aus den Stammdaten entfernen? Erfasste Zeiten bleiben erhalten, die hinterlegten Zeiträume nicht.')">
-        <button class="knopf warn" type="submit">entfernen</button>
+        {{ muelleimer("Person entfernen") }}
       </form>
     </div>
     </div>
@@ -686,8 +687,14 @@
     {% for m in team %}
       <tr class="{{ '' if m.aktiv else 'stillgelegt' }}">
         <form action="/einstellungen/mitarbeiter/{{ m.id }}" method="post" id="ma-{{ m.id }}"></form>
-        <td><input class="mini" type="text" name="name" value="{{ m.name }}" form="ma-{{ m.id }}"></td>
-        <input type="hidden" name="notiz" value="{{ m.notiz or '' }}" form="ma-{{ m.id }}">
+        {# ⚠️ Das versteckte Notizfeld gehört IN die Zelle. Als direktes
+           Kind von <tr> ist es ungültiges HTML: der Browser hebt es aus
+           der Tabelle heraus und lässt dabei eine leere Zeile stehen -
+           am Telefon war das eine deutliche Lücke unter jeder Zeile.
+           Mitgeführt wird es weiterhin, sonst löschte das nächste
+           Speichern die Notiz (Arbeitsregel 11). #}
+        <td><input class="mini" type="text" name="name" value="{{ m.name }}" form="ma-{{ m.id }}">
+            <input type="hidden" name="notiz" value="{{ m.notiz or '' }}" form="ma-{{ m.id }}"></td>
         <td><input class="mini kurz" type="text" name="monatsstunden" inputmode="decimal"
                    value="{{ m.monatsstunden | round(2) | string | replace('.0', '') | replace('.', ',') }}"
                    placeholder="0" form="ma-{{ m.id }}"></td>
@@ -706,7 +713,7 @@
           <button class="knopf klein" type="submit" form="ma-{{ m.id }}">speichern</button>
           <form class="inline" action="/einstellungen/mitarbeiter/{{ m.id }}/loeschen" method="post"
                 onsubmit="return confirm('{{ m.name }} aus dem Team entfernen? Erfasste Zeiten bleiben erhalten.')">
-            <button class="knopf klein warn" type="submit">entfernen</button>
+            {{ muelleimer("Entfernen") }}
           </form>
         </td>
       </tr>
@@ -783,7 +790,7 @@
           <button class="knopf klein" type="submit" form="va-{{ a.id }}">speichern</button>
           <form class="inline" action="/einstellungen/vorgangsart/{{ a.id }}/loeschen" method="post"
                 onsubmit="return confirm('{{ a.name }} endgültig entfernen?{% if a.verwendungen %} Bestehende Vorgänge behalten die Bezeichnung dennoch.{% endif %}')">
-            <button class="knopf klein warn" type="submit">entfernen</button>
+            {{ muelleimer("Entfernen") }}
           </form>
         </td>
       </tr>
@@ -862,7 +869,7 @@
           <button class="knopf klein" type="submit" form="lb-{{ l.id }}">speichern</button>
           <form class="inline" action="/einstellungen/leistung/{{ l.id }}/loeschen" method="post"
                 onsubmit="return confirm('{{ l.name }} aus der Auswahl entfernen? Bereits erfasste Zeiten behalten ihre Beschreibung.')">
-            <button class="knopf klein warn" type="submit">entfernen</button>
+            {{ muelleimer("Entfernen") }}
           </form>
         </td>
       </tr>
