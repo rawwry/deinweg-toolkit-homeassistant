@@ -4887,3 +4887,104 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
     100% { transform: rotate(360deg) scale(1); }
   }
 }
+
+/* --- Kein automatisches Hineinzoomen am iPhone --------------------------
+   ⚠️ Safari auf iOS vergrößert die Seite von selbst, sobald man in ein
+   Eingabefeld tippt, dessen Schrift kleiner als 16px ist - und bleibt
+   danach vergrößert stehen. Die Felder erben ihre Größe von `body`
+   (15px), also passierte das bei JEDEM Antippen eines Feldes. Das fühlt
+   sich an, als verstelle sich die Seite dauernd; genau so wurde es
+   gemeldet.
+
+   16px ist die Schwelle, ab der Safari es lässt. Nur am Telefon, damit
+   die Formulare am Schreibtisch ihre feinere Größe behalten.
+
+   ⚠️ Bewusst NICHT über „user-scalable=no" im Viewport-Tag: das ignoriert
+   Safari seit iOS 10 (und mit gutem Grund - wer vergrößern muss, soll
+   das können). Hier wird nichts verboten, es fällt nur der Anlass weg.
+*/
+@media (max-width: 760px) {
+  input[type=text], input[type=search], input[type=password],
+  input[type=email], input[type=tel], input[type=number],
+  input[type=date], input[type=time], select, textarea {
+    font-size: 16px;
+  }
+  /* Die kleinen Felder in den Listen bringen ihre eigene Größe mit. */
+  .liste td input.mini, .liste td select { font-size: 16px; }
+}
+
+/* --- Einstellungen: eine Form für alle Stammdatenlisten ------------------
+   Bis 1.20.5 gab es hier zwei Bauformen für dieselbe Aufgabe: „Betreute
+   Personen" und die Benutzerverwaltung waren aufklappbare Zeilen,
+   „Mitarbeiter", „Aufgabenarten" und „Leistungen" waren Tabellen mit
+   einem Eingabefeld in jeder Zelle. Jetzt tragen alle dieselbe Zeile.
+*/
+
+/* ⚠️ Keine Zebrastreifen in den Einstellungen. Sie stammen aus der
+   Anfangszeit und sollen dort weg: eine Einstellungsseite ist kein
+   Datenbestand, den man zeilenweise abliest, sondern eine Handvoll
+   Angaben, die man ändert. Die feinen Trennlinien der Tabelle reichen.
+   In den Auswertungen und Listen bleiben sie. */
+.einstellungsinhalt .liste tbody tr:nth-child(even) { background: none; }
+.einstellungsinhalt .liste tbody tr:hover,
+.einstellungsinhalt .liste tbody tr:nth-child(even):hover {
+  background: var(--flaeche-2);
+}
+
+/* Der Kopf eines Punktes: Überschrift, ein Satz, Hinweise zugeklappt.
+   Die ausführlichen Erklärungen standen als schmale Karte RECHTS neben
+   dem Anlegeformular und nahmen ein Drittel der Breite; am Telefon
+   rutschten sie über die eigentliche Arbeit. */
+.einstellungskopf h1 { margin-bottom: 6px; }
+.einstellungskopf .lead { margin-bottom: 0; }
+.hinweise { margin-top: 14px; border-top: 1px solid var(--linie); padding-top: 12px; }
+.hinweise > summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center;
+  gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--leise);
+}
+.hinweise > summary::-webkit-details-marker { display: none; }
+.hinweise > summary::marker { content: ""; }
+.hinweise > summary::before {
+  content: ""; width: 8px; height: 8px; flex: 0 0 auto;
+  border-right: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor;
+  transform: rotate(-45deg); margin-left: 2px;
+}
+.hinweise[open] > summary::before { transform: rotate(45deg); }
+.hinweise > summary:hover { color: var(--akzent); }
+.hinweise-inhalt { padding-top: 8px; }
+.hinweise-inhalt p:last-child { margin-bottom: 0; }
+
+/* Das Anlegeformular steht zugeklappt über der Liste. Man kommt zum
+   Nachsehen und Ändern viel öfter her als zum Anlegen - ein dauerhaft
+   offenes, leeres Formular als Erstes auf der Seite stellte die
+   Reihenfolge auf den Kopf. */
+.anlegeblock { margin-bottom: 14px; }
+.anlegeblock > summary { list-style: none; cursor: pointer; }
+.anlegeblock > summary::-webkit-details-marker { display: none; }
+.anlegeblock > summary::marker { content: ""; }
+.anlegeblock-knopf {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 16px; border-radius: 9px; font-size: 13.5px; font-weight: 600;
+  border: 1px dashed var(--linie-stark); color: var(--leise);
+}
+.anlegeblock > summary:hover .anlegeblock-knopf {
+  border-color: var(--akzent); color: var(--akzent);
+}
+.anlegeblock[open] > summary .anlegeblock-knopf {
+  border-style: solid; border-color: var(--akzent); color: var(--akzent);
+}
+.anlegeblock-inhalt {
+  margin-top: 12px; padding: 16px; border-radius: 11px;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+}
+.anlegeblock-inhalt .knopfreihe.unten { margin-bottom: 0; }
+
+/* Der Mülleimer einer aufklappbaren Zeile sitzt rechts unter dem
+   Formular, auf einer Höhe mit „speichern" - dieselbe Anordnung wie bei
+   den betreuten Personen. */
+.konto-inhalt .konto-fuss { margin-bottom: 0; }
+.konto-entfernen { float: right; margin-top: -46px; }
+@media (max-width: 620px) {
+  /* Am Telefon ist kein Platz für beides nebeneinander. */
+  .konto-entfernen { float: none; margin-top: 10px; }
+}

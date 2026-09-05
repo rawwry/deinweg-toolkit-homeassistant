@@ -141,6 +141,11 @@ BEREICH_PFADE = [
 # Rolle und nicht an dieser Liste.
 EINST_IMMER = "oberflaeche"
 
+# ⚠️ "system" steht hier seit 1.21 NICHT mehr: "System und Sicherung"
+# haengt an der Rolle, nicht an dieser Liste. Dort laesst sich die
+# Datenbank herunterladen UND einspielen - die Sicherungsdatei enthaelt
+# Passwort-Hashes und die SMTP-Zugangsdaten (Abschnitt 15). Das ist
+# nichts, was man einem Konto nebenbei mitgibt.
 EINST_BEREICHE = {
     "quotes": "Sprüche",
     "betreute": "Betreute Personen",
@@ -148,7 +153,6 @@ EINST_BEREICHE = {
     "kfz": "Fahrzeuge",
     "vorgangsarten": "Aufgabenarten",
     "leistungen": "Leistungen",
-    "system": "System und Sicherung",
 }
 
 # Pfadanfang -> Punkt in den Einstellungen. Deckt die POST-Routen ab, damit
@@ -212,10 +216,30 @@ def einst_bereiche_speichern(gewaehlt: list[str]) -> str:
 # ein eingeschraenkter Benutzer selbst hochstufen.
 # ⚠️ Die Datenpflege schreibt quer durch die ganze Datenbank - sie ist
 # zusaetzlich zur Bereichsberechtigung fest auf Administratoren begrenzt.
+# ⚠️ Vier Punkte der Einstellungen gehoeren ausschliesslich der
+# Verwaltung: Benutzerverwaltung, E-Mail-Versand, E-Mail-Vorlagen und
+# System und Sicherung. Die Ansicht dazu sperrt einstellungen.py, das
+# Menue blendet sie aus - HIER stehen die schreibenden Routen, und die
+# sind der eigentliche Schutz: bis 1.20.5 fehlten sie und ein Konto mit
+# dem Bereich "einstellungen" konnte die SMTP-Zugangsdaten aendern oder
+# eine Sicherung einspielen, ohne den Punkt je zu sehen.
+#
+# ⚠️ Geprueft wird mit startswith, ein Praefix deckt also alles darunter
+# mit ab ("/einstellungen/vorlagen" auch ".../zuruecksetzen").
 ADMIN_NUR_PFADE = ("/einstellungen/benutzer", "/einstellungen/datenpflege",
                    # Welche Wiki-Ordner geschuetzt sind, entscheidet
                    # die Verwaltung - nicht wer die Einstellungen darf.
-                   "/einstellungen/wiki-geschuetzt")
+                   "/einstellungen/wiki-geschuetzt",
+                   # E-Mail-Versand samt SMTP-Zugang und den vier
+                   # Erinnerungsanlaessen
+                   "/einstellungen/email", "/einstellungen/abgabemail",
+                   "/einstellungen/bewilligungsmail", "/einstellungen/fristmail",
+                   "/einstellungen/zuweisungsmail",
+                   # E-Mail-Vorlagen
+                   "/einstellungen/vorlagen",
+                   # System und Sicherung
+                   "/einstellungen/sicherung", "/einstellungen/texte",
+                   "/einstellungen/fusszeile")
 
 # Oeffentlich ohne Anmeldung erreichbar
 OEFFENTLICHE_PFADE = ("/gesundheit", "/login")

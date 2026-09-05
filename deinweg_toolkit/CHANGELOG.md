@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.21
+
+- Einstellungen: alle Stammdatenlisten in einer Form (aufklappbare
+  Zeilen statt Tabellen), keine Zebrastreifen, Hinweise und
+  Anlegeformular zugeklappt
+- Benutzerverwaltung, E-Mail-Versand, E-Mail-Vorlagen und System und
+  Sicherung sind ausschließlich für Administratoren
+- Am iPhone kein automatisches Hineinzoomen beim Tippen in ein Feld
+
 ## 1.20.5
 
 - Kopfzeile: kein waagerechter Rollbalken mehr durch die Sprechblasen

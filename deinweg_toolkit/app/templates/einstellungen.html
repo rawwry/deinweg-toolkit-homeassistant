@@ -5,6 +5,68 @@
    „entfernen" und an anderen als Symbol - in derselben Liste sogar
    nebeneinander. Jetzt gibt es ihn genau einmal, und jede Stelle in den
    Einstellungen benutzt ihn. #}
+{# --- Bausteine für die Stammdatenlisten ------------------------------
+   Bis 1.20.5 gab es in den Einstellungen zwei Bauformen für dieselbe
+   Aufgabe: „Betreute Personen" und die Benutzerverwaltung waren
+   aufklappbare Zeilen, „Mitarbeiter", „Aufgabenarten" und „Leistungen"
+   waren Tabellen mit einem Eingabefeld in jeder Zelle. Beide pflegen
+   Stammdaten - sie sollten also gleich aussehen und gleich zu bedienen
+   sein. Die Tabellen waren dabei die schlechtere Form: fünf Felder je
+   Zeile sind am Schreibtisch dicht und am Telefon nur mit seitlichem
+   Rollen zu erreichen.
+
+   Jetzt tragen alle dieselbe aufklappbare Zeile: zugeklappt steht da,
+   was man wissen will, aufgeklappt das Formular. #}
+{% macro eintragszeile(name, daten="", rechts="", aktiv=true, marke="") %}
+<details class="konto{{ '' if aktiv else ' stillgelegt' }}">
+  <summary class="konto-kopf">
+    <span class="konto-name">
+      <span class="stark">{{ name }}</span>
+      {% if not aktiv %}<span class="marke-status weg">stillgelegt</span>{% endif %}
+      {% if marke %}<span class="marke-status offen">{{ marke }}</span>{% endif %}
+    </span>
+    <span class="konto-daten">{{ daten }}</span>
+    <span class="konto-rechte">{{ rechts }}</span>
+    <span class="konto-pfeil" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+  </summary>
+  <div class="konto-inhalt">{{ caller() }}</div>
+</details>
+{% endmacro %}
+
+{# Der Kopf eines Einstellungspunktes: Überschrift, ein Einleitungssatz
+   und die ausführlichen Hinweise zugeklappt darunter. Sie standen bis
+   1.20.5 als schmale Karte RECHTS neben dem Anlegeformular und nahmen
+   dort ein Drittel der Breite; am Telefon rutschten sie über die
+   eigentliche Arbeit. Wer sie braucht, klappt sie auf. #}
+{% macro punktkopf(titel, lead) %}
+<section class="karte einstellungskopf">
+  <h1>{{ titel }}</h1>
+  <p class="lead">{{ lead }}</p>
+  {% if caller %}
+  <details class="hinweise">
+    <summary>Hinweise zur Pflege</summary>
+    <div class="hinweise-inhalt">{{ caller() }}</div>
+  </details>
+  {% endif %}
+</section>
+{% endmacro %}
+
+{# Das Anlegeformular steht zugeklappt ÜBER der Liste. Man kommt zum
+   Nachsehen und Ändern viel öfter her als zum Anlegen - ein dauerhaft
+   offenes, leeres Formular als Erstes auf der Seite stellt die
+   Reihenfolge auf den Kopf. #}
+{% macro anlegen(titel) %}
+<details class="anlegeblock">
+  <summary><span class="anlegeblock-knopf">+ {{ titel }}</span></summary>
+  <div class="anlegeblock-inhalt">{{ caller() }}</div>
+</details>
+{% endmacro %}
+
 {% macro muelleimer(was="Entfernen") %}
 <button class="knopf-icon warn" type="submit" title="{{ was }}" aria-label="{{ was }}">
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -94,25 +156,35 @@
 {% endif %}
 
 {% if bereich == "quotes" %}
-<section class="karte" id="quotes">
-  <h1>Quotemanager</h1>
-  <p class="lead">{{ t("einst.sprueche_lead") }}</p>
+{# ⚠️ Die Überschrift heißt „Sprüche" wie der Punkt im Menü. „Quotemanager"
+   stand hier aus der Anfangszeit und war das einzige englische Wort in
+   der ganzen Oberfläche. #}
+{% call punktkopf("Sprüche", t("einst.sprueche_lead")) %}
+  <p class="klein leise">{{ t("einst.sprueche_datei") }}</p>
+{% endcall %}
 
-  <form action="/einstellungen/spruch" method="post">
-    <label class="feld">
-      <span>Text <span class="leise">– ohne Anführungszeichen</span></span>
-      <textarea name="text" rows="3" required
-                placeholder="Nur den Wortlaut – Anführungszeichen kommen automatisch"></textarea>
-    </label>
-    <label class="feld">
-      <span>Quelle <span class="leise">– darf leer bleiben</span></span>
-      <input type="text" name="quelle" autocomplete="off"
-             placeholder="z. B. Swetlana (21.01.2026)">
-    </label>
-    <div class="knopfreihe">
-      <button class="knopf haupt" type="submit">Spruch hinzufügen</button>
-    </div>
-  </form>
+<section class="karte" id="quotes">
+  <div class="kopfzeile">
+    <h2>Sprüche{% if sprueche %} · {{ sprueche | length }}{% endif %}</h2>
+  </div>
+
+  {% call anlegen("Spruch hinzufügen") %}
+    <form action="/einstellungen/spruch" method="post">
+      <label class="feld">
+        <span>Text <span class="leise">– ohne Anführungszeichen</span></span>
+        <textarea name="text" rows="3" required
+                  placeholder="Nur den Wortlaut – Anführungszeichen kommen automatisch"></textarea>
+      </label>
+      <label class="feld">
+        <span>Quelle <span class="leise">– darf leer bleiben</span></span>
+        <input type="text" name="quelle" autocomplete="off"
+               placeholder="z. B. Swetlana (21.01.2026)">
+      </label>
+      <div class="knopfreihe unten">
+        <button class="knopf haupt" type="submit">Spruch hinzufügen</button>
+      </div>
+    </form>
+  {% endcall %}
 
   {% if sprueche %}
   <ul class="ideenreihen spruchreihen">
@@ -169,10 +241,24 @@
 {% endif %}
 
 {% if bereich == "betreute" %}
-<section class="raster buendig" id="betreute">
-  <div class="karte hochkant">
-    <h1>Betreute Personen</h1>
-    <p class="lead">{{ t("einst.betreute_lead") }}</p>
+{% call punktkopf("Betreute Personen", t("einst.betreute_lead")) %}
+  <p class="klein leise">{{ t("einst.rechnung") }}</p>
+  <p class="klein leise">{{ t("einst.schreibweise_betreute") }}</p>
+  <p class="klein leise">{{ t("einst.stundensatz") }}</p>
+  <p class="klein leise">{{ t("einst.selbstzahler_satz") }}</p>
+  <p class="klein leise"><a href="/auswertung">Zur Auswertung</a></p>
+{% endcall %}
+
+<section class="karte" id="betreute">
+  <div class="kopfzeile">
+    <h2>Angelegte Personen{% if personen %} · {{ personen | length }}{% endif %}</h2>
+    {% if ohne_bewilligung %}
+    <span class="marke-status dopp">{{ ohne_bewilligung }}
+      {{ "Person" if ohne_bewilligung == 1 else "Personen" }} ohne gültige Bewilligung</span>
+    {% endif %}
+  </div>
+
+  {% call anlegen("Person anlegen") %}
 
     {# ⚠️ Die Abrechnungsart steht VOR den Zahlen und nicht als Häkchen
        darunter (seit 1.20). Vorher trug ein einziges Feld „Grundwert Satz“
@@ -240,43 +326,8 @@
         <button class="knopf haupt" type="submit">Person anlegen</button>
       </div>
     </form>
-  </div>
+  {% endcall %}
 
-  <div class="karte schmal">
-    <h2>So wird gerechnet</h2>
-    <p class="klein leise">{{ t("einst.rechnung") }}</p>
-    <p class="klein leise">{{ t("einst.schreibweise_betreute") }}</p>
-    <p class="klein leise">{{ t("einst.stundensatz") }}</p>
-    <p class="klein leise">{{ t("einst.selbstzahler_satz") }}</p>
-    <a class="knopf leise" href="/auswertung">Zur Auswertung</a>
-  </div>
-</section>
-
-{% if ungepflegt %}
-<section class="karte">
-  <h2>In den Zeiten vorhanden, hier noch nicht angelegt</h2>
-  <p class="klein leise" style="margin-top: -6px;">{{ t("einst.ungepflegt") }}</p>
-  <div class="namensliste">
-    {% for name in ungepflegt %}
-    <form action="/einstellungen/person" method="post" class="inline">
-      <input type="hidden" name="name" value="{{ name }}">
-      <input type="hidden" name="wochenstunden" value="0">
-      <input type="hidden" name="abrechenbar" value="1">
-      <button class="knopf klein" type="submit">+ {{ name }}</button>
-    </form>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
-
-<section class="karte">
-  <div class="kopfzeile">
-    <h2>Angelegte Personen{% if personen %} · {{ personen | length }}{% endif %}</h2>
-    {% if ohne_bewilligung %}
-    <span class="marke-status dopp">{{ ohne_bewilligung }}
-      {{ "Person" if ohne_bewilligung == 1 else "Personen" }} ohne gültige Bewilligung</span>
-    {% endif %}
-  </div>
   {% if personen %}
   {# Eine Zeile je Person, die sich zum Editor aufklappt - dieselbe Form
      wie bei den Konten in der Benutzerverwaltung. Als flache Tabelle ging
@@ -606,14 +657,40 @@
   {% endif %}
 </section>
 
+{% if ungepflegt %}
+<section class="karte">
+  <h2>In den Zeiten vorhanden, hier noch nicht angelegt</h2>
+  <p class="klein leise" style="margin-top: -6px;">{{ t("einst.ungepflegt") }}</p>
+  <div class="namensliste">
+    {% for name in ungepflegt %}
+    <form action="/einstellungen/person" method="post" class="inline">
+      <input type="hidden" name="name" value="{{ name }}">
+      <input type="hidden" name="wochenstunden" value="0">
+      <input type="hidden" name="abrechenbar" value="1">
+      <button class="knopf klein" type="submit">+ {{ name }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% endif %}
 
 {% if bereich == "mitarbeiter" %}
-<section class="raster buendig">
-  <div class="karte hochkant">
-    <h1>Mitarbeiter</h1>
-    <p class="lead">{{ t("einst.team_lead") }}</p>
+{% call punktkopf("Mitarbeiter", t("einst.team_lead")) %}
+  <p class="klein leise">{{ t("einst.schreibweise_team") }}</p>
+  <p class="klein leise">{{ t("einst.inaktiv") }}</p>
+  <p class="klein leise">{{ t("einst.ohne_pflicht") }}</p>
+  <p class="klein leise">{{ t("einst.monatsstunden") }}</p>
+  <p class="klein leise">{{ t("einst.urlaubstage") }}</p>
+{% endcall %}
 
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Team{% if team %} · {{ team | length }}{% endif %}</h2>
+  </div>
+
+  {% call anlegen("Mitarbeiter aufnehmen") %}
     <form action="/einstellungen/mitarbeiter" method="post">
       <div class="feldreihe zwei">
         <label class="feld">
@@ -647,16 +724,69 @@
         <button class="knopf haupt" type="submit">Mitarbeiter aufnehmen</button>
       </div>
     </form>
-  </div>
+  {% endcall %}
 
-  <div class="karte schmal">
-    <h2>Zur Schreibweise</h2>
-    <p class="klein leise">{{ t("einst.schreibweise_team") }}</p>
-    <p class="klein leise">{{ t("einst.inaktiv") }}</p>
-    <p class="klein leise">{{ t("einst.ohne_pflicht") }}</p>
-    <p class="klein leise">{{ t("einst.monatsstunden") }}</p>
-    <p class="klein leise">{{ t("einst.urlaubstage") }}</p>
+  {% if team %}
+  <div class="kontoliste">
+    {% for m in team %}
+    {% set std = m.monatsstunden | round(2) | string | replace('.0', '') | replace('.', ',') %}
+    {% set urlaub = m.urlaubstage | round(2) | string | replace('.0', '') | replace('.', ',') %}
+    {% call eintragszeile(
+         m.name,
+         daten=(std ~ " Std/Monat · " ~ urlaub ~ " Urlaubstage") if m.monatsstunden or m.urlaubstage else "kein Soll hinterlegt",
+         rechts=(m.eintraege ~ " Datensätze" ~ (" · zuletzt " ~ m.letzter_monat if m.letzter_monat else "")),
+         aktiv=m.aktiv,
+         marke="" if m.abgabepflicht else "ohne Abgabepflicht") %}
+      <form action="/einstellungen/mitarbeiter/{{ m.id }}" method="post">
+        <div class="feldreihe zwei">
+          <label class="feld">
+            <span>Name</span>
+            <input type="text" name="name" value="{{ m.name }}" required>
+          </label>
+          <label class="feld">
+            <span>Notiz <span class="leise">– optional</span></span>
+            <input type="text" name="notiz" value="{{ m.notiz or '' }}"
+                   placeholder="z. B. Teilzeit, Springer">
+          </label>
+        </div>
+        <div class="feldreihe zwei">
+          <label class="feld">
+            <span>Arbeitszeit Std/Monat <span class="leise">– 0 = kein Soll</span></span>
+            <input type="text" name="monatsstunden" inputmode="decimal"
+                   value="{{ std }}" placeholder="0">
+          </label>
+          <label class="feld">
+            <span>Urlaubstage pro Jahr <span class="leise">– 0 = keiner</span></span>
+            <input type="text" name="urlaubstage" inputmode="decimal"
+                   value="{{ urlaub }}" placeholder="0">
+          </label>
+        </div>
+        <div class="bereichsraster">
+          <label class="bereich-kachel">
+            <input type="checkbox" name="abgabepflicht" value="1"
+                   {{ 'checked' if m.abgabepflicht }}>
+            Gibt monatlich Zeiten ab
+          </label>
+          <label class="bereich-kachel">
+            <input type="checkbox" name="aktiv" value="1" {{ 'checked' if m.aktiv }}>
+            Im Team
+          </label>
+        </div>
+        <div class="knopfreihe konto-fuss">
+          <button class="knopf haupt" type="submit">speichern</button>
+        </div>
+      </form>
+      <form class="inline entfernen-rechts konto-entfernen"
+            action="/einstellungen/mitarbeiter/{{ m.id }}/loeschen" method="post"
+            onsubmit="return confirm('{{ m.name }} aus dem Team entfernen? Erfasste Zeiten bleiben erhalten.')">
+        {{ muelleimer(m.name ~ " entfernen") }}
+      </form>
+    {% endcall %}
+    {% endfor %}
   </div>
+  {% else %}
+  <p class="leer">{{ t("einst.kein_team") }}</p>
+  {% endif %}
 </section>
 
 {% if team_offen %}
@@ -674,81 +804,64 @@
   </div>
 </section>
 {% endif %}
-
-<section class="karte">
-  <h2>Team{% if team %} · {{ team | length }}{% endif %}</h2>
-  {% if team %}
-  <table class="liste">
-    <thead>
-      <tr><th>Name</th><th>Std/Monat</th><th>Urlaub/Jahr</th><th class="mitte">Gibt ab</th>
-          <th class="mitte">Aktiv</th><th>Erfasst</th><th></th></tr>
-    </thead>
-    <tbody>
-    {% for m in team %}
-      <tr class="{{ '' if m.aktiv else 'stillgelegt' }}">
-        <form action="/einstellungen/mitarbeiter/{{ m.id }}" method="post" id="ma-{{ m.id }}"></form>
-        {# ⚠️ Das versteckte Notizfeld gehört IN die Zelle. Als direktes
-           Kind von <tr> ist es ungültiges HTML: der Browser hebt es aus
-           der Tabelle heraus und lässt dabei eine leere Zeile stehen -
-           am Telefon war das eine deutliche Lücke unter jeder Zeile.
-           Mitgeführt wird es weiterhin, sonst löschte das nächste
-           Speichern die Notiz (Arbeitsregel 11). #}
-        <td><input class="mini" type="text" name="name" value="{{ m.name }}" form="ma-{{ m.id }}">
-            <input type="hidden" name="notiz" value="{{ m.notiz or '' }}" form="ma-{{ m.id }}"></td>
-        <td><input class="mini kurz" type="text" name="monatsstunden" inputmode="decimal"
-                   value="{{ m.monatsstunden | round(2) | string | replace('.0', '') | replace('.', ',') }}"
-                   placeholder="0" form="ma-{{ m.id }}"></td>
-        <td><input class="mini kurz" type="text" name="urlaubstage" inputmode="decimal"
-                   value="{{ m.urlaubstage | round(2) | string | replace('.0', '') | replace('.', ',') }}"
-                   placeholder="0" form="ma-{{ m.id }}"></td>
-        <td class="mitte"><input type="checkbox" name="abgabepflicht" value="1"
-                                 {{ 'checked' if m.abgabepflicht }} form="ma-{{ m.id }}"></td>
-        <td class="mitte"><input type="checkbox" name="aktiv" value="1"
-                                 {{ 'checked' if m.aktiv }} form="ma-{{ m.id }}"></td>
-        <td class="zahlen leise klein">
-          {{ m.eintraege }} Datensätze
-          {%- if m.letzter_monat %}<br>zuletzt {{ m.letzter_monat }}{% endif %}
-        </td>
-        <td class="rechts nowrap">
-          <button class="knopf klein" type="submit" form="ma-{{ m.id }}">speichern</button>
-          <form class="inline" action="/einstellungen/mitarbeiter/{{ m.id }}/loeschen" method="post"
-                onsubmit="return confirm('{{ m.name }} aus dem Team entfernen? Erfasste Zeiten bleiben erhalten.')">
-            {{ muelleimer("Entfernen") }}
-          </form>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="leer">{{ t("einst.kein_team") }}</p>
-  {% endif %}
-</section>
 {% endif %}
 
 {% if bereich == "vorgangsarten" %}
-<section class="raster buendig">
-  <div class="karte hochkant">
-    <h1>Aufgabenarten</h1>
-    <p class="lead">{{ t("einst.vorgangsarten_lead") }}</p>
+{% call punktkopf("Aufgabenarten", t("einst.vorgangsarten_lead")) %}
+  <p class="klein leise">{{ t("einst.vorgangsarten_stillgelegt") }}</p>
+  <p class="klein leise"><a href="/vorgaenge">Zu den Aufgaben</a></p>
+{% endcall %}
 
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Aufgabenarten{% if vorgangsarten %} · {{ vorgangsarten | length }}{% endif %}</h2>
+  </div>
+
+  {% call anlegen("Aufgabenart anlegen") %}
     <form action="/einstellungen/vorgangsart" method="post">
       <label class="feld">
-        <span>Neue Vorgangsart</span>
+        <span>Bezeichnung</span>
         <input type="text" name="name" required autocomplete="off"
                placeholder="z. B. Umzugsantrag gestellt">
       </label>
       <div class="knopfreihe unten">
-        <button class="knopf haupt" type="submit">Vorgangsart anlegen</button>
+        <button class="knopf haupt" type="submit">Aufgabenart anlegen</button>
       </div>
     </form>
-  </div>
+  {% endcall %}
 
-  <div class="karte schmal">
-    <h2>Zur Pflege</h2>
-    <p class="klein leise">{{ t("einst.vorgangsarten_stillgelegt") }}</p>
-    <a class="knopf leise" href="/vorgaenge">Zu den Aufgaben</a>
+  {% if vorgangsarten %}
+  <div class="kontoliste">
+    {% for a in vorgangsarten %}
+    {% call eintragszeile(
+         a.name, aktiv=a.aktiv,
+         rechts=(a.verwendungen ~ (" Vorgang" if a.verwendungen == 1 else " Vorgänge"))) %}
+      <form action="/einstellungen/vorgangsart/{{ a.id }}" method="post">
+        <label class="feld">
+          <span>Bezeichnung</span>
+          <input type="text" name="name" value="{{ a.name }}" required>
+        </label>
+        <div class="bereichsraster">
+          <label class="bereich-kachel">
+            <input type="checkbox" name="aktiv" value="1" {{ 'checked' if a.aktiv }}>
+            Steht zur Auswahl
+          </label>
+        </div>
+        <div class="knopfreihe konto-fuss">
+          <button class="knopf haupt" type="submit">speichern</button>
+        </div>
+      </form>
+      <form class="inline entfernen-rechts konto-entfernen"
+            action="/einstellungen/vorgangsart/{{ a.id }}/loeschen" method="post"
+            onsubmit="return confirm('{{ a.name }} endgültig entfernen?{% if a.verwendungen %} Bestehende Vorgänge behalten die Bezeichnung dennoch.{% endif %}')">
+        {{ muelleimer(a.name ~ " entfernen") }}
+      </form>
+    {% endcall %}
+    {% endfor %}
   </div>
+  {% else %}
+  <p class="leer">{{ t("einst.vorgangsarten_keine") }}</p>
+  {% endif %}
 </section>
 
 {% if arten_offen %}
@@ -765,55 +878,23 @@
   </div>
 </section>
 {% endif %}
-
-<section class="karte">
-  <h2>Vorgangsarten{% if vorgangsarten %} · {{ vorgangsarten | length }}{% endif %}</h2>
-  {% if vorgangsarten %}
-  <table class="liste">
-    <thead>
-      <tr><th>Bezeichnung</th><th class="mitte">Aktiv</th><th>Verwendet</th><th></th></tr>
-    </thead>
-    <tbody>
-    {% for a in vorgangsarten %}
-      <tr class="{{ '' if a.aktiv else 'stillgelegt' }}">
-        <form action="/einstellungen/vorgangsart/{{ a.id }}" method="post" id="va-{{ a.id }}"></form>
-        <td><input class="mini breit" type="text" name="name" value="{{ a.name }}"
-                   form="va-{{ a.id }}"></td>
-        <td class="mitte">
-          <input type="checkbox" name="aktiv" value="1" {{ 'checked' if a.aktiv }}
-                 form="va-{{ a.id }}">
-        </td>
-        <td class="zahlen leise klein">
-          {{ a.verwendungen }} Vorgang{{ '' if a.verwendungen == 1 else 'e' }}
-        </td>
-        <td class="rechts nowrap">
-          <button class="knopf klein" type="submit" form="va-{{ a.id }}">speichern</button>
-          <form class="inline" action="/einstellungen/vorgangsart/{{ a.id }}/loeschen" method="post"
-                onsubmit="return confirm('{{ a.name }} endgültig entfernen?{% if a.verwendungen %} Bestehende Vorgänge behalten die Bezeichnung dennoch.{% endif %}')">
-            {{ muelleimer("Entfernen") }}
-          </form>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  <p class="klein leise" style="margin-bottom: 0;">{{ t("einst.vorgangsarten_stillgelegt") }}</p>
-  {% else %}
-  <p class="leer">{{ t("einst.vorgangsarten_keine") }}</p>
-  {% endif %}
-</section>
-
 {% endif %}
 
 {% if bereich == "leistungen" %}
-<section class="raster buendig">
-  <div class="karte hochkant">
-    <h1>Leistungen</h1>
-    <p class="lead">{{ t("einst.leistungen_lead") }}</p>
+{% call punktkopf("Leistungen", t("einst.leistungen_lead")) %}
+  <p class="klein leise">{{ t("einst.leistungen_stillgelegt") }}</p>
+  <p class="klein leise"><a href="/">Zur Zeiterfassung</a></p>
+{% endcall %}
 
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Leistungen{% if leistungen %} · {{ leistungen | length }}{% endif %}</h2>
+  </div>
+
+  {% call anlegen("Leistung anlegen") %}
     <form action="/einstellungen/leistung" method="post">
       <label class="feld">
-        <span>Neue Leistung</span>
+        <span>Bezeichnung</span>
         <input type="text" name="name" required autocomplete="off" maxlength="160"
                placeholder="z. B. Begleitung zu einem Amtstermin">
       </label>
@@ -821,13 +902,40 @@
         <button class="knopf haupt" type="submit">Leistung anlegen</button>
       </div>
     </form>
-  </div>
+  {% endcall %}
 
-  <div class="karte schmal">
-    <h2>Zur Pflege</h2>
-    <p class="klein leise">{{ t("einst.leistungen_stillgelegt") }}</p>
-    <a class="knopf leise" href="/">Zur Zeiterfassung</a>
+  {% if leistungen %}
+  <div class="kontoliste">
+    {% for l in leistungen %}
+    {% call eintragszeile(
+         l.name, aktiv=l.aktiv,
+         rechts=(l.verwendungen ~ (" Eintrag" if l.verwendungen == 1 else " Einträge"))) %}
+      <form action="/einstellungen/leistung/{{ l.id }}" method="post">
+        <label class="feld">
+          <span>Bezeichnung</span>
+          <input type="text" name="name" value="{{ l.name }}" maxlength="160" required>
+        </label>
+        <div class="bereichsraster">
+          <label class="bereich-kachel">
+            <input type="checkbox" name="aktiv" value="1" {{ 'checked' if l.aktiv }}>
+            Steht zur Auswahl
+          </label>
+        </div>
+        <div class="knopfreihe konto-fuss">
+          <button class="knopf haupt" type="submit">speichern</button>
+        </div>
+      </form>
+      <form class="inline entfernen-rechts konto-entfernen"
+            action="/einstellungen/leistung/{{ l.id }}/loeschen" method="post"
+            onsubmit="return confirm('{{ l.name }} aus der Auswahl entfernen? Bereits erfasste Zeiten behalten ihre Beschreibung.')">
+        {{ muelleimer(l.name ~ " entfernen") }}
+      </form>
+    {% endcall %}
+    {% endfor %}
   </div>
+  {% else %}
+  <p class="leer">{{ t("einst.leistungen_keine") }}</p>
+  {% endif %}
 </section>
 
 {% if leistungen_offen %}
@@ -844,44 +952,6 @@
   </div>
 </section>
 {% endif %}
-
-<section class="karte">
-  <h2>Leistungen{% if leistungen %} · {{ leistungen | length }}{% endif %}</h2>
-  {% if leistungen %}
-  <table class="liste">
-    <thead>
-      <tr><th>Bezeichnung</th><th class="mitte">Aktiv</th><th>Verwendet</th><th></th></tr>
-    </thead>
-    <tbody>
-    {% for l in leistungen %}
-      <tr class="{{ '' if l.aktiv else 'stillgelegt' }}">
-        <form action="/einstellungen/leistung/{{ l.id }}" method="post" id="lb-{{ l.id }}"></form>
-        <td><input class="mini breit" type="text" name="name" value="{{ l.name }}"
-                   maxlength="160" form="lb-{{ l.id }}"></td>
-        <td class="mitte">
-          <input type="checkbox" name="aktiv" value="1" {{ 'checked' if l.aktiv }}
-                 form="lb-{{ l.id }}">
-        </td>
-        <td class="zahlen leise klein">
-          {{ l.verwendungen }} Eintrag{{ '' if l.verwendungen == 1 else 'e' }}
-        </td>
-        <td class="rechts nowrap">
-          <button class="knopf klein" type="submit" form="lb-{{ l.id }}">speichern</button>
-          <form class="inline" action="/einstellungen/leistung/{{ l.id }}/loeschen" method="post"
-                onsubmit="return confirm('{{ l.name }} aus der Auswahl entfernen? Bereits erfasste Zeiten behalten ihre Beschreibung.')">
-            {{ muelleimer("Entfernen") }}
-          </form>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  <p class="klein leise" style="margin-bottom: 0;">{{ t("einst.leistungen_stillgelegt") }}</p>
-  {% else %}
-  <p class="leer">{{ t("einst.leistungen_keine") }}</p>
-  {% endif %}
-</section>
-
 {% endif %}
 
 {% if bereich == "kfz" %}
@@ -974,30 +1044,30 @@
 </label>
 {% endmacro %}
 
-<section class="karte">
-  <h1>KFZ</h1>
-  <p class="lead">{{ t("einst.kfz_lead") }}</p>
-  <div class="knopfreihe">
-    <a class="knopf" href="/fuhrpark">Zur Erfassung</a>
-    <a class="knopf leise" href="/fuhrpark/auswertung">Zur Auswertung</a>
-  </div>
-</section>
-
-<section class="karte">
-  <h2>Fahrzeug anlegen</h2>
-  <form action="/einstellungen/fahrzeug" method="post">
-    {{ fahrzeugfelder(none) }}
-    <div class="knopfreihe">
-      <button class="knopf haupt" type="submit">Fahrzeug anlegen</button>
-    </div>
-  </form>
-</section>
+{# ⚠️ Die Überschrift heißt „Fahrzeuge" wie der Punkt im Menü. „KFZ"
+   stand hier aus der Anfangszeit. #}
+{% call punktkopf("Fahrzeuge", t("einst.kfz_lead")) %}
+  <p class="klein leise"><a href="/fuhrpark">Zur Erfassung</a>
+    · <a href="/fuhrpark/auswertung">Zur Auswertung</a></p>
+{% endcall %}
 
 {% set aktive = fahrzeuge | selectattr("aktiv") | list %}
 {% set archiv = fahrzeuge | rejectattr("aktiv") | list %}
 
 <section class="karte">
-  <h2>Fuhrpark{% if aktive %} · {{ aktive | length }}{% endif %}</h2>
+  <div class="kopfzeile">
+    <h2>Fuhrpark{% if aktive %} · {{ aktive | length }}{% endif %}</h2>
+  </div>
+
+  {% call anlegen("Fahrzeug anlegen") %}
+    <form action="/einstellungen/fahrzeug" method="post">
+      {{ fahrzeugfelder(none) }}
+      <div class="knopfreihe unten">
+        <button class="knopf haupt" type="submit">Fahrzeug anlegen</button>
+      </div>
+    </form>
+  {% endcall %}
+
   {% if aktive %}
   {% for f in aktive %}
   <div class="fahrzeugkarte">
@@ -1123,6 +1193,108 @@
   <div class="kopfzeile">
     <h2>Konten{% if benutzerliste %} · {{ benutzerliste | length }}{% endif %}</h2>
   </div>
+
+  {% call anlegen("Konto anlegen") %}
+    <form action="/einstellungen/benutzer" method="post">
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Benutzername</span>
+          <input type="text" name="benutzername" required autocomplete="off" maxlength="80">
+        </label>
+        <label class="feld">
+          <span>Passwort</span>
+          <input type="password" name="passwort" required autocomplete="new-password">
+        </label>
+      </div>
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Rolle</span>
+          <select name="rolle">
+            <option value="benutzer">Benutzer</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </label>
+        <label class="feld">
+          <span>E-Mail-Adresse <span class="leise">– optional, Empfänger für Erinnerungen</span></span>
+          <input type="email" name="email" autocomplete="off">
+        </label>
+      </div>
+      <label class="feld">
+        <span>Gehört zu Mitarbeiter <span class="leise">– optional</span></span>
+        <select name="mitarbeiter">
+          <option value="">keine Zuordnung</option>
+          {% for m in team %}<option value="{{ m.name }}">{{ m.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <p class="klein leise felderklaerung">{{ t("einst.benutzer_mitarbeiter_hinweis") }}</p>
+      <fieldset class="feld bereichsfeld">
+        <span>Bereiche</span>
+        <p class="klein leise felderklaerung">{{ t("einst.benutzer_bereiche_hinweis") }}</p>
+        <div class="bereichsraster">
+          {% for schluessel, name in BEREICHE.items() %}
+          {% set ausdruecklich = schluessel in NUR_AUSDRUECKLICH %}
+          <label class="bereich-kachel {{ 'heikel' if ausdruecklich }}">
+            <input type="checkbox" name="bereiche" value="{{ schluessel }}"
+                   {{ '' if ausdruecklich else 'checked' }}> {{ name }}</label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <fieldset class="feld bereichsfeld">
+        <span>Punkte in den Einstellungen</span>
+        <p class="klein leise felderklaerung">{{ t("einst.benutzer_einstpunkte_hinweis") }}</p>
+        <div class="bereichsraster">
+          <label class="bereich-kachel fest">
+            <input type="checkbox" checked disabled> Oberfläche
+          </label>
+          {% for schluessel, name in EINST_BEREICHE.items() %}
+          <label class="bereich-kachel"><input type="checkbox" name="einst_bereiche" value="{{ schluessel }}" checked> {{ name }}</label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {# Zwei Rechte, die keine eigenen Bereiche sind, sondern eine Grenze
+         innerhalb eines Bereichs ziehen. Deshalb stehen sie hier getrennt. #}
+      <fieldset class="feld bereichsfeld">
+        <span>Einzelrechte</span>
+        <p class="klein leise felderklaerung">{{ t("einst.benutzer_rechte_hinweis") }}</p>
+        <div class="bereichsraster">
+          <label class="bereich-kachel">
+            <input type="checkbox" name="fremde_bearbeiten" value="1">
+            Einträge anderer bearbeiten
+          </label>
+          <label class="bereich-kachel">
+            <input type="checkbox" name="fremde_loeschen" value="1">
+            Einträge anderer löschen
+          </label>
+          <label class="bereich-kachel">
+            <input type="checkbox" name="wiki_schreiben" value="1" checked>
+            Wiki bearbeiten
+          </label>
+          <label class="bereich-kachel">
+            <input type="checkbox" name="bewilligungen_sehen" value="1" checked>
+            Bewilligungen in „Mein Bereich“
+          </label>
+        </div>
+        {# ⚠️ Geschützte Wiki-Ordner sind hier NIE vorbelegt – anders als
+           „Wiki bearbeiten“ oder die Bereiche darüber. Ein neues Konto
+           bekommt sie ausdrücklich zugeteilt oder gar nicht. Dieselbe
+           Überlegung wie bei der Datenpflege (NUR_AUSDRUECKLICH), deshalb
+           auch dieselbe rote Kachel. #}
+        {% if wiki_geschuetzt %}
+        <div class="bereichsraster" style="margin-top: 10px;">
+          {% for o in wiki_geschuetzt %}
+          <label class="bereich-kachel heikel">
+            <input type="checkbox" name="wiki_ordner" value="{{ o }}">
+            Wiki: {{ o }}
+          </label>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </fieldset>
+      <div class="knopfreihe">
+        <button class="knopf haupt" type="submit">Konto anlegen</button>
+      </div>
+    </form>
+  {% endcall %}
 
   {% if benutzerliste %}
   <div class="kontoliste">
@@ -1343,108 +1515,6 @@
   {% endif %}
 </section>
 
-<section class="karte hochkant">
-  <h2>Neues Konto anlegen</h2>
-  <form action="/einstellungen/benutzer" method="post">
-    <div class="feldreihe zwei">
-      <label class="feld">
-        <span>Benutzername</span>
-        <input type="text" name="benutzername" required autocomplete="off" maxlength="80">
-      </label>
-      <label class="feld">
-        <span>Passwort</span>
-        <input type="password" name="passwort" required autocomplete="new-password">
-      </label>
-    </div>
-    <div class="feldreihe zwei">
-      <label class="feld">
-        <span>Rolle</span>
-        <select name="rolle">
-          <option value="benutzer">Benutzer</option>
-          <option value="admin">Administrator</option>
-        </select>
-      </label>
-      <label class="feld">
-        <span>E-Mail-Adresse <span class="leise">– optional, Empfänger für Erinnerungen</span></span>
-        <input type="email" name="email" autocomplete="off">
-      </label>
-    </div>
-    <label class="feld">
-      <span>Gehört zu Mitarbeiter <span class="leise">– optional</span></span>
-      <select name="mitarbeiter">
-        <option value="">keine Zuordnung</option>
-        {% for m in team %}<option value="{{ m.name }}">{{ m.name }}</option>{% endfor %}
-      </select>
-    </label>
-    <p class="klein leise felderklaerung">{{ t("einst.benutzer_mitarbeiter_hinweis") }}</p>
-    <fieldset class="feld bereichsfeld">
-      <span>Bereiche</span>
-      <p class="klein leise felderklaerung">{{ t("einst.benutzer_bereiche_hinweis") }}</p>
-      <div class="bereichsraster">
-        {% for schluessel, name in BEREICHE.items() %}
-        {% set ausdruecklich = schluessel in NUR_AUSDRUECKLICH %}
-        <label class="bereich-kachel {{ 'heikel' if ausdruecklich }}">
-          <input type="checkbox" name="bereiche" value="{{ schluessel }}"
-                 {{ '' if ausdruecklich else 'checked' }}> {{ name }}</label>
-        {% endfor %}
-      </div>
-    </fieldset>
-    <fieldset class="feld bereichsfeld">
-      <span>Punkte in den Einstellungen</span>
-      <p class="klein leise felderklaerung">{{ t("einst.benutzer_einstpunkte_hinweis") }}</p>
-      <div class="bereichsraster">
-        <label class="bereich-kachel fest">
-          <input type="checkbox" checked disabled> Oberfläche
-        </label>
-        {% for schluessel, name in EINST_BEREICHE.items() %}
-        <label class="bereich-kachel"><input type="checkbox" name="einst_bereiche" value="{{ schluessel }}" checked> {{ name }}</label>
-        {% endfor %}
-      </div>
-    </fieldset>
-    {# Zwei Rechte, die keine eigenen Bereiche sind, sondern eine Grenze
-       innerhalb eines Bereichs ziehen. Deshalb stehen sie hier getrennt. #}
-    <fieldset class="feld bereichsfeld">
-      <span>Einzelrechte</span>
-      <p class="klein leise felderklaerung">{{ t("einst.benutzer_rechte_hinweis") }}</p>
-      <div class="bereichsraster">
-        <label class="bereich-kachel">
-          <input type="checkbox" name="fremde_bearbeiten" value="1">
-          Einträge anderer bearbeiten
-        </label>
-        <label class="bereich-kachel">
-          <input type="checkbox" name="fremde_loeschen" value="1">
-          Einträge anderer löschen
-        </label>
-        <label class="bereich-kachel">
-          <input type="checkbox" name="wiki_schreiben" value="1" checked>
-          Wiki bearbeiten
-        </label>
-        <label class="bereich-kachel">
-          <input type="checkbox" name="bewilligungen_sehen" value="1" checked>
-          Bewilligungen in „Mein Bereich“
-        </label>
-      </div>
-      {# ⚠️ Geschützte Wiki-Ordner sind hier NIE vorbelegt – anders als
-         „Wiki bearbeiten“ oder die Bereiche darüber. Ein neues Konto
-         bekommt sie ausdrücklich zugeteilt oder gar nicht. Dieselbe
-         Überlegung wie bei der Datenpflege (NUR_AUSDRUECKLICH), deshalb
-         auch dieselbe rote Kachel. #}
-      {% if wiki_geschuetzt %}
-      <div class="bereichsraster" style="margin-top: 10px;">
-        {% for o in wiki_geschuetzt %}
-        <label class="bereich-kachel heikel">
-          <input type="checkbox" name="wiki_ordner" value="{{ o }}">
-          Wiki: {{ o }}
-        </label>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </fieldset>
-    <div class="knopfreihe">
-      <button class="knopf haupt" type="submit">Konto anlegen</button>
-    </div>
-  </form>
-</section>
 {% endif %}
 
 {% if bereich == "email" %}
@@ -1804,7 +1874,7 @@
 
 {% if bereich == "system" %}
 <section class="karte" id="system">
-  <h1>System</h1>
+  <h1>System und Sicherung</h1>
   <p class="lead">{{ t("einst.system_lead") }}</p>
 
   <div class="systemraster">

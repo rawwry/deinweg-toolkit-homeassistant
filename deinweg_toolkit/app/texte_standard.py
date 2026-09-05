@@ -77,6 +77,11 @@ TEXTE_STANDARD["einst.sprueche_lead"] = (
     "Wortlaut eintragen. Gespeichert wird in der Datei quotes.txt im "
     "/texte-Volume; wer lieber dort direkt schreibt, kann das weiterhin "
     "tun, hier ist es nur bequemer.")
+TEXTE_STANDARD["einst.sprueche_datei"] = (
+    "Gespeichert wird in der Datei quotes.txt im /texte-Volume. Wer "
+    "lieber dort direkt schreibt, kann das weiterhin tun – hier ist es "
+    "nur bequemer. ⚠️ Jedes Speichern schreibt die ganze Datei neu und "
+    "vereinheitlicht dabei die Anführungszeichen.")
 TEXTE_STANDARD["einst.sprueche_leer"] = (
     "Noch kein Spruch hinterlegt – die Startseite zeigt dann einfach keinen.")
 TEXTE_STANDARD["einst.wikiliste"] = (

@@ -1755,4 +1755,30 @@ CHANGELOG = [
         "Und irgendwo ist ein Osterei versteckt",
         "Prüfung von 1241 auf 1263 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.21", "titel": "Einstellungen aufgeräumt", "punkte": [
+        "Alle Stammdatenlisten tragen jetzt dieselbe Form: eine Zeile je "
+        "Eintrag, die sich zum Formular aufklappt. „Mitarbeiter“, "
+        "„Aufgabenarten“ und „Leistungen“ waren Tabellen mit einem "
+        "Eingabefeld in jeder Zelle – am Schreibtisch dicht, am Telefon "
+        "nur mit seitlichem Rollen zu bedienen",
+        "Keine Zebrastreifen mehr in den Einstellungen",
+        "Die ausführlichen Erklärungen standen als schmale Karte neben "
+        "dem Formular und nahmen ein Drittel der Breite; am Telefon "
+        "rutschten sie über die eigentliche Arbeit. Jetzt stehen sie "
+        "zugeklappt unter der Überschrift",
+        "Das Anlegeformular steht zugeklappt über der Liste statt "
+        "dauerhaft offen davor – man kommt zum Nachsehen öfter her als "
+        "zum Anlegen",
+        "Die Überschriften heißen wie die Punkte im Menü: „Sprüche“ statt "
+        "„Quotemanager“, „Fahrzeuge“ statt „KFZ“, „System und Sicherung“ "
+        "statt „System“",
+        "⚠️ Vier Punkte sind jetzt ausschließlich für Administratoren: "
+        "Benutzerverwaltung, E-Mail-Versand, E-Mail-Vorlagen und System "
+        "und Sicherung. Bis 1.20.5 konnte ein Konto mit dem Bereich "
+        "„Einstellungen“ die SMTP-Zugangsdaten ändern oder eine "
+        "Sicherung einspielen, ohne den Punkt überhaupt zu sehen",
+        "Am iPhone zoomt die Seite nicht mehr von selbst hinein, sobald "
+        "man in ein Eingabefeld tippt",
+        "Prüfung von 1263 auf 1345 Einzelprüfungen erweitert",
+    ]},
 ]

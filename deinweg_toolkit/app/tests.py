@@ -681,7 +681,14 @@ def test_sprueche(client: TestClient) -> None:
                          "quelle": "Prüfer"}, "Text und Quelle stimmen")
 
     seite = client.get("/einstellungen?bereich=quotes").text
-    pruefe("Quotemanager" in seite, "der Quotemanager ist ein eigener Bereich")
+    # ⚠️ Der Punkt heißt seit 1.21 „Sprüche" wie im Menü. „Quotemanager"
+    # stand hier aus der Anfangszeit und war das einzige englische Wort
+    # der ganzen Oberfläche.
+    pruefe("<h1>Sprüche</h1>" in seite, "die Sprüche sind ein eigener Bereich")
+    # ⚠️ Erst am Neuerungen-Dialog abschneiden: der zitiert den Changelog,
+    # und dort steht das alte Wort im Eintrag zur Umbenennung.
+    pruefe("Quotemanager" not in seite.split('<div class="neuheiten"')[0],
+           "und heißen nicht mehr englisch")
     pruefe("Testspruch eins" in seite, "der Spruch erscheint in der Liste")
     pruefe("Prüfer" in seite, "die Quelle erscheint darunter")
     # ⚠️ Der Stift springt zur Zeile, nicht an den Seitenanfang: die Zeile
@@ -1143,7 +1150,7 @@ def test_eigenes_konto(client: TestClient) -> None:
            "Benutzerverwaltung bleibt für normale Konten unsichtbar")
     pruefe("bereich=benutzer" not in seite,
            "und taucht auch nicht als Reiter auf")
-    pruefe("Neues Konto anlegen" in client.get(
+    pruefe('name="benutzername"' in client.get(
         "/einstellungen?bereich=benutzer").text,
         "Administratoren sehen die Benutzerverwaltung weiterhin")
     pruefe(nutzer.get("/einstellungen?bereich=email").status_code == 200
@@ -1697,8 +1704,16 @@ def test_benutzerverwaltung_aufbau(client: TestClient) -> None:
            "und eine Zusammenfassung der Rechte")
     pruefe('name="einst_bereiche"' in seite,
            "die Punkte der Einstellungen lassen sich hier vergeben")
-    pruefe(seite.index("Konten") < seite.index("Neues Konto anlegen"),
+    # ⚠️ Seit 1.21 steht das Anlegeformular zugeklappt IN der Kontenkarte,
+    # nicht mehr als eigene Karte darunter - dieselbe Form wie bei den
+    # übrigen Stammdatenlisten. Man kommt zum Nachsehen viel öfter her
+    # als zum Anlegen.
+    pruefe('class="anlegeblock"' in seite,
+           "das Anlegeformular steht zugeklappt in der Kontenkarte")
+    pruefe(seite.index("Konten") < seite.index("anlegeblock"),
            "die vorhandenen Konten stehen über dem Anlegeformular")
+    pruefe("Neues Konto anlegen" not in seite,
+           "und nicht mehr als eigene Karte darunter")
     # Der Editor haengt weiterhin am Formular ausserhalb des Rasters.
     pruefe('id="bn-' in seite, "die Felder hängen an einem eigenen Formular")
 
@@ -4495,6 +4510,168 @@ def test_abrechnungsart(client: TestClient) -> None:
            "die alten, inzwischen falschen sind weg")
 
 
+def test_verwaltungspunkte(client: TestClient) -> None:
+    """Vier Punkte der Einstellungen gehören ausschließlich der Verwaltung."""
+    abschnitt("Einstellungen nur für die Verwaltung")
+    from .auth import EINST_BEREICHE, ADMIN_NUR_PFADE
+
+    pruefe("system" not in EINST_BEREICHE,
+           "„System und Sicherung“ lässt sich keinem Konto mehr einzeln geben")
+
+    # ⚠️ Ein normales Konto, dem ALLE verbleibenden Einstellungspunkte
+    # ausdrücklich erteilt sind - der großzügigste Fall, den es geben
+    # kann. Genau daran muss sich zeigen, dass die vier Punkte nicht an
+    # dieser Liste hängen, sondern an der Rolle.
+    client.post("/einstellungen/benutzer", data={
+        "benutzername": "nurbenutzer", "passwort": "nurbenutzerpw",
+        "rolle": "benutzer", "bereiche": ["einstellungen"],
+        "einst_bereiche": list(EINST_BEREICHE)})
+    n = TestClient(app)
+    n.post("/login", data={"benutzername": "nurbenutzer",
+                           "passwort": "nurbenutzerpw"}, follow_redirects=False)
+
+    # 1. Die Ansicht fällt auf „Oberfläche“ zurück.
+    for punkt, wort in (("benutzer", "Benutzerverwaltung"),
+                        ("email", "E-Mail-Versand"),
+                        ("vorlagen", "E-Mail-Vorlagen"),
+                        ("system", "System und Sicherung")):
+        seite = n.get(f"/einstellungen?bereich={punkt}").text
+        seite = seite.split('<div class="neuheiten"')[0]
+        pruefe("<h1>Oberfläche</h1>" in seite or "Darstellung" in seite,
+               f"„{wort}“ fällt bei direktem Aufruf auf „Oberfläche“ zurück")
+        pruefe(f'bereich={punkt}"' not in seite,
+               f"und steht auch nicht im Menü")
+
+    # 2. Die schreibenden Routen antworten mit 403. ⚠️ Das ist der
+    #    eigentliche Schutz: bis 1.20.5 fehlten sie, ein Konto mit dem
+    #    Bereich „einstellungen“ konnte die SMTP-Zugangsdaten ändern oder
+    #    eine Sicherung einspielen, ohne den Punkt je zu sehen.
+    for pfad, daten in (
+            ("/einstellungen/email", {"server": "böse.example", "port": "25"}),
+            ("/einstellungen/abgabemail", {"abgabe_aktiv": "1"}),
+            ("/einstellungen/fristmail", {"frist_aktiv": "1"}),
+            ("/einstellungen/bewilligungsmail", {"bewilligung_aktiv": "1"}),
+            ("/einstellungen/zuweisungsmail", {"zuweisung_aktiv": "1"}),
+            ("/einstellungen/vorlagen", {"frist_betreff": "x"}),
+            ("/einstellungen/vorlagen/zuruecksetzen", {}),
+            ("/einstellungen/texte", {"was": "alle"}),
+            ("/einstellungen/fusszeile", {"fusszeile_recht": "x"}),
+            ("/einstellungen/sicherung", {}),
+            ("/einstellungen/benutzer", {"benutzername": "schwarz"}),
+    ):
+        pruefe(n.post(pfad, data=daten).status_code == 403,
+               f"„{pfad}“ ist Administratoren vorbehalten")
+    for pfad in ADMIN_NUR_PFADE:
+        pruefe(pfad.startswith("/einstellungen/"),
+               f"„{pfad}“ steht in der Liste der Verwaltungspfade")
+
+    # 3. Und die Punkte, die das Konto haben darf, gehen weiterhin.
+    pruefe(n.get("/einstellungen?bereich=leistungen").status_code == 200,
+           "die übrigen Punkte bleiben erreichbar")
+    pruefe(n.post("/einstellungen/leistung",
+                  data={"name": "Probeleistung nurbenutzer"}
+                  ).status_code in (200, 303),
+           "und lassen sich weiterhin bearbeiten")
+
+    # 4. Für die Verwaltung ändert sich nichts.
+    for punkt in ("benutzer", "email", "vorlagen", "system"):
+        pruefe(client.get(f"/einstellungen?bereich={punkt}").status_code == 200,
+               f"ein Administrator sieht „{punkt}“ unverändert")
+
+
+def test_einstellungen_form(client: TestClient) -> None:
+    """Alle Einstellungspunkte tragen dieselbe Form."""
+    abschnitt("Einstellungen: eine Form für alle")
+    stil = client.get("/static/style.css").text
+
+    # ⚠️ Keine Zebrastreifen mehr in den Einstellungen. Sie stammen aus
+    # der Anfangszeit; eine Einstellungsseite ist kein Datenbestand, den
+    # man zeilenweise abliest.
+    pruefe(".einstellungsinhalt .liste tbody tr:nth-child(even) "
+           "{ background: none; }" in stil,
+           "in den Einstellungen gibt es keine Zebrastreifen mehr")
+    pruefe(".liste tbody tr:nth-child(even) { background: var(--zebra); }"
+           in stil, "im übrigen Programm bleiben sie")
+
+    # Jeder Punkt mit einer Liste trägt Kopfkarte, zugeklappte Hinweise
+    # und ein zugeklapptes Anlegeformular über der Liste.
+    for punkt, titel in (("quotes", "Sprüche"),
+                         ("betreute", "Betreute Personen"),
+                         ("mitarbeiter", "Mitarbeiter"),
+                         ("vorgangsarten", "Aufgabenarten"),
+                         ("leistungen", "Leistungen"),
+                         ("kfz", "Fahrzeuge")):
+        seite = client.get(f"/einstellungen?bereich={punkt}").text
+        rumpf = seite.split('<div class="neuheiten"')[0]
+        pruefe(f"<h1>{titel}</h1>" in rumpf,
+               f"„{punkt}“ heißt in der Überschrift wie im Menü: „{titel}“")
+        pruefe('class="hinweise"' in rumpf,
+               f"„{punkt}“ hat die ausführlichen Hinweise zugeklappt")
+        pruefe(rumpf.count('class="anlegeblock"') == 1,
+               f"„{punkt}“ hat genau ein zugeklapptes Anlegeformular")
+        pruefe(rumpf.index('class="anlegeblock"') < rumpf.index("kontoliste")
+               if "kontoliste" in rumpf else True,
+               f"und es steht über der Liste")
+
+    # ⚠️ Die drei ehemaligen Tabellen sind aufklappbare Zeilen geworden.
+    # Fünf Eingabefelder je Tabellenzeile waren am Schreibtisch dicht und
+    # am Telefon nur mit seitlichem Rollen zu erreichen.
+    for punkt in ("mitarbeiter", "vorgangsarten", "leistungen"):
+        seite = client.get(f"/einstellungen?bereich={punkt}").text
+        pruefe('class="kontoliste"' in seite,
+               f"„{punkt}“ ist eine Liste aufklappbarer Zeilen")
+        pruefe("<table" not in seite.split('<div class="neuheiten"')[0],
+               f"und keine Tabelle mehr")
+        pruefe('class="konto-kopf"' in seite,
+               f"die Zeile zeigt zugeklappt das Wichtigste")
+
+    # Die schmalen Erklärkarten neben dem Formular sind weg - sie nahmen
+    # ein Drittel der Breite und rutschten am Telefon über die Arbeit.
+    vorlage = open(os.path.join(os.path.dirname(__file__), "templates",
+                                "einstellungen.html"), encoding="utf-8").read()
+    pruefe('karte schmal' not in vorlage,
+           "es gibt keine schmalen Erklärkarten mehr")
+    pruefe('raster buendig' not in vorlage,
+           "und damit auch kein zweispaltiges Kopfraster")
+
+    # Speichern muss weiterhin gehen - die Felder hängen jetzt in einem
+    # ganz normalen Formular statt über form= an einem leeren daneben.
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, abgabepflicht, "
+                    "monatsstunden, urlaubstage, aktiv, angelegt_am) "
+                    "VALUES ('Formprobe',1,100,25,1,'2026-01-01 08:00')")
+        mid = con.execute("SELECT id FROM mitarbeiter WHERE name='Formprobe'"
+                          ).fetchone()["id"]
+    client.post(f"/einstellungen/mitarbeiter/{mid}", data={
+        "name": "Formprobe", "notiz": "Teilzeit", "monatsstunden": "88",
+        "urlaubstage": "24", "abgabepflicht": "1", "aktiv": "1"})
+    with db.db() as con:
+        satz = con.execute("SELECT monatsstunden, urlaubstage, notiz FROM "
+                           "mitarbeiter WHERE id=?", (mid,)).fetchone()
+    pruefe(satz["monatsstunden"] == 88 and satz["urlaubstage"] == 24,
+           "eine aufgeklappte Zeile speichert ihre Zahlen")
+    pruefe(satz["notiz"] == "Teilzeit",
+           "und die Notiz ist ein echtes Feld statt eines versteckten "
+           "Mitläufers")
+
+    # ⚠️ Am Telefon 16px in den Feldern: Safari auf iOS vergrößert die
+    # Seite von selbst, sobald man in ein Feld mit kleinerer Schrift
+    # tippt - und bleibt danach vergrößert stehen.
+    pruefe("Kein automatisches Hineinzoomen am iPhone" in stil,
+           "die Felder tragen am Telefon 16px")
+    zoom = stil.split("Kein automatisches Hineinzoomen am iPhone")[-1]
+    pruefe("font-size: 16px;" in zoom and "select, textarea" in zoom,
+           "und zwar alle, auch Auswahlfelder und Textfelder")
+    # ⚠️ Verboten wird das Vergrößern NICHT. „user-scalable=no" ignoriert
+    # Safari seit iOS 10 ohnehin - und mit gutem Grund: wer vergrößern
+    # muss, soll das können. Hier fällt nur der Anlass weg.
+    base = open(os.path.join(os.path.dirname(__file__), "templates",
+                             "base.html"), encoding="utf-8").read()
+    kopf = base.split('name="viewport"')[1].split(">")[0]
+    pruefe("user-scalable" not in kopf and "maximum-scale" not in kopf,
+           "der Viewport-Tag verbietet das Vergrößern nicht")
+
+
 def test_kosmetik(client: TestClient) -> None:
     """Kopfzeile, Tabellen am Telefon, Mülleimer – und ein Osterei."""
     abschnitt("Kosmetik")
@@ -4516,7 +4693,10 @@ def test_kosmetik(client: TestClient) -> None:
            "verlöre sie den Spezifitätskampf")
 
     # --- Tabellen am Telefon: einheitlich, einzeilige Titel, rollbar ----
-    telefon = stil.split("@media (max-width: 760px)")[-1]
+    # ⚠️ Nicht am letzten „@media (max-width: 760px)" abschneiden - davon
+    # gibt es inzwischen mehrere. Der Kommentar des Blocks ist der
+    # eindeutige Anker.
+    telefon = stil.split("Tabellen am Telefon: einheitlich und rollbar")[-1]
     pruefe(".tabellenrolle .liste { table-layout: auto; }" in telefon,
            "am Telefon rechnen alle Tabellen nach Inhalt")
     pruefe(".tabellenrolle .liste.auswertungsblatt th:first-child," in telefon,
@@ -5343,6 +5523,8 @@ def _durchlauf(client: TestClient) -> None:
         test_konto_zugeklappt(client)
         test_meine_zeiten_namensspalte(client)
         test_abrechnungsart(client)
+        test_verwaltungspunkte(client)
+        test_einstellungen_form(client)
         test_kosmetik(client)
         test_versionen()
     except Exception:

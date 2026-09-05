@@ -46,17 +46,25 @@
   {% endif %}
   {% endif %}
 
-  {% if ist_admin %}
+  {# ⚠️ Die Rolle wird hier selbst geprüft und nicht über ein
+     hereingereichtes „ist_admin": die Datenpflege benutzt dasselbe Makro,
+     reicht die Angabe aber nicht mit - dort fehlte die ganze Gruppe
+     dadurch still, auch für Administratoren. #}
+  {% set nur_admin = b.rolle == "admin" %}
+  {% if nur_admin %}
   <span class="seitenmenue-gruppe">Konten und E-Mail</span>
   <a href="/einstellungen?bereich=benutzer" class="{{ 'aktiv' if bereich=='benutzer' }}">Benutzerverwaltung</a>
   <a href="/einstellungen?bereich=email" class="{{ 'aktiv' if bereich=='email' }}">E-Mail-Versand</a>
   <a href="/einstellungen?bereich=vorlagen" class="{{ 'aktiv' if bereich=='vorlagen' }}">E-Mail-Vorlagen</a>
   {% endif %}
 
-  {% set darf_pflege = b.rolle == "admin" and hat_zugriff(b, "datenpflege") %}
-  {% if hat_einst_zugriff(b, "system") or darf_pflege %}
+  {# „System und Sicherung" hängt seit 1.21 ebenfalls an der Rolle: dort
+     lässt sich die Datenbank herunterladen UND einspielen, und die
+     Sicherung enthält Passwort-Hashes und den SMTP-Zugang. #}
+  {% set darf_pflege = nur_admin and hat_zugriff(b, "datenpflege") %}
+  {% if nur_admin or darf_pflege %}
   <span class="seitenmenue-gruppe">Wartung</span>
-  {% if hat_einst_zugriff(b, "system") %}
+  {% if nur_admin %}
   <a href="/einstellungen?bereich=system" class="{{ 'aktiv' if bereich=='system' }}">System und Sicherung</a>
   {% endif %}
   {# Eigene Seite, kein Punkt dieser Seite: die Datenpflege bringt ihren

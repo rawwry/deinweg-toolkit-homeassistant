@@ -170,7 +170,11 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
     # Adminrechte erteilen. Die Middleware prueft das bereits fuer die
     # POST-Routen; hier zusaetzlich fuer die Ansicht selbst, weil "bereich"
     # nur ein Abfrageparameter auf derselben Route ist.
-    if bereich in ("benutzer", "email", "vorlagen") and not ist_admin:
+    # ⚠️ Vier Punkte haengen an der Rolle, nicht an "einst_bereiche":
+    # Benutzerverwaltung, E-Mail-Versand, E-Mail-Vorlagen und System und
+    # Sicherung. "bereich" ist nur ein Abfrageparameter auf derselben
+    # Route und wuerde vom Pfadpraefix nicht erfasst - deshalb hier.
+    if bereich in ("benutzer", "email", "vorlagen", "system") and not ist_admin:
         bereich = "oberflaeche"
     # Zweite Ebene: einzelne Punkte lassen sich je Konto abschalten.
     # "oberflaeche" bleibt immer erreichbar - deshalb ist das hier auch
