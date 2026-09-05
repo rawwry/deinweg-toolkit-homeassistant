@@ -324,13 +324,16 @@
               '<path d="M4 12h15M14 7l5 5-5 5" stroke="currentColor" ' +
               'stroke-width="1.7" stroke-linecap="round" ' +
               'stroke-linejoin="round"/></svg>' +
-              '<span class="zw-dauer"></span>' +
             '</span>' +
             '<div class="zw-marke zw-bis">' +
               '<span class="zw-marke-kopf">bis</span>' +
               '<span class="zw-marke-datum">—</span>' +
               '<span class="zw-marke-wort">noch nichts gewählt</span>' +
             '</div>' +
+            // ⚠️ Die Monatszahl steht als eigenes Kind, nicht mehr in der
+            // Brücke: nur so lässt sie sich am Telefon unter beide Marken
+            // legen, während sie am Schreibtisch unter dem Pfeil bleibt.
+            '<span class="zw-dauer"></span>' +
           '</div>' +
           '<p class="zw-fuehrung" aria-live="polite"></p>' +
           '<div class="zw-fuss">' +

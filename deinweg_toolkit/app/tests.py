@@ -4275,6 +4275,22 @@ def test_zeitwahl(client: TestClient) -> None:
            "die Marken sagen ausdrücklich, welcher Tag gemeint ist")
     pruefe("vom ersten Tag " in seite and "bis zum letzten Tag des Endmonats"
            in seite, "und die Zeile darunter erklärt die Regel")
+    stil3 = client.get("/static/style.css").text
+    # ⚠️ Die rechte Marke ist rechtsbündig - beide linksbündig ließen den
+    # Kasten schief wirken.
+    pruefe(".zw-bis { text-align: right; align-items: flex-end; }" in stil3,
+           "die „bis“-Marke steht rechtsbündig")
+    # ⚠️ Am Telefon steht die Spanne in einer Zeile statt in drei
+    # gestapelten Blöcken; die Beiwörter entfallen dort.
+    pruefe(".zw-marke-kopf, .zw-marke-wort { display: none; }" in stil3,
+           "am Telefon fallen die Beiwörter weg")
+    pruefe('grid-template-areas: "von brueck bis" "dauer dauer dauer";' in stil3,
+           "und die beiden Datumsangaben stehen dort nebeneinander")
+    # ⚠️ Der Aufbau-Takt darf die Kacheln nicht mehr aufspringen lassen.
+    pruefe("@keyframes zw-fuellen { from { opacity: .55; } }" in stil3,
+           "der Aufbau des Streifens ist nur noch ein Aufhellen, kein Sprung")
+    pruefe("transform: scale(.82)" not in stil3,
+           "die alte, zu lebhafte Fassung ist weg")
     pruefe('data-monate="' in seite,
            "die Monate mit Daten kommen als Attribut vom Server")
     pruefe("hat-daten" in seite and "zw-punkt" in seite,

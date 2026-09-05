@@ -1703,4 +1703,16 @@ CHANGELOG = [
         "„nur abrechenbare Zeiten“ ist ein richtiger Kippschalter geworden",
         "Prüfung von 1221 auf 1231 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.20.3", "titel": "Zeitraum-Picker: ruhiger und bündig",
+     "punkte": [
+        "Die „bis“-Angabe steht rechtsbündig – beide linksbündig ließen "
+        "den Kasten schief wirken",
+        "Am Telefon steht die Spanne in einer Zeile („01.04.2021 → "
+        "31.08.2026“, darunter die Monatszahl) statt in drei gestapelten "
+        "Blöcken",
+        "Der Streifen baut sich nur noch durch ein kurzes Aufhellen auf – "
+        "das Aufspringen der Kacheln war zu lebhaft für etwas, das man "
+        "mehrmals am Tag sieht",
+        "Prüfung von 1231 auf 1236 Einzelprüfungen erweitert",
+    ]},
 ]

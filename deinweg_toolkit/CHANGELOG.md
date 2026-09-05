@@ -3,6 +3,11 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.20.3
+
+- Zeitraum-Picker: „bis“-Angabe rechtsbündig, am Telefon eine kompakte
+  Zeile statt gestapelter Blöcke, ruhigerer Aufbau des Streifens
+
 ## 1.20.2
 
 - Zeitraum-Picker: beide Jahresblöcke blättern unabhängig voneinander,

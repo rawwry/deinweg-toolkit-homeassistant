@@ -653,10 +653,19 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
 */
 .zw-spanne {
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-  gap: 10px; margin-top: 14px; padding: 11px 12px; border-radius: 10px;
+  grid-template-areas: "von brueck bis" "von dauer bis";
+  gap: 2px 10px; margin-top: 14px; padding: 11px 12px; border-radius: 10px;
   background: var(--flaeche-2); border: 1px solid var(--linie);
 }
+.zw-von { grid-area: von; }
+.zw-brueck { grid-area: brueck; }
+.zw-bis { grid-area: bis; }
+.zw-dauer { grid-area: dauer; }
 .zw-marke { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+/* ⚠️ Die rechte Marke ist rechtsbündig. Beide linksbündig ließen den
+   Kasten schief wirken - der Pfeil zeigt nach rechts, und das Auge
+   erwartet dort auch das Ende der Angabe. */
+.zw-bis { text-align: right; align-items: flex-end; }
 .zw-marke-kopf {
   font-size: 10px; font-weight: 700; letter-spacing: .08em;
   text-transform: uppercase; color: var(--leise);
@@ -668,13 +677,13 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
 .zw-marke.voll .zw-marke-datum { color: var(--akzent); }
 .zw-marke-wort { font-size: 11px; color: var(--leise); }
 .zw-brueck {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  display: flex; align-items: center; justify-content: center;
   color: var(--linie-stark);
 }
 .zw-brueck svg { width: 20px; height: 20px; }
 .zw-dauer {
   font-size: 10.5px; color: var(--leise); white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  text-align: center; font-variant-numeric: tabular-nums;
 }
 /* Fehlt das Ende noch, wartet die rechte Marke sichtbar darauf. */
 .zw-spanne.offen .zw-bis { opacity: .55; }
@@ -709,18 +718,18 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
                           border-color .13s ease, transform .13s ease; }
   .zw-monat:hover { transform: translateY(-1px); }
   .zw-marke-datum { transition: color .18s ease; }
-  /* Der Streifen baut sich Monat für Monat auf, vom Anfang zum Ende. Der
-     Takt kommt aus --i (der wievielte Monat der Spanne), gedeckelt bei
-     14 - sonst dauert ein Fünfjahresbereich mehrere Sekunden. */
+  /* Der Streifen hellt sich Monat für Monat auf, vom Anfang zum Ende.
+     Der Takt kommt aus --i (der wievielte Monat der Spanne), gedeckelt
+     bei 14 - sonst dauert ein Fünfjahresbereich mehrere Sekunden.
+     ⚠️ Bewusst NUR Deckkraft und bewusst kurz. Bis 1.20.2 sprangen die
+     Kacheln dabei auf (scale .82 -> 1.05); über zwölf Kacheln hinweg war
+     das Gehüpfe deutlich zu viel für etwas, das man mehrmals am Tag
+     sieht. Nicht wieder vergrößern. */
   .zw-fuellt .zw-monat.drin {
-    animation: zw-fuellen .32s cubic-bezier(.2, .9, .3, 1) backwards;
-    animation-delay: calc(var(--i, 0) * 26ms);
+    animation: zw-fuellen .16s ease-out backwards;
+    animation-delay: calc(var(--i, 0) * 11ms);
   }
-  @keyframes zw-fuellen {
-    0%   { transform: scale(.82); opacity: .15; }
-    60%  { transform: scale(1.05); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
-  }
+  @keyframes zw-fuellen { from { opacity: .55; } }
   /* Der Jahreswechsel schiebt das Raster aus der Richtung herein, in die
      man geklickt hat - sonst wechseln zwölf Kacheln lautlos ihre
      Beschriftung und man weiß nicht, ob etwas passiert ist. */
@@ -746,10 +755,23 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
     border-top: 1px solid var(--linie-stark); padding-top: 14px;
   }
   .zw-raster { grid-template-columns: repeat(4, 1fr); }
-  /* Drei Spalten wären hier zu schmal für zwei Datumsangaben. */
-  .zw-spanne { grid-template-columns: 1fr; gap: 8px; }
-  .zw-brueck { flex-direction: row; gap: 8px; }
-  .zw-brueck svg { transform: rotate(90deg); }
+  /* ⚠️ Am Telefon steht die Spanne in EINER Zeile: „01.04.2021 →
+     31.08.2026“, darunter mittig die Monatszahl. Untereinander gestapelt
+     nahmen die drei Blöcke ein Drittel des Panels ein und sahen aus wie
+     ein zerfallenes Formular. Ganz weglassen wäre falsch - die beiden
+     Datumsangaben sind der Grund, warum es diesen Kasten gibt. Die
+     Beiwörter („erster Tag im April“) entfallen dafür; das Datum selbst
+     sagt es auch. */
+  .zw-spanne {
+    grid-template-columns: auto auto auto;
+    grid-template-areas: "von brueck bis" "dauer dauer dauer";
+    justify-content: center; gap: 3px 9px; padding: 9px 10px;
+  }
+  .zw-marke { flex-direction: row; align-items: baseline; }
+  .zw-bis { text-align: left; align-items: baseline; }
+  .zw-marke-kopf, .zw-marke-wort { display: none; }
+  .zw-marke-datum { font-size: 13.5px; }
+  .zw-brueck svg { width: 16px; height: 16px; }
 }
 
 /* --- Suche als viertes Filterfeld ---------------------------------------
