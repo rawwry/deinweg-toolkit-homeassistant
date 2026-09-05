@@ -1715,4 +1715,21 @@ CHANGELOG = [
         "mehrmals am Tag sieht",
         "Prüfung von 1231 auf 1236 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.20.4", "titel": "Zeitraum-Picker: Darstellungsfehler behoben",
+     "punkte": [
+        "Der Datumskasten unter dem Raster klebte am Monatsraster, hatte "
+        "keinen Innenabstand und sprang beim ersten Klick in eine andere "
+        "Form. Ursache war ein Namenskonflikt: der leere Zustand hieß "
+        "schlicht „leer“, und diese Klasse ist im ganzen Programm für "
+        "„hier steht noch nichts“ vergeben und setzt eigene Abstände. "
+        "Alle Zustände des Pickers tragen jetzt eine eigene Vorsilbe",
+        "Am Telefon überlappte der Kasten dadurch die untere "
+        "Jahresübersicht – das ist damit ebenfalls weg",
+        "Der Kasten hat jetzt in jedem Zustand dieselbe Höhe; das Panel "
+        "springt beim Klicken nicht mehr",
+        "Der Picker wurde von 375 bis 1440 Pixel Breite durchgemessen: "
+        "gleiche Maße in jedem Zustand, keine Überlappung, kein "
+        "seitliches Rollen",
+        "Prüfung von 1236 auf 1241 Einzelprüfungen erweitert",
+    ]},
 ]

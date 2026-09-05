@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.20.4
+
+- Zeitraum-Picker: Darstellungsfehler behoben (Namenskonflikt der Klasse
+  „leer“ – Kasten ohne Innenabstand, am Raster klebend, Formwechsel beim
+  ersten Klick, Überlappung am Telefon)
+
 ## 1.20.3
 
 - Zeitraum-Picker: „bis“-Angabe rechtsbündig, am Telefon eine kompakte

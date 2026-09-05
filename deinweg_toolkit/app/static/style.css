@@ -681,13 +681,24 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
   color: var(--linie-stark);
 }
 .zw-brueck svg { width: 20px; height: 20px; }
+/* ⚠️ Die Mindesthöhe hält die Zeile frei, auch wenn noch nichts gewählt
+   ist. Ohne sie wuchs der Kasten am Telefon beim ersten Klick um 16px,
+   und das Panel sprang unter dem Finger. Am Schreibtisch ändert sie
+   nichts: dort geben die beiden Marken die Höhe vor, sie stehen über
+   beide Zeilen. */
 .zw-dauer {
   font-size: 10.5px; color: var(--leise); white-space: nowrap;
-  text-align: center; font-variant-numeric: tabular-nums;
+  text-align: center; min-height: 16px;
+  font-variant-numeric: tabular-nums;
 }
-/* Fehlt das Ende noch, wartet die rechte Marke sichtbar darauf. */
-.zw-spanne.offen .zw-bis { opacity: .55; }
-.zw-spanne.offen { border-color: var(--akzent); }
+/* Fehlt das Ende noch, wartet die rechte Marke sichtbar darauf.
+   ⚠️ Die Zustandsklassen tragen die Vorsilbe "zw-". Ohne sie hiess der
+   leere Zustand schlicht ".leer" - und das ist im ganzen Programm die
+   Klasse für "hier steht noch nichts" (padding: 18px 0; margin: 0). Der
+   Kasten verlor damit Innenabstand und Aussenabstand, klebte am
+   Monatsraster und sprang beim ersten Klick in eine andere Form. */
+.zw-spanne.zw-offen .zw-bis { opacity: .55; }
+.zw-spanne.zw-offen { border-color: var(--akzent); }
 
 /* Die Zeile darunter beantwortet die Frage „und jetzt?" und erklärt
    danach, was gerechnet wird. Ihre Mindesthöhe hält beide Zustände

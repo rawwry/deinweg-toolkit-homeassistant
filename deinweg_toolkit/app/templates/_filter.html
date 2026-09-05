@@ -600,8 +600,14 @@
       markeFuellen(markeBis, s.b, true);
       var n = (s.a && s.b) ? zahl(s.b) - zahl(s.a) + 1 : 0;
       dauer.textContent = n ? (n + (n === 1 ? " Monat" : " Monate")) : "";
-      spanneKasten.classList.toggle("offen", wartetAufEnde);
-      spanneKasten.classList.toggle("leer", !s.a || !s.b);
+      // ⚠️ "zw-"-Vorsilbe, nicht "offen"/"leer". ".leer" ist im ganzen
+      // Programm die Klasse für "hier steht noch nichts" und setzt
+      // "padding: 18px 0; margin: 0" - der Kasten verlor damit seinen
+      // Innenabstand, klebte am Monatsraster und sprang beim ersten Klick
+      // in eine andere Form, weil die Klasse dann wegfiel. Genau das war
+      // der Fehler aus 1.20.3.
+      spanneKasten.classList.toggle("zw-offen", wartetAufEnde);
+      spanneKasten.classList.toggle("zw-leer", !s.a || !s.b);
 
       // Die Führungszeile beantwortet die Frage "und jetzt?".
       if (wartetAufEnde) {

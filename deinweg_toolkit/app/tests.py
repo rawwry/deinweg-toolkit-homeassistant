@@ -4291,6 +4291,27 @@ def test_zeitwahl(client: TestClient) -> None:
            "der Aufbau des Streifens ist nur noch ein Aufhellen, kein Sprung")
     pruefe("transform: scale(.82)" not in stil3,
            "die alte, zu lebhafte Fassung ist weg")
+
+    # ⚠️ Der Fehler aus 1.20.3: die Zustandsklassen hießen schlicht „leer“
+    # und „offen“. „.leer“ ist im ganzen Programm die Klasse für „hier
+    # steht noch nichts“ und setzt „padding: 18px 0; margin: 0“ - der
+    # Datumskasten verlor damit Innen- und Außenabstand, klebte am
+    # Monatsraster und sprang beim ersten Klick in eine andere Form, weil
+    # die Klasse dann wegfiel. Alle Zustandsklassen tragen jetzt „zw-“.
+    pruefe('classList.toggle("zw-leer"' in seite
+           and 'classList.toggle("zw-offen"' in seite,
+           "die Zustände des Datumskastens tragen die Vorsilbe „zw-“")
+    pruefe('classList.toggle("leer"' not in seite
+           and 'classList.toggle("offen"' not in seite,
+           "und nicht mehr die im Programm längst vergebenen nackten Namen")
+    pruefe(".leer { color: var(--leise); padding: 18px 0; margin: 0; }" in stil3,
+           "denn „.leer“ gibt es weiterhin und setzt Abstände")
+    # Und die Gegenprobe: der Kasten behält seine Maße.
+    pruefe(".zw-spanne {" in stil3 and "margin-top: 14px" in stil3,
+           "der Datumskasten hält Abstand zum Monatsraster")
+    pruefe(".zw-dauer {" in stil3 and "min-height: 16px" in stil3,
+           "und die Monatszeile ist auch leer schon reserviert – sonst "
+           "wüchse der Kasten am Telefon beim ersten Klick")
     pruefe('data-monate="' in seite,
            "die Monate mit Daten kommen als Attribut vom Server")
     pruefe("hat-daten" in seite and "zw-punkt" in seite,
