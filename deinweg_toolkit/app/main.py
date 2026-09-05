@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.20"
+VERSION = "1.20.1"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1300,10 +1300,15 @@ def auswahllisten() -> dict:
             "SELECT DISTINCT mitarbeiter FROM eintrag ORDER BY 1")]
         klienten = [r["klient"] for r in con.execute(
             "SELECT DISTINCT klient FROM eintrag ORDER BY 1")]
+        # In welchen Monaten steht ueberhaupt etwas? Der Picker setzt
+        # darunter einen Punkt - so sieht man, wo Daten liegen, statt in
+        # einen leeren Zeitraum zu filtern und sich zu wundern.
+        monate_mit_daten = [r["m"] for r in con.execute(
+            "SELECT DISTINCT monat m FROM eintrag ORDER BY 1")]
     if str(heute.year) not in jahre:
         jahre = [str(heute.year)] + jahre
     return {"jahre": jahre, "leute": leute, "klienten": klienten,
-            "monatsnamen": MONATSNAMEN,
+            "monatsnamen": MONATSNAMEN, "monate_mit_daten": monate_mit_daten,
             # Der Zeitraum-Picker rechnet "dieser Monat" / "letzte 12
             # Monate" daraus aus. Bewusst vom Server: die Uhr des Browsers
             # kann falsch gehen, und die Auswertung soll denselben Monat

@@ -1663,4 +1663,22 @@ CHANGELOG = [
         "nicht mehr um",
         "Prüfung von 1161 auf 1210 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.20.1", "titel": "Der Zeitraum-Picker macht jetzt Spaß",
+     "punkte": [
+        "Zwei Jahre nebeneinander statt eines: „November 2025 bis Februar "
+        "2026“ sind jetzt zwei Klicks, ohne mitten in der Auswahl das Jahr "
+        "zu wechseln",
+        "Ein Klick auf die Jahreszahl wählt das ganze Jahr",
+        "Nach dem ersten Klick zeigt das Überfahren vorab, was der nächste "
+        "Klick ergäbe – und eine Zeile darunter sagt, was gerade dran ist",
+        "Ein Punkt unter dem Monat heißt: hier ist etwas erfasst. So filtert "
+        "man nicht mehr versehentlich in einen leeren Zeitraum",
+        "Trifft die Auswahl genau einen Schnellwähler, steht der als der "
+        "gewählte da („Dieses Jahr“ statt zweier Datumsangaben)",
+        "„Übernehmen“ bekommt nach der Auswahl den Fokus und pocht einmal – "
+        "Enter genügt. Esc schließt ohne Änderung",
+        "Dezente Bewegung beim Öffnen und beim Jahreswechsel, abschaltbar "
+        "über die Systemeinstellung für reduzierte Bewegung",
+        "Prüfung von 1210 auf 1221 Einzelprüfungen erweitert",
+    ]},
 ]

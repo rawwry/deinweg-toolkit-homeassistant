@@ -32,6 +32,10 @@
   --ueber-3:    #f7abd0;
   --ueber-4:    #f8c4de;
   --akzent-weich:#33203a;
+  /* Der Streifen zwischen Anfang und Ende im Zeitraum-Picker. Er
+     muss sich vom Kachelgrund (--flaeche-2) deutlich abheben -
+     --akzent-weich liegt dafuer zu dicht daran. */
+  --akzent-band: #4a2a55;
   --warn:       #e3b262;
   --warn-weich: #322718;
   --dopp:       #e98a7a;
@@ -71,6 +75,7 @@
   --ueber-3:    #c4588c;
   --ueber-4:    #c0709b;
   --akzent-weich:#fdeef5;
+  --akzent-band: #fbd9e9;
   --warn:       #8a5a06;
   --warn-weich: #fbf3e2;
   --dopp:       #a83f2e;
@@ -506,68 +511,179 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
 .zeitwahl-feld { flex: 1 1 240px; }
 /* Das Feld trägt einen längeren Text als die Namenslisten daneben
    ("September 2025 bis Juni 2026") und darf ihn nicht abschneiden. */
-.zeitwahl-block > summary { white-space: normal; }
-.zeitwahl-feld .zeitwahl-panel {
-  min-width: 296px; max-height: none; padding: 12px;
+.zeitwahl-block > summary {
+  white-space: normal; display: flex; align-items: center; gap: 9px;
 }
+.zw-kalender { width: 16px; height: 16px; flex: 0 0 auto; opacity: .5; }
+.filterwahl.gesetzt .zw-kalender { opacity: 1; }
+
+/* ⚠️ Das Panel ist breiter als sein Feld (zwei Jahre nebeneinander) und
+   darf deshalb nicht mehr wie die Namenslisten auf "left: 0; right: 0"
+   stehen - sonst würde es auf die Feldbreite gestaucht. Es wächst nach
+   rechts; das ist gefahrlos, weil der Zeitraum das erste Feld der
+   Filterzeile ist und rechts davon die ganze Karte liegt. */
+.zeitwahl-feld .zeitwahl-panel {
+  right: auto; min-width: min(470px, calc(100vw - 40px));
+  max-height: min(78vh, 640px); padding: 13px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* Das Panel kommt heran statt einfach da zu sein. 140ms, mehr nicht -
+     es wird oft geöffnet, und alles Längere wäre nach dem dritten Mal
+     im Weg. */
+  .zeitwahl-block[open] > .zeitwahl-panel {
+    animation: zw-auf .14s cubic-bezier(.2, .9, .3, 1);
+  }
+  @keyframes zw-auf {
+    from { opacity: 0; transform: translateY(-6px) scale(.985); }
+  }
+}
+
 /* Schnellwähler zuerst: in neun von zehn Fällen ist das, wonach man
-   sucht, ein Monat oder ein Jahr - dafür soll man nicht klicken müssen. */
+   sucht, ein Monat oder ein Jahr - dafür soll man nicht klicken müssen.
+   "Letzter Monat" steht vorn; das ist der Monat, für den der Nachweis
+   herausgeht. */
 .zw-schnell {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  padding-bottom: 11px; margin-bottom: 11px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  padding-bottom: 12px; margin-bottom: 12px;
   border-bottom: 1px solid var(--linie);
 }
 .zw-chip {
   border: 1px solid var(--linie); background: var(--flaeche-2); color: inherit;
-  font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 20px;
-  cursor: pointer;
+  font: inherit; font-size: 12px; padding: 7px 6px; border-radius: 8px;
+  cursor: pointer; text-align: center;
 }
 .zw-chip:hover { border-color: var(--akzent); color: var(--akzent); }
-
-.zw-jahr { display: flex; align-items: center; gap: 4px; margin-bottom: 9px; }
-.zw-jahrzahl {
-  font-size: 14px; font-weight: 600; min-width: 52px; text-align: center;
-  font-variant-numeric: tabular-nums;
+/* Trifft die Auswahl genau einen Schnellwähler, steht er als der
+   gewählte da - man muss den Zeitraum dann nicht aus zwei Datumsangaben
+   zurückübersetzen. */
+.zw-chip.hier {
+  border-color: var(--akzent); background: var(--akzent-weich);
+  color: var(--akzent); font-weight: 600;
 }
-/* Mit "alle Jahre" spielt die Jahreszahl keine Rolle mehr - sie bleibt
-   stehen (das Raster braucht sie), tritt aber zurück. */
-.zw-jahrzahl.stumm { opacity: .35; }
+
+.zw-kopf { display: flex; align-items: stretch; gap: 6px; }
+.zw-jahre {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1 1 auto;
+  min-width: 0;
+}
+/* Ohne Jahresbezug ("alle Jahre") ist das zweite Jahr sinnlos. */
+.zw-jahre.ohne-jahr { grid-template-columns: 1fr; }
+.zw-jahre.ohne-jahr > .zw-jahrblock:last-child { display: none; }
+.zw-jahrblock { min-width: 0; }
+/* Die Jahreszahl ist ein Knopf: ein Klick wählt das ganze Jahr. Der
+   häufigste Wunsch nach "dieses Jahr" ist damit auch für jedes andere
+   Jahr ein einziger Klick. */
+.zw-jahrkopf {
+  display: block; width: 100%; margin-bottom: 7px; padding: 5px 0;
+  border: 0; border-radius: 7px; background: none; color: inherit;
+  font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  font-variant-numeric: tabular-nums; letter-spacing: .02em;
+}
+.zw-jahrkopf:hover { background: var(--flaeche-2); color: var(--akzent); }
 .zw-pfeil {
-  width: 28px; height: 28px; display: inline-flex; align-items: center;
-  justify-content: center; border: 1px solid var(--linie); border-radius: 8px;
+  width: 30px; flex: 0 0 auto; display: inline-flex; align-items: center;
+  justify-content: center; border: 1px solid var(--linie); border-radius: 9px;
   background: var(--flaeche-2); color: inherit; cursor: pointer; padding: 0;
 }
 .zw-pfeil svg { width: 16px; height: 16px; }
 .zw-pfeil:hover:not(:disabled) { border-color: var(--akzent); color: var(--akzent); }
-.zw-pfeil:disabled { opacity: .3; cursor: default; }
-.zw-allejahre {
-  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11.5px; color: var(--leise); cursor: pointer;
-}
-.zw-allejahre input { accent-color: var(--akzent); margin: 0; }
+.zw-pfeil:disabled { opacity: .28; cursor: default; }
 
-.zw-raster { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.zw-raster { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
 .zw-monat {
-  border: 1px solid transparent; background: var(--flaeche-2); color: inherit;
-  font: inherit; font-size: 13px; padding: 8px 0; border-radius: 8px;
+  position: relative; border: 1px solid transparent; color: inherit;
+  background: var(--flaeche-2);
+  font: inherit; font-size: 12.5px; padding: 9px 0 11px; border-radius: 8px;
   cursor: pointer;
 }
 .zw-monat:hover { border-color: var(--akzent); }
+.zw-monat:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
+/* Der laufende Monat ist immer der Bezugspunkt - er trägt einen Ring,
+   auch wenn er nicht in der Auswahl liegt. */
+.zw-monat.jetzt { box-shadow: inset 0 0 0 1px var(--linie-stark); }
 /* Die Spanne wird als Fläche gezeigt, die Ränder kräftig - so sieht man
    auf einen Blick, was dazugehört, ohne die Zahlen zu lesen. */
-.zw-monat.drin { background: var(--akzent-weich); color: var(--akzent); }
+.zw-monat.drin { background: var(--akzent-band); color: var(--akzent); }
 .zw-monat.anfang, .zw-monat.ende {
   background: var(--akzent); color: var(--grund); font-weight: 600;
+  box-shadow: none;
 }
-.zw-klartext {
-  margin: 11px 0 0; font-size: 12px; color: var(--leise);
-  font-variant-numeric: tabular-nums;
+/* Solange das Ende fehlt, zeigt das Überfahren, was der nächste Klick
+   ergäbe. Gestrichelt, damit man Vorschau und Auswahl auseinanderhält. */
+.zw-monat.vorschau.drin:not(.anfang):not(.ende) {
+  border-style: dashed; border-color: var(--akzent);
 }
+/* Ein Punkt unter dem Monatsnamen heißt: hier ist etwas erfasst. */
+.zw-punkt {
+  position: absolute; left: 50%; bottom: 5px; width: 3px; height: 3px;
+  margin-left: -1.5px; border-radius: 50%; background: currentColor;
+  opacity: 0;
+}
+.zw-monat.hat-daten .zw-punkt { opacity: .42; }
+.zw-monat.anfang .zw-punkt, .zw-monat.ende .zw-punkt { opacity: .75; }
+
+/* Die Zeile, die die Frage „und jetzt?" beantwortet: vor dem ersten
+   Klick der aufgelöste Zeitraum im Klartext, danach der gesetzte Anfang
+   und die Aufforderung, das Ende zu wählen. */
+.zw-fuehrung {
+  margin: 12px 0 0; padding: 9px 11px; border-radius: 8px;
+  background: var(--flaeche-2); font-size: 12px; color: var(--leise);
+  font-variant-numeric: tabular-nums; min-height: 46px;
+}
+.zw-fuehrung.wartet {
+  background: var(--akzent-weich); color: var(--akzent);
+}
+.zw-fuehrung strong { font-weight: 600; }
+
 .zw-fuss {
-  display: flex; gap: 8px; align-items: center;
-  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--linie);
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--linie);
 }
-.zw-uebernehmen { margin-left: auto; }
+.zw-allejahre {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--leise); cursor: pointer;
+}
+.zw-allejahre input { accent-color: var(--akzent); margin: 0; }
+.zw-leeren { margin-left: auto; }
+@media (prefers-reduced-motion: no-preference) {
+  /* Steht der Bereich, bekommt „Übernehmen" den Fokus und pocht einmal.
+     Ohne das ist nach dem zweiten Klick nicht klar, dass noch etwas
+     fehlt - der Bereich ist ja sichtbar gesetzt. */
+  .zw-uebernehmen.pocht { animation: zw-pochen .5s ease-out 1; }
+  @keyframes zw-pochen {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.07); }
+    100% { transform: scale(1); }
+  }
+  .zw-monat { transition: background .13s ease, color .13s ease,
+                          border-color .13s ease; }
+  .zw-chip  { transition: background .13s ease, color .13s ease,
+                          border-color .13s ease; }
+  /* Der Jahreswechsel schiebt das Raster aus der Richtung herein, in die
+     man geklickt hat - sonst wechseln zwölf Kacheln lautlos ihre
+     Beschriftung und man weiß nicht, ob etwas passiert ist. */
+  .zw-jahre.zw-rein-rechts { animation: zw-von-rechts .18s ease-out; }
+  .zw-jahre.zw-rein-links  { animation: zw-von-links .18s ease-out; }
+  @keyframes zw-von-rechts {
+    from { opacity: .35; transform: translateX(9px); }
+  }
+  @keyframes zw-von-links {
+    from { opacity: .35; transform: translateX(-9px); }
+  }
+}
+
+/* Am Telefon stehen die beiden Jahre untereinander und das Panel rollt.
+   Ein Jahr wegzublenden wäre schlimmer: ein Zeitraum über den
+   Jahreswechsel wäre dann wieder nur mit Umweg zu treffen - genau das,
+   was die zweite Spalte abschaffen soll. */
+@media (max-width: 620px) {
+  .zeitwahl-feld .zeitwahl-panel { min-width: 0; left: 0; right: 0; }
+  .zw-jahre { grid-template-columns: 1fr; gap: 16px; }
+  .zw-schnell { grid-template-columns: repeat(2, 1fr); }
+  .zw-raster { grid-template-columns: repeat(4, 1fr); }
+  /* Der Zusatz zum einzelnen Monat kostet dort eine dritte Zeile. */
+  .zw-nur { display: none; }
+}
 
 /* Suchfeld in der Fußzeile des Filters (nur auf der Übersicht). */
 .filter-suche { display: flex; align-items: center; gap: 9px; flex: 1 1 220px;

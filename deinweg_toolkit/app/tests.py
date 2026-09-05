@@ -4235,10 +4235,37 @@ def test_zeitwahl(client: TestClient) -> None:
            "die Hülle bringt die verfügbaren Jahre mit")
     pruefe('data-heute="' + dt.date.today().strftime("%Y-%m") in seite,
            "und den laufenden Monat vom Server, nicht aus der Browser-Uhr")
-    pruefe("zw-raster" in seite and "zw-klartext" in seite,
-           "das Skript kennt Monatsraster und Klartextzeile")
+    pruefe("zw-raster" in seite and "zw-fuehrung" in seite,
+           "das Skript kennt Monatsraster und Führungszeile")
     pruefe("Letzte 12 Monate" in seite and "Dieses Jahr" in seite,
            "die Schnellwähler sind angelegt")
+
+    # ⚠️ Zwei Jahre nebeneinander (seit 1.20.1). Mit einem Jahr musste man
+    # für „November bis Februar“ mitten in der Auswahl das Jahr wechseln.
+    pruefe(seite.count("zw-jahrblock") >= 1 and "zw-jahrkopf" in seite,
+           "das Skript legt Jahresblöcke mit anklickbarer Jahreszahl an")
+    pruefe('data-monate="' in seite,
+           "die Monate mit Daten kommen als Attribut vom Server")
+    pruefe("hat-daten" in seite and "zw-punkt" in seite,
+           "und werden im Raster mit einem Punkt markiert")
+    pruefe("wartetAufEnde" in seite and "vorschau" in seite,
+           "das Überfahren zeigt vorab, was der nächste Klick ergäbe")
+
+    stil2 = client.get("/static/style.css").text
+    pruefe(".zw-jahre {" in stil2 and "grid-template-columns: 1fr 1fr;" in stil2,
+           "die beiden Jahre stehen nebeneinander")
+    pruefe(".zw-monat.drin { background: var(--akzent-band)" in stil2,
+           "der Streifen dazwischen hat einen eigenen Farbton – „akzent-weich“ "
+           "liegt zu dicht am Kachelgrund")
+    pruefe("--akzent-band" in stil2.split("[data-thema=\"hell\"]")[0]
+           and "--akzent-band" in stil2.split("[data-thema=\"hell\"]")[1],
+           "und ist in beiden Themen definiert")
+    # Jede Bewegung liegt im reduced-motion-Block (Abschnitt 13).
+    for takt in ("zw-auf", "zw-pochen", "zw-von-rechts"):
+        pruefe(takt in stil2, f"die Bewegung „{takt}“ ist angelegt")
+    ohne_bewegung = stil2.split("@media (prefers-reduced-motion: no-preference)")
+    pruefe(all("zw-auf" not in t for t in ohne_bewegung[:1]),
+           "und keine davon läuft ohne ausdrückliche Erlaubnis")
 
     # ⚠️ Namenskollision: „.zeitraumwahl“ gehört seit 0.8 dem Fuhrpark und
     # steht dort auf display: flex. Der Filter-Picker muss deshalb

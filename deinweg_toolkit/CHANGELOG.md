@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.20.1
+
+- Zeitraum-Picker: zwei Jahre nebeneinander, Vorschau beim Überfahren,
+  Punkt für Monate mit Daten, Klick auf die Jahreszahl wählt das Jahr
+- „Übernehmen“ bekommt den Fokus, Esc schließt
+
 ## 1.20
 
 - Filter: ein Zeitraum-Feld mit Monatsraster statt vier Auswahlfeldern,
