@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.20.2
+
+- Zeitraum-Picker: beide Jahresblöcke blättern unabhängig voneinander,
+  zwei Datumsmarken nennen ersten und letzten Tag ausdrücklich
+- Schnellwähler und „alle Jahre“ entfallen
+- Übersicht: Suchfeld als viertes Filterfeld mit Lupe, „nur abrechenbare
+  Zeiten“ als Kippschalter
+
 ## 1.20.1
 
 - Zeitraum-Picker: zwei Jahre nebeneinander, Vorschau beim Überfahren,

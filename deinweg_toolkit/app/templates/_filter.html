@@ -92,23 +92,37 @@
   {{ mehrfachwahl("Mitarbeiter", "mitarbeiter", leute, f.mitarbeiterliste,
                   "Mitarbeiter", "Mitarbeiter") }}
 
-  {# Schalter, Suche und Knöpfe stehen in einer eigenen Zeile unter den
-     Feldern. Zwischen den Auswahlfeldern sah die Pille wie ein vergessenes
-     Feld aus und landete je nach Umbruch mal am Zeilenende, mal
-     mittendrin. #}
-  <div class="filter-fuss">
-    {# Erst die Suche, dann der Schalter: die Suche wird viel häufiger
-       benutzt und gehört deshalb an die vordere Stelle. #}
-    {% if suche_zeigen %}
-    <label class="filter-suche">
-      <span class="leise">Suche</span>
+  {# ⚠️ Die Suche steht seit 1.20.2 als viertes Feld in der Zeile, nicht
+     mehr unten in der Fußzeile. Sie ist ein Filterkriterium wie die drei
+     daneben und gehört deshalb dorthin. Die Lupe steht IM Feld und
+     ersetzt die Beschriftung davor: eine Überschrift „Suche“ über einem
+     Feld, in dem als Platzhalter schon steht, wonach man sucht, sagt
+     zweimal dasselbe. Für Vorleseprogramme trägt es aria-label. #}
+  {% if suche_zeigen %}
+  <div class="filterwahl filter-suche {{ 'gesetzt' if f.q }}">
+    <span class="filterwahl-titel" aria-hidden="true">&nbsp;</span>
+    <div class="suchfeld">
+      <svg class="suchfeld-lupe" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="11" cy="11" r="6.4" stroke="currentColor" stroke-width="1.7"/>
+        <path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.7"
+              stroke-linecap="round"/>
+      </svg>
       <input type="search" name="q" value="{{ f.q or '' }}"
-             placeholder="Leistung, Person oder Mitarbeiter">
-    </label>
-    {% endif %}
+             aria-label="Suche in Leistung, Person und Mitarbeiter"
+             placeholder="Leistung, Person, Mitarbeiter …">
+    </div>
+  </div>
+  {% endif %}
+
+  {# Der Schalter und die Knöpfe schließen den Filter ab, durch eine feine
+     Linie von den Feldern getrennt. Zwischen den Auswahlfeldern sah die
+     Pille wie ein vergessenes Feld aus und landete je nach Umbruch mal
+     am Zeilenende, mal mittendrin. #}
+  <div class="filter-fuss">
     {% if abrechenbar_zeigen %}
     <label class="filter-umschalter">
       <input type="checkbox" name="nur_abrechenbar" value="1" {{ 'checked' if f.nur_abrechenbar }}>
+      <span class="filter-kippe" aria-hidden="true"></span>
       <span>nur abrechenbare Zeiten</span>
     </label>
     {% endif %}
@@ -193,10 +207,11 @@
   // abgeschickt wird wie immer das Formular. Ohne Skript passiert hier
   // gar nichts und die vier Felder stehen wie zuvor da.
   //
-  // ⚠️ ZWEI Jahre nebeneinander (seit 1.20.1). Mit einem Jahr musste man
-  // fuer "November 2025 bis Februar 2026" mitten in der Auswahl das Jahr
-  // wechseln - der haeufigste Fall ueberhaupt, und der unangenehmste.
-  // Jetzt liegen beide Jahre da und es sind zwei Klicks.
+  // ⚠️ ZWEI Jahre nebeneinander, jedes mit EIGENER Jahresnavigation
+  // (seit 1.20.2). Mit einer gemeinsamen zog das rechte Jahr immer mit -
+  // ein Zeitraum über fünf Jahre war damit gar nicht zu treffen. Jetzt
+  // stellt man links den Anfang und rechts das Ende ein, unabhängig
+  // voneinander.
   (function () {
     var wurzel = document.querySelector(".zeitwahl");
     if (!wurzel) { return; }
@@ -220,13 +235,15 @@
         // statt in leere Zeitraeume zu filtern und sich zu wundern.
         MIT_DATEN = (wurzel.dataset.monate || "").split(",").filter(Boolean);
 
-    // Zustand: von/bis als "JJJJ-MM" oder leer. "alleJahre" ist der alte
-    // Sonderfall "Monat ohne Jahr" - er bleibt erreichbar, weil er
-    // erreichbar war (nichts wegnehmen, was jemand benutzt haben könnte).
+    // ⚠️ "alleJahre" (Monat ohne Jahr, derselbe Bereich in jedem Jahr)
+    // hat seit 1.20.2 KEINE Bedienung mehr - das Kaestchen dafuer war
+    // eine Sonderregel, die niemand erklaeren konnte. Gelesen wird es
+    // weiterhin, damit ein altes Lesezeichen mit dieser Kombination
+    // richtig angezeigt und unveraendert wieder abgeschickt wird; der
+    // erste Klick ins Raster loest es auf.
     var stand = {von: null, bis: null, alleJahre: false},
         wartetAufEnde = false,   // erster Klick gesetzt, Ende fehlt noch
-        vorschau = null,         // Monat unter dem Zeiger, waehrend gewartet wird
-        linkesJahr;              // das linke der beiden gezeigten Jahre
+        vorschau = null;         // Monat unter dem Zeiger, waehrend gewartet wird
 
     function zahl(m) {
       return parseInt(m.slice(0, 4), 10) * 12 + parseInt(m.slice(5), 10);
@@ -235,6 +252,10 @@
       return LANG[parseInt(m.slice(5), 10) - 1] + " " + m.slice(0, 4);
     }
     function zweiStellig(n) { return (n < 10 ? "0" : "") + n; }
+    function letzterTag(m) {
+      return new Date(parseInt(m.slice(0, 4), 10),
+                      parseInt(m.slice(5), 10), 0).getDate();
+    }
 
     function ausFeldern() {
       var vj = felder.vj.value, vm = felder.vm.value,
@@ -262,36 +283,19 @@
     }
 
     // Welche Jahre darf man ansteuern? Die Jahre mit Daten, dazu das
-    // laufende und alles, was gerade gewählt ist - so landet niemand vor
-    // einer Wand, weil sein Lesezeichen ein anderes Jahr trägt.
+    // laufende samt Vorjahr und alles, was gerade gewählt ist - so landet
+    // niemand vor einer Wand, weil sein Lesezeichen ein anderes Jahr
+    // trägt.
     function jahresspanne() {
       var liste = (wurzel.dataset.jahre || "").split(",")
                     .map(function (j) { return parseInt(j, 10); })
                     .filter(function (j) { return !!j; });
-      liste.push(heuteJahr);
+      liste.push(heuteJahr, heuteJahr - 1);
       if (stand.von) { liste.push(parseInt(stand.von.slice(0, 4), 10)); }
       if (stand.bis) { liste.push(parseInt(stand.bis.slice(0, 4), 10)); }
-      var min = Math.min.apply(null, liste), max = Math.max.apply(null, liste);
-      // Rechts steht immer ein zweites Jahr - notfalls das kommende.
-      return {min: min, max: Math.max(max, min + 1)};
+      return {min: Math.min.apply(null, liste), max: Math.max.apply(null, liste)};
     }
-
-    // --- Schnellwähler ----------------------------------------------------
-    // Sie decken ab, wonach in der Praxis gefragt wird. "Letzter Monat"
-    // steht vorn: das ist der Monat, für den der Nachweis rausgeht.
-    function jetzt(versatz) {
-      var g = heuteJahr * 12 + (heuteMonat - 1) + versatz;
-      return Math.floor(g / 12) + "-" + zweiStellig((g % 12) + 1);
-    }
-    var SCHNELL = [
-      ["Dieser Monat", function () { return [jetzt(0), jetzt(0)]; }],
-      ["Letzter Monat", function () { return [jetzt(-1), jetzt(-1)]; }],
-      ["Letzte 3 Monate", function () { return [jetzt(-2), jetzt(0)]; }],
-      ["Letzte 12 Monate", function () { return [jetzt(-11), jetzt(0)]; }],
-      ["Dieses Jahr", function () { return [heuteJahr + "-01", heuteJahr + "-12"]; }],
-      ["Letztes Jahr", function () {
-        return [(heuteJahr - 1) + "-01", (heuteJahr - 1) + "-12"]; }]
-    ];
+    function klemm(j, sp) { return Math.min(Math.max(j, sp.min), sp.max); }
 
     // --- Oberfläche bauen -------------------------------------------------
     var huelle = document.createElement("div");
@@ -308,25 +312,28 @@
           '<span class="zeitwahl-text">alle Zeiten</span>' +
         '</summary>' +
         '<div class="wahlliste-panel zeitwahl-panel">' +
-          '<div class="zw-schnell"></div>' +
-          '<div class="zw-kopf">' +
-            '<button type="button" class="zw-pfeil" data-schritt="-1" ' +
-                    'aria-label="Ein Jahr zurück">' +
-              '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
-              '<path d="m14 6-6 6 6 6" stroke="currentColor" stroke-width="2" ' +
-              'stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
-            '<div class="zw-jahre"></div>' +
-            '<button type="button" class="zw-pfeil" data-schritt="1" ' +
-                    'aria-label="Ein Jahr vor">' +
-              '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
-              '<path d="m10 6 6 6-6 6" stroke="currentColor" stroke-width="2" ' +
-              'stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+          '<div class="zw-jahre"></div>' +
+          '<div class="zw-spanne">' +
+            '<div class="zw-marke zw-von">' +
+              '<span class="zw-marke-kopf">von</span>' +
+              '<span class="zw-marke-datum">—</span>' +
+              '<span class="zw-marke-wort">noch nichts gewählt</span>' +
+            '</div>' +
+            '<span class="zw-brueck" aria-hidden="true">' +
+              '<svg viewBox="0 0 24 24" fill="none">' +
+              '<path d="M4 12h15M14 7l5 5-5 5" stroke="currentColor" ' +
+              'stroke-width="1.7" stroke-linecap="round" ' +
+              'stroke-linejoin="round"/></svg>' +
+              '<span class="zw-dauer"></span>' +
+            '</span>' +
+            '<div class="zw-marke zw-bis">' +
+              '<span class="zw-marke-kopf">bis</span>' +
+              '<span class="zw-marke-datum">—</span>' +
+              '<span class="zw-marke-wort">noch nichts gewählt</span>' +
+            '</div>' +
           '</div>' +
           '<p class="zw-fuehrung" aria-live="polite"></p>' +
           '<div class="zw-fuss">' +
-            '<label class="zw-allejahre" ' +
-                   'title="Denselben Monatsbereich in jedem Jahr auswerten">' +
-              '<input type="checkbox"><span>alle Jahre</span></label>' +
             '<button type="button" class="knopf klein leise zw-leeren">Alle Zeiten</button>' +
             '<button type="submit" class="knopf klein haupt zw-uebernehmen">Übernehmen</button>' +
           '</div>' +
@@ -335,43 +342,37 @@
     wurzel.insertBefore(huelle, wurzel.firstChild);
     wurzel.classList.add("mit-picker");
 
-    var block     = huelle.querySelector("details"),
-        text      = huelle.querySelector(".zeitwahl-text"),
-        schnell   = huelle.querySelector(".zw-schnell"),
-        jahre     = huelle.querySelector(".zw-jahre"),
-        fuehrung  = huelle.querySelector(".zw-fuehrung"),
-        uebernehmen = huelle.querySelector(".zw-uebernehmen"),
-        alleHaken = huelle.querySelector(".zw-allejahre input");
+    var block       = huelle.querySelector("details"),
+        text        = huelle.querySelector(".zeitwahl-text"),
+        jahre       = huelle.querySelector(".zw-jahre"),
+        spanneKasten = huelle.querySelector(".zw-spanne"),
+        markeVon    = huelle.querySelector(".zw-von"),
+        markeBis    = huelle.querySelector(".zw-bis"),
+        dauer       = huelle.querySelector(".zw-dauer"),
+        fuehrung    = huelle.querySelector(".zw-fuehrung"),
+        uebernehmen = huelle.querySelector(".zw-uebernehmen");
 
-    SCHNELL.forEach(function (s, i) {
-      var k = document.createElement("button");
-      k.type = "button";
-      k.className = "zw-chip";
-      k.dataset.nr = i;
-      k.textContent = s[0];
-      k.addEventListener("click", function () {
-        var r = s[1]();
-        stand.von = r[0]; stand.bis = r[1]; stand.alleJahre = false;
-        wartetAufEnde = false; vorschau = null;
-        linkesJahr = parseInt(stand.von.slice(0, 4), 10);
-        zeichnen();
-        fertig();
-      });
-      schnell.appendChild(k);
-    });
-
-    // Zwei Jahresblöcke. Die Knöpfe entstehen einmal; beim Jahreswechsel
-    // werden nur ihre Beschriftungen ausgetauscht - so bleibt der Fokus
-    // erhalten und es flackert nichts.
-    var bloecke = [0, 1].map(function (versatz) {
+    // Zwei Jahresblöcke, jeder mit eigener Jahreszeile. Die Monatsknöpfe
+    // entstehen einmal; beim Jahreswechsel werden nur die Beschriftungen
+    // ausgetauscht - so bleibt der Fokus erhalten und es flackert nichts.
+    var bloecke = [0, 1].map(function (nr) {
       var b = document.createElement("div");
       b.className = "zw-jahrblock";
-      var kopf = document.createElement("button");
-      kopf.type = "button";
-      kopf.className = "zw-jahrkopf";
-      kopf.dataset.versatz = versatz;
-      var raster = document.createElement("div");
-      raster.className = "zw-raster";
+      b.innerHTML =
+        '<div class="zw-jahrzeile">' +
+          '<button type="button" class="zw-pfeil" data-schritt="-1" ' +
+                  'aria-label="Ein Jahr zurück">' +
+            '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+            '<path d="m14 6-6 6 6 6" stroke="currentColor" stroke-width="2" ' +
+            'stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+          '<button type="button" class="zw-jahrkopf"></button>' +
+          '<button type="button" class="zw-pfeil" data-schritt="1" ' +
+                  'aria-label="Ein Jahr vor">' +
+            '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+            '<path d="m10 6 6 6-6 6" stroke="currentColor" stroke-width="2" ' +
+            'stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+        '</div><div class="zw-raster"></div>';
+      var raster = b.querySelector(".zw-raster");
       for (var i = 0; i < 12; i++) {
         var m = document.createElement("button");
         m.type = "button";
@@ -381,18 +382,35 @@
                       '<span class="zw-punkt" aria-hidden="true"></span>';
         raster.appendChild(m);
       }
-      b.appendChild(kopf);
-      b.appendChild(raster);
       jahre.appendChild(b);
-      return {wurzel: b, kopf: kopf, raster: raster, versatz: versatz};
+      return {nr: nr, wurzel: b, kopf: b.querySelector(".zw-jahrkopf"),
+              raster: raster, jahr: heuteJahr - (nr === 0 ? 1 : 0)};
     });
 
-    function jahrVon(block_) { return linkesJahr + block_.versatz; }
+    // Welche Jahre stehen da? Der Anfang links, das Ende rechts - so
+    // sieht man die Spanne, ohne zu blättern. Liegen beide im selben
+    // Jahr, steht links das Vorjahr; zwei gleiche Jahre nebeneinander
+    // wären eine verschenkte Spalte.
+    function jahreSetzen() {
+      var sp = jahresspanne(),
+          a = stand.von ? parseInt(stand.von.slice(0, 4), 10) : heuteJahr - 1,
+          b = stand.bis ? parseInt(stand.bis.slice(0, 4), 10) : heuteJahr;
+      if (b <= a) { a = b - 1; }
+      bloecke[0].jahr = klemm(a, sp);
+      bloecke[1].jahr = klemm(b, sp);
+      if (bloecke[1].jahr <= bloecke[0].jahr) {
+        bloecke[1].jahr = klemm(bloecke[0].jahr + 1, sp);
+        if (bloecke[1].jahr <= bloecke[0].jahr) {
+          bloecke[0].jahr = klemm(bloecke[1].jahr - 1, sp);
+        }
+      }
+    }
 
     // --- Auswahl ----------------------------------------------------------
     // Erster Klick setzt den Anfang, der zweite das Ende. Ein Klick vor
     // den Anfang beginnt neu - so muss man nie erst etwas zurücksetzen.
     function waehlen(m) {
+      stand.alleJahre = false;
       if (!wartetAufEnde || !stand.von || zahl(m) < zahl(stand.von)) {
         stand.von = m; stand.bis = m; wartetAufEnde = true; vorschau = null;
         zeichnen();
@@ -417,15 +435,14 @@
 
     bloecke.forEach(function (b) {
       b.kopf.addEventListener("click", function () {
-        var j = jahrVon(b);
-        stand.von = j + "-01"; stand.bis = j + "-12"; stand.alleJahre = false;
-        wartetAufEnde = false; vorschau = null;
-        zeichnen();
+        stand.von = b.jahr + "-01"; stand.bis = b.jahr + "-12";
+        stand.alleJahre = false; wartetAufEnde = false; vorschau = null;
+        zeichnen(true);
         fertig();
       });
       b.raster.addEventListener("click", function (e) {
         var k = e.target.closest(".zw-monat");
-        if (k) { waehlen(jahrVon(b) + "-" + k.dataset.nr); }
+        if (k) { waehlen(b.jahr + "-" + k.dataset.nr); }
       });
       // Vorschau: solange das Ende fehlt, zeigt das Überfahren, was der
       // nächste Klick ergäbe. Das ist der Unterschied zwischen "raten"
@@ -433,32 +450,32 @@
       b.raster.addEventListener("mouseover", function (e) {
         var k = e.target.closest(".zw-monat");
         if (!k || !wartetAufEnde) { return; }
-        vorschau = jahrVon(b) + "-" + k.dataset.nr;
+        vorschau = b.jahr + "-" + k.dataset.nr;
         malen();
       });
       b.raster.addEventListener("mouseleave", function () {
         if (vorschau) { vorschau = null; malen(); }
       });
-    });
-
-    huelle.querySelectorAll(".zw-pfeil").forEach(function (p) {
-      p.addEventListener("click", function () {
-        var schritt = parseInt(p.dataset.schritt, 10);
-        linkesJahr += schritt;
-        jahre.classList.remove("zw-rein-links", "zw-rein-rechts");
-        void jahre.offsetWidth;
-        jahre.classList.add(schritt > 0 ? "zw-rein-rechts" : "zw-rein-links");
-        zeichnen();
+      // ⚠️ Jeder Block blättert für sich. Genau daran hing es: mit einer
+      // gemeinsamen Navigation zog das rechte Jahr immer mit, und ein
+      // Zeitraum über mehrere Jahre war nicht einzustellen.
+      b.wurzel.querySelectorAll(".zw-pfeil").forEach(function (p) {
+        p.addEventListener("click", function () {
+          var schritt = parseInt(p.dataset.schritt, 10);
+          b.jahr = klemm(b.jahr + schritt, jahresspanne());
+          b.wurzel.classList.remove("zw-rein-links", "zw-rein-rechts");
+          void b.wurzel.offsetWidth;
+          b.wurzel.classList.add(schritt > 0 ? "zw-rein-rechts" : "zw-rein-links");
+          zeichnen();
+        });
       });
     });
-    alleHaken.addEventListener("change", function () {
-      stand.alleJahre = alleHaken.checked;
-      zeichnen();
-    });
+
     huelle.querySelector(".zw-leeren").addEventListener("click", function () {
       stand.von = stand.bis = null; stand.alleJahre = false;
       wartetAufEnde = false; vorschau = null;
-      zeichnen();
+      jahreSetzen();
+      zeichnen(true);
     });
     // Esc schließt, ohne etwas zu ändern.
     block.addEventListener("keydown", function (e) {
@@ -493,18 +510,14 @@
       if (stand.alleJahre) {
         return "Jeweils " + anzahl + " in jedem Jahr, ganze Monate.";
       }
-      var bj = parseInt(b.slice(0, 4), 10),
-          bm = parseInt(b.slice(5), 10),
-          letzter = new Date(bj, bm, 0).getDate();
-      return "01." + a.slice(5) + "." + a.slice(0, 4)
-           + " – " + letzter + "." + b.slice(5) + "." + b.slice(0, 4)
+      return "01." + a.slice(5) + "." + a.slice(0, 4) + " – "
+           + letzterTag(b) + "." + b.slice(5) + "." + b.slice(0, 4)
            + " · " + anzahl;
     }
 
     // --- Zeichnen ---------------------------------------------------------
-    // "malen" färbt nur das Raster und die Führungszeile - das läuft bei
-    // jeder Mausbewegung. "zeichnen" macht den Rest und schreibt in die
-    // Felder; das läuft nur, wenn sich wirklich etwas geändert hat.
+    // "malen" färbt nur Raster und Hinweis - das läuft bei jeder
+    // Mausbewegung. "zeichnen" macht den Rest und schreibt in die Felder.
     function spanne() {
       if (wartetAufEnde && vorschau && stand.von) {
         return zahl(vorschau) < zahl(stand.von)
@@ -514,14 +527,40 @@
       return {a: stand.von, b: stand.bis, vor: false};
     }
 
+    function markeFuellen(marke, m, letzter) {
+      var datum = marke.querySelector(".zw-marke-datum"),
+          wort  = marke.querySelector(".zw-marke-wort");
+      if (!m) {
+        datum.textContent = "—";
+        wort.textContent = "noch nichts gewählt";
+        marke.classList.remove("voll");
+        return;
+      }
+      var nummer = parseInt(m.slice(5), 10), name = LANG[nummer - 1];
+      if (stand.alleJahre) {
+        datum.textContent = name;
+        wort.textContent = "in jedem Jahr";
+      } else if (letzter) {
+        datum.textContent = letzterTag(m) + "." + m.slice(5) + "." + m.slice(0, 4);
+        wort.textContent = "letzter Tag im " + name;
+      } else {
+        datum.textContent = "01." + m.slice(5) + "." + m.slice(0, 4);
+        wort.textContent = "erster Tag im " + name;
+      }
+      marke.classList.add("voll");
+    }
+
     function malen() {
       var s = spanne();
       bloecke.forEach(function (b) {
-        var j = jahrVon(b);
-        b.kopf.textContent = j;
-        b.kopf.title = "Ganzes Jahr " + j + " wählen";
+        b.kopf.textContent = b.jahr;
+        b.kopf.title = "Ganzes Jahr " + b.jahr + " wählen";
+        var sp = jahresspanne();
+        b.wurzel.querySelector("[data-schritt='-1']").disabled = b.jahr <= sp.min;
+        b.wurzel.querySelector("[data-schritt='1']").disabled = b.jahr >= sp.max;
         b.raster.querySelectorAll(".zw-monat").forEach(function (k) {
-          var m = j + "-" + k.dataset.nr, drin = false, anfang = false, ende = false;
+          var m = b.jahr + "-" + k.dataset.nr,
+              drin = false, anfang = false, ende = false;
           if (s.a && s.b) {
             if (stand.alleJahre) {
               var mm = parseInt(k.dataset.nr, 10),
@@ -540,39 +579,45 @@
           k.classList.toggle("vorschau", drin && s.vor);
           k.classList.toggle("hat-daten",
             stand.alleJahre || MIT_DATEN.indexOf(m) > -1);
-          k.classList.toggle("jetzt", m === heuteJahr + "-" + zweiStellig(heuteMonat));
+          k.classList.toggle("jetzt",
+            m === heuteJahr + "-" + zweiStellig(heuteMonat));
           k.setAttribute("aria-pressed", drin ? "true" : "false");
+          // Für den Aufbau-Takt: der wievielte Monat der Spanne ist das?
+          // Gedeckelt, sonst dauert ein Fünfjahresbereich ewig.
+          if (drin && s.a) {
+            k.style.setProperty("--i", Math.min(zahl(m) - zahl(s.a), 14));
+          }
         });
       });
 
+      // Die beiden Datumsmarken sind der eigentliche Hinweis: sie sagen
+      // ausdrücklich, dass links der ERSTE und rechts der LETZTE Tag des
+      // jeweiligen Monats gemeint ist.
+      markeFuellen(markeVon, s.a, false);
+      markeFuellen(markeBis, s.b, true);
+      var n = (s.a && s.b) ? zahl(s.b) - zahl(s.a) + 1 : 0;
+      dauer.textContent = n ? (n + (n === 1 ? " Monat" : " Monate")) : "";
+      spanneKasten.classList.toggle("offen", wartetAufEnde);
+      spanneKasten.classList.toggle("leer", !s.a || !s.b);
+
       // Die Führungszeile beantwortet die Frage "und jetzt?".
-      if (wartetAufEnde && stand.von) {
-        fuehrung.innerHTML =
-          'Anfang: <strong>' + monatWort(stand.von) + '</strong> – jetzt den '
-          + 'Endmonat wählen<span class="zw-nur">, oder denselben noch einmal '
-          + 'für einen einzelnen Monat</span>.';
+      if (wartetAufEnde) {
+        fuehrung.textContent = "Jetzt den Endmonat wählen – oder denselben "
+          + "Monat noch einmal für einen einzelnen.";
         fuehrung.classList.add("wartet");
+      } else if (!s.a || !s.b) {
+        fuehrung.textContent = "Ein Klick auf einen Monat setzt den Anfang, "
+          + "der zweite das Ende.";
+        fuehrung.classList.remove("wartet");
       } else {
-        fuehrung.textContent = klartextzeile(s.a, s.b);
+        fuehrung.textContent = "Gerechnet werden ganze Monate: vom ersten Tag "
+          + "des Anfangsmonats bis zum letzten Tag des Endmonats.";
         fuehrung.classList.remove("wartet");
       }
     }
 
-    function zeichnen() {
-      var sp = jahresspanne();
-      if (linkesJahr === undefined) {
-        linkesJahr = stand.von ? parseInt(stand.von.slice(0, 4), 10)
-                               : heuteJahr - 1;
-      }
-      // Beide Jahre sollen möglichst in die Spanne fallen; das rechte darf
-      // die Obergrenze nicht überschreiten.
-      linkesJahr = Math.min(Math.max(linkesJahr, sp.min), sp.max - 1);
-      huelle.querySelector("[data-schritt='-1']").disabled = linkesJahr <= sp.min;
-      huelle.querySelector("[data-schritt='1']").disabled = linkesJahr + 1 >= sp.max;
-      // Ohne Jahresbezug ist das rechte Jahr sinnlos - dann bleibt eines.
-      jahre.classList.toggle("ohne-jahr", stand.alleJahre);
-      alleHaken.checked = stand.alleJahre;
-
+    function zeichnen(jahreNeu) {
+      if (jahreNeu) { jahreSetzen(); }
       malen();
 
       var wort = wortlaut(stand.von, stand.bis);
@@ -582,19 +627,18 @@
       block.querySelector("summary").title = klartextzeile(stand.von, stand.bis);
       huelle.classList.toggle("gesetzt", !!(stand.von && stand.bis));
 
-      // Trifft die Auswahl genau einen Schnellwähler, wird der markiert -
-      // dann sieht man, dass "Dieses Jahr" gerade gilt, statt es aus zwei
-      // Datumsangaben zu erschließen.
-      schnell.querySelectorAll(".zw-chip").forEach(function (k) {
-        var r = SCHNELL[k.dataset.nr][1]();
-        k.classList.toggle("hier", !stand.alleJahre
-          && stand.von === r[0] && stand.bis === r[1]);
-      });
+      // Der Streifen baut sich Monat für Monat auf, vom Anfang zum Ende.
+      // Nur hier, nicht in malen(): sonst liefe er bei jeder
+      // Mausbewegung neu.
+      jahre.classList.remove("zw-fuellt");
+      void jahre.offsetWidth;
+      jahre.classList.add("zw-fuellt");
 
       inFelder();
     }
 
     ausFeldern();
+    jahreSetzen();
     zeichnen();
     // Erst jetzt verschwinden die vier Felder: geht oben etwas schief,
     // bleiben sie stehen und die Seite ist weiter bedienbar.
@@ -605,12 +649,7 @@
       if (!block.open) { return; }
       wartetAufEnde = false;
       vorschau = null;
-      // Das Jahr des Anfangs nach links; liegt es schon am oberen Rand
-      // der Spanne, schiebt die Klemmung in zeichnen() es von selbst um
-      // eins zurück - dann steht die Auswahl rechts und links daneben das
-      // Jahr davor. Beides ist richtig herum.
-      if (stand.von) { linkesJahr = parseInt(stand.von.slice(0, 4), 10); }
-      zeichnen();
+      zeichnen(true);
     });
   })();
 </script>

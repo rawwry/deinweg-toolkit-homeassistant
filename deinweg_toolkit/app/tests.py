@@ -2319,10 +2319,25 @@ def test_uebersicht_filter(client: TestClient) -> None:
            "auch hier stehen die Namen als Kästchenliste")
     pruefe(seite.count("filterwahl") >= 2,
            "für betreute Personen und für Mitarbeiter")
-    pruefe('class="filter-suche"' in seite,
-           "das Suchfeld steht in der Fußzeile des Filters")
-    pruefe(seite.index('class="filter-fuss"') < seite.index('class="filter-suche"'),
-           "und zwar innerhalb dieser Zeile")
+    # ⚠️ Seit 1.20.2 steht das Suchfeld als viertes Feld OBEN in der Zeile,
+    # nicht mehr in der Fußzeile: es ist ein Filterkriterium wie die drei
+    # Auswahlfelder daneben.
+    pruefe("filterwahl filter-suche" in seite,
+           "das Suchfeld steht als viertes Feld in der Filterzeile")
+    pruefe(seite.index("filterwahl filter-suche") < seite.index('class="filter-fuss"'),
+           "und damit vor der Fußzeile")
+    pruefe("suchfeld-lupe" in seite and ">Suche<" not in seite,
+           "es trägt eine Lupe statt der Beschriftung „Suche“")
+    pruefe('aria-label="Suche in Leistung, Person und Mitarbeiter"' in seite,
+           "für Vorleseprogramme steht der Zweck trotzdem da")
+    # Der Schalter daneben ist ein Kippschalter, kein nacktes Kästchen.
+    pruefe('class="filter-kippe"' in seite,
+           "„nur abrechenbare Zeiten“ ist ein Kippschalter")
+    stil_f = client.get("/static/style.css").text
+    pruefe(".filter-umschalter:has(.filter-kippe) > input {" in stil_f
+           and "position: absolute; opacity: 0;" in stil_f,
+           "das echte Feld bleibt im Formular, nur unsichtbar – sonst wäre "
+           "es per Tastatur nicht mehr erreichbar")
 
     # Mehrere Mitarbeiter zugleich.
     with db.db() as con:
@@ -4237,13 +4252,29 @@ def test_zeitwahl(client: TestClient) -> None:
            "und den laufenden Monat vom Server, nicht aus der Browser-Uhr")
     pruefe("zw-raster" in seite and "zw-fuehrung" in seite,
            "das Skript kennt Monatsraster und Führungszeile")
-    pruefe("Letzte 12 Monate" in seite and "Dieses Jahr" in seite,
-           "die Schnellwähler sind angelegt")
+    # ⚠️ Die Schnellwähler („Dieser Monat“, „Letzte 12 Monate“ …) und das
+    # Kästchen „alle Jahre“ sind mit 1.20.2 entfallen: zwei zusätzliche
+    # Bedienkonzepte über einem Raster, das man ohnehin in zwei Klicks
+    # bedient. Übrig bleibt „Alle Zeiten“ als Rücksetzer.
+    pruefe("Letzte 12 Monate" not in seite and "zw-chip" not in seite,
+           "die Schnellwähler sind entfallen")
+    pruefe("zw-allejahre" not in seite,
+           "das Kästchen „alle Jahre“ ebenfalls")
+    pruefe("zw-leeren" in seite and "Alle Zeiten" in seite,
+           "der Rücksetzer bleibt")
 
-    # ⚠️ Zwei Jahre nebeneinander (seit 1.20.1). Mit einem Jahr musste man
-    # für „November bis Februar“ mitten in der Auswahl das Jahr wechseln.
+    # ⚠️ Zwei Jahre nebeneinander, jedes mit EIGENER Navigation (1.20.2).
+    # Mit einer gemeinsamen zog das rechte Jahr immer mit - ein Zeitraum
+    # über mehrere Jahre war damit gar nicht einzustellen.
     pruefe(seite.count("zw-jahrblock") >= 1 and "zw-jahrkopf" in seite,
            "das Skript legt Jahresblöcke mit anklickbarer Jahreszahl an")
+    pruefe("b.wurzel.querySelectorAll(\".zw-pfeil\")" in seite,
+           "die Pfeile hängen am einzelnen Block, nicht am Panel")
+    # Die beiden Datumsmarken sind der eigentliche Hinweis.
+    pruefe("erster Tag im " in seite and "letzter Tag im " in seite,
+           "die Marken sagen ausdrücklich, welcher Tag gemeint ist")
+    pruefe("vom ersten Tag " in seite and "bis zum letzten Tag des Endmonats"
+           in seite, "und die Zeile darunter erklärt die Regel")
     pruefe('data-monate="' in seite,
            "die Monate mit Daten kommen als Attribut vom Server")
     pruefe("hat-daten" in seite and "zw-punkt" in seite,
@@ -4261,7 +4292,7 @@ def test_zeitwahl(client: TestClient) -> None:
            and "--akzent-band" in stil2.split("[data-thema=\"hell\"]")[1],
            "und ist in beiden Themen definiert")
     # Jede Bewegung liegt im reduced-motion-Block (Abschnitt 13).
-    for takt in ("zw-auf", "zw-pochen", "zw-von-rechts"):
+    for takt in ("zw-auf", "zw-pochen", "zw-von-rechts", "zw-fuellen"):
         pruefe(takt in stil2, f"die Bewegung „{takt}“ ist angelegt")
     ohne_bewegung = stil2.split("@media (prefers-reduced-motion: no-preference)")
     pruefe(all("zw-auf" not in t for t in ohne_bewegung[:1]),

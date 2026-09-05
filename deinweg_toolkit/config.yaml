@@ -8,7 +8,7 @@
 # steigt "version", bietet der Store die neue Fassung an. Sie muss also
 # bei jeder Auslieferung mit main.py VERSION uebereinstimmen.
 name: Dein Weg Toolkit
-version: "1.20.1"
+version: "1.20.2"
 slug: deinweg_toolkit
 description: >-
   Betreuungszeiten, Verwaltungsvorgaenge, Fuhrpark und Wiki

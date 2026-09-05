@@ -1681,4 +1681,26 @@ CHANGELOG = [
         "über die Systemeinstellung für reduzierte Bewegung",
         "Prüfung von 1210 auf 1221 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.20.2", "titel": "Zeitraum-Picker: zwei Jahre, unabhängig",
+     "punkte": [
+        "Beide Jahresblöcke haben jetzt ihre EIGENE Jahresnavigation. "
+        "Vorher zog das rechte Jahr immer mit dem linken mit – ein "
+        "Zeitraum über fünf Jahre war damit gar nicht einzustellen. Jetzt "
+        "stellt man links den Anfang ein und rechts das Ende",
+        "Eine feine Linie zwischen den Spalten zeigt, dass es zwei "
+        "unabhängige Blöcke sind",
+        "Unten stehen zwei Datumsmarken statt einer Zeile: „von 01.04.2021 "
+        "– erster Tag im April“ und „bis 31.08.2026 – letzter Tag im "
+        "August“, dazwischen die Zahl der Monate. Damit ist ausdrücklich "
+        "gesagt, welcher Tag jeweils gemeint ist",
+        "Der gewählte Streifen baut sich Monat für Monat auf",
+        "Entfallen: die Schnellwähler über dem Raster und das Kästchen "
+        "„alle Jahre“ – zwei zusätzliche Bedienkonzepte über einem Raster, "
+        "das man ohnehin in zwei Klicks bedient. „Alle Zeiten“ bleibt",
+        "Übersicht: das Suchfeld steht jetzt als viertes Feld neben den "
+        "drei Auswahlfeldern, mit einer Lupe statt der Beschriftung "
+        "„Suche“ davor",
+        "„nur abrechenbare Zeiten“ ist ein richtiger Kippschalter geworden",
+        "Prüfung von 1221 auf 1231 Einzelprüfungen erweitert",
+    ]},
 ]
