@@ -67,7 +67,7 @@ TEXTE_STANDARD["changelog.lead"] = (
 TEXTE_STANDARD["einst.ansicht"] = (
     "Dunkel ist die Voreinstellung und schont abends die Augen.")
 TEXTE_STANDARD["einst.betreute_lead"] = (
-    "Hier stehen die Menschen, für die ein wöchentliches Stundenkontingent vereinbart ist. Die Auswertung rechnet das Kontingent auf den gewählten Monat hoch und zeigt, ob zu viel oder zu wenig geleistet wurde.")
+    "Hier stehen die Menschen, für die ein wöchentliches Stundenkontingent vereinbart ist. Die Auswertung rechnet das Kontingent auf den gewählten Monat hoch und zeigt, ob zu viel oder zu wenig geleistet wurde. Zuerst die Frage, an der alles hängt: <strong>Wer zahlt?</strong> Beim Kostenträger kommen Stunden und Satz aus den Bescheiden, beim Selbstzahler aus einem festen vereinbarten Satz.")
 TEXTE_STANDARD["einst.breite"] = (
     "Volle Breite zeigt mehr Tabelle auf einmal. Begrenzt hält die Textzeilen kürzer und ist auf sehr breiten Monitoren angenehmer zu lesen.")
 TEXTE_STANDARD["einst.sprueche_lead"] = (
@@ -105,24 +105,44 @@ TEXTE_STANDARD["einst.schreibweise_team"] = (
 TEXTE_STANDARD["einst.stillgelegt"] = (
     "Stillgelegte Personen bleiben in der Liste, werden bei der Soll-Rechnung aber übersprungen – praktisch, wenn eine Betreuung ausläuft.")
 TEXTE_STANDARD["einst.stundensatz"] = (
-    "Der Stundensatz geht in die Box „Verdienst“ der Auswertung ein – als rechnerischer Hinweis, nicht als Abrechnung. Ändert er sich zum Stichtag, gehört das als Zeitraum hinterlegt und nicht in den Grundwert.")
-TEXTE_STANDARD["einst.grundwert_hinweis"] = (
-    "Der Grundwert gilt für jeden Monat, für den kein Zeitraum hinterlegt "
-    "ist. Wer mit Bescheiden arbeitet, trägt alles unten als Zeitraum ein "
-    "und lässt den Grundwert auf 0.")
+    "Der Stundensatz geht in die Box „Verdienst“ der Auswertung ein – als rechnerischer Hinweis, nicht als Abrechnung. Ändert er sich zum Stichtag, gehört das als eigener Zeitraum hinterlegt.")
+TEXTE_STANDARD["einst.art_kostentraeger"] = (
+    "Wochenstunden und Stundensatz stehen ausschließlich in den "
+    "bewilligten Zeiträumen. Für Monate ohne Bescheid rechnet die "
+    "Auswertung <strong>weder ein Soll noch einen Verdienst</strong> – "
+    "ohne Bewilligung fließt kein Geld, und eine erfundene Zahl wäre "
+    "schlimmer als gar keine.")
+TEXTE_STANDARD["einst.art_selbstzahler"] = (
+    "Der vereinbarte Satz gilt für jeden Monat, den kein Zeitraum "
+    "abdeckt – Selbstzahler brauchen keinen Bescheid und bekommen "
+    "deshalb auch keine Bewilligungswarnung. Ändert sich der Satz zu "
+    "einem Stichtag, trag ihn zusätzlich als Zeitraum ein.")
+TEXTE_STANDARD["einst.grundwert_umzug"] = (
+    "Bis Fassung 1.19.2 galt dieser Wert als Rückfall für Monate ohne "
+    "Bescheid. Das steht hier noch, wirkt aber nicht mehr. Stand ein "
+    "Bescheid dahinter, übernimm ihn als Zeitraum – dann bleiben die "
+    "Zahlen in der Auswertung dieselben. War es nur ein Platzhalter, "
+    "verwirf ihn.")
 TEXTE_STANDARD["einst.zeitraum_hinweis"] = (
     "Was der Kostenträger jeweils zugesagt hat. Ein Zeitraum ohne Ende "
     "gilt bis auf Weiteres. Überschneiden sich zwei, gewinnt der später "
     "begonnene – so wirkt ein Folgebescheid sofort, auch wenn der alte "
     "formal noch läuft. <strong>Gerechnet wird monatsweise:</strong> ein "
     "Zeitraum gilt für jeden Monat, den er berührt.")
-TEXTE_STANDARD["einst.zeitraum_leer"] = (
-    "Noch kein Zeitraum hinterlegt – es gilt der Grundwert oben.")
-TEXTE_STANDARD["einst.selbstzahler_hinweis"] = (
+# ⚠️ Diese beiden Schlüssel hiessen bis 1.19.2 "einst.zeitraum_leer" und
+# "einst.selbstzahler_hinweis". Sie sind umbenannt, weil ihr alter
+# Wortlaut seit 1.20 schlicht falsch ist ("es gilt der Grundwert oben") -
+# und eine vorhandene strings.txt gewinnt gegen jeden Standardtext
+# (Abschnitt 8). Unter demselben Namen waere die Berichtigung bei
+# bestehenden Installationen nie angekommen.
+TEXTE_STANDARD["einst.ohne_zeitraum"] = (
+    "Noch kein Zeitraum hinterlegt – für diese Person rechnet die "
+    "Auswertung damit weder ein Soll noch einen Verdienst.")
+TEXTE_STANDARD["einst.selbstzahler_satz"] = (
     "Selbstzahler zahlen aus eigener Tasche und brauchen keinen "
     "Kostenträger-Bescheid. Für sie erscheint keine Bewilligungswarnung; "
-    "als Satz je Stunde gilt der Grundwert-Stundensatz oben. Zeiträume "
-    "musst du hier nicht pflegen.")
+    "als Satz je Stunde gilt der vereinbarte Stundensatz. Zeiträume "
+    "musst du nur pflegen, wenn sich der Satz zu einem Stichtag ändert.")
 TEXTE_STANDARD["einst.abrechenbar"] = (
     "Legt fest, ob Zeiten dieser Person beim Filter „nur abrechenbare Zeiten“ auf den Seiten Datensätze und Auswertung mitgezählt werden. Betrifft nur diesen Filter, nicht die Soll-Rechnung oder sonstige Zahlen.")
 TEXTE_STANDARD["einst.system_lead"] = (

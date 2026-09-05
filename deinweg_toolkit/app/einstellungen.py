@@ -181,7 +181,11 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
         personen = con.execute(
             "SELECT p.*, "
             "(SELECT COUNT(*) FROM eintrag e WHERE e.klient = p.name) AS eintraege, "
-            "(SELECT COALESCE(SUM(dauer_min),0) FROM eintrag e WHERE e.klient = p.name) AS minuten "
+            "(SELECT COALESCE(SUM(dauer_min),0) FROM eintrag e WHERE e.klient = p.name) AS minuten, "
+            # Ab wann liegen ueberhaupt Zeiten vor? Das ist der Vorschlag
+            # fuer den Beginn, wenn ein alter Grundwert in einen echten
+            # Zeitraum umgezogen wird (siehe unten).
+            "(SELECT MIN(datum) FROM eintrag e WHERE e.klient = p.name) AS erster_tag "
             "FROM person p ORDER BY p.aktiv DESC, p.name").fetchall()
         # Die bewilligten Zeitraeume je Person, neueste zuerst - dieselbe
         # Reihenfolge, in der main.kontingent_im_monat() sie auswertet.
@@ -412,6 +416,10 @@ def betrag_lesen(wert: str):
 def person_anlegen(name: str = Form(""), wochenstunden: str = Form("0"),
                    stundensatz: str = Form("0"), abrechenbar: str = Form(""),
                    selbstzahler: str = Form("")):
+    # ⚠️ "selbstzahler" ist seit 1.20 ein Umschalter mit zwei Werten
+    # ("0" = Kostentraeger, "1" = Selbstzahler) und kein Haekchen mehr.
+    # Deshalb der Vergleich auf "1": der String "0" waere sonst wahr, und
+    # jede angelegte Person wuerde zum Selbstzahler.
     name = name.strip()
     if not name:
         return einstellungen_zurueck(fehler="Ohne Namen geht es nicht.")
@@ -432,7 +440,7 @@ def person_anlegen(name: str = Form(""), wochenstunden: str = Form("0"),
             "INSERT INTO person (name, wochenstunden, stundensatz, aktiv, "
             "abrechenbar, selbstzahler, angelegt_am) VALUES (?,?,?,1,?,?,?)",
             (name, stunden, satz, 1 if abrechenbar else 0,
-             1 if selbstzahler else 0, _u["jetzt"]()))
+             1 if selbstzahler == "1" else 0, _u["jetzt"]()))
     return einstellungen_zurueck(hinweis=f"{name} angelegt.")
 
 
@@ -461,16 +469,19 @@ def person_speichern(person_id: int, name: str = Form(""),
             "UPDATE person SET name=?, wochenstunden=?, stundensatz=?, "
             "abrechenbar=?, aktiv=?, selbstzahler=? WHERE id=?",
             (name, stunden, satz, 1 if abrechenbar else 0, 1 if aktiv else 0,
-             1 if selbstzahler else 0, person_id))
+             1 if selbstzahler == "1" else 0, person_id))
     return einstellungen_zurueck(hinweis=f"{name} gespeichert.")
 
 
 # --- Bewilligte Zeitraeume je betreuter Person -------------------------------
 #
 # Der Kostentraeger sagt Wochenstunden und Stundensatz nur befristet zu.
-# Die beiden Felder an "person" bleiben daneben als Grundwert bestehen und
-# gelten fuer jeden Monat, den kein Zeitraum abdeckt - sonst haetten alle
-# bisher gepflegten Personen mit einem Schlag kein Kontingent mehr.
+# Seit 1.20 sind die Zeitraeume die EINZIGE Quelle dafuer: fuer einen
+# Monat ohne Bescheid gibt es weder Soll noch Verdienst. Die beiden
+# Felder an "person" tragen nur noch den vereinbarten Satz eines
+# Selbstzahlers; wo sonst noch etwas darin steht, ist es ein Rest aus der
+# Zeit davor und wird ueber die Umzugshilfe aufgeloest (siehe
+# zeitraum_anlegen und grundwert_verwerfen).
 # Gerechnet wird in main.kontingent_im_monat().
 
 def zeitraum_zurueck(person_id: int, **werte):
@@ -518,13 +529,23 @@ def zeitraum_pruefen(von: str, bis: str, wochenstunden: str, stundensatz: str):
 @router.post("/einstellungen/person/{person_id}/zeitraum")
 def zeitraum_anlegen(person_id: int, von: str = Form(""), bis: str = Form(""),
                      wochenstunden: str = Form("0"),
-                     stundensatz: str = Form("0"), notiz: str = Form("")):
+                     stundensatz: str = Form("0"), notiz: str = Form(""),
+                     grundwert_leeren: str = Form("")):
+    """Legt einen bewilligten Zeitraum an.
+
+    ``grundwert_leeren`` kommt nur aus der Umzugshilfe (seit 1.20): dort
+    wird ein alter Grundwert in einen echten Zeitraum ueberfuehrt, und
+    danach soll er nicht als toter Wert stehenbleiben. Bewusst ein Feld
+    an genau diesem Formular und keine eigene Route - der Umzug ist ein
+    Schritt, nicht zwei, und ein Abbruch dazwischen liesse die Person
+    ohne beides zurueck.
+    """
     werte, fehler = zeitraum_pruefen(von, bis, wochenstunden, stundensatz)
     if fehler:
         return zeitraum_zurueck(person_id, fehler=fehler)
     von_datum, bis_datum, stunden, satz = werte
     with db.db() as con:
-        person = con.execute("SELECT name FROM person WHERE id=?",
+        person = con.execute("SELECT name, selbstzahler FROM person WHERE id=?",
                              (person_id,)).fetchone()
         if not person:
             return einstellungen_zurueck(fehler="Diese Person gibt es nicht mehr.")
@@ -533,6 +554,15 @@ def zeitraum_anlegen(person_id: int, von: str = Form(""), bis: str = Form(""),
             "stundensatz, notiz, angelegt_am) VALUES (?,?,?,?,?,?,?)",
             (person_id, von_datum, bis_datum, stunden, satz,
              notiz.strip() or None, _u["jetzt"]()))
+        # ⚠️ Bei einem Selbstzahler NICHT: dort ist der Grundwert der
+        # vereinbarte Satz und keine Altlast.
+        if grundwert_leeren and not person["selbstzahler"]:
+            con.execute("UPDATE person SET wochenstunden=0, stundensatz=0 "
+                        "WHERE id=?", (person_id,))
+            return zeitraum_zurueck(
+                person_id,
+                hinweis=f"Grundwert von {person['name']} als Zeitraum "
+                        "übernommen und aus den Stammdaten entfernt.")
     return zeitraum_zurueck(
         person_id, hinweis=f"Zeitraum für {person['name']} angelegt.")
 
@@ -569,6 +599,27 @@ def zeitraum_loeschen(zeitraum_id: int):
             return einstellungen_zurueck(fehler="Diesen Zeitraum gibt es nicht mehr.")
         con.execute("DELETE FROM person_zeitraum WHERE id=?", (zeitraum_id,))
     return zeitraum_zurueck(satz["person_id"], hinweis="Zeitraum entfernt.")
+
+
+@router.post("/einstellungen/person/{person_id}/grundwert-verwerfen")
+def grundwert_verwerfen(person_id: int):
+    """Der zweite Weg aus einem alten Grundwert heraus (seit 1.20).
+
+    Die Umzugshilfe daneben macht daraus einen bewilligten Zeitraum. Wo
+    nie ein Bescheid dahinterstand, ist das aber falsch - dann ist der
+    Wert schlicht wegzuwerfen. Ohne diesen Knopf bliebe er stehen und
+    liesse sich nicht mehr anfassen: die Felder dafuer stehen nur noch
+    beim Selbstzahler.
+    """
+    with db.db() as con:
+        satz = con.execute("SELECT name FROM person WHERE id=?",
+                           (person_id,)).fetchone()
+        if not satz:
+            return einstellungen_zurueck(fehler="Diese Person gibt es nicht mehr.")
+        con.execute("UPDATE person SET wochenstunden=0, stundensatz=0 WHERE id=?",
+                    (person_id,))
+    return zeitraum_zurueck(
+        person_id, hinweis=f"Grundwert von {satz['name']} verworfen.")
 
 
 @router.post("/einstellungen/person/{person_id}/loeschen")

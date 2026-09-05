@@ -434,6 +434,12 @@ def pruefe_bewilligungen(con, k: dict) -> list[str]:
     except ValueError:
         vorlauf = 60
 
+    # ⚠️ "grundwert" bleibt aussen vor, obwohl die Lage seit 1.20 eine
+    # echte Luecke ist (der Grundwert rechnet nicht mehr mit). Grund: das
+    # sind Altbestaende, und die erste Mail nach dem Update haette den
+    # gesamten Bestand auf einmal gemeldet. Aufgeraeumt wird ueber die
+    # Umzugshilfe in den Einstellungen; die zeigt sie deutlich genug.
+    # Sobald dort nichts mehr steht, kann diese Zeile weg.
     faelle = [b for b in bewilligungen_holen(con, vorlauf)
               if b["art"] != "grundwert"]
     if not faelle:

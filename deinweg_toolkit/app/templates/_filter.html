@@ -43,30 +43,48 @@
 {% endmacro %}
 
 <form class="filter" method="get" action="{{ ziel }}">
-  <label><span>Von Jahr</span>
-    <select name="von_jahr">
-      <option value="">alle</option>
-      {% for j in jahre %}<option value="{{ j }}" {{ 'selected' if f.von_jahr==j }}>{{ j }}</option>{% endfor %}
-    </select>
-  </label>
-  <label><span>Von Monat</span>
-    <select name="von_monat">
-      <option value="">alle</option>
-      {% for nr, wort in monatsnamen.items() %}<option value="{{ nr }}" {{ 'selected' if f.von_monat==nr }}>{{ wort }}</option>{% endfor %}
-    </select>
-  </label>
-  <label><span>Bis Jahr</span>
-    <select name="bis_jahr">
-      <option value="">alle</option>
-      {% for j in jahre %}<option value="{{ j }}" {{ 'selected' if f.bis_jahr==j }}>{{ j }}</option>{% endfor %}
-    </select>
-  </label>
-  <label><span>Bis Monat</span>
-    <select name="bis_monat">
-      <option value="">alle</option>
-      {% for nr, wort in monatsnamen.items() %}<option value="{{ nr }}" {{ 'selected' if f.bis_monat==nr }}>{{ wort }}</option>{% endfor %}
-    </select>
-  </label>
+  {# --- Zeitraum ---------------------------------------------------------
+     Die vier Auswahlfelder bleiben im HTML und sind die Bedienung ohne
+     Skript - dasselbe Muster wie beim <select> unter der Suchwahl. Mit
+     Skript baut zeitwahl() daraus einen einzigen Knopf mit Monatsraster
+     und blendet sie aus.
+
+     ⚠️ Gefiltert wird über die Spalte "monat" (JJJJ-MM), nie über
+     einzelne Tage. "März bis Juni" heißt deshalb immer 1. März bis
+     30. Juni - ganze Monate, Endmonat eingeschlossen. Genau das sagte die
+     Oberfläche bis 1.19.2 nirgends, man konnte es nur raten; deshalb
+     steht im Picker der aufgelöste Zeitraum als Datum im Klartext. Ein
+     Tageskalender wäre Scheingenauigkeit: ein angeklickter 15. März
+     hätte dieselbe Wirkung wie der 1. #}
+  <div class="zeitwahl" data-jahre="{{ jahre | join(',') }}"
+       data-heute="{{ heute_monat }}">
+    <div class="zeitwahl-klassisch">
+      <label><span>Von Jahr</span>
+        <select name="von_jahr">
+          <option value="">alle</option>
+          {% for j in jahre %}<option value="{{ j }}" {{ 'selected' if f.von_jahr==j }}>{{ j }}</option>{% endfor %}
+        </select>
+      </label>
+      <label><span>Von Monat <span class="leise">– ab dem 1.</span></span>
+        <select name="von_monat">
+          <option value="">alle</option>
+          {% for nr, wort in monatsnamen.items() %}<option value="{{ nr }}" {{ 'selected' if f.von_monat==nr }}>{{ wort }}</option>{% endfor %}
+        </select>
+      </label>
+      <label><span>Bis Jahr</span>
+        <select name="bis_jahr">
+          <option value="">alle</option>
+          {% for j in jahre %}<option value="{{ j }}" {{ 'selected' if f.bis_jahr==j }}>{{ j }}</option>{% endfor %}
+        </select>
+      </label>
+      <label><span>Bis Monat <span class="leise">– einschließlich</span></span>
+        <select name="bis_monat">
+          <option value="">alle</option>
+          {% for nr, wort in monatsnamen.items() %}<option value="{{ nr }}" {{ 'selected' if f.bis_monat==nr }}>{{ wort }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+  </div>
 
   {{ mehrfachwahl("Betreute Personen", "klient", klienten, f.klienten,
                   "Person", "Personen") }}
@@ -164,6 +182,275 @@
       document.querySelectorAll("details.wahlliste[open]").forEach(function (d) {
         if (!d.contains(e.target)) { d.open = false; }
       });
+    });
+  })();
+
+  // --- Zeitraum als Monatsraster ----------------------------------------
+  // Baut aus den vier Auswahlfeldern einen einzigen Knopf mit Panel.
+  // Die Felder bleiben die Wahrheit: das Raster schreibt nur hinein, und
+  // abgeschickt wird wie immer das Formular. Ohne Skript passiert hier
+  // gar nichts und die vier Felder stehen wie zuvor da.
+  (function () {
+    var wurzel = document.querySelector(".zeitwahl");
+    if (!wurzel) { return; }
+
+    var form  = wurzel.closest("form"),
+        felder = {
+          vj: form.querySelector("[name=von_jahr]"),
+          vm: form.querySelector("[name=von_monat]"),
+          bj: form.querySelector("[name=bis_jahr]"),
+          bm: form.querySelector("[name=bis_monat]")
+        },
+        KURZ = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
+                "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"],
+        LANG = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
+                "August", "September", "Oktober", "November", "Dezember"],
+        heute = (wurzel.dataset.heute || "").split("-"),
+        heuteJahr = parseInt(heute[0], 10) || new Date().getFullYear(),
+        heuteMonat = parseInt(heute[1], 10) || (new Date().getMonth() + 1);
+
+    // Zustand: von/bis als "JJJJ-MM" oder leer. "alleJahre" ist der alte
+    // Sonderfall "Monat ohne Jahr" - er bleibt erreichbar, weil er
+    // erreichbar war (nichts wegnehmen, was jemand benutzt haben könnte).
+    var stand = {von: null, bis: null, alleJahre: false};
+
+    function ausFeldern() {
+      var vj = felder.vj.value, vm = felder.vm.value,
+          bj = felder.bj.value, bm = felder.bm.value;
+      stand.alleJahre = (!vj && !bj) && (!!vm || !!bm);
+      stand.von = vm ? ((vj || heuteJahr) + "-" + vm) : null;
+      stand.bis = bm ? ((bj || heuteJahr) + "-" + bm) : null;
+      if (stand.von && !stand.bis) { stand.bis = stand.von; }
+      if (!stand.von && stand.bis) { stand.von = stand.bis; }
+      // Nur ein Jahr gewählt, ohne Monat: das ganze Jahr.
+      if (!vm && vj) { stand.von = vj + "-01"; }
+      if (!bm && bj) { stand.bis = bj + "-12"; }
+    }
+
+    function inFelder() {
+      if (!stand.von || !stand.bis) {
+        felder.vj.value = felder.vm.value = "";
+        felder.bj.value = felder.bm.value = "";
+        return;
+      }
+      felder.vm.value = stand.von.slice(5);
+      felder.bm.value = stand.bis.slice(5);
+      felder.vj.value = stand.alleJahre ? "" : stand.von.slice(0, 4);
+      felder.bj.value = stand.alleJahre ? "" : stand.bis.slice(0, 4);
+    }
+
+    function zahl(m) { return parseInt(m.slice(0, 4), 10) * 12 + parseInt(m.slice(5), 10); }
+    function monatWort(m) { return LANG[parseInt(m.slice(5), 10) - 1] + " " + m.slice(0, 4); }
+    function zweiStellig(n) { return (n < 10 ? "0" : "") + n; }
+
+    // Welche Jahre darf man ansteuern? Die Jahre mit Daten, dazu das
+    // laufende und alles, was gerade gewählt ist - so landet niemand vor
+    // einer Wand, weil sein Lesezeichen ein anderes Jahr trägt.
+    function jahresspanne() {
+      var liste = (wurzel.dataset.jahre || "").split(",")
+                    .map(function (j) { return parseInt(j, 10); })
+                    .filter(function (j) { return !!j; });
+      liste.push(heuteJahr);
+      if (stand.von) { liste.push(parseInt(stand.von.slice(0, 4), 10)); }
+      if (stand.bis) { liste.push(parseInt(stand.bis.slice(0, 4), 10)); }
+      return {min: Math.min.apply(null, liste), max: Math.max.apply(null, liste)};
+    }
+
+    // --- Oberfläche bauen ------------------------------------------------
+    var huelle = document.createElement("div");
+    huelle.className = "filterwahl zeitwahl-feld";
+    huelle.innerHTML =
+      '<span class="filterwahl-titel">Zeitraum</span>' +
+      '<details class="wahlliste zeitwahl-block">' +
+        '<summary><span class="zeitwahl-text">alle Zeiten</span></summary>' +
+        '<div class="wahlliste-panel zeitwahl-panel">' +
+          '<div class="zw-schnell"></div>' +
+          '<div class="zw-jahr">' +
+            '<button type="button" class="zw-pfeil" data-schritt="-1" ' +
+                    'aria-label="Ein Jahr zurück">' +
+              '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+              '<path d="m14 6-6 6 6 6" stroke="currentColor" stroke-width="2" ' +
+              'stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+            '<span class="zw-jahrzahl"></span>' +
+            '<button type="button" class="zw-pfeil" data-schritt="1" ' +
+                    'aria-label="Ein Jahr vor">' +
+              '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+              '<path d="m10 6 6 6-6 6" stroke="currentColor" stroke-width="2" ' +
+              'stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+            '<label class="zw-allejahre" title="Denselben Monatsbereich in jedem Jahr">' +
+              '<input type="checkbox"><span>alle Jahre</span></label>' +
+          '</div>' +
+          '<div class="zw-raster"></div>' +
+          '<p class="zw-klartext"></p>' +
+          '<div class="zw-fuss">' +
+            '<button type="button" class="knopf klein leise zw-leeren">Alle Zeiten</button>' +
+            '<button type="submit" class="knopf klein haupt zw-uebernehmen">Übernehmen</button>' +
+          '</div>' +
+        '</div>' +
+      '</details>';
+    wurzel.insertBefore(huelle, wurzel.firstChild);
+    wurzel.classList.add("mit-picker");
+
+    var block    = huelle.querySelector("details"),
+        text     = huelle.querySelector(".zeitwahl-text"),
+        schnell  = huelle.querySelector(".zw-schnell"),
+        jahrzahl = huelle.querySelector(".zw-jahrzahl"),
+        raster   = huelle.querySelector(".zw-raster"),
+        klartext = huelle.querySelector(".zw-klartext"),
+        alleHaken = huelle.querySelector(".zw-allejahre input"),
+        blickjahr;
+
+    // Schnellwähler. Sie decken ab, wonach in der Praxis gefragt wird -
+    // ein Monat, ein Quartal, ein Jahr. Alles andere klickt man im Raster.
+    var SCHNELL = [
+      ["Dieser Monat", function () { return [jetzt(0), jetzt(0)]; }],
+      ["Letzter Monat", function () { return [jetzt(-1), jetzt(-1)]; }],
+      ["Letzte 3 Monate", function () { return [jetzt(-2), jetzt(0)]; }],
+      ["Letzte 12 Monate", function () { return [jetzt(-11), jetzt(0)]; }],
+      ["Dieses Jahr", function () { return [heuteJahr + "-01", heuteJahr + "-12"]; }],
+      ["Letztes Jahr", function () { return [(heuteJahr - 1) + "-01", (heuteJahr - 1) + "-12"]; }]
+    ];
+    function jetzt(versatz) {
+      var g = heuteJahr * 12 + (heuteMonat - 1) + versatz;
+      return Math.floor(g / 12) + "-" + zweiStellig((g % 12) + 1);
+    }
+    SCHNELL.forEach(function (s) {
+      var k = document.createElement("button");
+      k.type = "button";
+      k.className = "zw-chip";
+      k.textContent = s[0];
+      k.addEventListener("click", function () {
+        var r = s[1]();
+        stand.von = r[0]; stand.bis = r[1]; stand.alleJahre = false;
+        blickjahr = parseInt(stand.bis.slice(0, 4), 10);
+        zeichnen();
+      });
+      schnell.appendChild(k);
+    });
+
+    for (var i = 0; i < 12; i++) {
+      var m = document.createElement("button");
+      m.type = "button";
+      m.className = "zw-monat";
+      m.dataset.monat = zweiStellig(i + 1);
+      m.textContent = KURZ[i];
+      raster.appendChild(m);
+    }
+
+    // Erster Klick setzt den Anfang, der zweite das Ende. Ein Klick vor
+    // den Anfang beginnt neu - so muss man nie erst etwas zurücksetzen.
+    var wartetAufEnde = false;
+    raster.addEventListener("click", function (e) {
+      var k = e.target.closest(".zw-monat");
+      if (!k) { return; }
+      var m = blickjahr + "-" + k.dataset.monat;
+      if (!wartetAufEnde || !stand.von || zahl(m) < zahl(stand.von)) {
+        stand.von = m; stand.bis = m; wartetAufEnde = true;
+      } else {
+        stand.bis = m; wartetAufEnde = false;
+      }
+      zeichnen();
+    });
+
+    huelle.querySelectorAll(".zw-pfeil").forEach(function (p) {
+      p.addEventListener("click", function () {
+        blickjahr += parseInt(p.dataset.schritt, 10);
+        zeichnen();
+      });
+    });
+    alleHaken.addEventListener("change", function () {
+      stand.alleJahre = alleHaken.checked;
+      zeichnen();
+    });
+    huelle.querySelector(".zw-leeren").addEventListener("click", function () {
+      stand.von = stand.bis = null; stand.alleJahre = false;
+      wartetAufEnde = false;
+      zeichnen();
+    });
+
+    // --- Beschriftung ----------------------------------------------------
+    function wortlaut() {
+      if (!stand.von || !stand.bis) { return "alle Zeiten"; }
+      var a = LANG[parseInt(stand.von.slice(5), 10) - 1],
+          b = LANG[parseInt(stand.bis.slice(5), 10) - 1];
+      if (stand.alleJahre) {
+        return (a === b ? a : a + " bis " + b) + ", alle Jahre";
+      }
+      if (stand.von === stand.bis) { return monatWort(stand.von); }
+      if (stand.von.slice(0, 4) === stand.bis.slice(0, 4)
+          && stand.von.slice(5) === "01" && stand.bis.slice(5) === "12") {
+        return "Jahr " + stand.von.slice(0, 4);
+      }
+      return monatWort(stand.von) + " bis " + monatWort(stand.bis);
+    }
+
+    // ⚠️ Der Satz, um den es geht: er nennt den ersten und den letzten Tag
+    // ausdrücklich. "März bis Juni" allein lässt offen, ob der Juni ganz
+    // dazugehört - genau die Frage, die diese Zeile beantwortet.
+    function klartextzeile() {
+      if (!stand.von || !stand.bis) { return "Ohne Eingrenzung – alle erfassten Zeiten."; }
+      var n = zahl(stand.bis) - zahl(stand.von) + 1,
+          anzahl = n + (n === 1 ? " Monat" : " Monate");
+      if (stand.alleJahre) {
+        return "Jeweils " + anzahl + " in jedem Jahr, ganze Monate.";
+      }
+      var bj = parseInt(stand.bis.slice(0, 4), 10),
+          bm = parseInt(stand.bis.slice(5), 10),
+          letzter = new Date(bj, bm, 0).getDate();
+      return "01." + stand.von.slice(5) + "." + stand.von.slice(0, 4)
+           + " – " + letzter + "." + stand.bis.slice(5) + "." + stand.bis.slice(0, 4)
+           + " · " + anzahl;
+    }
+
+    function zeichnen() {
+      var spanne = jahresspanne();
+      if (blickjahr === undefined) {
+        blickjahr = stand.bis ? parseInt(stand.bis.slice(0, 4), 10) : heuteJahr;
+      }
+      blickjahr = Math.min(Math.max(blickjahr, spanne.min), spanne.max);
+      jahrzahl.textContent = blickjahr;
+      huelle.querySelector("[data-schritt='-1']").disabled = blickjahr <= spanne.min;
+      huelle.querySelector("[data-schritt='1']").disabled = blickjahr >= spanne.max;
+      jahrzahl.classList.toggle("stumm", stand.alleJahre);
+      alleHaken.checked = stand.alleJahre;
+
+      raster.querySelectorAll(".zw-monat").forEach(function (k) {
+        var m = blickjahr + "-" + k.dataset.monat, drin = false, rand = "";
+        if (stand.von && stand.bis) {
+          if (stand.alleJahre) {
+            // Ohne Jahr zählt nur die Monatsnummer.
+            var mm = parseInt(k.dataset.monat, 10),
+                a = parseInt(stand.von.slice(5), 10),
+                b = parseInt(stand.bis.slice(5), 10);
+            drin = mm >= Math.min(a, b) && mm <= Math.max(a, b);
+            rand = (mm === a ? "anfang" : "") + (mm === b ? " ende" : "");
+          } else {
+            drin = zahl(m) >= zahl(stand.von) && zahl(m) <= zahl(stand.bis);
+            rand = (m === stand.von ? "anfang" : "") + (m === stand.bis ? " ende" : "");
+          }
+        }
+        k.classList.toggle("drin", drin);
+        k.classList.toggle("anfang", rand.indexOf("anfang") > -1);
+        k.classList.toggle("ende", rand.indexOf("ende") > -1);
+      });
+
+      text.textContent = wortlaut();
+      klartext.textContent = klartextzeile();
+      // Auch zugeklappt beantwortbar, ohne das Feld zweizeilig zu machen
+      // (dann stünden die Kästen der Filterzeile verschieden hoch da).
+      block.querySelector("summary").title = klartextzeile();
+      huelle.classList.toggle("gesetzt", !!(stand.von && stand.bis));
+      inFelder();
+    }
+
+    ausFeldern();
+    zeichnen();
+    // Erst jetzt verschwinden die vier Felder: geht oben etwas schief,
+    // bleiben sie stehen und die Seite ist weiter bedienbar.
+    wurzel.querySelector(".zeitwahl-klassisch").hidden = true;
+    // Ein frisch geöffnetes Panel beginnt wieder mit "Anfang wählen".
+    block.addEventListener("toggle", function () {
+      if (block.open) { wartetAufEnde = false; }
     });
   })();
 </script>

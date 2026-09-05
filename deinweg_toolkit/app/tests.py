@@ -1741,12 +1741,19 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
            "ab dem Folgebescheid gelten dessen Werte")
     pruefe(kontingent_im_monat("2025-12", liste, 0, 0) == (7, 70, True),
            "bis zu dessen letztem Monat")
-    pruefe(kontingent_im_monat("2026-01", liste, 3, 40) == (3, 40, False),
-           "danach greift wieder der Grundwert der Person")
-    pruefe(kontingent_im_monat("2024-07", liste, 3, 40) == (3, 40, False),
+    # ⚠️ Seit 1.20 gibt es ausserhalb der Zeitraeume nichts mehr. Der
+    # Grundwert an "person" zaehlt nur noch fuer einen Selbstzahler - wer
+    # einen Kostentraeger hat und keinen Bescheid, verdient nichts.
+    pruefe(kontingent_im_monat("2026-01", liste, 3, 40) == (0, 0, False),
+           "nach dem letzten Bescheid gibt es weder Soll noch Satz")
+    pruefe(kontingent_im_monat("2024-07", liste, 3, 40) == (0, 0, False),
            "und davor genauso")
-    pruefe(kontingent_im_monat("2025-05", [], 3, 40) == (3, 40, False),
-           "ohne jeden Zeitraum gilt immer der Grundwert")
+    pruefe(kontingent_im_monat("2025-05", [], 3, 40) == (0, 0, False),
+           "ohne jeden Zeitraum bleibt alles auf null")
+    pruefe(kontingent_im_monat("2025-05", [], 3, 40, True) == (3, 40, False),
+           "nur beim Selbstzahler gilt der vereinbarte Satz weiter")
+    pruefe(kontingent_im_monat("2025-08", liste, 3, 40, True) == (7, 70, True),
+           "ein Zeitraum schlägt auch beim Selbstzahler den vereinbarten Satz")
 
     offen = Z(von="2026-01-01", bis=None, wochenstunden=9, stundensatz=80)
     pruefe(kontingent_im_monat("2030-06", [offen], 0, 0) == (9, 80, True),
@@ -1866,7 +1873,9 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
     pruefe("Monat für Monat mit den Werten" not in seite,
            "dann steht dort auch kein Hinweis")
 
-    # --- Der Grundwert bleibt der Rückfall ---------------------------------
+    # --- Ohne Bescheid gibt es nichts (seit 1.20) --------------------------
+    # Bis 1.19.2 sprang hier der Grundwert der Person ein und erfand damit
+    # ein Soll und einen Verdienst, den es nie gab.
     client.post("/einstellungen/person", data={
         "name": "Ohne Zeitraum", "wochenstunden": "5", "stundensatz": "50",
         "abrechenbar": "1"})
@@ -1878,9 +1887,62 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
             "'13:00','Ohne Zeitraum','Besuch',240,1,'oz1','2025-03-04 09:00')")
     seite = client.get("/auswertung?von_jahr=2025&von_monat=03"
                        "&bis_jahr=2025&bis_monat=03").text
+    pruefe(_hhmm(soll_minuten(5, "2025-03")) not in seite,
+           "eine Person ohne Zeitraum bekommt kein Soll aus dem Grundwert")
+    pruefe("200,00 €" not in seite, "und auch keinen Verdienst")
+    pruefe("ohne Bescheid" in seite,
+           "die Seitenspalte nennt die Monate mit Zeiten, aber ohne Bewilligung")
+
+    # Als Selbstzahler ist derselbe Wert der vereinbarte Satz und zaehlt.
+    with db.db() as con:
+        szid = con.execute("SELECT id FROM person WHERE name='Ohne Zeitraum'"
+                           ).fetchone()["id"]
+    client.post(f"/einstellungen/person/{szid}", data={
+        "name": "Ohne Zeitraum", "wochenstunden": "5", "stundensatz": "50",
+        "abrechenbar": "1", "aktiv": "1", "selbstzahler": "1"})
+    seite = client.get("/auswertung?von_jahr=2025&von_monat=03"
+                       "&bis_jahr=2025&bis_monat=03").text
     pruefe(_hhmm(soll_minuten(5, "2025-03")) in seite,
-           "eine Person ohne Zeiträume rechnet unverändert mit dem Grundwert")
-    pruefe("200,00 €" in seite, "auch beim Verdienst")
+           "beim Selbstzahler gilt der vereinbarte Wert weiterhin")
+    pruefe("200,00 €" in seite, "samt Verdienst")
+    client.post(f"/einstellungen/person/{szid}", data={
+        "name": "Ohne Zeitraum", "wochenstunden": "5", "stundensatz": "50",
+        "abrechenbar": "1", "aktiv": "1", "selbstzahler": "0"})
+
+    # --- Umzugshilfe: aus dem alten Grundwert wird ein Zeitraum ------------
+    seite = client.get(f"/einstellungen?bereich=betreute&offen={szid}").text
+    pruefe("grundwertumzug" in seite and "Als Zeitraum übernehmen" in seite,
+           "die Person mit altem Grundwert bekommt die Umzugshilfe angeboten")
+    client.post(f"/einstellungen/person/{szid}/zeitraum", data={
+        "von": "2025-01-01", "bis": "", "wochenstunden": "5",
+        "stundensatz": "50", "notiz": "aus Grundwert übernommen",
+        "grundwert_leeren": "1"})
+    with db.db() as con:
+        nach = con.execute("SELECT wochenstunden, stundensatz FROM person "
+                           "WHERE id=?", (szid,)).fetchone()
+        zr = con.execute("SELECT COUNT(*) c FROM person_zeitraum WHERE "
+                         "person_id=?", (szid,)).fetchone()["c"]
+    pruefe(zr == 1, "der Zeitraum ist angelegt")
+    pruefe(nach["wochenstunden"] == 0 and nach["stundensatz"] == 0,
+           "und der alte Grundwert danach geräumt")
+    seite = client.get("/auswertung?von_jahr=2025&von_monat=03"
+                       "&bis_jahr=2025&bis_monat=03").text
+    pruefe(_hhmm(soll_minuten(5, "2025-03")) in seite and "200,00 €" in seite,
+           "die Zahlen stehen nach dem Umzug wieder wie zuvor")
+
+    # Der andere Weg: verwerfen. Erst wieder einen Grundwert setzen.
+    client.post(f"/einstellungen/person/{szid}", data={
+        "name": "Ohne Zeitraum", "wochenstunden": "5", "stundensatz": "50",
+        "abrechenbar": "1", "aktiv": "1", "selbstzahler": "1"})
+    client.post(f"/einstellungen/person/{szid}", data={
+        "name": "Ohne Zeitraum", "wochenstunden": "5", "stundensatz": "50",
+        "abrechenbar": "1", "aktiv": "1", "selbstzahler": "0"})
+    client.post(f"/einstellungen/person/{szid}/grundwert-verwerfen")
+    with db.db() as con:
+        nach = con.execute("SELECT wochenstunden, stundensatz FROM person "
+                           "WHERE id=?", (szid,)).fetchone()
+    pruefe(nach["wochenstunden"] == 0 and nach["stundensatz"] == 0,
+           "„verwerfen“ räumt den Grundwert ersatzlos weg")
 
     # --- Die Zeiträume hängen an der Person --------------------------------
     seite = client.get("/einstellungen?bereich=betreute").text
@@ -2034,8 +2096,10 @@ def test_monatsbloecke(client: TestClient) -> None:
     pruefe('class="abschnittsband"' not in einer, "und das Band dazu auch")
     pruefe("<h2>Überblick</h2>" in einer, "der Überblick bleibt")
 
-    # Der Grundwert wird als solcher gekennzeichnet, damit man einen
-    # fehlenden Bescheid nicht für eine Bewilligung hält.
+    # ⚠️ Seit 1.20 rechnet ein Monat ohne Bescheid gar nicht mehr - der
+    # Grundwert an der Person ist kein Rückfall mehr. Statt einer Marke
+    # „Grundwert“ in der Tabelle steht in der Seitenspalte, dass hier
+    # gearbeitet, aber nichts bewilligt wurde.
     client.post("/einstellungen/person", data={
         "name": "Grundmann", "wochenstunden": "2", "stundensatz": "40",
         "abrechenbar": "1"})
@@ -2047,9 +2111,11 @@ def test_monatsbloecke(client: TestClient) -> None:
             "'10:00','Grundmann','Besuch',60,1,'gr1','2024-09-12 09:00')")
     seite = client.get("/auswertung?von_jahr=2024&von_monat=08"
                        "&bis_jahr=2024&bis_monat=10&klient=Grundmann").text
-    pruefe(">Grundwert<" in seite,
-           "ein Monat ohne Zeitraum ist als Grundwert markiert")
-    pruefe("40,00 €" in seite, "und rechnet mit dem Grundsatz")
+    pruefe(">Grundwert<" not in seite,
+           "ein Monat ohne Zeitraum trägt keine Marke „Grundwert“ mehr")
+    pruefe("40,00 €" not in seite, "und rechnet auch nicht mit dem Grundsatz")
+    pruefe("ohne Bescheid" in seite,
+           "stattdessen steht in der Seitenspalte, dass nichts bewilligt war")
 
 
 def test_mehrere_betreute(client: TestClient) -> None:
@@ -3839,7 +3905,26 @@ def test_auswertung_standard(client: TestClient) -> None:
     pruefe("alle Zeiten" in alle,
            "mit ausdrücklich leerem Jahr gilt wieder die ganze Zeit")
 
-    # Die vier Kennzahlen tragen alle eine Farbe.
+    # Die vier Kennzahlen tragen alle eine Farbe. ⚠️ „k-bewilligt“ steht
+    # nur da, wo es auch ein Soll gibt - seit 1.20 heisst das: nur mit
+    # einem Bescheid, der den Zeitraum abdeckt. Deshalb wird hier eigens
+    # einer angelegt statt auf den Grundwert zu bauen.
+    client.post("/einstellungen/person", data={
+        "name": "Kennzahlfrau", "abrechenbar": "1", "selbstzahler": "0",
+        "wochenstunden": "0", "stundensatz": "0"})
+    with db.db() as con:
+        kid = con.execute("SELECT id FROM person WHERE name='Kennzahlfrau'"
+                          ).fetchone()["id"]
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            f"angelegt_am) VALUES ('pruefer','{jahr}-03-04','{jahr}-03',"
+            f"'09:00','11:00','Kennzahlfrau','Besuch',120,1,'kz1',"
+            f"'{jahr}-03-04 09:00')")
+    client.post(f"/einstellungen/person/{kid}/zeitraum", data={
+        "von": f"{jahr}-01-01", "bis": "", "wochenstunden": "4",
+        "stundensatz": "50", "notiz": ""})
+    seite = client.get("/auswertung").text
     for klasse in ("k-geleistet", "k-bewilligt", "k-verdienst"):
         pruefe(klasse in seite, f"die Kennzahl „{klasse}“ ist eingefärbt")
 
@@ -4128,6 +4213,191 @@ def test_mobile_tabellen(client: TestClient) -> None:
     # Dateiliste: rollt unterhalb von 760px.
     pruefe(".tabellenrolle:has(.dateiverzeichnis)," in stil,
            "die Dateiliste rollt am Telefon in ihrer eigenen Hülle")
+
+
+def test_zeitwahl(client: TestClient) -> None:
+    """Der Zeitraum-Picker: ein Feld statt vier, ganze Monate."""
+    abschnitt("Zeitraum als Monatsraster")
+    seite = client.get("/eintraege").text
+
+    # ⚠️ Die vier Auswahlfelder bleiben im HTML - sie sind die Bedienung
+    # ohne Skript. Verschwinden sie, ist der Filter dort unbenutzbar.
+    pruefe('class="zeitwahl-klassisch"' in seite,
+           "die vier Auswahlfelder stehen weiterhin im HTML")
+    for feld in ("von_jahr", "von_monat", "bis_jahr", "bis_monat"):
+        pruefe(f'name="{feld}"' in seite, f"das Feld „{feld}“ ist noch da")
+    pruefe("ab dem 1." in seite and "einschließlich" in seite,
+           "und sagen jetzt ausdrücklich, welche Tage gemeint sind")
+
+    # Der Picker selbst wird vom Skript gebaut; im Markup stehen nur die
+    # Angaben, aus denen er entsteht.
+    pruefe('class="zeitwahl" data-jahre=' in seite,
+           "die Hülle bringt die verfügbaren Jahre mit")
+    pruefe('data-heute="' + dt.date.today().strftime("%Y-%m") in seite,
+           "und den laufenden Monat vom Server, nicht aus der Browser-Uhr")
+    pruefe("zw-raster" in seite and "zw-klartext" in seite,
+           "das Skript kennt Monatsraster und Klartextzeile")
+    pruefe("Letzte 12 Monate" in seite and "Dieses Jahr" in seite,
+           "die Schnellwähler sind angelegt")
+
+    # ⚠️ Namenskollision: „.zeitraumwahl“ gehört seit 0.8 dem Fuhrpark und
+    # steht dort auf display: flex. Der Filter-Picker muss deshalb
+    # „.zeitwahl-block“ heissen - sonst schrumpft sein Knopf auf die
+    # Breite seines Textes.
+    pruefe("wahlliste zeitwahl-block" in seite,
+           "der Picker benutzt eine eigene Klasse und nicht die des Fuhrparks")
+    stil = client.get("/static/style.css").text
+    pruefe(".zeitwahl, .zeitwahl-klassisch { display: contents; }" in stil,
+           "beide Hüllen stehen auf display: contents, damit die Felder "
+           "ihre Flexbreite behalten")
+
+    # Die Semantik selbst: ganze Monate, Endmonat eingeschlossen.
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2023-06-30','2023-06','09:00',"
+            "'10:00','Monatsrand','Besuch',60,1,'mr1','2023-06-30 09:00')")
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2023-07-01','2023-07','09:00',"
+            "'10:00','Monatsrand','Besuch',60,1,'mr2','2023-07-01 09:00')")
+    treffer = client.get("/eintraege?von_jahr=2023&von_monat=03"
+                         "&bis_jahr=2023&bis_monat=06&klient=Monatsrand").text
+    pruefe("30.06.2023" in treffer,
+           "der letzte Tag des Endmonats gehört noch dazu")
+    pruefe("01.07.2023" not in treffer,
+           "der erste Tag des Folgemonats nicht mehr")
+
+
+def test_konto_zugeklappt(client: TestClient) -> None:
+    """„Mein Konto“: der Passwortwechsel steht zugeklappt."""
+    abschnitt("Mein Konto: Passwort zugeklappt")
+    seite = client.get("/meinbereich").text
+    pruefe('<details class="passwortblock">' in seite,
+           "der Passwortblock ist zugeklappt")
+    pruefe('<details class="passwortblock" open>' not in seite,
+           "und zwar ohne „open“")
+    pruefe("passwort_alt" in seite and "passwort_neu2" in seite,
+           "die Felder stehen trotzdem im Formular")
+
+    # Nach einem Fehlversuch soll er offen stehen - sonst stünde die
+    # Meldung über einem zugeklappten Block.
+    antwort = client.post("/meinbereich/konto",
+                          data={"email": "", "passwort_alt": "falschfalsch",
+                                "passwort_neu": "neuesneues",
+                                "passwort_neu2": "neuesneues"},
+                          follow_redirects=False)
+    pruefe("pw=1" in antwort.headers.get("location", ""),
+           "ein Passwortfehler führt mit „pw=1“ zurück")
+    offen = client.get("/meinbereich?pw=1&fehler=x").text
+    pruefe('<details class="passwortblock" open>' in offen,
+           "und der Block steht dann offen")
+
+    stil = client.get("/static/style.css").text
+    pruefe(".passwortblock > summary {" in stil,
+           "die Zeile ist als Knopf gestaltet und nicht als nacktes Dreieck")
+
+
+def test_meine_zeiten_namensspalte(client: TestClient) -> None:
+    """„Meine Zeiten“: der Name bricht am Telefon nicht mehr um."""
+    abschnitt("Meine Zeiten: Namensspalte")
+    seite = client.get("/meinbereich").text
+    pruefe('class="personenspalte"' in seite,
+           "die Namensspalte ist eigens ausgezeichnet")
+    pruefe("<th>Betreuter</th>" not in seite,
+           "und heißt wie in der Übersicht „Betreute Person“")
+
+    stil = client.get("/static/style.css").text
+    # ⚠️ Aus „.tabellenrolle .liste“ kommt overflow-wrap: anywhere - das
+    # zerlegte lange Namen mitten im Wort.
+    pruefe(".tabellenrolle .liste.zeitentabelle td.personenspalte "
+           "{ overflow-wrap: normal; }" in stil,
+           "ein Name bricht nicht mehr mitten im Wort")
+    pruefe(".tabellenrolle .liste.zeitentabelle td.personenspalte "
+           "{ white-space: nowrap; }" in stil,
+           "und am Telefon gar nicht mehr - die Tabelle rollt dort ohnehin")
+
+
+def test_abrechnungsart(client: TestClient) -> None:
+    """Kostenträger oder Selbstzahler - und der Grundwert als Altlast."""
+    abschnitt("Abrechnungsart")
+    seite = client.get("/einstellungen?bereich=betreute").text
+
+    # Die Frage steht vor den Zahlen und ist ein Umschalter mit zwei
+    # Werten, kein Häkchen mehr.
+    pruefe("Wer zahlt?" in seite, "das Formular fragt zuerst, wer zahlt")
+    pruefe('name="selbstzahler" value="0"' in seite
+           and 'name="selbstzahler" value="1"' in seite,
+           "als Umschalter mit zwei ausdrücklichen Werten")
+    pruefe("Grundwert Std/Woche" not in seite
+           and "Grundwert Stundensatz" not in seite,
+           "die alten „Grundwert“-Felder sind aus dem Formular verschwunden")
+    pruefe("nur bei Selbstzahler" in seite,
+           "das Satzfeld sagt, wozu es gehört")
+
+    # ⚠️ Der String „0“ ist wahr. Wer das beim Auslesen nicht beachtet,
+    # macht aus jeder angelegten Person einen Selbstzahler.
+    client.post("/einstellungen/person", data={
+        "name": "Artfrau", "wochenstunden": "3", "stundensatz": "44",
+        "abrechenbar": "1", "selbstzahler": "0"})
+    with db.db() as con:
+        satz = con.execute("SELECT id, selbstzahler, wochenstunden, stundensatz "
+                           "FROM person WHERE name='Artfrau'").fetchone()
+    pruefe(satz["selbstzahler"] == 0,
+           "„selbstzahler=0“ legt keinen Selbstzahler an")
+    aid = satz["id"]
+
+    # Beim Kostenträger stehen die Zahlenfelder nicht mehr sichtbar da -
+    # aber als verstecktes Feld, damit ein Speichern sie nicht verliert.
+    block = client.get(f"/einstellungen?bereich=betreute&offen={aid}").text
+    person = block.split(f'id="person-{aid}"')[1].split("</details>")[0]
+    pruefe("Vereinbarter Stundensatz" not in person,
+           "beim Kostenträger gibt es kein Satzfeld")
+    pruefe('type="hidden" name="stundensatz"' in person,
+           "der alte Wert wird aber mitgeführt")
+    client.post(f"/einstellungen/person/{aid}", data={
+        "name": "Artfrau", "wochenstunden": "3", "stundensatz": "44,00",
+        "abrechenbar": "1", "aktiv": "1", "selbstzahler": "0"})
+    with db.db() as con:
+        nach = con.execute("SELECT wochenstunden, stundensatz FROM person "
+                           "WHERE id=?", (aid,)).fetchone()
+    pruefe(nach["stundensatz"] == 44 and nach["wochenstunden"] == 3,
+           "und geht beim Speichern nicht verloren (Arbeitsregel 11)")
+
+    # Als Selbstzahler kehren die Felder zurück, jetzt richtig benannt.
+    client.post(f"/einstellungen/person/{aid}", data={
+        "name": "Artfrau", "wochenstunden": "3", "stundensatz": "44,00",
+        "abrechenbar": "1", "aktiv": "1", "selbstzahler": "1"})
+    block = client.get(f"/einstellungen?bereich=betreute&offen={aid}").text
+    person = block.split(f'id="person-{aid}"')[1].split("</details>")[0]
+    pruefe("Vereinbarter Stundensatz" in person,
+           "beim Selbstzahler heißt das Feld „Vereinbarter Stundensatz“")
+    pruefe("grundwertumzug" not in person,
+           "und die Umzugshilfe erscheint für ihn nicht")
+
+    # Die Zeile in der Liste: „grundwert“ ist keine gültige Lage mehr.
+    client.post(f"/einstellungen/person/{aid}", data={
+        "name": "Artfrau", "wochenstunden": "3", "stundensatz": "44,00",
+        "abrechenbar": "1", "aktiv": "1", "selbstzahler": "0"})
+    block = client.get(f"/einstellungen?bereich=betreute&offen={aid}").text
+    zeile = block.split(f'id="person-{aid}"')[0].rsplit("<details", 1)[1]
+    pruefe("p-grundwert" in zeile and "ohne-bewilligung" in zeile,
+           "eine Person mit altem Grundwert zählt als ohne gültige Bewilligung")
+    stil = client.get("/static/style.css").text
+    pruefe(".konto.person.p-grundwert," in stil,
+           "und ist rot eingefärbt wie eine ganz leere")
+
+    # Der Text, den Timo sonst nie zu sehen bekäme: die beiden geänderten
+    # Schlüssel sind umbenannt, weil eine vorhandene strings.txt gewinnt.
+    from .texte_standard import TEXTE_STANDARD
+    pruefe("einst.ohne_zeitraum" in TEXTE_STANDARD
+           and "einst.selbstzahler_satz" in TEXTE_STANDARD,
+           "die berichtigten Texte tragen neue Schlüssel")
+    pruefe("einst.zeitraum_leer" not in TEXTE_STANDARD
+           and "einst.grundwert_hinweis" not in TEXTE_STANDARD,
+           "die alten, inzwischen falschen sind weg")
 
 
 def test_versionen() -> None:
@@ -4896,6 +5166,10 @@ def _durchlauf(client: TestClient) -> None:
         test_neuigkeiten(client)
         test_farbvariablen(client)
         test_bewilligung_nachfolge(client)
+        test_zeitwahl(client)
+        test_konto_zugeklappt(client)
+        test_meine_zeiten_namensspalte(client)
+        test_abrechnungsart(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")

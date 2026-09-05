@@ -3,6 +3,17 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.20
+
+- Filter: ein Zeitraum-Feld mit Monatsraster statt vier Auswahlfeldern,
+  samt Klartextzeile „01.03.2026 – 30.06.2026 · 4 Monate“
+- Betreute Personen: Abrechnungsart „Kostenträger“ oder „Selbstzahler“
+  entscheidet, welche Felder überhaupt erscheinen
+- Ohne Bescheid gibt es kein Soll und keinen Verdienst mehr; alte
+  Grundwerte lassen sich als Zeitraum übernehmen oder verwerfen
+- „Mein Konto“: Passwortwechsel zugeklappt
+- „Meine Zeiten“: Namensspalte bricht am Telefon nicht mehr um
+
 ## 1.19.2
 
 - Aufgaben: erledigte/abgebrochene Vorgänge stehen in jeder Sortierung

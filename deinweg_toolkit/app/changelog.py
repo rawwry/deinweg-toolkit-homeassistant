@@ -1638,4 +1638,29 @@ CHANGELOG = [
         "Neu: eine kleine Farblegende über der Liste erklärt die Ampel",
         "Prüfung von 1149 auf 1161 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.20", "titel": "Zeitraum-Picker und klare Abrechnungsart",
+     "punkte": [
+        "Filter: statt vier Auswahlfeldern ein Feld mit Monatsraster – "
+        "Anfang und Ende anklicken, Schnellwähler für „Dieser Monat“, "
+        "„Letzte 12 Monate“ oder „Dieses Jahr“. Darunter steht der "
+        "Zeitraum als Datum im Klartext („01.03.2026 – 30.06.2026 · 4 "
+        "Monate“), damit nie mehr offen bleibt, ob der Endmonat ganz "
+        "dazugehört",
+        "Betreute Personen: zuerst die Frage „Wer zahlt?“ – Kostenträger "
+        "oder Selbstzahler. Danach stehen nur noch die Felder da, die zu "
+        "der Antwort gehören",
+        "⚠️ Ohne Bescheid gibt es kein Soll und keinen Verdienst mehr. "
+        "Der frühere „Grundwert“ als Rückfall für Monate ohne Bewilligung "
+        "ist entfallen – er erfand Geld, wo keines floss. Beim "
+        "Selbstzahler bleibt derselbe Wert als vereinbarter Stundensatz",
+        "Wo noch ein alter Grundwert steht, bietet die Personenzeile ihn "
+        "zum Umzug an: „Als Zeitraum übernehmen“ (dann bleiben alle "
+        "Zahlen wie zuvor) oder „Grundwert verwerfen“",
+        "Auswertung: die Seitenspalte nennt Monate, in denen gearbeitet, "
+        "aber nichts bewilligt war",
+        "„Mein Konto“: der Passwortwechsel steht zugeklappt",
+        "„Meine Zeiten“: der Name der betreuten Person bricht am Telefon "
+        "nicht mehr um",
+        "Prüfung von 1161 auf 1210 Einzelprüfungen erweitert",
+    ]},
 ]

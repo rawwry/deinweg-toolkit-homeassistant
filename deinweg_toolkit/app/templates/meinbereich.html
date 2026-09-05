@@ -57,21 +57,23 @@
   <p class="klein leise">{{ t("mein.bewilligungen_gut") }}</p>
   {% endif %}
 
-  {# Personen ganz ohne Bescheid stehen zugeklappt darunter. Sie sind
-     eine Feststellung, kein Auftrag - offen ertränken zwanzig solche
-     Zeilen die drei, um die es wirklich geht. #}
+  {# Personen mit altem Grundwert, aber ohne Bescheid, stehen zugeklappt
+     darunter: offen ertränken zwanzig solche Zeilen die drei, um die es
+     wirklich geht. ⚠️ Seit 1.20 sind sie aber keine Feststellung mehr,
+     sondern eine Lücke - der Grundwert rechnet nicht mehr mit. Das sagt
+     die Zusammenfassung deshalb ausdrücklich. #}
   {% if bewilligungen_grundwert %}
   <details class="bewilligung-rest">
     <summary>
       {{ bewilligungen_grundwert | length }}
       {{ "Person" if bewilligungen_grundwert | length == 1 else "Personen" }}
-      ohne hinterlegten Bewilligungszeitraum – dort gilt der Grundwert
+      mit altem Grundwert, aber ohne Bewilligungszeitraum – dort wird nichts gerechnet
     </summary>
     <ul class="bewilligungsliste">
       {% for b in bewilligungen_grundwert %}
       <li class="bw-grundwert">
         <span class="bw-name">{{ b.name }}</span>
-        <span class="bw-lage"><span class="marke-status weg">kein Zeitraum</span></span>
+        <span class="bw-lage"><span class="marke-status weg">Grundwert ohne Wirkung</span></span>
         {% if hat_zugriff(request.state.benutzer, "einstellungen")
               and hat_einst_zugriff(request.state.benutzer, "betreute") %}
         <a class="knopf-icon bw-pflegen" title="Zeiträume pflegen" aria-label="Zeiträume pflegen"
@@ -697,7 +699,7 @@
   <div class="tabellenrolle">
   <table class="liste dicht zeitentabelle">
     <thead>
-      <tr><th>Datum</th><th>Zeit</th><th>Betreuter</th><th>Leistung</th>
+      <tr><th>Datum</th><th>Zeit</th><th class="personenspalte">Betreute Person</th><th>Leistung</th>
           <th class="dauerspalte">Dauer</th><th>Aktion</th></tr>
     </thead>
     <tbody>
@@ -709,7 +711,7 @@
            einem Bindestrich. Beide Listen zeigen dasselbe, also sollen
            sie auch gleich aussehen. #}
         <td class="zahlen leise"><span class="zeitspanne">{{ z.start or "—" }}{% if z.ende %} <span class="bis">{{ z.ende }}</span>{% endif %}</span></td>
-        <td>{{ z.klient }}</td>
+        <td class="personenspalte">{{ z.klient }}</td>
         <td class="leise klein">{{ z.beschreibung }}</td>
         <td class="zahlen nowrap stark">
           {{ z.dauer_min | hhmm }}
@@ -769,8 +771,16 @@
              autocomplete="email" placeholder="noch keine hinterlegt">
     </label>
 
-    <fieldset class="feld">
-      <span>Passwort ändern <span class="leise">– leer lassen, wenn es bleiben soll</span></span>
+    {# Zugeklappt: das Passwort wechselt man einmal im Jahr, die
+       E-Mail-Adresse öfter. Drei leere Passwortfelder, die immer offen
+       dastehen, sahen aus, als wäre dort etwas auszufüllen. Bewusst
+       <details> und kein Skript - ohne Skript bliebe der Block sonst
+       unerreichbar. #}
+    <details class="passwortblock"{{ ' open' if passwort_offen }}>
+      <summary>
+        <span class="passwortblock-titel">Passwort ändern</span>
+        <span class="klein leise">leer lassen, wenn es bleiben soll</span>
+      </summary>
       <div class="feldreihe drei">
         <label class="feld">
           <span>Aktuelles Passwort</span>
@@ -785,7 +795,7 @@
           <input type="password" name="passwort_neu2" autocomplete="new-password">
         </label>
       </div>
-    </fieldset>
+    </details>
 
     <div class="knopfreihe">
       <button class="knopf haupt" type="submit">Speichern</button>

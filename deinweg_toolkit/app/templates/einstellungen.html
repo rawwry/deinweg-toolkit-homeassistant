@@ -166,24 +166,61 @@
     <h1>Betreute Personen</h1>
     <p class="lead">{{ t("einst.betreute_lead") }}</p>
 
-    <form action="/einstellungen/person" method="post">
-      <div class="feldreihe zwei">
-        <label class="feld">
-          <span>Name</span>
-          <input type="text" name="name" required autocomplete="off"
-                 placeholder="genau wie in den Listen geschrieben">
-        </label>
-        <label class="feld">
-          <span>Grundwert Std/Woche</span>
-          <input type="text" name="wochenstunden" inputmode="decimal"
-                 placeholder="z. B. 7,5" autocomplete="off">
-        </label>
-        <label class="feld">
-          <span>Grundwert Stundensatz in €</span>
-          <input type="text" name="stundensatz" inputmode="decimal"
-                 placeholder="z. B. 52,80" autocomplete="off">
-        </label>
+    {# ⚠️ Die Abrechnungsart steht VOR den Zahlen und nicht als Häkchen
+       darunter (seit 1.20). Vorher trug ein einziges Feld „Grundwert Satz“
+       zwei verschiedene Bedeutungen: beim Selbstzahler den vereinbarten
+       Satz, sonst einen Rückfall für Monate ohne Bescheid. Man konnte an
+       der Oberfläche nicht sehen, welche gerade gemeint war. Jetzt
+       entscheidet die Art zuerst, und danach steht nur noch das da, was
+       zu ihr gehört. #}
+    <form action="/einstellungen/person" method="post" class="personform">
+      <label class="feld">
+        <span>Name</span>
+        <input type="text" name="name" required autocomplete="off"
+               placeholder="genau wie in den Listen geschrieben">
+      </label>
+
+      <div class="feld">
+        <span>Wer zahlt?</span>
+        <div class="artwahl">
+          <label class="artwahl-option">
+            <input type="radio" name="selbstzahler" value="0" checked>
+            <span class="artwahl-titel">Kostenträger</span>
+            <span class="artwahl-text">Stunden und Satz kommen aus den
+              bewilligten Zeiträumen.</span>
+          </label>
+          <label class="artwahl-option">
+            <input type="radio" name="selbstzahler" value="1">
+            <span class="artwahl-titel">Selbstzahler</span>
+            <span class="artwahl-text">Zahlt aus eigener Tasche – kein
+              Bescheid nötig, es gilt ein fester Satz.</span>
+          </label>
+        </div>
       </div>
+
+      {# Die beiden Zahlenfelder gibt es genau einmal – sie gehören zum
+         Selbstzahler und tragen das auch in der Beschriftung. Mit Skript
+         verschwinden sie, sobald „Kostenträger“ gewählt ist; ohne Skript
+         bleiben sie stehen und werden schlicht nicht ausgefüllt. #}
+      <div class="artfelder" data-art="1">
+        <div class="feldreihe zwei">
+          <label class="feld">
+            <span>Vereinbarter Stundensatz in €
+              <span class="leise">– nur bei Selbstzahler</span></span>
+            <input type="text" name="stundensatz" inputmode="decimal"
+                   placeholder="z. B. 52,80" autocomplete="off">
+          </label>
+          <label class="feld">
+            <span>Vereinbarte Std/Woche <span class="leise">– optional</span></span>
+            <input type="text" name="wochenstunden" inputmode="decimal"
+                   placeholder="z. B. 7,5" autocomplete="off">
+          </label>
+        </div>
+      </div>
+      <div class="artfelder" data-art="0">
+        <p class="klein leise felderklaerung">{{ t("einst.art_kostentraeger") }}</p>
+      </div>
+
       <label class="feld">
         <span>Abrechenbar</span>
         <label class="ankreuz">
@@ -191,14 +228,6 @@
           <span>Zeiten dieser Person zählen als abrechenbar</span>
         </label>
       </label>
-      <label class="feld">
-        <span>Selbstzahler</span>
-        <label class="ankreuz">
-          <input type="checkbox" name="selbstzahler" value="1">
-          <span>zahlt selbst – kein Bescheid nötig, der Stundensatz gilt als Satz je Stunde</span>
-        </label>
-      </label>
-      <p class="klein leise felderklaerung">{{ t("einst.grundwert_hinweis") }}</p>
       <div class="knopfreihe unten">
         <button class="knopf haupt" type="submit">Person anlegen</button>
       </div>
@@ -210,6 +239,7 @@
     <p class="klein leise">{{ t("einst.rechnung") }}</p>
     <p class="klein leise">{{ t("einst.schreibweise_betreute") }}</p>
     <p class="klein leise">{{ t("einst.stundensatz") }}</p>
+    <p class="klein leise">{{ t("einst.selbstzahler_satz") }}</p>
     <a class="knopf leise" href="/auswertung">Zur Auswertung</a>
   </div>
 </section>
@@ -250,7 +280,10 @@
   {% set gilt_heute = zeitraum_aktuell.get(p.id) %}
   {% set stand = zeitraum_lage.get(p.id, {}) %}
   <details class="konto person {{ '' if p.aktiv else 'stillgelegt' }}
-                  {{ 'ohne-bewilligung' if p.aktiv and stand.art in ('abgelaufen', 'kuenftig', 'leer', 'laeuft_aus') }}
+                  {# „grundwert" zählt seit 1.20 dazu: ein Grundwert ohne
+                     Bescheid rechnet nicht mehr mit, die Person steht damit
+                     genauso ohne gültige Bewilligung da wie eine ganz leere. #}
+                  {{ 'ohne-bewilligung' if p.aktiv and stand.art in ('abgelaufen', 'kuenftig', 'leer', 'laeuft_aus', 'grundwert') }}
                   {{ ('p-' ~ stand.art) if p.aktiv and stand.art }}"
            id="person-{{ p.id }}" {{ 'open' if offen == p.id }}>
     <summary class="konto-kopf">
@@ -282,9 +315,12 @@
           {% if stand.seit %}<span class="leise">seit {{ stand.seit | deutsch }}</span>{% endif %}
         {% elif stand.art == "kuenftig" %}
           <span class="marke-status offen">gilt erst ab {{ stand.ab | deutsch }}</span>
+        {# ⚠️ Seit 1.20 ist das keine gültige Lage mehr, sondern eine
+           Altlast: der Grundwert rechnet nicht mehr mit. Die Zeile sagt
+           das ausdrücklich, im Block darunter steht die Umzugshilfe. #}
         {% elif stand.art == "grundwert" %}
-          <span class="marke-status weg">nur Grundwert</span>
-          {{ p.wochenstunden | stunden }} Std/Woche · {{ p.stundensatz | euro }}
+          <span class="marke-status dopp">kein Bescheid</span>
+          <span class="leise">alter Grundwert, zählt nicht mehr</span>
         {% else %}
           <span class="marke-status dopp">keine Bewilligung hinterlegt</span>
         {% endif %}
@@ -310,20 +346,68 @@
     {% if p.aktiv and stand.art == "abgelaufen" %}
     <p class="meldung fehler bewilligungswarnung">
       Die Bewilligung ist am <strong>{{ stand.seit | deutsch }}</strong> ausgelaufen.
-      Bis ein neuer Zeitraum eingetragen ist, rechnet die Auswertung für
-      spätere Monate mit dem Grundwert unten – bei 0 also mit gar nichts.
+      Für spätere Monate rechnet die Auswertung damit weder ein Soll noch
+      einen Verdienst – bis ein neuer Zeitraum eingetragen ist.
     </p>
     {% elif p.aktiv and stand.art == "kuenftig" %}
     <p class="meldung offen-hinweis bewilligungswarnung">
       Der nächste Zeitraum beginnt erst am <strong>{{ stand.ab | deutsch }}</strong>.
-      Für die Zeit davor gilt der Grundwert unten.
+      Für die Zeit davor gibt es kein Soll und keinen Verdienst.
     </p>
     {% elif p.aktiv and stand.art == "leer" %}
     <p class="meldung fehler bewilligungswarnung">
-      Für diese Person ist nichts hinterlegt – weder ein Zeitraum noch ein
-      Grundwert. In der Auswertung erscheint sie damit ohne Soll und ohne
-      Verdienst.
+      Für diese Person ist kein Zeitraum hinterlegt. In der Auswertung
+      erscheint sie damit ohne Soll und ohne Verdienst.
     </p>
+    {% endif %}
+
+    {# --- Umzugshilfe für alte Grundwerte (seit 1.20) --------------------
+       Bis 1.19.2 galten „Grundwert Std/Woche“ und „Grundwert Satz“ als
+       Rückfall für jeden Monat ohne Bescheid. Das rechnete Geld herbei,
+       wo keines floss, und dasselbe Feld trug beim Selbstzahler eine ganz
+       andere Bedeutung. Seit 1.20 zählt der Grundwert nicht mehr mit –
+       stehen gelassene Werte müssen deshalb sichtbar aufgelöst werden,
+       statt still zu verschwinden. Zwei Wege: als Zeitraum übernehmen
+       (der Regelfall, wenn dahinter ein Bescheid stand) oder verwerfen. #}
+    {% if not p.selbstzahler and (p.wochenstunden or p.stundensatz) %}
+    <div class="grundwertumzug{{ ' dringend' if stand.art in ('grundwert', 'leer') }}">
+      <p class="grundwertumzug-kopf">
+        <span class="marke-status {{ 'dopp' if stand.art == 'grundwert' else 'weg' }}">alter Grundwert</span>
+        {{ p.wochenstunden | stunden }} Std/Woche · {{ p.stundensatz | euro }}
+        – zählt seit Fassung 1.20 nicht mehr mit.
+      </p>
+      <p class="klein leise">{{ t("einst.grundwert_umzug") }}</p>
+      <form action="/einstellungen/person/{{ p.id }}/zeitraum" method="post"
+            class="zeitraumneu grundwertumzug-form">
+        <input type="hidden" name="grundwert_leeren" value="1">
+        <input type="hidden" name="wochenstunden" value="{{ p.wochenstunden | stunden }}">
+        <input type="hidden" name="stundensatz"
+               value="{{ ('%.2f' % p.stundensatz) | replace('.', ',') if p.stundensatz else '0' }}">
+        <div class="feldreihe">
+          <label class="feld">
+            <span>Bewilligt ab</span>
+            <input type="date" name="von" required
+                   value="{{ p.erster_tag or heute }}">
+          </label>
+          <label class="feld">
+            <span>Bis <span class="leise">– leer = offen</span></span>
+            <input type="date" name="bis">
+          </label>
+          <label class="feld">
+            <span>Notiz</span>
+            <input type="text" name="notiz" value="aus Grundwert übernommen">
+          </label>
+        </div>
+        <div class="knopfreihe">
+          <button class="knopf haupt klein" type="submit">Als Zeitraum übernehmen</button>
+        </div>
+      </form>
+      <form class="inline" method="post"
+            action="/einstellungen/person/{{ p.id }}/grundwert-verwerfen"
+            onsubmit="return confirm('Den alten Grundwert von {{ p.name }} ersatzlos verwerfen?')">
+        <button class="knopf leise klein" type="submit">Grundwert verwerfen</button>
+      </form>
+    </div>
     {% endif %}
 
     {# Die Bewilligungen stehen oben: sie sind der Kern, nicht der Name. #}
@@ -385,7 +469,7 @@
       </table>
       </div>
       {% else %}
-      <p class="leer klein">{{ t("einst.zeitraum_leer") }}</p>
+      <p class="leer klein">{{ t("einst.ohne_zeitraum") }}</p>
       {% endif %}
 
       <form class="zeitraumneu" action="/einstellungen/person/{{ p.id }}/zeitraum"
@@ -419,30 +503,74 @@
     </div>
 
     {# Stammdaten stehen bewusst UNTER den Bewilligungen: der Name ändert
-       sich nie, die Bescheide dauernd. Der Grundwert ist nur der
-       Rückfall für Monate ohne Zeitraum und tritt deshalb zurück. #}
+       sich nie, die Bescheide dauernd. #}
     <div class="konto-block">
       <span class="konto-blocktitel">Stammdaten</span>
-      <div class="feldreihe">
+      <label class="feld">
+        <span>Name</span>
+        <input type="text" name="name" value="{{ p.name }}"
+               form="person-f-{{ p.id }}" required>
+      </label>
+
+      <div class="feld">
+        <span>Wer zahlt?</span>
+        <div class="artwahl">
+          <label class="artwahl-option">
+            <input type="radio" name="selbstzahler" value="0"
+                   {{ '' if p.selbstzahler else 'checked' }}
+                   form="person-f-{{ p.id }}">
+            <span class="artwahl-titel">Kostenträger</span>
+            <span class="artwahl-text">Stunden und Satz kommen aus den
+              bewilligten Zeiträumen oben.</span>
+          </label>
+          <label class="artwahl-option">
+            <input type="radio" name="selbstzahler" value="1"
+                   {{ 'checked' if p.selbstzahler }}
+                   form="person-f-{{ p.id }}">
+            <span class="artwahl-titel">Selbstzahler</span>
+            <span class="artwahl-text">Fester Satz je Stunde, kein
+              Bescheid nötig.</span>
+          </label>
+        </div>
+      </div>
+
+      {# ⚠️ Welche Felder hier stehen, entscheidet die GESPEICHERTE Art,
+         nicht der gerade angeklickte Umschalter. Damit gibt es die beiden
+         Zahlenfelder auf der Seite genau einmal - zwei gleichnamige
+         Felder in einem Formular sind eine Falle, weil dann nicht mehr
+         feststeht, welcher Wert ankommt. Wer die Art wechselt, speichert
+         einmal und bekommt dann die passenden Felder; das ist ein Klick
+         mehr und dafür jederzeit eindeutig, ganz ohne Skript.
+         ⚠️ Beim Kostenträger stehen die Werte als versteckte Felder da:
+         ein nicht abgeschicktes Feld käme als 0 an und der alte Grundwert
+         wäre beim nächsten Speichern stillschweigend weg - genau das,
+         wovor Arbeitsregel 11 warnt. Weggeräumt wird er ausdrücklich,
+         über die Umzugshilfe oben. #}
+      {% if p.selbstzahler %}
+      <div class="feldreihe zwei">
         <label class="feld">
-          <span>Name</span>
-          <input type="text" name="name" value="{{ p.name }}"
-                 form="person-f-{{ p.id }}" required>
-        </label>
-        <label class="feld">
-          <span>Grundwert Std/Woche <span class="leise">– Rückfall</span></span>
-          <input type="text" name="wochenstunden" inputmode="decimal"
-                 value="{{ p.wochenstunden | stunden }}"
-                 form="person-f-{{ p.id }}">
-        </label>
-        <label class="feld">
-          <span>Grundwert Satz in € <span class="leise">– Rückfall</span></span>
+          <span>Vereinbarter Stundensatz in €</span>
           <input type="text" name="stundensatz" inputmode="decimal"
                  value="{{ ('%.2f' % p.stundensatz) | replace('.', ',') if p.stundensatz else '' }}"
                  placeholder="0,00" form="person-f-{{ p.id }}">
         </label>
+        <label class="feld">
+          <span>Vereinbarte Std/Woche <span class="leise">– optional</span></span>
+          <input type="text" name="wochenstunden" inputmode="decimal"
+                 value="{{ p.wochenstunden | stunden }}"
+                 form="person-f-{{ p.id }}">
+        </label>
       </div>
-      <p class="klein leise felderklaerung">{{ t("einst.grundwert_hinweis") }}</p>
+      <p class="klein leise felderklaerung">{{ t("einst.art_selbstzahler") }}</p>
+      {% else %}
+      <input type="hidden" name="wochenstunden" value="{{ p.wochenstunden | stunden }}"
+             form="person-f-{{ p.id }}">
+      <input type="hidden" name="stundensatz"
+             value="{{ ('%.2f' % p.stundensatz) | replace('.', ',') if p.stundensatz else '0' }}"
+             form="person-f-{{ p.id }}">
+      <p class="klein leise felderklaerung">{{ t("einst.art_kostentraeger") }}</p>
+      {% endif %}
+
       <div class="bereichsraster">
         <label class="bereich-kachel">
           <input type="checkbox" name="abrechenbar" value="1"
@@ -454,13 +582,7 @@
                  {{ 'checked' if p.aktiv }} form="person-f-{{ p.id }}">
           Person aktiv
         </label>
-        <label class="bereich-kachel">
-          <input type="checkbox" name="selbstzahler" value="1"
-                 {{ 'checked' if p.selbstzahler }} form="person-f-{{ p.id }}">
-          Selbstzahler
-        </label>
       </div>
-      <p class="klein leise felderklaerung">{{ t("einst.selbstzahler_hinweis") }}</p>
     </div>
 
     {# Eine Knopfzeile, ganz unten, und „entfernen“ rechts abgesetzt -
@@ -1801,5 +1923,28 @@
 
 </div>
 </div>
+
+<script>
+  // Im Anlegeformular für betreute Personen stehen die Zahlenfelder nur
+  // beim Selbstzahler. Rein optional: ohne Skript bleiben sie sichtbar
+  // und tragen den Zusatz „nur bei Selbstzahler“ in der Beschriftung.
+  // In der Personenliste entscheidet dagegen der Server (die gespeicherte
+  // Art) - dort gibt es die Felder nur einmal und nichts umzuschalten.
+  (function () {
+    document.querySelectorAll("form.personform").forEach(function (form) {
+      var wahl = form.querySelectorAll("input[name=selbstzahler]"),
+          bloecke = form.querySelectorAll(".artfelder");
+      if (!wahl.length || !bloecke.length) { return; }
+      function zeigen() {
+        var art = form.querySelector("input[name=selbstzahler]:checked");
+        bloecke.forEach(function (b) {
+          b.hidden = !art || b.dataset.art !== art.value;
+        });
+      }
+      wahl.forEach(function (k) { k.addEventListener("change", zeigen); });
+      zeigen();
+    });
+  })();
+</script>
 
 {% endblock %}

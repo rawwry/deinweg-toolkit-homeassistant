@@ -489,6 +489,86 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
   letter-spacing: .06em; text-transform: uppercase; color: var(--leise);
 }
 
+/* --- Zeitraum als Monatsraster ------------------------------------------
+   Vier Auswahlfelder ("Von Jahr", "Von Monat", "Bis Jahr", "Bis Monat")
+   waren zusammen fast die halbe Filterzeile und ließen trotzdem offen,
+   welcher Tag gemeint ist. Jetzt steht dort ein Feld, das den Zeitraum
+   ausschreibt; das Raster dahinter kennt nur ganze Monate - genau so
+   rechnet die Anwendung auch.
+
+   ⚠️ Beide Hüllen stehen auf display: contents. Sonst lägen die vier
+   Ersatzfelder zwei Ebenen tief in der Flexbox .filter und verlören ihr
+   "flex: 1 1 150px" - sie stünden dann alle vier in einer schmalen
+   Spalte übereinander. Versteckt wird über [hidden], und dessen
+   !important-Regel schlägt display: contents.
+*/
+.zeitwahl, .zeitwahl-klassisch { display: contents; }
+.zeitwahl-feld { flex: 1 1 240px; }
+/* Das Feld trägt einen längeren Text als die Namenslisten daneben
+   ("September 2025 bis Juni 2026") und darf ihn nicht abschneiden. */
+.zeitwahl-block > summary { white-space: normal; }
+.zeitwahl-feld .zeitwahl-panel {
+  min-width: 296px; max-height: none; padding: 12px;
+}
+/* Schnellwähler zuerst: in neun von zehn Fällen ist das, wonach man
+   sucht, ein Monat oder ein Jahr - dafür soll man nicht klicken müssen. */
+.zw-schnell {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding-bottom: 11px; margin-bottom: 11px;
+  border-bottom: 1px solid var(--linie);
+}
+.zw-chip {
+  border: 1px solid var(--linie); background: var(--flaeche-2); color: inherit;
+  font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 20px;
+  cursor: pointer;
+}
+.zw-chip:hover { border-color: var(--akzent); color: var(--akzent); }
+
+.zw-jahr { display: flex; align-items: center; gap: 4px; margin-bottom: 9px; }
+.zw-jahrzahl {
+  font-size: 14px; font-weight: 600; min-width: 52px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+/* Mit "alle Jahre" spielt die Jahreszahl keine Rolle mehr - sie bleibt
+   stehen (das Raster braucht sie), tritt aber zurück. */
+.zw-jahrzahl.stumm { opacity: .35; }
+.zw-pfeil {
+  width: 28px; height: 28px; display: inline-flex; align-items: center;
+  justify-content: center; border: 1px solid var(--linie); border-radius: 8px;
+  background: var(--flaeche-2); color: inherit; cursor: pointer; padding: 0;
+}
+.zw-pfeil svg { width: 16px; height: 16px; }
+.zw-pfeil:hover:not(:disabled) { border-color: var(--akzent); color: var(--akzent); }
+.zw-pfeil:disabled { opacity: .3; cursor: default; }
+.zw-allejahre {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--leise); cursor: pointer;
+}
+.zw-allejahre input { accent-color: var(--akzent); margin: 0; }
+
+.zw-raster { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.zw-monat {
+  border: 1px solid transparent; background: var(--flaeche-2); color: inherit;
+  font: inherit; font-size: 13px; padding: 8px 0; border-radius: 8px;
+  cursor: pointer;
+}
+.zw-monat:hover { border-color: var(--akzent); }
+/* Die Spanne wird als Fläche gezeigt, die Ränder kräftig - so sieht man
+   auf einen Blick, was dazugehört, ohne die Zahlen zu lesen. */
+.zw-monat.drin { background: var(--akzent-weich); color: var(--akzent); }
+.zw-monat.anfang, .zw-monat.ende {
+  background: var(--akzent); color: var(--grund); font-weight: 600;
+}
+.zw-klartext {
+  margin: 11px 0 0; font-size: 12px; color: var(--leise);
+  font-variant-numeric: tabular-nums;
+}
+.zw-fuss {
+  display: flex; gap: 8px; align-items: center;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--linie);
+}
+.zw-uebernehmen { margin-left: auto; }
+
 /* Suchfeld in der Fußzeile des Filters (nur auf der Übersicht). */
 .filter-suche { display: flex; align-items: center; gap: 9px; flex: 1 1 220px;
                 max-width: 340px; font-size: 12.5px; }
@@ -2184,6 +2264,48 @@ body.anmeldeseite {
 .bereich-kachel.heikel { border-color: var(--dopp); color: var(--dopp); }
 .bereich-kachel.heikel input { accent-color: var(--dopp); }
 
+/* --- Abrechnungsart einer betreuten Person (seit 1.20) -------------------
+   Zwei Karten nebeneinander statt eines Häkchens „Selbstzahler“. Die
+   Frage „wer zahlt?“ entscheidet, welche Felder überhaupt einen Sinn
+   ergeben - sie gehört deshalb nach oben und muss beim Lesen sofort
+   beantwortet sein. Ein Häkchen weiter unten beantwortete sie erst,
+   nachdem man die Zahlenfelder schon falsch ausgefüllt hatte.
+*/
+.artwahl {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
+  gap: 10px;
+}
+.artwahl-option {
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 9px;
+  align-items: start; cursor: pointer;
+  padding: 12px 14px; border-radius: 11px;
+  border: 1px solid var(--linie); background: var(--flaeche);
+}
+.artwahl-option input { accent-color: var(--akzent); margin: 3px 0 0; grid-row: span 2; }
+.artwahl-titel { font-size: 13.5px; font-weight: 600; }
+.artwahl-text { font-size: 12px; color: var(--leise); line-height: 1.45; }
+.artwahl-option:hover { border-color: var(--akzent); }
+.artwahl-option:has(input:checked) {
+  border-color: var(--akzent); background: var(--akzent-weich);
+}
+.artwahl-option:has(input:checked) .artwahl-titel { color: var(--akzent); }
+
+/* Ein Grundwert aus der Zeit vor 1.20. Er steht noch in der Datenbank,
+   rechnet aber nicht mehr mit - deshalb sichtbar als Restposten und
+   nicht als normales Feld: er will aufgelöst werden, nicht gepflegt.
+   Der Ton ist gedämpft, solange daneben ein Bescheid steht, und wird
+   deutlich, wenn er die einzige Angabe der Person ist. */
+.grundwertumzug {
+  margin: 0 0 16px; padding: 14px 16px;
+  border: 1px solid var(--linie-stark); border-left: 3px solid var(--leise);
+  border-radius: 11px; background: var(--flaeche-2);
+}
+.grundwertumzug.dringend { border-left-color: var(--dopp); background: var(--dopp-weich); }
+.grundwertumzug-kopf { margin: 0 0 6px; font-size: 13px; }
+.grundwertumzug .zeitraumneu { margin-top: 12px; }
+.grundwertumzug .knopfreihe { margin-top: 10px; }
+.grundwertumzug > form.inline { margin-top: 8px; }
+
 /* --- Auswertung ---------------------------------------------------------- */
 /*
    Zwei Spalten über die GANZE Seite. Bis 1.4.1 lag das Raster nur über
@@ -2430,9 +2552,13 @@ body.anmeldeseite {
 .konto.person.p-selbstzahler { border-left: 3px solid var(--info); background: var(--info-weich); }
 .konto.person.p-laeuft_aus,
 .konto.person.p-kuenftig     { border-left: 3px solid var(--warn); background: var(--warn-weich); }
+/* ⚠️ „grundwert" war bis 1.19.2 grau: dort galt der Grundwert als
+   Rückfall, die Person rechnete also mit. Seit 1.20 rechnet sie gar
+   nicht mehr - damit ist das derselbe Fall wie „nichts hinterlegt" und
+   gehört in dieselbe Farbe. */
 .konto.person.p-abgelaufen,
+.konto.person.p-grundwert,
 .konto.person.p-leer         { border-left: 3px solid var(--dopp); background: var(--dopp-weich); }
-.konto.person.p-grundwert    { border-left: 3px solid var(--linie-stark); }
 /* ⚠️ Der Schimmer darf den Aufklapp-Kopf beim Überfahren nicht
    verschlucken: .konto-kopf:hover setzt eine eigene Fläche, die soll
    sichtbar bleiben. Deshalb tönt der Schimmer nur die Zeile, nicht den
@@ -3936,6 +4062,36 @@ fieldset.feld > span {
 .abmeldekarte .kopfzeile { margin-bottom: 0; align-items: center; }
 .abmeldekarte .lead { margin-top: 14px; }
 .kontoform fieldset.feld { border: 0; padding: 0; margin: 0 0 4px; }
+/* Der Passwortwechsel steht zugeklappt: drei leere Passwortfelder, die
+   immer offen dastehen, sehen aus, als wäre dort etwas auszufüllen -
+   dabei ändert man sein Passwort einmal im Jahr. Bewusst <details> und
+   kein Skript, sonst wäre der Block ohne Skript gar nicht erreichbar. */
+.passwortblock { margin: 2px 0 6px; }
+.passwortblock > summary {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  cursor: pointer; list-style: none;
+  padding: 10px 14px; border: 1px solid var(--linie-stark); border-radius: 10px;
+  background: var(--flaeche-2);
+}
+.passwortblock > summary::-webkit-details-marker { display: none; }
+.passwortblock-titel { font-size: 13px; font-weight: 600; }
+/* Der Pfeil sitzt am Zeilenende und dreht sich beim Aufklappen - dieselbe
+   Sprache wie bei den Konten in der Benutzerverwaltung. */
+.passwortblock > summary::after {
+  content: ""; margin-left: auto; width: 9px; height: 9px;
+  border-right: 2px solid var(--leise); border-bottom: 2px solid var(--leise);
+  transform: rotate(45deg) translate(-2px, -2px); align-self: center;
+}
+.passwortblock[open] > summary::after { transform: rotate(-135deg); }
+.passwortblock > summary:hover { border-color: var(--akzent); }
+.passwortblock[open] > summary { border-radius: 10px 10px 0 0; border-bottom: 0; }
+.passwortblock[open] > .feldreihe {
+  border: 1px solid var(--linie-stark); border-top: 0; border-radius: 0 0 10px 10px;
+  padding: 14px; margin: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .passwortblock > summary::after { transition: transform .2s ease; }
+}
 .knopf.abmelden { display: inline-flex; align-items: center; gap: 8px; }
 .knopf.abmelden svg { width: 16px; height: 16px; }
 .knopf.abmelden:hover { border-color: var(--dopp); color: var(--dopp); }
@@ -3985,6 +4141,11 @@ fieldset.feld > span {
 .tabellenrolle .liste.zeitentabelle th { white-space: normal; }
 .tabellenrolle .liste.zeitentabelle td.nowrap,
 .tabellenrolle .liste.zeitentabelle td:last-child { white-space: nowrap; }
+/* ⚠️ Ein Name ist ein Wort und darf nicht mittendrin brechen. Aus
+   „.tabellenrolle .liste“ kommt „overflow-wrap: anywhere“ – nötig für
+   lange Pfadangaben, in einer Namensspalte aber falsch: aus
+   „Wollenschläger“ wurde „Wollenschlä/ger“. */
+.tabellenrolle .liste.zeitentabelle td.personenspalte { overflow-wrap: normal; }
 /* Etwas kleiner als die übrigen Listen: es ist die Nachschlageliste der
    eigenen Zeiten, keine Auswertung. */
 .zeitentabelle { font-size: 12.5px; }
@@ -4032,6 +4193,15 @@ fieldset.feld > span {
   .tabellenrolle .liste.zeitentabelle { min-width: 620px; }
   .tabellenrolle:has(.zeitentabelle) { overflow-x: auto; }
   .zeitentabelle th:first-child { width: auto; }
+  /* ⚠️ Die Namensspalte bleibt einzeilig. Sie war die einzige, die
+     umbrach - „Katharina Wollenschläger“ zog die Zeile auf zwei Zeilen,
+     während Datum, Zeit und Dauer daneben einzeilig blieben; das sah
+     ausgefranst aus. Die Tabelle rollt hier ohnehin, ein breiterer Name
+     schiebt sie also nur ein Stück weiter, statt die Zeile zu stauchen.
+     Bei table-layout: auto ist das gefahrlos - anders als bei „fixed“,
+     wo eine nowrap-Zelle über ihren Rand hinausliefe. */
+  .tabellenrolle .liste.zeitentabelle th.personenspalte,
+  .tabellenrolle .liste.zeitentabelle td.personenspalte { white-space: nowrap; }
   /* Dieselbe Sache eine Karte weiter unten: fünf Spalten mit
      zweizeiligen Köpfen passen auf 375px nicht, „Erfasst" und „Soll"
      liefen ineinander und die letzte Spalte war abgeschnitten. */

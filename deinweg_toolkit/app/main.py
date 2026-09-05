@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.19.2"
+VERSION = "1.20"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -911,14 +911,16 @@ def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
     * ``laeuft_aus`` - gilt noch, endet bald, und es gibt keinen Nachfolger
     * ``abgelaufen`` - der letzte Bescheid ist vorbei
     * ``kuenftig``   - der naechste beginnt erst
-    * ``grundwert``  - gar kein Bescheid, aber ein Grundwert
+    * ``grundwert``  - kein Bescheid, aber ein alter Grundwert. Seit 1.20
+      rechnet der nicht mehr mit; die Lage heisst damit "hier steht ein
+      Wert, der nichts tut" und verlangt, aufgeloest zu werden.
     * ``leer``       - nichts hinterlegt
 
     ⚠️ Ein Selbstzahler zahlt aus eigener Tasche und braucht keinen
     Kostentraeger-Bescheid. Fuer ihn ist die ganze Frage gegenstandslos -
     deshalb ganz oben abgefangen und "selbstzahler" zurueckgegeben, was
     NICHT in BEWILLIGUNG_HANDLUNG steht und damit nie eine Warnung
-    ausloest. Sein Stundensatz ist der Grundwert an ``person``.
+    ausloest. Sein Stundensatz ist der vereinbarte Satz an ``person``.
 
     ⚠️ **Ein hinterlegter Folgebescheid beendet die Warnung.** "Laeuft
     aus" heisst: hier muss ein Folgeantrag raus. Steht der naechste
@@ -1034,9 +1036,12 @@ def bewilligungen_pruefen(con, vorlauf: int | None = None) -> list[dict]:
     Dringendstes zuerst. Grundlage fuer die Karte in "Mein Bereich".
 
     ⚠️ Die Karte trennt danach in zwei Gruppen: alles ausser "grundwert"
-    verlangt einen Folgeantrag, "grundwert" ist nur eine Feststellung
-    ("hier war nie ein Bescheid hinterlegt"). Ohne diese Trennung
-    ertraenken zwanzig Grundwert-Zeilen die drei, um die es geht.
+    steht offen da, "grundwert" zugeklappt darunter. Ohne diese Trennung
+    ertraenken zwanzig Altbestands-Zeilen die drei, um die es geht.
+    Seit 1.20 ist "grundwert" allerdings keine harmlose Feststellung
+    mehr, sondern eine Luecke - der Grundwert rechnet nicht mehr mit.
+    Die Zusammenfassung der zugeklappten Gruppe sagt das deshalb
+    ausdruecklich, und in den Einstellungen steht dort die Umzugshilfe.
     """
     heute = dt.date.today().isoformat()
     zr = zeitraeume_lesen(con)
@@ -1070,12 +1075,24 @@ def zeitraeume_lesen(con) -> dict[str, list]:
 
 
 def kontingent_im_monat(monat: str, zeitraeume, grund_stunden: float,
-                        grund_satz: float) -> tuple[float, float, bool]:
+                        grund_satz: float,
+                        selbstzahler: bool = False) -> tuple[float, float, bool]:
     """Welche Wochenstunden und welcher Stundensatz galten in diesem Monat?
 
-    Gibt ``(wochenstunden, stundensatz, aus_zeitraum)`` zurück. Greift kein
-    Zeitraum, gelten die Grundwerte der Person — so rechnen alle bisher
-    gepflegten Personen unverändert weiter.
+    Gibt ``(wochenstunden, stundensatz, aus_zeitraum)`` zurück.
+
+    ⚠️ **Ohne Bescheid gibt es nichts** (seit 1.20). Greift kein Zeitraum,
+    steht dort 0 - keine Stunden, kein Geld. Bis 1.19.2 fielen die Werte
+    hier auf die Grundwerte der Person zurueck, und genau das war die
+    Fehlerquelle: dasselbe Feld "Grundwert Satz" trug einmal den
+    vereinbarten Satz eines Selbstzahlers und einmal einen Rueckfall fuer
+    Monate ohne Bescheid. Wer einen Kostentraeger hat und keinen
+    Bescheid, verdient aber nichts - ein Rueckfall erfand dort Geld.
+
+    Einzige Ausnahme ist der **Selbstzahler**: er braucht keinen Bescheid,
+    sein Grundwert IST der vereinbarte Satz. Deshalb wird er ausdruecklich
+    hereingereicht statt aus den Werten erraten - null Euro Grundwert und
+    "kein Kostentraeger" sind zwei verschiedene Dinge.
 
     ⚠️ **Überschneiden sich zwei Zeiträume, gewinnt der später begonnene.**
     Das kommt in der Praxis vor, wenn ein Folgebescheid schon läuft,
@@ -1090,7 +1107,9 @@ def kontingent_im_monat(monat: str, zeitraeume, grund_stunden: float,
         if z["bis"] and z["bis"] < anfang:
             continue
         return (z["wochenstunden"] or 0), (z["stundensatz"] or 0), True
-    return grund_stunden or 0, grund_satz or 0, False
+    if selbstzahler:
+        return grund_stunden or 0, grund_satz or 0, False
+    return 0, 0, False
 
 
 def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",
@@ -1284,7 +1303,12 @@ def auswahllisten() -> dict:
     if str(heute.year) not in jahre:
         jahre = [str(heute.year)] + jahre
     return {"jahre": jahre, "leute": leute, "klienten": klienten,
-            "monatsnamen": MONATSNAMEN}
+            "monatsnamen": MONATSNAMEN,
+            # Der Zeitraum-Picker rechnet "dieser Monat" / "letzte 12
+            # Monate" daraus aus. Bewusst vom Server: die Uhr des Browsers
+            # kann falsch gehen, und die Auswertung soll denselben Monat
+            # meinen wie der Wecker.
+            "heute_monat": heute.strftime("%Y-%m")}
 
 
 # --- Wer darf welchen Zeiteintrag loeschen? ---------------------------------
@@ -1785,6 +1809,9 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         zr = zeitraeume.get(r["klient"], [])
         grund_std = p["wochenstunden"] if p else 0
         grund_satz = p["stundensatz"] if p else 0
+        # Nur fuer einen Selbstzahler zaehlen die Grundwerte ueberhaupt -
+        # siehe kontingent_im_monat().
+        selbst = bool(p["selbstzahler"]) if p else False
 
         # Soll: Monat fuer Monat mit den Werten, die in diesem Monat galten.
         # Fuer die Anzeige wird zusaetzlich festgehalten, welche
@@ -1793,7 +1820,8 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         # irrefuehrend.
         soll, std_stufen = 0, set()
         for monat in monate:
-            std, _satz, _ = kontingent_im_monat(monat, zr, grund_std, grund_satz)
+            std, _satz, _ = kontingent_im_monat(monat, zr, grund_std, grund_satz,
+                                                selbst)
             if std:
                 std_stufen.add(std)
                 soll += soll_minuten(std, monat) or 0
@@ -1802,7 +1830,8 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         # Verdienst: die Minuten JEDES Monats mit dem Satz dieses Monats.
         betrag, satz_stufen = 0.0, set()
         for monat, daten in (je_monat.get(r["klient"]) or {}).items():
-            _std, satz, _ = kontingent_im_monat(monat, zr, grund_std, grund_satz)
+            _std, satz, _ = kontingent_im_monat(monat, zr, grund_std, grund_satz,
+                                                selbst)
             if satz and daten["m"]:
                 satz_stufen.add(satz)
                 betrag += daten["m"] / 60 * satz
@@ -1840,7 +1869,14 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
     # Monate ohne erfasste Zeiten bleiben stehen, solange fuer sie ein Soll
     # gilt. Genau die will man sehen - eine Luecke faellt sonst nicht auf.
     monatsbloecke = []
-    grundwert_monate: dict[str, int] = {}
+    # Zwei verschiedene Dinge, die beide "kein Zeitraum" heissen: beim
+    # Selbstzahler ist das der Normalfall (er braucht keinen Bescheid),
+    # beim Kostentraeger-Fall ist es eine Luecke - dort wurde gearbeitet,
+    # ohne dass etwas bewilligt war. Seit 1.20 werden sie getrennt
+    # gezaehlt und in der Seitenspalte verschieden benannt; vorher lief
+    # beides unter "Grundwert" und sah damit gleich harmlos aus.
+    selbst_monate: dict[str, int] = {}
+    ohne_bescheid_monate: dict[str, int] = {}
     for monat in monate:
         zeilen, m_ist, m_soll, m_betrag, m_n = [], 0, 0, 0.0, 0
         for r in roh:
@@ -1849,7 +1885,8 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
             zr = zeitraeume.get(klient, [])
             std, satz, aus_zeitraum = kontingent_im_monat(
                 monat, zr, p["wochenstunden"] if p else 0,
-                p["stundensatz"] if p else 0)
+                p["stundensatz"] if p else 0,
+                bool(p["selbstzahler"]) if p else False)
             daten = (je_monat.get(klient) or {}).get(monat)
             ist = daten["m"] if daten else 0
             anzahl = daten["n"] if daten else 0
@@ -1867,11 +1904,15 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
                 "aus_zeitraum": aus_zeitraum,
                 "betrag": zeilenbetrag, "leute": leute,
             })
-            if not aus_zeitraum and (soll or satz):
-                # Fuer die Seitenspalte: in wievielen Monaten hat der
-                # Grundwert der Person gegriffen, weil kein Bescheid
-                # hinterlegt ist?
-                grundwert_monate[klient] = grundwert_monate.get(klient, 0) + 1
+            if not aus_zeitraum:
+                if p and p["selbstzahler"]:
+                    selbst_monate[klient] = selbst_monate.get(klient, 0) + 1
+                elif ist:
+                    # Gearbeitet, aber nichts bewilligt. Genau die Monate
+                    # muessen in der Seitenspalte auffallen - in der
+                    # Tabelle stehen sie nur als drei Striche da.
+                    ohne_bescheid_monate[klient] = (
+                        ohne_bescheid_monate.get(klient, 0) + 1)
             m_ist += ist
             m_soll += soll
             m_betrag += zeilenbetrag
@@ -1897,15 +1938,17 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         treffer = [z for z in zeitraeume.get(r["klient"], [])
                    if z["von"] <= filterende
                    and (not z["bis"] or z["bis"] >= filterbeginn)]
-        grund = grundwert_monate.get(r["klient"], 0)
+        selbst = selbst_monate.get(r["klient"], 0)
+        offen = ohne_bescheid_monate.get(r["klient"], 0)
         p_stamm = stamm.get(r["klient"])
         selbstzahler = bool(p_stamm["selbstzahler"]) if p_stamm else False
-        if treffer or grund:
+        if treffer or selbst or offen:
             zeitraum_liste.append({
                 "klient": r["klient"],
                 # aufsteigend lesen, so wie die Bescheide aufeinander folgen
                 "zeitraeume": list(reversed(treffer)),
-                "grundwert": grund,
+                "selbst_monate": selbst,
+                "ohne_bescheid": offen,
                 "selbstzahler": selbstzahler,
             })
 
@@ -1978,7 +2021,7 @@ MEINE_ZEITEN_MAX = 300
 
 @app.get("/meinbereich", response_class=HTMLResponse)
 def meinbereich(request: Request, alle: str = "", hinweis: str = "",
-                fehler: str = "", zeiten: str = ""):
+                fehler: str = "", zeiten: str = "", pw: str = ""):
     benutzer = request.state.benutzer
     with db.db() as con:
         person = mitarbeiter_zu_benutzer(con, benutzer)
@@ -1990,6 +2033,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                 context={"seite": "meinbereich", "person": None,
                          "monate": [], "benutzer": benutzer,
                          "spruch": spruch(), "eigene_aufgaben": [],
+                         "passwort_offen": bool(pw),
                          "bewilligungen": [
                              b for b in (bewilligungen_pruefen(con)
                                          if auth.darf_bewilligungen_sehen(benutzer)
@@ -2282,7 +2326,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "seite": "meinbereich", "person": person, "name": person["name"],
             "soll_std": soll_std, "monate": monate, "gesamt": gesamt,
             "laufend": laufend, "alle": bool(alle), "benutzer": benutzer,
-            "hinweis": hinweis, "fehler": fehler,
+            "hinweis": hinweis, "fehler": fehler, "passwort_offen": bool(pw),
             "diagramm": diagramm, "urlaub": urlaub,
             "letzter": letzter, "trend": trend,
             "offene_vorgaenge": offene_vorgaenge, "ueberfaellig": ueberfaellig,
@@ -2494,14 +2538,19 @@ def konto_speichern(request: Request, email: str = Form(""),
             # Das aktuelle Passwort ist Pflicht. Sonst koennte jemand an
             # einem unbeaufsichtigt offenen Bildschirm das Konto uebernehmen
             # und die eigentliche Inhaberin aussperren.
+            # "pw=1" haelt den zugeklappten Passwortblock offen, damit die
+            # Fehlermeldung nicht ueber einem geschlossenen Block steht.
             if not db.passwort_pruefen(passwort_alt, satz["passwort_hash"]):
-                return _konto_zurueck(fehler="Das aktuelle Passwort stimmt nicht.")
+                return _konto_zurueck(fehler="Das aktuelle Passwort stimmt nicht.",
+                                      pw="1")
             if len(passwort_neu) < 8:
                 return _konto_zurueck(
-                    fehler="Das neue Passwort braucht mindestens acht Zeichen.")
+                    fehler="Das neue Passwort braucht mindestens acht Zeichen.",
+                    pw="1")
             if passwort_neu != passwort_neu2:
                 return _konto_zurueck(
-                    fehler="Die beiden neuen Passwörter sind nicht gleich.")
+                    fehler="Die beiden neuen Passwörter sind nicht gleich.",
+                    pw="1")
             con.execute("UPDATE benutzer SET passwort_hash=? WHERE id=?",
                         (db.passwort_hashen(passwort_neu), benutzer["id"]))
             # Alle anderen Sitzungen beenden. Wer das Passwort wechselt,

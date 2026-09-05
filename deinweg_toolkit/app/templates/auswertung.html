@@ -315,15 +315,19 @@
       {% endif %}
       {% if p.selbstzahler %}
       {# Ein Selbstzahler braucht keinen Bescheid – hier steht deshalb
-         nicht „Grundwert … ohne Bescheid", sondern seine Rolle. #}
+         nicht „ohne Bescheid", sondern seine Rolle. #}
       <p class="klein leise" style="margin: 6px 0 0;">
         <span class="marke-status info">Selbstzahler</span>
         Satz je Stunde, kein Bescheid nötig
       </p>
-      {% elif p.grundwert %}
+      {% elif p.ohne_bescheid %}
+      {# ⚠️ Seit 1.20 die eigentliche Auskunft dieser Spalte: hier wurde
+         gearbeitet, ohne dass etwas bewilligt war. In der Tabelle stehen
+         diese Monate nur als drei Striche da - warum, steht hier. #}
       <p class="klein leise" style="margin: 6px 0 0;">
-        <span class="marke-status weg">Grundwert</span>
-        in {{ p.grundwert }} {{ "Monat" if p.grundwert == 1 else "Monaten" }} ohne Bescheid
+        <span class="marke-status dopp">ohne Bescheid</span>
+        {{ p.ohne_bescheid }} {{ "Monat" if p.ohne_bescheid == 1 else "Monate" }}
+        mit Zeiten, aber ohne Bewilligung – sie zählen weder ins Soll noch in den Verdienst
       </p>
       {% endif %}
     </div>
