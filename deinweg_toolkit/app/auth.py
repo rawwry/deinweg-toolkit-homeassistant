@@ -226,7 +226,12 @@ def einst_bereiche_speichern(gewaehlt: list[str]) -> str:
 #
 # ⚠️ Geprueft wird mit startswith, ein Praefix deckt also alles darunter
 # mit ab ("/einstellungen/vorlagen" auch ".../zuruecksetzen").
-ADMIN_NUR_PFADE = ("/einstellungen/benutzer", "/einstellungen/datenpflege",
+ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
+                   # oder geloescht? Das ist eine Aufsichtsfrage und
+                   # geht niemanden sonst etwas an - der Knopf dorthin
+                   # steht fuer alle anderen gar nicht erst da.
+                   "/eintraege/logbuch",
+                   "/einstellungen/benutzer", "/einstellungen/datenpflege",
                    # Welche Wiki-Ordner geschuetzt sind, entscheidet
                    # die Verwaltung - nicht wer die Einstellungen darf.
                    "/einstellungen/wiki-geschuetzt",
@@ -367,12 +372,43 @@ def darf_bewilligungen_sehen(benutzer) -> bool:
 # laeuft deshalb ueber den Pfad plus "/" - "99_x" schuetzt auch
 # "99_x/unterordner/seite.md", aber nicht "99_xyz".
 
+def gedeckt_von(pfad: str, liste) -> str | None:
+    """Welcher Ordner AUS ``liste`` deckt ``pfad`` bereits mit ab?
+
+    Gibt den uebergeordneten Ordner zurueck oder None. Der Pfad selbst
+    zaehlt nicht - gefragt ist, ob ein Vorfahre schon dabei ist.
+    """
+    pfad = (pfad or "").strip("/")
+    for g in liste or []:
+        if g != pfad and pfad.startswith(g + "/"):
+            return g
+    return None
+
+
+def ohne_gedeckte(liste) -> list[str]:
+    """Untergeordnete Ordner heraus, deren Vorfahre schon in der Liste steht.
+
+    ⚠️ Schutz vererbt sich (siehe oben): "99_x" deckt "99_x/unter" mit
+    ab. Beides einzeln zu fuehren ist nicht nur ueberfluessig, es ist
+    schaedlich - ``darf_wiki_ordner`` verlangt fuer JEDEN beruehrten
+    Eintrag eine Freigabe, ein Konto mit der Freigabe fuer "99_x" kaeme
+    also nicht an "99_x/unter" heran, obwohl es den Oberordner darf.
+    """
+    return [g for g in liste or [] if not gedeckt_von(g, liste)]
+
+
 def geschuetzte_ordner(con=None) -> list[str]:
-    """Die als geschuetzt gekennzeichneten Wiki-Ordner (relative Pfade)."""
+    """Die als geschuetzt gekennzeichneten Wiki-Ordner (relative Pfade).
+
+    ⚠️ Schon hier ohne die untergeordneten: das ist die eine Stelle, an
+    der die Liste herkommt, und damit die richtige, um sie einmal
+    aufzuraeumen. Alles dahinter - Anzeige, Freigaben, Durchsetzung -
+    sieht dann dieselbe, widerspruchsfreie Liste.
+    """
     def holen(c):
         zeile = c.execute("SELECT wert FROM konfig WHERE schluessel = ?",
                           ("wiki_geschuetzt",)).fetchone()
-        return ordnerliste_lesen(zeile["wert"] if zeile else "")
+        return ohne_gedeckte(ordnerliste_lesen(zeile["wert"] if zeile else ""))
 
     if con is not None:
         return holen(con)

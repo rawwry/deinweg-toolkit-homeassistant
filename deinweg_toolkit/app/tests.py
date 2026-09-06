@@ -4562,7 +4562,7 @@ def test_verwaltungspunkte(client: TestClient) -> None:
         pruefe(n.post(pfad, data=daten).status_code == 403,
                f"„{pfad}“ ist Administratoren vorbehalten")
     for pfad in ADMIN_NUR_PFADE:
-        pruefe(pfad.startswith("/einstellungen/"),
+        pruefe(pfad.startswith("/"),
                f"„{pfad}“ steht in der Liste der Verwaltungspfade")
 
     # 3. Und die Punkte, die das Konto haben darf, gehen weiterhin.
@@ -4670,6 +4670,196 @@ def test_einstellungen_form(client: TestClient) -> None:
     kopf = base.split('name="viewport"')[1].split(">")[0]
     pruefe("user-scalable" not in kopf and "maximum-scale" not in kopf,
            "der Viewport-Tag verbietet das Vergrößern nicht")
+
+
+def test_geschuetzte_unterordner(client: TestClient) -> None:
+    """Ein geschützter Ordner deckt seine Unterordner mit ab."""
+    abschnitt("Wiki: Unterordner sind mitgeschützt")
+    from .auth import gedeckt_von, ohne_gedeckte
+
+    liste = ["99_recht", "99_recht/unter", "10_allgemein", "99_recht_anderes"]
+    pruefe(gedeckt_von("99_recht/unter", liste) == "99_recht",
+           "ein Unterordner ist vom Oberordner gedeckt")
+    pruefe(gedeckt_von("99_recht", liste) is None,
+           "der Ordner selbst deckt sich nicht")
+    # ⚠️ Der Vergleich läuft über den Pfad plus „/“ - „99_recht“ deckt
+    # nicht „99_recht_anderes“ ab.
+    pruefe(gedeckt_von("99_recht_anderes", liste) is None,
+           "ein gleich beginnender Nachbar ist NICHT gedeckt")
+    pruefe(ohne_gedeckte(liste) == ["99_recht", "10_allgemein",
+                                    "99_recht_anderes"],
+           "gedeckte Unterordner fallen aus der Liste")
+
+    # Und in der Oberfläche: der Unterordner steht gar nicht mehr zur Wahl.
+    pfad = os.path.join(_ORDNER, "wiki", "99_probeschutz", "darunter")
+    os.makedirs(pfad, exist_ok=True)
+    with open(os.path.join(pfad, "seite.md"), "w", encoding="utf-8") as f:
+        f.write("# Darunter")
+    seite = client.get("/einstellungen?bereich=benutzer").text
+    pruefe('value="99_probeschutz"' in seite,
+           "solange nichts geschützt ist, stehen beide Ebenen zur Wahl")
+    pruefe('value="99_probeschutz/darunter"' in seite, "auch die zweite")
+
+    client.post("/einstellungen/wiki-geschuetzt",
+                data={"ordner": ["99_probeschutz"]})
+    seite = client.get("/einstellungen?bereich=benutzer").text
+    pruefe('value="99_probeschutz"' in seite,
+           "nach dem Schützen steht der Oberordner weiter da")
+    pruefe('value="99_probeschutz/darunter"' not in seite,
+           "der Unterordner nicht mehr – er ist ohnehin mitgeschützt")
+
+    # ⚠️ Und wären beide gespeichert, würde das sogar schaden: die
+    # Durchsetzung verlangt für JEDEN berührten Eintrag eine Freigabe.
+    client.post("/einstellungen/wiki-geschuetzt",
+                data={"ordner": ["99_probeschutz", "99_probeschutz/darunter"]})
+    with db.db() as con:
+        from .auth import geschuetzte_ordner
+        pruefe(geschuetzte_ordner(con) == ["99_probeschutz"],
+               "doppelt Angehaktes wird beim Speichern zusammengefasst")
+    client.post("/einstellungen/wiki-geschuetzt", data={"ordner": []})
+
+
+def test_eintraege_logbuch(client: TestClient) -> None:
+    """Wer hat an den Datensätzen etwas geändert oder gelöscht?"""
+    abschnitt("Logbuch der Datensätze")
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2026-04-08','2026-04','09:00',"
+            "'10:00','Logperson','Hausbesuch',60,1,'log1','2026-04-08 09:00')")
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2026-04-09','2026-04','09:00',"
+            "'10:00','Logperson','Telefonat',60,1,'log2','2026-04-09 09:00')")
+        eins, zwei = [r["id"] for r in con.execute(
+            "SELECT id FROM eintrag WHERE fingerprint IN ('log1','log2') "
+            "ORDER BY fingerprint")]
+        vorher = con.execute("SELECT COUNT(*) c FROM eintrag_log").fetchone()["c"]
+
+    # 1. Ändern wird protokolliert, mit Vorher und Nachher.
+    client.post(f"/eintraege/{eins}/bearbeiten", data={
+        "datum": "2026-04-08", "start": "09:00", "ende": "11:30", "dauer": "",
+        "klient": "Logperson", "beschreibung": "Hausbesuch lang",
+        "mitarbeiter": "pruefer", "abrechenbar": "1", "zurueck": "/eintraege"})
+    with db.db() as con:
+        z = con.execute("SELECT * FROM eintrag_log ORDER BY id DESC "
+                        "LIMIT 1").fetchone()
+    pruefe(z["aktion"] == "geaendert", "eine Änderung steht im Logbuch")
+    pruefe("01:00 → 02:30" in (z["aenderung"] or ""),
+           "mit dem Wert vorher und nachher")
+    pruefe("Hausbesuch → Hausbesuch lang" in (z["aenderung"] or ""),
+           "und zwar für jedes geänderte Feld")
+    pruefe(z["wer"] and z["zeitpunkt"], "mit Name und Zeitpunkt")
+
+    # ⚠️ Ändert sich nichts, wird auch nichts notiert - ein Logbuch voller
+    # „nichts passiert" liest niemand.
+    with db.db() as con:
+        stand = con.execute("SELECT COUNT(*) c FROM eintrag_log").fetchone()["c"]
+    client.post(f"/eintraege/{eins}/bearbeiten", data={
+        "datum": "2026-04-08", "start": "09:00", "ende": "11:30", "dauer": "",
+        "klient": "Logperson", "beschreibung": "Hausbesuch lang",
+        "mitarbeiter": "pruefer", "abrechenbar": "1", "zurueck": "/eintraege"})
+    with db.db() as con:
+        pruefe(con.execute("SELECT COUNT(*) c FROM eintrag_log"
+                           ).fetchone()["c"] == stand,
+               "ein Speichern ohne Änderung schreibt nichts")
+
+    # 2. Löschen ebenfalls - und die Zeile bleibt lesbar, obwohl es den
+    #    Eintrag nicht mehr gibt.
+    client.post(f"/eintraege/{zwei}/loeschen", data={"zurueck": "/eintraege"})
+    with db.db() as con:
+        z = con.execute("SELECT * FROM eintrag_log ORDER BY id DESC "
+                        "LIMIT 1").fetchone()
+        weg = con.execute("SELECT COUNT(*) c FROM eintrag WHERE id=?",
+                          (zwei,)).fetchone()["c"]
+    pruefe(weg == 0, "der Eintrag ist gelöscht")
+    pruefe(z["aktion"] == "geloescht", "das Löschen steht im Logbuch")
+    pruefe(z["klient"] == "Logperson" and z["beschreibung"] == "Telefonat",
+           "und die Zeile sagt weiterhin, worum es ging")
+    pruefe(z["datum"] == "2026-04-09" and z["dauer_min"] == 60,
+           "samt Datum und Dauer")
+
+    with db.db() as con:
+        nachher = con.execute("SELECT COUNT(*) c FROM eintrag_log"
+                              ).fetchone()["c"]
+    pruefe(nachher >= vorher + 2, "beide Vorgänge sind protokolliert")
+
+    # 3. Die Seite selbst.
+    seite = client.get("/eintraege/logbuch").text
+    pruefe("Logbuch der Datensätze" in seite, "das Logbuch hat eine Seite")
+    pruefe("Logperson" in seite, "und zeigt die betroffenen Datensätze")
+    pruefe("geloescht" in seite and "geaendert" in seite,
+           "mit beiden Arten von Eintrag")
+    uebersicht = client.get("/eintraege").text
+    pruefe('href="/eintraege/logbuch"' in uebersicht,
+           "der Knopf dorthin steht in der Übersicht")
+
+    # 4. ⚠️ Nur für Administratoren - und zwar wirklich, nicht nur optisch.
+    client.post("/einstellungen/benutzer", data={
+        "benutzername": "ohnelogbuch", "passwort": "ohnelogbuchpw",
+        "rolle": "benutzer", "bereiche": ["datensaetze"]})
+    o = TestClient(app)
+    o.post("/login", data={"benutzername": "ohnelogbuch",
+                           "passwort": "ohnelogbuchpw"}, follow_redirects=False)
+    pruefe(o.get("/eintraege/logbuch").status_code == 403,
+           "ein normales Konto kommt nicht an das Logbuch")
+    pruefe('href="/eintraege/logbuch"' not in o.get("/eintraege").text,
+           "und sieht den Knopf gar nicht erst")
+
+    # 5. Die Sammellöschung protokolliert jede Zeile einzeln.
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2026-04-10','2026-04','09:00',"
+            "'10:00','Logperson','Sammel A',60,1,'log3','2026-04-10 09:00')")
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2026-04-11','2026-04','09:00',"
+            "'10:00','Logperson','Sammel B',60,1,'log4','2026-04-11 09:00')")
+        viele = [r["id"] for r in con.execute(
+            "SELECT id FROM eintrag WHERE fingerprint IN ('log3','log4')")]
+        stand = con.execute("SELECT COUNT(*) c FROM eintrag_log").fetchone()["c"]
+    client.post("/eintraege/loeschen", data={"ids": [str(i) for i in viele],
+                                             "zurueck": "/eintraege"})
+    with db.db() as con:
+        neu = con.execute("SELECT COUNT(*) c FROM eintrag_log").fetchone()["c"]
+        letzte = con.execute("SELECT * FROM eintrag_log ORDER BY id DESC "
+                             "LIMIT 2").fetchall()
+    pruefe(neu == stand + 2, "die Sammellöschung schreibt je Zeile einen Vermerk")
+    pruefe(all(z["aenderung"] == "Sammellöschung" for z in letzte),
+           "und kennzeichnet sie als solche")
+
+    # 6. ⚠️ Die Datenpflege fasst mit einem Klick den halben Bestand an -
+    #    ohne Vermerk wäre ausgerechnet der größte Eingriff der einzige,
+    #    der hier fehlt. EINE Zeile, nicht Hunderte: je Datensatz zu
+    #    protokollieren machte das Logbuch unlesbar.
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2026-05-02','2026-05','09:00',"
+            "'10:00','Logperson','Pflegeprobe',60,1,'log5','2026-05-02 09:00')")
+        stand = con.execute("SELECT COUNT(*) c FROM eintrag_log").fetchone()["c"]
+    client.post("/einstellungen/datenpflege/anwenden", data={
+        "feld": "beschreibung", "suchart": "genau", "suchwert": "Pflegeprobe",
+        "neuer_wert": "Pflegeprobe neu", "bestaetigung": "ÄNDERN"})
+    with db.db() as con:
+        neu2 = con.execute("SELECT COUNT(*) c FROM eintrag_log").fetchone()["c"]
+        z = con.execute("SELECT * FROM eintrag_log ORDER BY id DESC "
+                        "LIMIT 1").fetchone()
+    pruefe(neu2 == stand + 1, "die Sammeländerung schreibt genau eine Zeile")
+    pruefe("Datenpflege" in (z["aenderung"] or "")
+           and "Pflegeprobe" in (z["aenderung"] or ""),
+           "und nennt Feld, Wert und Umfang")
+    pruefe(z["datum"] is None,
+           "sie bezieht sich auf keinen einzelnen Datensatz")
+    # Und die Seite verträgt so eine Zeile ohne Datum.
+    pruefe(client.get("/eintraege/logbuch").status_code == 200,
+           "das Logbuch zeigt sie, ohne zu stolpern")
 
 
 def test_kosmetik(client: TestClient) -> None:
@@ -5525,6 +5715,8 @@ def _durchlauf(client: TestClient) -> None:
         test_abrechnungsart(client)
         test_verwaltungspunkte(client)
         test_einstellungen_form(client)
+        test_geschuetzte_unterordner(client)
+        test_eintraege_logbuch(client)
         test_kosmetik(client)
         test_versionen()
     except Exception:

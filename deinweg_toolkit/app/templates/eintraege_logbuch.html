@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "_untermenue.html" import arbeitszeit with context %}
+{% block titel %} – Logbuch der Datensätze{% endblock %}
+{% block inhalt %}
+
+{# Dieselbe Reiterleiste wie auf den drei Arbeitszeit-Seiten - das
+   Logbuch gehört dazu, auch wenn es keinen eigenen Reiter bekommt: es
+   ist für die meisten gar nicht sichtbar. #}
+{{ arbeitszeit("eintraege") }}
+
+<p class="statuszeile klein leise">
+  <a href="/eintraege">Übersicht</a> › Logbuch
+</p>
+
+<section class="karte">
+  <div class="kopfzeile">
+    <h1>Logbuch der Datensätze</h1>
+    <p class="summe">{{ gesamt }} <span>· {{ "Eintrag" if gesamt == 1 else "Einträge" }}</span></p>
+  </div>
+  <p class="lead">{{ t("logbuch.lead") }}</p>
+
+  <form class="filter" method="get" action="/eintraege/logbuch">
+    <div class="filterwahl">
+      <span class="filterwahl-titel">Wer</span>
+      <select name="wer">
+        <option value="">alle</option>
+        {% for m in leute %}<option value="{{ m }}" {{ 'selected' if wer == m }}>{{ m }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="filterwahl filter-suche {{ 'gesetzt' if q }}">
+      <span class="filterwahl-titel" aria-hidden="true">&nbsp;</span>
+      <div class="suchfeld">
+        <svg class="suchfeld-lupe" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.4" stroke="currentColor" stroke-width="1.7"/>
+          <path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round"/>
+        </svg>
+        <input type="search" name="q" value="{{ q }}"
+               aria-label="Suche in Person, Mitarbeiter, Leistung und Änderung"
+               placeholder="Person, Leistung, Änderung …">
+      </div>
+    </div>
+    <div class="filter-fuss">
+      <div class="filter-knoepfe">
+        <button class="knopf haupt" type="submit">Filtern</button>
+        <a class="knopf leise" href="/eintraege/logbuch">Filter entfernen</a>
+      </div>
+    </div>
+  </form>
+</section>
+
+<section class="karte logbuchkarte">
+  {% if gruppen %}
+    {% for gruppe in gruppen %}
+    <h3 class="logtag">{{ gruppe.wort }}</h3>
+    <ul class="logliste">
+      {% for e in gruppe.zeilen %}
+      <li class="logeintrag">
+        <div class="logzeit">
+          <span class="loguhr">{{ uhrzeit(e.zeitpunkt) }}</span>
+          <span class="logwer">{{ e.wer }}</span>
+        </div>
+        <div class="loginhalt">
+          <div class="logkopf">
+            <span class="logaktion {{ 'la-weg' if e.aktion == 'geloescht' else 'la-aenderung' }}">{{ e.aktion }}</span>
+            {# Welcher Datensatz war das? Auch wenn es ihn nicht mehr
+               gibt, steht hier, worum es ging - genau dafür liegen
+               Datum, Person und Dauer noch einmal in der Logzeile. #}
+            {# Eine Sammeländerung der Datenpflege bezieht sich auf keinen
+               einzelnen Datensatz - dann steht hier nichts, und die Zeile
+               darunter sagt, was sie umfasst hat. #}
+            {% if e.datum %}
+            <span class="logbezug{{ ' weg' if e.aktion == 'geloescht' }}">
+              {{ e.datum | deutsch }} · {{ e.klient or "ohne Zuordnung" }}
+              {%- if e.dauer_min %} · {{ e.dauer_min | hhmm }} Std{% endif %}
+            </span>
+            {% endif %}
+            {% if e.mitarbeiter %}
+            <span class="logperson-still">Eintrag von {{ e.mitarbeiter }}</span>
+            {% endif %}
+          </div>
+          {% if e.beschreibung %}
+          <p class="logtext leise">{{ e.beschreibung }}</p>
+          {% endif %}
+          {% if e.aenderung %}
+          <p class="logtext logaenderung">{{ e.aenderung }}</p>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endfor %}
+
+    {% if seiten > 1 %}
+    <nav class="blaettern">
+      {% set anhang = ("&wer=" ~ (wer | urlencode) if wer else "") ~ ("&q=" ~ (q | urlencode) if q else "") %}
+      {% if seite > 1 %}
+      <a class="knopf klein leise" href="/eintraege/logbuch?seite={{ seite - 1 }}{{ anhang }}">← neuere</a>
+      {% endif %}
+      <span class="klein leise">Seite {{ seite }} von {{ seiten }}</span>
+      {% if seite < seiten %}
+      <a class="knopf klein leise" href="/eintraege/logbuch?seite={{ seite + 1 }}{{ anhang }}">ältere →</a>
+      {% endif %}
+    </nav>
+    {% endif %}
+  {% else %}
+  <p class="leer">{{ t("logbuch.leer") }}</p>
+  {% endif %}
+</section>
+
+{% endblock %}

@@ -34,6 +34,25 @@
   <div class="listenkopf">
     <span class="listenkopf-titel">{{ kopf.n }} {{ 'Eintrag' if kopf.n == 1 else 'Einträge' }}</span>
     <div class="listenwerkzeuge">
+    {# Das Logbuch: wer hat hier etwas geändert oder gelöscht? Steht
+       neben den übrigen Werkzeugen der Liste, auf die es sich bezieht -
+       und ausschließlich für Administratoren. Für alle anderen ist der
+       Knopf gar nicht da, und die Adresse dahinter ebenso wenig
+       (auth.ADMIN_NUR_PFADE). #}
+    {% if request.state.benutzer.rolle == "admin" %}
+      <a class="knopf leise klein" href="/eintraege/logbuch"
+         title="Wer hat Datensätze geändert oder gelöscht?">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 7.5v4.8l3 1.8" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3.6 12a8.4 8.4 0 1 0 2.5-6" stroke="currentColor"
+                stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M3.4 4.6v3.8h3.8" stroke="currentColor" stroke-width="1.7"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Logbuch
+      </a>
+    {% endif %}
     {% if loeschbar %}
       <label class="knopf leise klein auswahlknopf" for="auswahlmodus">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.21"
+VERSION = "1.22"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -96,10 +96,17 @@ def jetzt() -> str:
 
 
 def deutsch(datum: str) -> str:
+    """JJJJ-MM-TT als TT.MM.JJJJ. Alles andere kommt unveraendert zurueck.
+
+    ⚠️ Auch None und Zahlen: der Filter steht in vielen Vorlagen, und ein
+    leeres Feld darf keine Seite abschiessen. Bis 1.21 fing er nur
+    ValueError ab - eine Logzeile ohne Datum (Sammeländerung der
+    Datenpflege) warf damit TypeError.
+    """
     try:
         return dt.date.fromisoformat(datum).strftime("%d.%m.%Y")
-    except ValueError:
-        return datum
+    except (ValueError, TypeError):
+        return datum or ""
 
 
 templates.env.filters["deutsch"] = deutsch
@@ -1339,6 +1346,100 @@ def eigener_mitarbeitername(con, benutzer) -> str:
         return ""
 
 
+# --- Logbuch der Datensaetze -------------------------------------------------
+#
+# Wer hat wann an den erfassten Zeiten etwas geaendert oder geloescht?
+# Append-only in "eintrag_log", einsehbar nur fuer Administratoren
+# (/eintraege/logbuch, abgesichert ueber auth.ADMIN_NUR_PFADE).
+#
+# ⚠️ Angelegte Eintraege stehen nicht drin: wer etwas erfasst hat, steht
+# im Eintrag selbst ("mitarbeiter", "angelegt_am"). Protokolliert wird,
+# was hinterher daran veraendert wurde - genau das ist sonst nicht mehr
+# nachvollziehbar.
+
+# Welche Felder verglichen werden, und wie sie im Klartext heissen.
+LOG_FELDER = (
+    ("datum", "Datum"), ("start", "Beginn"), ("ende", "Ende"),
+    ("dauer_min", "Dauer"), ("klient", "Betreute Person"),
+    ("mitarbeiter", "Mitarbeiter"), ("beschreibung", "Leistung"),
+    ("abrechenbar", "Abrechenbar"),
+)
+
+
+def _logwert(feld: str, wert) -> str:
+    """Ein Feldwert so, wie er im Logbuch lesbar ist."""
+    if wert is None or wert == "":
+        return "—"
+    if feld == "dauer_min":
+        return hhmm(wert)
+    if feld == "datum":
+        return deutsch(str(wert))
+    if feld == "abrechenbar":
+        return "ja" if wert else "nein"
+    return str(wert)
+
+
+def log_unterschied(vorher, nachher: dict) -> str:
+    """Was hat sich geaendert? Als ein Satz, oder "" wenn nichts."""
+    teile = []
+    for feld, wort in LOG_FELDER:
+        try:
+            alt = vorher[feld]
+        except (IndexError, KeyError, TypeError):
+            continue
+        if feld not in nachher:
+            continue
+        neu = nachher[feld]
+        # Zahlen und Text vergleichbar machen - aus dem Formular kommt
+        # alles als str, aus der Datenbank nicht.
+        if str(alt or "") == str(neu or ""):
+            continue
+        teile.append(f"{wort}: {_logwert(feld, alt)} → {_logwert(feld, neu)}")
+    return " · ".join(teile)
+
+
+def log_eintrag(con, aktion: str, zeile, wer: str, aenderung: str = "") -> None:
+    """Schreibt eine Zeile ins Logbuch der Datensaetze.
+
+    ``zeile`` ist der Eintrag VOR der Aenderung - so steht im Logbuch,
+    was betroffen war, auch wenn es ihn hinterher nicht mehr gibt.
+    """
+    def feld(name):
+        try:
+            return zeile[name]
+        except (IndexError, KeyError, TypeError):
+            return None
+
+    con.execute(
+        "INSERT INTO eintrag_log (eintrag_id, zeitpunkt, wer, aktion, datum, "
+        "klient, mitarbeiter, dauer_min, beschreibung, aenderung) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (feld("id"), jetzt(), wer or "unbekannt", aktion, feld("datum"),
+         feld("klient"), feld("mitarbeiter"), feld("dauer_min"),
+         feld("beschreibung"), aenderung or None))
+
+
+def wer_handelt(request) -> str:
+    """Wer fuehrt diese Aktion aus? Immer aus der Anmeldung.
+
+    Bevorzugt den Mitarbeiternamen des Kontos - so steht im Logbuch
+    derselbe Name wie in den Zeiten -, sonst den Benutzernamen. Dieselbe
+    Regel wie in vorgaenge.handelnde_person; eine eingetippte Angabe
+    taugt als Nachweis nicht.
+    """
+    benutzer = getattr(request.state, "benutzer", None)
+    if not benutzer:
+        return "unbekannt"
+    with db.db() as con:
+        name = eigener_mitarbeitername(con, benutzer)
+    if name:
+        return name
+    try:
+        return benutzer["benutzername"] or "unbekannt"
+    except (IndexError, KeyError, TypeError):
+        return "unbekannt"
+
+
 def _ist_eigener(eintrag_mitarbeiter: str, eigener_name: str) -> bool:
     if not eigener_name:
         return False
@@ -1427,13 +1528,18 @@ def eintraege_sammelloeschen(request: Request, ids: list[int] = Form([]),
     with db.db() as con:
         eigener = eigener_mitarbeitername(con, benutzer)
         platzhalter = ",".join("?" * len(ids))
+        # ⚠️ Alle Felder holen, nicht nur id und mitarbeiter: das Logbuch
+        # soll hinterher noch sagen koennen, WAS geloescht wurde.
         vorhanden = con.execute(
-            f"SELECT id, mitarbeiter FROM eintrag WHERE id IN ({platzhalter})",
-            ids).fetchall()
-        erlaubt = [z["id"] for z in vorhanden
-                   if darf_eintrag_loeschen(benutzer, z["mitarbeiter"], eigener)]
+            f"SELECT * FROM eintrag WHERE id IN ({platzhalter})", ids).fetchall()
+        loeschbar = [z for z in vorhanden
+                     if darf_eintrag_loeschen(benutzer, z["mitarbeiter"], eigener)]
+        erlaubt = [z["id"] for z in loeschbar]
         verweigert = len(vorhanden) - len(erlaubt)
         if erlaubt:
+            wer = wer_handelt(request)
+            for z in loeschbar:
+                log_eintrag(con, "geloescht", z, wer, "Sammellöschung")
             platzhalter = ",".join("?" * len(erlaubt))
             con.execute(f"DELETE FROM eintrag WHERE id IN ({platzhalter})", erlaubt)
 
@@ -1462,7 +1568,7 @@ def eintrag_loeschen(request: Request, eintrag_id: int,
                      zurueck: str = Form("/eintraege")):
     benutzer = request.state.benutzer
     with db.db() as con:
-        z = con.execute("SELECT mitarbeiter FROM eintrag WHERE id=?",
+        z = con.execute("SELECT * FROM eintrag WHERE id=?",
                         (eintrag_id,)).fetchone()
         if z is None:
             return zurueck_mit_hinweis(zurueck, "Diesen Eintrag gibt es nicht mehr.")
@@ -1471,8 +1577,53 @@ def eintrag_loeschen(request: Request, eintrag_id: int,
             return zurueck_mit_hinweis(
                 zurueck, f"„{z['mitarbeiter']}“ ist nicht dein Eintrag. "
                          "Zum Löschen fremder Einträge fehlt dir die Berechtigung.")
+        log_eintrag(con, "geloescht", z, wer_handelt(request))
         con.execute("DELETE FROM eintrag WHERE id=?", (eintrag_id,))
     return RedirectResponse(zurueck, status_code=303)
+
+
+# ⚠️ Diese Route MUSS vor "/eintraege/{eintrag_id}/..." stehen - sonst
+# schluckt der Platzhalter das Wort "logbuch" und FastAPI versucht, es
+# als Zahl zu lesen. Dieselbe Falle wie bei den Wiki-Aktionen.
+@app.get("/eintraege/logbuch", response_class=HTMLResponse)
+def eintraege_logbuch(request: Request, wer: str = "", q: str = "",
+                      seite: int = 1):
+    """Wer hat an den Datensaetzen etwas geaendert oder geloescht?
+
+    Administratoren vorbehalten (auth.ADMIN_NUR_PFADE). Der Knopf dorthin
+    steht in der Uebersicht und ist fuer alle anderen gar nicht da.
+    """
+    seite = max(1, seite)
+    pro_seite = 100
+    wo, werte = ["1=1"], []
+    if wer.strip():
+        wo.append("wer = ?")
+        werte.append(wer.strip())
+    if q.strip():
+        wo.append("(klient LIKE ? OR mitarbeiter LIKE ? OR beschreibung LIKE ? "
+                  "OR aenderung LIKE ?)")
+        werte += [f"%{q.strip()}%"] * 4
+    bedingung = " AND ".join(wo)
+
+    with db.db() as con:
+        gesamt = con.execute(
+            f"SELECT COUNT(*) c FROM eintrag_log WHERE {bedingung}",
+            werte).fetchone()["c"]
+        zeilen = con.execute(
+            f"SELECT * FROM eintrag_log WHERE {bedingung} "
+            "ORDER BY zeitpunkt DESC, id DESC LIMIT ? OFFSET ?",
+            werte + [pro_seite, (seite - 1) * pro_seite]).fetchall()
+        # Wer taucht im Logbuch ueberhaupt auf? Grundlage fuer den Filter.
+        leute = [r["wer"] for r in con.execute(
+            "SELECT DISTINCT wer FROM eintrag_log ORDER BY wer COLLATE NOCASE")]
+
+    seiten = max(1, -(-gesamt // pro_seite))
+    return templates.TemplateResponse(
+        request=request, name="eintraege_logbuch.html", context={
+            "seite_name": "eintraege", "gruppen": _vorgaenge.nach_tagen(zeilen),
+            "gesamt": gesamt, "leute": leute, "wer": wer.strip(), "q": q.strip(),
+            "seite": seite, "seiten": seiten,
+            "uhrzeit": _vorgaenge.uhrzeit})
 
 
 @app.get("/eintraege/{eintrag_id}/bearbeiten", response_class=HTMLResponse)
@@ -1550,7 +1701,7 @@ def eintrag_speichern(request: Request, eintrag_id: int,
         # Gegen den Stand in der Datenbank pruefen, nicht gegen das Formular:
         # der Mitarbeitername steht als aenderbares Feld darin, sonst koennte
         # man ihn beim Speichern einfach auf den eigenen umbiegen.
-        vorher = con.execute("SELECT mitarbeiter FROM eintrag WHERE id=?",
+        vorher = con.execute("SELECT * FROM eintrag WHERE id=?",
                              (eintrag_id,)).fetchone()
         if vorher is None:
             return zurueck_mit_hinweis(zurueck, "Diesen Eintrag gibt es nicht mehr.")
@@ -1569,6 +1720,14 @@ def eintrag_speichern(request: Request, eintrag_id: int,
                 zurueck, "Du kannst den Eintrag nicht auf "
                          f"„{mitarbeiter}“ umschreiben – dafür fehlt dir "
                          "die Berechtigung.")
+        # ⚠️ Vor dem UPDATE protokollieren, sonst gaebe es nichts mehr zu
+        # vergleichen. Aendert sich gar nichts, wird auch nichts notiert -
+        # ein Logbuch voller "nichts passiert" liest niemand.
+        unterschied = log_unterschied(
+            vorher, dict(neu, abrechenbar=1 if abrechenbar else 0))
+        if unterschied:
+            log_eintrag(con, "geaendert", vorher, wer_handelt(request),
+                        unterschied)
         con.execute(
             "UPDATE eintrag SET mitarbeiter=?, datum=?, monat=?, start=?, ende=?, "
             "klient=?, beschreibung=?, dauer_min=?, abrechenbar=?, fingerprint=? "
@@ -2761,7 +2920,9 @@ app.include_router(_vorgaenge.router)
 # bekommt nur, was sie braucht: die Sicherungsfunktion.
 
 from . import datenpflege as _datenpflege  # noqa: E402
-_datenpflege.setup(templates, {"sicherung_anlegen": sicherung_anlegen})
+_datenpflege.setup(templates, {"sicherung_anlegen": sicherung_anlegen,
+                               "log_eintrag": log_eintrag,
+                               "wer_handelt": wer_handelt})
 app.include_router(_datenpflege.router)
 
 

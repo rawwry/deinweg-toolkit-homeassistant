@@ -351,6 +351,18 @@ def anwenden_route(request: Request, feld: str = Form("beschreibung"),
     with db.db() as con:
         ergebnis = anwenden(con, feld, suchart, suchwert.strip(),
                             neuer_wert.strip(), bool(ueberall))
+        # ⚠️ Eine Zeile ins Logbuch der Datensaetze, nicht Hunderte. Die
+        # Sammelaenderung fasst mit einem Klick den halben Bestand an;
+        # ohne diesen Vermerk waere ausgerechnet der groesste Eingriff
+        # der einzige, der dort nicht auftaucht. Je Datensatz zu
+        # protokollieren waere das andere Extrem - das Logbuch waere
+        # danach unlesbar.
+        if ergebnis["gesamt"]:
+            quelle = " / ".join(ergebnis["werte"][:4])
+            _u["log_eintrag"](
+                con, "geaendert", {}, _u["wer_handelt"](request),
+                f"Datenpflege · {FELDER[feld]['wort']}: „{quelle}“ → "
+                f"„{neuer_wert.strip()}“ · {ergebnis['gesamt']} Stellen")
 
     if not ergebnis["gesamt"]:
         return RedirectResponse(

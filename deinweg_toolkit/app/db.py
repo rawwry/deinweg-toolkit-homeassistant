@@ -257,6 +257,34 @@ CREATE TABLE IF NOT EXISTS vorgang_log (
     beschreibung  TEXT
 );
 
+-- Wer hat an den erfassten Zeiten etwas geaendert oder geloescht?
+-- Append-only, wie vorgang_log: es wird nur angehaengt, nie
+-- ueberschrieben. Das Logbuch ist Administratoren vorbehalten (siehe
+-- auth.ADMIN_NUR_PFADE) und beantwortet genau eine Frage - wer war das,
+-- und wann.
+--
+-- ⚠️ Bewusst KEIN Fremdschluessel auf eintrag(id): der geloeschte
+-- Eintrag ist der interessanteste Fall, und mit ON DELETE CASCADE waere
+-- ausgerechnet der sofort wieder weg. "eintrag_id" bleibt deshalb eine
+-- reine Notiz, und alles, was den Eintrag beschreibt, steht hier noch
+-- einmal - so bleibt die Zeile lesbar, wenn es ihn nicht mehr gibt.
+CREATE TABLE IF NOT EXISTS eintrag_log (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    eintrag_id   INTEGER,
+    zeitpunkt    TEXT NOT NULL,
+    wer          TEXT NOT NULL,
+    aktion       TEXT NOT NULL,      -- geaendert | geloescht
+    -- Womit der Eintrag zu erkennen ist, auch ohne ihn:
+    datum        TEXT,
+    klient       TEXT,
+    mitarbeiter  TEXT,
+    dauer_min    INTEGER,
+    beschreibung TEXT,
+    -- Was genau sich geaendert hat, im Klartext.
+    aenderung    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_elog_zeit ON eintrag_log(zeitpunkt);
+
 CREATE INDEX IF NOT EXISTS idx_vlog_vorgang ON vorgang_log(vorgang_id);
 CREATE INDEX IF NOT EXISTS idx_vlog_klient  ON vorgang_log(klient);
 

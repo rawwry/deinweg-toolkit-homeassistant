@@ -77,6 +77,15 @@ TEXTE_STANDARD["einst.sprueche_lead"] = (
     "Wortlaut eintragen. Gespeichert wird in der Datei quotes.txt im "
     "/texte-Volume; wer lieber dort direkt schreibt, kann das weiterhin "
     "tun, hier ist es nur bequemer.")
+TEXTE_STANDARD["logbuch.lead"] = (
+    "Wer hat an den erfassten Zeiten etwas geändert oder gelöscht? Jede "
+    "Änderung steht hier mit Uhrzeit und Namen, und zwar dauerhaft – "
+    "Zeilen lassen sich weder ändern noch entfernen. <strong>Neu erfasste "
+    "Zeiten stehen nicht drin:</strong> wer sie angelegt hat, steht im "
+    "Datensatz selbst.")
+TEXTE_STANDARD["logbuch.leer"] = (
+    "Noch nichts protokolliert – an den Datensätzen wurde bisher nichts "
+    "nachträglich geändert oder gelöscht.")
 TEXTE_STANDARD["einst.sprueche_datei"] = (
     "Gespeichert wird in der Datei quotes.txt im /texte-Volume. Wer "
     "lieber dort direkt schreibt, kann das weiterhin tun – hier ist es "

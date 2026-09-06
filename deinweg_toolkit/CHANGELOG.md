@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.22
+
+- Neu: Logbuch der Datensätze (Arbeitszeit → Übersicht), nur für
+  Administratoren – wer hat wann was geändert oder gelöscht
+- Geschützte Wiki-Ordner: Unterordner eines geschützten Ordners stehen
+  nicht mehr einzeln zur Wahl
+
 ## 1.21
 
 - Einstellungen: alle Stammdatenlisten in einer Form (aufklappbare

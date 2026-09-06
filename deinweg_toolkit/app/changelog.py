@@ -1781,4 +1781,21 @@ CHANGELOG = [
         "man in ein Eingabefeld tippt",
         "Prüfung von 1263 auf 1345 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.22", "titel": "Logbuch der Datensätze", "punkte": [
+        "Neu: ein Logbuch für die erfassten Zeiten. Wer hat wann etwas "
+        "geändert oder gelöscht – mit Uhrzeit, Namen und dem, was vorher "
+        "dastand („Dauer: 00:45 → 02:15“). Der Knopf steht über der "
+        "Liste in „Arbeitszeit → Übersicht“",
+        "⚠️ Nur für Administratoren, und zwar wirklich: normale Konten "
+        "sehen den Knopf nicht und kommen auch über die Adresse nicht "
+        "an die Seite",
+        "Gelöschte Datensätze bleiben im Logbuch lesbar – Datum, "
+        "betreute Person, Dauer und Leistung stehen dort noch einmal",
+        "Auch die Sammellöschung und die Sammeländerung der Datenpflege "
+        "hinterlassen einen Vermerk",
+        "Geschützte Wiki-Ordner: ein Unterordner steht nicht mehr zur "
+        "Wahl, sobald sein Oberordner geschützt ist – er ist ohnehin "
+        "mitgeschützt. Doppelt Angehaktes wird zusammengefasst",
+        "Prüfung von 1345 auf 1378 Einzelprüfungen erweitert",
+    ]},
 ]

@@ -257,7 +257,13 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
         # Benutzerverwaltung - einmal zum Pflegen der Liste, einmal fuer
         # die Haekchen je Konto.
         wiki_geschuetzt = auth.geschuetzte_ordner(con)
-        wiki_alle_ordner = [o["pfad"] for o in wiki.ordnerliste()]
+        # ⚠️ Ordner, die ein geschuetzter Oberordner schon mit abdeckt,
+        # stehen gar nicht erst zur Wahl: sie anzuhaken aendert nichts.
+        # Genau das war zu sehen, sobald ein Ordner mit Unterordnern
+        # geschuetzt wurde - der Unterordner stand weiter in der Liste
+        # und sah aus, als koenne man ihn noch einzeln schuetzen.
+        wiki_alle_ordner = [o["pfad"] for o in wiki.ordnerliste()
+                            if not auth.gedeckt_von(o["pfad"], wiki_geschuetzt)]
         mailkonfig = mail.konfig_lesen(con)
         # Das Passwort verlaesst die Anwendung nicht im Klartext - in der
         # Oberflaeche steht nur, ob eines hinterlegt ist.
@@ -875,10 +881,12 @@ def wiki_geschuetzt_speichern(ordner: list[str] = Form([])):
     unveraendert vor. Gespeichert wird ohnehin nur, was in der Liste
     steht (auth.wiki_ordner_speichern).
     """
+    # ⚠️ Untergeordnete Ordner fallen heraus: Schutz vererbt sich, und
+    # ein doppelt gefuehrter Unterordner haette sogar geschadet (siehe
+    # auth.ohne_gedeckte).
+    liste = auth.ohne_gedeckte(auth.ordnerliste_lesen(",".join(ordner)))
     with db.db() as con:
-        mail.konfig_schreiben(con, {
-            "wiki_geschuetzt": ",".join(auth.ordnerliste_lesen(",".join(ordner))),
-        })
+        mail.konfig_schreiben(con, {"wiki_geschuetzt": ",".join(liste)})
     return benutzer_zurueck(hinweis="Geschützte Wiki-Ordner gespeichert.")
 
 
