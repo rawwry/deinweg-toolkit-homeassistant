@@ -576,7 +576,7 @@ def test_zeiterfassung(client: TestClient) -> None:
     seite = client.get("/").text
     pruefe("Manuelle Zeiterfassung" in seite,
            "manuelle Erfassung steht auf der Startseite")
-    pruefe("Zeitlisten einlesen" in seite, "Listenimport steht darunter")
+    pruefe("Zeitlisten Import" in seite, "Listenimport steht darunter")
     pruefe("Bestand" in seite and "Abgaben" in seite,
            "Bestand und Abgaben bleiben erhalten")
     antwort = client.get("/erfassung?mitarbeiter=pruefer", follow_redirects=False)
@@ -5124,7 +5124,7 @@ def test_mehrfacherfassung(client: TestClient) -> None:
     antwort = client.post("/erfassung", data={
         "mitarbeiter": "pruefer", "datum": ["04.06.2026", "05.06.2026"],
         "klient": ["Testperson", ""], "start": ["09:00", "09:00"],
-        "ende": ["10:00", "10:00"], "beschreibung": ["", ""]},
+        "ende": ["10:00", "10:00"], "beschreibung": ["Besuch", "Besuch"]},
         follow_redirects=False)
     pruefe(vorher() == stand,
            "bei einem Fehler wird gar nichts gespeichert, auch nicht die gute Zeile")
@@ -5164,11 +5164,31 @@ def test_zeiterfassung_auswahl(client: TestClient) -> None:
     # sorgt „.importtitel" im Stylesheet.
     pruefe("<h1>Manuelle Zeiterfassung</h1>" in seite,
            "die manuelle Erfassung trägt die Hauptüberschrift")
-    pruefe('class="importtitel">Zeitlisten einlesen<' in seite,
-           "„Zeitlisten einlesen“ steht gleichrangig daneben")
+    pruefe('class="importtitel">Zeitlisten Import<' in seite,
+           "„Zeitlisten Import“ steht gleichrangig daneben")
     stil_z = client.get("/static/style.css").text
     pruefe(".importtitel { font-size: 21px" in stil_z,
            "und ist genauso groß wie eine Kartenüberschrift")
+
+    # ⚠️ Die Erläuterung steht IM <summary> und ist damit auch zugeklappt
+    # zu lesen - genau darum geht es: wer nicht extern erfasst, soll den
+    # Bereich einmal lesen und danach übergehen können.
+    kopf_i = seite.split('class="importkopf"')[1].split("</summary>")[0]
+    pruefe('class="lead"' in kopf_i,
+           "die Erläuterung steht mit Infozeichen im zugeklappten Kopf")
+    pruefe("keinerlei Relevanz" in kopf_i,
+           "und sagt ausdrücklich, wen der Bereich nicht betrifft")
+    pruefe("<p" not in kopf_i,
+           "als <span> - ein <summary> darf keinen Absatz enthalten")
+    pruefe(".importkopf .lead { display: block" in stil_z,
+           "das <span> bekommt seine Blockdarstellung im Stylesheet")
+
+    # ⚠️ Eine Karte mit aufklappbarer Auswahlliste darf nicht klemmen:
+    # .karte steht auf overflow-x: auto, und das macht auch die senkrechte
+    # Achse zu einem Scroll-Container - die Liste wurde abgeschnitten und
+    # die Karte bekam obendrein einen Rollbalken.
+    pruefe(".karte:has(.suchwahl-huelle) { overflow: visible; }" in stil_z,
+           "die Karte mit der Namensliste klemmt sie nicht ab")
     pruefe(seite.count('name="mitarbeiter"') >= 2,
            "beide Karten haben ein Mitarbeiter-Feld")
     pruefe('<input type="text" name="mitarbeiter"' not in seite,
@@ -5246,8 +5266,15 @@ def test_erfassraster(client: TestClient) -> None:
            "die Klasse dafür setzt das Skript beim Nummerieren")
 
     # --- Eine neue Zeile übernimmt die Angaben der vorigen ------------------
-    pruefe('["datum", "klient", "leistung"].forEach' in seite,
-           "Datum, Person und Leistung wandern in die neue Zeile")
+    # ⚠️ Die betreute Person steht seit 1.24 ausdrücklich NICHT dabei:
+    # eine zweite Zeile am selben Tag meint fast immer den nächsten
+    # Termin, also jemand anderen.
+    pruefe('["datum", "leistung"].forEach' in seite,
+           "Datum und Leistung wandern in die neue Zeile")
+    pruefe('"klient"' not in seite.split("function uebernehmen")[1][:400],
+           "die betreute Person wird nicht mit übernommen")
+    pruefe("wahl.oeffnen()" in seite,
+           "stattdessen klappt die Auswahl der neuen Zeile gleich auf")
     pruefe("if (ende && start && ende.value) { start.value = ende.value; }" in seite,
            "und die Startzeit ist die Endzeit der Zeile darüber")
     pruefe("input[name='beschreibung']" in seite and "zeileAnhaengen()" in seite,
@@ -5283,6 +5310,80 @@ def test_erfassraster(client: TestClient) -> None:
     with db.db() as con:
         neu = con.execute("SELECT COUNT(*) c FROM eintrag").fetchone()["c"]
     pruefe(neu == stand + 2, "zwei Zeilen aus dem Raster landen im Bestand")
+
+    # --- Tastaturweg durch die Zeile ---------------------------------------
+    # ⚠️ Der unsichtbare <select> darf nicht in der Tab-Reihenfolge stehen,
+    # sonst braucht es zwei Tabs bis zur Auswahl - einen auf ein Feld, das
+    # niemand sieht.
+    pruefe("feld.tabIndex = -1;" in seite,
+           "das versteckte Auswahlfeld steht nicht in der Tab-Reihenfolge")
+    pruefe("k.tabIndex = -1;" in seite,
+           "die Namen der Liste ebenso wenig - bedient wird über das Suchfeld")
+    pruefe('kopf.matches(":focus-visible")' in seite,
+           "mit der Tabulatortaste klappt die Auswahl von selbst auf")
+    pruefe("huelle.contains(e.relatedTarget)" in seite,
+           "und Tab aus dem Suchfeld heraus klappt sie wieder zu")
+    pruefe(seite.count('class="suchwahl"') >= 3 or
+           seite.count("suchwahl") >= 3,
+           "auch die Leistung ist ein durchsuchbares Auswahlfeld")
+    pruefe('data-titel="Leistung"' in seite,
+           "und trägt ihren eigenen Titel für die Suche")
+
+    # --- Datum und Uhrzeit werden fertiggeschrieben -------------------------
+    pruefe("function datumFuellen" in seite and "function zeitFuellen" in seite,
+           "beide Felder ergänzen sich beim Verlassen selbst")
+    pruefe("new Date().getFullYear()" in seite,
+           "ohne Jahresangabe gilt das laufende Jahr")
+    pruefe('feld.addEventListener("blur", function () { datumFuellen(feld); });'
+           in seite,
+           "ergänzt wird beim Verlassen, nicht schon beim Tippen")
+    pruefe("zeitFuellen(feld);" in seite,
+           "dasselbe bei den beiden Uhrzeiten")
+
+    # --- Leistung ODER Erläuterung, aber nicht beides leer ------------------
+    with db.db() as con:
+        stand = con.execute("SELECT COUNT(*) c FROM eintrag").fetchone()["c"]
+    antwort = client.post("/erfassung", data={
+        "mitarbeiter": "pruefer", "datum": "12.06.2026",
+        "klient": "Testperson", "start": "09:00", "ende": "10:00",
+        "leistung": "", "beschreibung": ""}, follow_redirects=False)
+    with db.db() as con:
+        neu = con.execute("SELECT COUNT(*) c FROM eintrag").fetchone()["c"]
+    ziel = antwort.headers.get("location", "")
+    pruefe(neu == stand, "ohne Leistung UND ohne Erläuterung wird nichts gespeichert")
+    pruefe("fehler" in ziel and "Zeile+1" in ziel,
+           "die Meldung nennt die betroffene Zeile")
+
+    # Einzeln genügt jede der beiden Angaben.
+    client.post("/erfassung", data={
+        "mitarbeiter": "pruefer", "datum": "12.06.2026",
+        "klient": "Testperson", "start": "09:00", "ende": "10:00",
+        "leistung": "Rasterprobe", "beschreibung": ""}, follow_redirects=False)
+    client.post("/erfassung", data={
+        "mitarbeiter": "pruefer", "datum": "13.06.2026",
+        "klient": "Testperson", "start": "09:00", "ende": "10:00",
+        "leistung": "", "beschreibung": "nur Freitext"}, follow_redirects=False)
+    with db.db() as con:
+        neu = con.execute("SELECT COUNT(*) c FROM eintrag").fetchone()["c"]
+    pruefe(neu == stand + 2,
+           "eine Leistung allein genügt, eine Erläuterung allein auch")
+
+    # Eine ganz leere Zeile im Stapel bleibt eine leere Zeile und kein Fehler.
+    antwort = client.post("/erfassung", data={
+        "mitarbeiter": "pruefer", "datum": ["14.06.2026", ""],
+        "klient": ["Testperson", ""], "start": ["09:00", ""],
+        "ende": ["10:00", ""], "leistung": ["", ""],
+        "beschreibung": ["etwas", ""]}, follow_redirects=False)
+    pruefe("fehler" not in antwort.headers.get("location", ""),
+           "eine vollständig leere Zeile löst die Regel nicht aus")
+    pruefe("formular.addEventListener(\"submit\"" in seite,
+           "im Browser fällt es schon vor dem Abschicken auf")
+    # ⚠️ Eine gesetzte Meldung blockiert das Formular, BEVOR das
+    # submit-Ereignis kommt - sie lässt sich dort also nicht zurücknehmen.
+    # Ohne diese Zeile käme niemand mehr durch, der die Leistung nachträgt.
+    pruefe('liste.addEventListener("input", meldungRaeumen)' in seite
+           and 'liste.addEventListener("change", meldungRaeumen)' in seite,
+           "und die Meldung verschwindet wieder, sobald man etwas einträgt")
 
     # Die Hilfs-Leistung wieder wegräumen, damit spätere Prüfungen dieselbe
     # Ausgangslage vorfinden wie ohne diesen Abschnitt.

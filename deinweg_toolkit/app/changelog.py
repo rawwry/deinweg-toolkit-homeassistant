@@ -1830,4 +1830,29 @@ CHANGELOG = [
         "nebeneinander statt untereinander",
         "Prüfung von 1380 auf 1416 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.24", "titel": "Erfassen ohne die Maus", "punkte": [
+        "⚠️ Behoben: die aufgeklappte Namensliste bei „Betreute Person“ "
+        "wurde von der Karte abgeschnitten und erzeugte dort einen "
+        "Rollbalken. Ursache war dieselbe wie einst bei der Filterkarte – "
+        "eine Karte darf seitlich rollen, und damit rollt sie auch "
+        "senkrecht",
+        "Datum ohne Jahr: „0909“ und Tab werden zu 09.09.2026. Ein "
+        "getipptes Jahr gewinnt, zweistellig wie vierstellig",
+        "Uhrzeit ohne Minuten: „12“ und Tab werden zu 12:00, „930“ zu "
+        "09:30",
+        "Die Tabulatortaste führt durch die ganze Zeile: Auswahlfelder "
+        "klappen von selbst auf, man tippt die Anfangsbuchstaben und "
+        "bestätigt mit Enter",
+        "„Leistung“ ist dasselbe durchsuchbare Auswahlfeld wie „Betreute "
+        "Person“",
+        "⚠️ Eine neue Zeile übernimmt die betreute Person NICHT mehr – "
+        "stattdessen klappt deren Auswahl gleich auf. Datum, Leistung und "
+        "die Anschlusszeit bleiben stehen",
+        "Leistung und Erläuterung sind einzeln weiterhin freiwillig, "
+        "beide zusammen leer aber nicht: ohne jede Angabe lässt sich "
+        "später nicht mehr nachvollziehen, worum es ging",
+        "„Zeitlisten einlesen“ heißt „Zeitlisten Import“ und sagt schon "
+        "zugeklappt, wen der Bereich betrifft",
+        "Prüfung von 1416 auf 1439 Einzelprüfungen erweitert",
+    ]},
 ]

@@ -31,6 +31,16 @@ TEXTE_STANDARD["erfassung.einleitung"] = (
     "„Weitere Zeile“ lassen sich mehrere Einträge auf einmal anlegen.")
 TEXTE_STANDARD["start.upload_kurz"] = (
     "Exporte als .xlsx oder .csv – zum Aufklappen")
+# ⚠️ Wieder ein neuer Schlüssel und kein geänderter Text: eine vorhandene
+# strings.txt gewinnt gegen jeden Standardtext (Abschnitt 8). Der Satz
+# steht seit 1.24 im zugeklappten Kopf der Importkarte und beantwortet
+# die Frage, die dort als Erstes aufkommt - „betrifft mich das?“.
+TEXTE_STANDARD["import.einleitung"] = (
+    "Hier kannst du Rohdaten aus kompatiblen Zeiterfassungssystem wie "
+    "Working Hours importieren, damit alle Stunden automatisch zugeordnet "
+    "werden. Solltest du deine Zeiten nicht extern tracken, hat dieser "
+    "Punkt keinerlei Relevanz für dich und du kannst ihn einfach "
+    "ignorieren.")
 TEXTE_STANDARD["erfassung.leer"] = (
     "Noch nichts von Hand erfasst für {mitarbeiter}.")
 TEXTE_STANDARD["datensaetze.leer"] = (

@@ -3,6 +3,18 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.24
+
+- Behoben: die Namensliste bei „Betreute Person“ wurde von der Karte
+  abgeschnitten und erzeugte einen Rollbalken
+- Datum ohne Jahr und Uhrzeit ohne Minuten werden beim Tabben ergänzt
+- Die Tabulatortaste führt durch die ganze Zeile, Auswahlfelder klappen
+  von selbst auf; „Leistung“ ist jetzt dasselbe durchsuchbare Feld
+- Eine neue Zeile übernimmt die betreute Person nicht mehr, sondern
+  öffnet deren Auswahl
+- Leistung und Erläuterung dürfen nicht beide leer bleiben
+- „Zeitlisten einlesen“ heißt „Zeitlisten Import“ mit neuer Erläuterung
+
 ## 1.23
 
 - Manuelle Erfassung: Spaltentitel einmal über der Liste, ein Eintrag je

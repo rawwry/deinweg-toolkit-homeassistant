@@ -419,11 +419,15 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
    zu den Feldern darüber, die Knöpfe schließen das Formular ab. */
 .filter-knoepfe { display: flex; gap: 8px; margin-left: auto; }
 
-/* ⚠️ Die Filterkarte darf nicht klemmen: .karte steht auf
-   overflow-x: auto, und das macht (nach CSS-Regel) auch die senkrechte
-   Achse zu einem Scroll-Container - die aufgeklappte Namensliste wurde
-   dadurch abgeschnitten. Diese eine Karte trägt nichts Breites. */
-.karte:has(.filter) { overflow: visible; }
+/* ⚠️ Eine Karte mit aufklappbarer Auswahlliste darf nicht klemmen:
+   .karte steht auf overflow-x: auto, und das macht (nach CSS-Regel) auch
+   die senkrechte Achse zu einem Scroll-Container - die aufgeklappte
+   Liste wurde dadurch abgeschnitten und die Karte bekam obendrein einen
+   Rollbalken. Betroffen war zuerst die Filterkarte, seit 1.23 auch die
+   manuelle Erfassung: dort steht dieselbe Liste bei „Betreute Person“.
+   Beide Karten tragen nichts, was seitlich rollen müsste. */
+.karte:has(.filter),
+.karte:has(.suchwahl-huelle) { overflow: visible; }
 
 /* --- Mehrfachauswahl im Filter ------------------------------------------
    Mehrere Betreute auf einmal. Bewusst <details> mit Kästchen und kein
@@ -5111,12 +5115,20 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
    <details> und kein Skript: ohne Skript wäre der Bereich sonst gar
    nicht erreichbar. */
 .importkarte > summary {
-  list-style: none; cursor: pointer; display: flex; align-items: center;
+  list-style: none; cursor: pointer; display: flex; align-items: flex-start;
   gap: 12px;
 }
 .importkarte > summary::-webkit-details-marker { display: none; }
 .importkarte > summary::marker { content: ""; }
-.importkopf { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.importkopf { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* ⚠️ Der Erklärabsatz steht als <span> im <summary> - ein <p> ist dort
+   nicht erlaubt. Er braucht deshalb sein `display: block`; Infozeichen
+   und Einrückung bringt `.lead` mit. Der untere Rand muss weg, den setzt
+   hier der `gap` der Kopfspalte. */
+.importkopf .lead { display: block; margin: 0; }
+/* Der Pfeil sitzt auf der Höhe des Titels, nicht in der Mitte des
+   Absatzes darunter. */
+.importkarte > summary::after { margin-top: 9px; }
 /* ⚠️ Dieselbe Größe wie ein <h1> in einer Karte - die beiden Karten der
    Zeiterfassung stehen untereinander und müssen gleich schwer wiegen.
    Ein echtes <h1> im <summary> wäre auch möglich, brächte aber seine
@@ -5131,6 +5143,10 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 .importkarte[open] > summary::after { transform: rotate(-135deg); }
 .importkarte > summary:hover .importtitel { color: var(--akzent); }
 .importkarte[open] > summary { margin-bottom: 4px; }
+/* Der Satz zur Vorschau steht erst im aufgeklappten Zustand da und
+   bewusst ohne zweites Infozeichen - eines im Kopf reicht. Eingerückt
+   ist er trotzdem: sonst begänne er weiter links als der Satz darüber. */
+.importvorschau { margin: 0 0 14px; padding-left: 23px; }
 @media (prefers-reduced-motion: no-preference) {
   .importkarte > summary::after { transition: transform .2s ease; }
 }

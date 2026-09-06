@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.23"
+VERSION = "1.24"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1860,6 +1860,17 @@ def erfassung_speichern(mitarbeiter: str = Form(""),
         if minuten > 12 * 60:
             return zurueck(fehler=f"Zeile {zeile}: Das wären {hhmm(minuten)} "
                                   "am Stück. Bitte Start und Ende prüfen.")
+
+        # ⚠️ Leistung und Erlaeuterung sind einzeln keine Pflichtfelder,
+        # zusammen aber schon: ein Eintrag ohne jede Beschreibung ist im
+        # Nachweis wertlos - man sieht die Stunden und weiss nicht mehr,
+        # wofuer. Geprueft wird hier und nicht nur im Browser: ein
+        # abgeschicktes Formular kann alles enthalten.
+        if not l and not b:
+            return zurueck(fehler=f"Zeile {zeile}: Wähl eine Leistung oder "
+                                  "schreib eine Erläuterung – ganz ohne "
+                                  "Angabe lässt sich später nicht mehr "
+                                  "nachvollziehen, worum es ging.")
 
         # Vordefinierte Leistung und freier Text ergaenzen einander: ist
         # beides ausgefuellt, steht die einheitliche Bezeichnung vorn und

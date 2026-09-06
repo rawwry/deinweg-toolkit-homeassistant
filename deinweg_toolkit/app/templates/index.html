@@ -172,7 +172,13 @@
           {% if leistungen %}
           <label class="feld f-leistung">
             <span class="feldtitel">Leistung</span>
-            <select name="leistung" form="erfassung" aria-label="Leistung">
+            {# Seit 1.24 dasselbe durchsuchbare Feld wie bei der betreuten
+               Person: die Liste wächst mit den gepflegten Leistungen, und
+               zwei verschiedene Bedienformen nebeneinander in derselben
+               Zeile waren schlicht verwirrend. Ohne Skript bleibt es ein
+               ganz normales Auswahlfeld. #}
+            <select name="leistung" form="erfassung" class="suchwahl"
+                    data-titel="Leistung" aria-label="Leistung">
               <option value="">– keine –</option>
               {% for l in leistungen %}<option value="{{ l }}">{{ l }}</option>{% endfor %}
             </select>
@@ -226,13 +232,21 @@
        Bereich sonst gar nicht erreichbar. Die Überschrift bleibt sichtbar,
        nur das Formular klappt weg. #}
     <details class="karte hochkant importkarte">
+      {# ⚠️ Die Erläuterung steht IM <summary> und ist damit auch
+         zugeklappt zu lesen – genau darum geht es: wer seine Zeiten nicht
+         extern erfasst, soll den Bereich einmal lesen und danach
+         übergehen können. Bewusst ein <span class="lead"> und kein <p>:
+         ein <summary> darf keinen Absatz enthalten, das Zeichen und die
+         Einrückung bringt die Klasse ohnehin mit. #}
       <summary>
         <span class="importkopf">
-          <span class="importtitel">Zeitlisten einlesen</span>
-          <span class="klein leise">{{ t("start.upload_kurz") }}</span>
+          <span class="importtitel">Zeitlisten Import</span>
+          <span class="lead">{{ t("import.einleitung") }}</span>
         </span>
       </summary>
-      <p class="lead">{{ t("start.upload") }}</p>
+      {# Der Satz zur Vorschau steht drinnen: er betrifft erst den, der
+         wirklich hochlädt. Deshalb bewusst kein zweites Infozeichen. #}
+      <p class="klein leise importvorschau">{{ t("start.upload") }}</p>
 
       <form action="/upload" method="post" enctype="multipart/form-data">
         {# Das nackte <input type="file"> sieht in jedem Browser anders
@@ -510,10 +524,17 @@
     huelle.appendChild(block);
 
     var text    = block.querySelector(".suchwahl-text"),
+        kopf    = block.querySelector("summary"),
         suche   = block.querySelector(".wahlliste-feld"),
         raum    = block.querySelector(".wahlliste-eintraege"),
         leer    = block.querySelector(".wahlliste-leer"),
         knoepfe = [];
+
+    // ⚠️ Der unsichtbare <select> darf nicht in der Tab-Reihenfolge
+    // stehen: sonst braucht es zwei Tabs bis zur Auswahl, einen auf ein
+    // Feld, das niemand sieht. Programmatisch anspringen lässt er sich
+    // weiterhin - genau das braucht die eingebaute Pflichtfeldmeldung.
+    feld.tabIndex = -1;
 
     // Die Einträge kommen aus dem Auswahlfeld selbst - so gibt es die
     // Namen nur einmal im Markup, und Gruppen bleiben erhalten.
@@ -531,6 +552,11 @@
       if (!option.value) return;          // „bitte auswählen“ ist keiner
       var k = document.createElement("button");
       k.type = "button";
+      // ⚠️ Nicht in der Tab-Reihenfolge: sonst müsste man sich durch
+      // zwanzig Namen tabben, um zum nächsten Feld zu kommen. Bedient
+      // wird die Liste über das Suchfeld darüber (tippen, Enter) oder
+      // mit der Maus.
+      k.tabIndex = -1;
       k.className = "wahlzeile";
       k.dataset.wert = option.value;
       k.dataset.name = option.textContent.trim().toLowerCase();
@@ -571,12 +597,21 @@
       if (leer) leer.hidden = treffer > 0;
     }
 
+    // Merkt sich, dass gerade das Feld selbst geschlossen hat - sonst
+    // ginge es durch den Fokus auf den Kopf sofort wieder auf.
+    var eigenSchluss = false;
+    function zuklappen() {
+      eigenSchluss = true;
+      block.open = false;
+      kopf.focus();
+      setTimeout(function () { eigenSchluss = false; }, 0);
+    }
+
     function waehlen(wert) {
       feld.value = wert;
       feld.dispatchEvent(new Event("change", {bubbles: true}));
       beschriften();
-      block.open = false;
-      block.querySelector("summary").focus();
+      zuklappen();
     }
 
     raum.addEventListener("click", function (e) {
@@ -589,15 +624,43 @@
         e.preventDefault();
         var erster = knoepfe.filter(function (k) { return !k.hidden; })[0];
         if (erster) waehlen(erster.dataset.wert);
-      } else if (e.key === "Escape") { block.open = false; }
+      } else if (e.key === "Escape") { zuklappen(); }
     });
     block.addEventListener("toggle", function () {
       if (!block.open) return;
       suche.value = ""; filtern();
       suche.focus();
     });
+
+    // ⚠️ Mit der Tabulatortaste klappt das Feld von selbst auf - genau
+    // der Punkt an der Zeilenerfassung: Datum, Tab, tippen, Enter, Tab,
+    // Uhrzeit. Bewusst nur bei Tastaturbedienung: ein Mausklick auf den
+    // Kopf öffnet ihn ohnehin selbst, und öffnete der Fokus davor schon,
+    // machte der Klick danach sofort wieder zu.
+    kopf.addEventListener("focus", function () {
+      if (eigenSchluss || block.open) return;
+      try { if (!kopf.matches(":focus-visible")) return; } catch (e) { return; }
+      block.open = true;
+    });
+    // Von außen zu öffnen - eine neu angehängte Zeile beginnt damit.
+    //
+    // ⚠️ Erst im nächsten Takt. Aufgerufen wird das aus dem Klick auf
+    // „Weitere Zeile“, und dieser Klick blubbert danach noch bis zum
+    // Dokument hoch - wo die Regel „Klick daneben klappt zu“ sitzt. Die
+    // Liste ginge also auf und sofort wieder zu.
+    feld.oeffnen = function () {
+      setTimeout(function () {
+        if (!block.open) { block.open = true; } else { suche.focus(); }
+      }, 0);
+    };
     document.addEventListener("click", function (e) {
       if (block.open && !huelle.contains(e.target)) block.open = false;
+    });
+    // Tab aus dem Suchfeld heraus: die Liste selbst steht nicht in der
+    // Tab-Reihenfolge, der Fokus landet also im nächsten Feld der Zeile -
+    // das aufgeklappte Panel bliebe dabei stehen.
+    huelle.addEventListener("focusout", function (e) {
+      if (block.open && !huelle.contains(e.relatedTarget)) block.open = false;
     });
     // Wird der <select> von außen gesetzt (Zurück-Taste, Autofill),
     // muss die Beschriftung folgen.
@@ -648,6 +711,14 @@
     }
 
     // Punkte beim Tippen selbst setzen: 07052026 wird zu 07.05.2026
+    //
+    // ⚠️ Das Jahr darf man weglassen (seit 1.24). „0909“ plus Tab wird zu
+    // 09.09.2026 - vier Anschläge statt acht, und man erfasst ohnehin
+    // fast immer im laufenden Jahr. Ein ausdrücklich getipptes Jahr
+    // gewinnt: zweistellig wird zu 20xx, vierstellig bleibt stehen.
+    // Ergänzt wird erst beim Verlassen des Feldes, nicht beim Tippen -
+    // sonst stünde nach „09“ schon ein Jahr da, das man erst wieder
+    // wegräumen müsste, um den Monat zu tippen.
     function datumsfeld(feld) {
       feld.addEventListener("input", function () {
         var z = feld.value.replace(/\D/g, "").slice(0, 8);
@@ -655,6 +726,37 @@
         else if (z.length > 2) feld.value = z.slice(0,2) + "." + z.slice(2);
         else if (feld.value !== z && /^\d*$/.test(feld.value) === false) feld.value = z;
       });
+      feld.addEventListener("blur", function () { datumFuellen(feld); });
+    }
+
+    function datumFuellen(feld) {
+      var z = (feld.value || "").replace(/\D/g, "");
+      if (z.length !== 4 && z.length !== 6) return;   // leer, halb oder fertig
+      var tag = z.slice(0, 2), monat = z.slice(2, 4), jahr = z.slice(4);
+      if (+tag < 1 || +tag > 31 || +monat < 1 || +monat > 12) return;
+      if (!jahr) {
+        jahr = String(new Date().getFullYear());
+      } else {
+        // Zweistellig: dasselbe Jahrhundert wie heute. „26“ meint 2026.
+        jahr = String(new Date().getFullYear()).slice(0, 2) + jahr;
+      }
+      feld.value = tag + "." + monat + "." + jahr;
+    }
+
+    // ⚠️ Ohne Minutenangabe die volle Stunde: „12“ plus Tab wird zu
+    // 12:00, „930“ zu 09:30. Gerechnet wird über die reinen Ziffern, weil
+    // die Maske beim Tippen schon einen Doppelpunkt gesetzt hat - aus
+    // „930“ macht sie „93:0“, und nur die Ziffern daraus ergeben wieder
+    // die gemeinte Zeit.
+    function zeitFuellen(feld) {
+      var z = (feld.value || "").replace(/\D/g, ""), std, min;
+      if (!z) return;
+      if (z.length <= 2)      { std = +z;             min = 0; }
+      else if (z.length === 3) { std = +z.slice(0, 1); min = +z.slice(1); }
+      else                     { std = +z.slice(0, 2); min = +z.slice(2, 4); }
+      if (std > 23 || min > 59) return;   // stehen lassen, damit es auffällt
+      feld.value = String(std).padStart(2, "0") + ":" +
+                   String(min).padStart(2, "0");
     }
 
     function minuten(wert) {
@@ -693,7 +795,10 @@
           feld.value = z.length > 2 ? z.slice(0, 2) + ":" + z.slice(2) : z;
           rechnen(zeile);
         });
-        feld.addEventListener("blur", function () { rechnen(zeile); });
+        feld.addEventListener("blur", function () {
+          zeitFuellen(feld);
+          rechnen(zeile);
+        });
       });
       var weg = zeile.querySelector(".zeile-weg");
       if (weg) {
@@ -725,16 +830,19 @@
     zeilen().forEach(function (z) { entfernenknopf(z); verkabeln(z); });
     knopfreihe.hidden = false;
 
-    // ⚠️ Eine neue Zeile übernimmt die Angaben der vorigen - Datum,
-    // betreute Person und Leistung -, und die Startzeit ist die Endzeit
-    // der Zeile darüber. Das ist der eigentliche Punkt an der ganzen
-    // Umstellung: wer zehn Besuche eines Tages erfasst, ändert je Zeile
-    // nur noch die Uhrzeit. Alles steht sichtbar da und lässt sich
-    // überschreiben; ein vorbelegtes Feld kostet nie mehr Arbeit als ein
-    // leeres, im Regelfall aber deutlich weniger.
+    // ⚠️ Eine neue Zeile übernimmt Datum und Leistung der vorigen, und
+    // ihre Startzeit ist die Endzeit der Zeile darüber. Das ist der
+    // eigentliche Punkt an der ganzen Umstellung: wer mehrere Termine
+    // eines Tages erfasst, tippt kein Datum mehr und keine Anfangszeit.
+    //
+    // ⚠️ Die betreute Person wird ausdrücklich NICHT übernommen (seit
+    // 1.24, Timos Wunsch): eine zweite Zeile mit demselben Datum meint
+    // fast immer den nächsten Termin, also jemand anderen. Ein stehen
+    // gebliebener Name wäre hier kein gesparter Handgriff, sondern eine
+    // Falle - stattdessen klappt die Auswahl gleich auf.
     function uebernehmen(neue, vorige) {
       if (!vorige) return;
-      ["datum", "klient", "leistung"].forEach(function (name) {
+      ["datum", "leistung"].forEach(function (name) {
         var a = vorige.querySelector("[name='" + name + "']"),
             b = neue.querySelector("[name='" + name + "']");
         if (a && b) { b.value = a.value; }
@@ -753,11 +861,14 @@
       verkabeln(neue);
       nummerieren();
       if (fokus !== false) {
-        // In die Endzeit springen: Datum, Person und Startzeit stehen
-        // durch die Übernahme schon da, das Ende ist das Erste, was
-        // wirklich neu ist.
-        var ziel = neue.querySelectorAll(".zeitfeld")[1]
-                || neue.querySelector("[name='klient']");
+        // Direkt in die betreute Person: Datum und Startzeit stehen durch
+        // die Übernahme schon da, und der Name ist das Erste, was
+        // wirklich neu ist. Das Auswahlfeld klappt dabei gleich auf, man
+        // tippt also nur noch die Anfangsbuchstaben.
+        var wahl = neue.querySelector("select[name='klient']");
+        if (wahl && wahl.oeffnen) { wahl.oeffnen(); return neue; }
+        if (wahl) { wahl.focus(); return neue; }
+        var ziel = neue.querySelectorAll(".zeitfeld")[1];
         if (ziel) { ziel.focus(); }
       }
       return neue;
@@ -775,6 +886,64 @@
       e.preventDefault();
       var zeile = feld.closest(".erfasszeile"), alle = zeilen();
       if (zeile === alle[alle.length - 1]) { zeileAnhaengen(); }
+    });
+
+    // ⚠️ Eine gesetzte Meldung blockiert das Formular, BEVOR das
+    // submit-Ereignis überhaupt kommt - im Absendehandler lässt sie sich
+    // also nicht mehr zurücknehmen. Wer eine Leistung nachträgt, käme
+    // sonst nie durch. Deshalb hier: jede Eingabe in der Zeile räumt sie
+    // weg, und die eigentliche Prüfung läuft beim nächsten Anlauf neu.
+    function meldungRaeumen(e) {
+      var z = e.target.closest ? e.target.closest(".erfasszeile") : null;
+      if (!z) return;
+      var b = z.querySelector("[name='beschreibung']");
+      if (b) b.setCustomValidity("");
+    }
+    liste.addEventListener("input", meldungRaeumen);
+    liste.addEventListener("change", meldungRaeumen);
+
+    // ⚠️ Beim Abschicken erst alle Felder fertigschreiben: wer im Datum
+    // „0909“ tippt und gleich Enter drückt, verlässt das Feld nie - dann
+    // hätte die Ergänzung beim Verlassen nie gegriffen, und der Server
+    // bekäme ein halbes Datum.
+    //
+    // Und die eine Regel, die kein einzelnes Feld tragen kann: Leistung
+    // und Erläuterung sind für sich genommen freiwillig, beide zusammen
+    // leer aber nicht - ein Eintrag ohne jede Angabe ist im Nachweis
+    // wertlos. Die verbindliche Prüfung steht im Server
+    // (`erfassung_speichern`); hier spart sie nur den Weg dorthin.
+    formular.addEventListener("submit", function (e) {
+      zeilen().forEach(function (z) {
+        var d = z.querySelector(".datumfeld");
+        if (d) datumFuellen(d);
+        z.querySelectorAll(".zeitfeld").forEach(zeitFuellen);
+      });
+
+      var stolper = null;
+      zeilen().forEach(function (z) {
+        var l = z.querySelector("[name='leistung']"),
+            b = z.querySelector("[name='beschreibung']");
+        if (!b) return;
+        // ⚠️ Eine gesetzte Meldung bleibt am Feld kleben, bis sie
+        // ausdrücklich geleert wird. Ohne das hier käme man nach dem
+        // Nachtragen einer Leistung nicht mehr durch.
+        b.setCustomValidity("");
+        // Eine ganz leere Zeile überspringt der Server ohnehin.
+        var etwas = Array.prototype.some.call(
+          z.querySelectorAll("input, select"),
+          function (f) { return (f.value || "").trim(); });
+        if (!etwas) return;
+        if ((l && l.value.trim()) || b.value.trim()) return;
+        if (!stolper) stolper = {zeile: z, feld: b};
+      });
+      if (!stolper) return;
+
+      e.preventDefault();
+      var nr = zeilen().indexOf(stolper.zeile) + 1;
+      stolper.feld.setCustomValidity(
+        "Wähl eine Leistung oder schreib eine Erläuterung – Zeile " + nr +
+        " hat noch keine Angabe dazu, worum es ging.");
+      stolper.feld.reportValidity();
     });
 
     nummerieren();
