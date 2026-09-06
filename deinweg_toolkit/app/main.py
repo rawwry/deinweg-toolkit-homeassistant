@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.24"
+VERSION = "1.25"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -718,6 +718,21 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
         klientliste = klientenauswahl(con)
         offene = con.execute(
             "SELECT COUNT(*) c FROM import WHERE status='vorschau'").fetchone()["c"]
+
+        # ⚠️ Der eigene Name ist die Vorgabe (seit 1.25). Im Regelfall
+        # traegt jeder seine eigenen Zeiten ein; ein Pflichtfeld, dessen
+        # Antwort immer dieselbe ist, ist nur ein Handgriff mehr. Fuer
+        # jemand anderen zu erfassen bleibt moeglich, muss in der
+        # Oberflaeche aber ausdruecklich aufgeklappt werden.
+        #
+        # Hat das Konto keinen Mitarbeiter zugeordnet, gibt es keine
+        # Vorgabe - dann steht dort weiter das offene Auswahlfeld.
+        benutzer = getattr(request.state, "benutzer", None)
+        eigener = eigener_mitarbeitername(con, benutzer) if benutzer else ""
+        if not mitarbeiter and eigener:
+            mitarbeiter = eigener
+        fremd = bool(eigener and mitarbeiter and norm(mitarbeiter) != norm(eigener))
+
         if mitarbeiter:
             letzte = con.execute(
                 "SELECT * FROM eintrag WHERE mitarbeiter=? AND import_id IS NULL "
@@ -734,6 +749,7 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
         "klienten": klienten, "leistungen": leistungen, "letzte": letzte,
         "mitarbeiterliste": mitarbeiterliste, "klientliste": klientliste,
         "tagessumme": tagessumme, "mitarbeiter": mitarbeiter, "datum": datum,
+        "eigener": eigener, "fremd": fremd,
         "fehler": fehler, "hinweis": hinweis, "seite": "zeiterfassung",
         "offene": offene, "spruch": spruch(),
         "alle": bool(alle),

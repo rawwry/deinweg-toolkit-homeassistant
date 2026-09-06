@@ -3,6 +3,17 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.25
+
+- Manuelle Erfassung: der eigene Name ist die Vorgabe; für jemand
+  anderen zu erfassen klappt ausdrücklich auf und färbt das Band
+- Der Zeitlisten Import ist davon nicht betroffen
+- „Weitere Zeile“ als Fläche über die volle Breite; Tab am Ende einer
+  ausgefüllten Zeile legt die nächste an
+- Behoben: bei mittleren Fensterbreiten liefen die Erläuterungsfelder aus
+  der Karte heraus
+- Der Satz zur Vorschau im Zeitlisten Import ist entfallen
+
 ## 1.24
 
 - Behoben: die Namensliste bei „Betreute Person“ wurde von der Karte

@@ -3438,9 +3438,14 @@ def test_abgaben_verweise(client: TestClient) -> None:
             "'10:00','Testperson','Abgabeprobe',60,1,'abg1','2026-01-01 08:00')",
             (heute.isoformat(), heute.strftime("%Y-%m")))
     seite = client.get("/").text
-    pruefe("/eintraege?mitarbeiter=" in seite,
+    pruefe('class="stark standname"' in seite,
            "der Name führt in die gefilterte Übersicht")
-    verweis = seite.split("/eintraege?mitarbeiter=")[1].split('"')[0]
+    # ⚠️ Ab dem Namen der Abgabenliste schneiden, nicht am ersten
+    # „/eintraege?mitarbeiter=“ der Seite: seit 1.25 steht unter der
+    # Erfassung schon „Alle Einträge von …“ mit derselben Adresse, aber
+    # ohne Monatsgrenzen.
+    verweis = seite.split('class="stark standname"')[1]
+    verweis = verweis.split("/eintraege?mitarbeiter=")[1].split('"')[0]
     pruefe(f"von_monat={heute:%m}" in verweis
            and f"bis_monat={heute:%m}" in verweis,
            "und zwar auf genau diesen Monat")
@@ -5239,7 +5244,7 @@ def test_erfassraster(client: TestClient) -> None:
     pruefe(zeile.count('class="feldtitel"') == 7,
            "jedes der sieben Felder trägt weiterhin seine Beschriftung")
     pruefe(".erfasszeile .feldtitel {" in stil
-           and "clip-path: inset(50%)" in stil.split(".erfasszeile .feldtitel {")[1][:220],
+           and "clip-path: inset(50%)" in stil,
            "auf dem Schreibtisch ist sie versteckt, nicht entfernt")
 
     # --- Kopf und Zeile teilen sich EINE Spaltenaufteilung ------------------
@@ -5280,20 +5285,33 @@ def test_erfassraster(client: TestClient) -> None:
     pruefe("input[name='beschreibung']" in seite and "zeileAnhaengen()" in seite,
            "Enter im letzten Feld legt die nächste Zeile an")
 
-    # --- Am Telefon fällt das Raster auf Blöcke zurück ----------------------
-    schmal = stil.split("@media (max-width: 900px) {")
-    pruefe(len(schmal) > 1, "es gibt einen Block für schmale Fenster")
-    schmal = schmal[1].split("\n}")[0]
-    pruefe(".erfasskopf { display: none; }" in schmal,
-           "dort fällt die Kopfzeile weg")
-    pruefe("position: static" in schmal,
-           "dafür werden die Beschriftungen am Feld wieder sichtbar")
-    # ⚠️ Ausdrückliche Zuteilung statt `auto-fit`: bei 263px Innenbreite
-    # passte damit nichts mehr nebeneinander und die Zeile wurde 597px hoch.
-    pruefe("grid-template-columns: repeat(6, 1fr)" in schmal,
-           "das Raster hat feste sechs Spalten, nicht `auto-fit`")
-    pruefe(".erfasszeile > .f-zeit," in schmal and "grid-column: span 2" in schmal,
+    # --- Schmale Karte: das Raster fällt auf Blöcke zurück ------------------
+    # ⚠️ Ob die Zeile nebeneinander passt, entscheidet die Breite der
+    # KARTE und nicht die des Fensters. Eine Fensterabfrage weiß nichts
+    # von der 320px breiten Seitenspalte daneben - bei rund 1200px
+    # Fenster liefen die letzten Felder aus der Karte heraus.
+    pruefe(".erfassflaeche { container-type: inline-size;" in stil,
+           "die Erfassungsfläche ist ein Abfrage-Container")
+    pruefe('class="erfassflaeche"' in seite,
+           "und steht als eigene Hülle im Markup")
+    pruefe("@media (max-width: 900px)" not in stil,
+           "die alte Fensterabfrage ist weg - sie kannte die Kartenbreite nicht")
+    # Der GESTAPELTE Zustand ist der Ausgangszustand: ein Browser ohne
+    # Container-Abfragen bleibt bei den Blöcken statt zu zerbrechen.
+    grund = stil.split(".erfassflaeche { container-type")[1].split("@container")[0]
+    pruefe(".erfasskopf { display: none; }" in grund,
+           "ohne Container-Abfrage bleibt die Kopfzeile weg")
+    pruefe("grid-template-columns: repeat(6, 1fr)" in grund,
+           "das Raster hat dort feste sechs Spalten, nicht `auto-fit`")
+    pruefe(".erfasszeile > .f-zeit," in grund and "grid-column: span 2" in grund,
            "Von, Bis und Dauer stehen dort in einer Zeile")
+    weit = stil.split("@container erfassung (min-width: 760px) {")
+    pruefe(len(weit) > 1, "erst ab 760px Kartenbreite kommt das Raster dazu")
+    weit = weit[1]
+    pruefe("grid-template-columns: var(--erfassraster)" in weit,
+           "dann greifen Kopf und Zeile auf dieselbe Spaltenaufteilung zu")
+    pruefe("clip-path: inset(50%)" in weit,
+           "und die Beschriftungen verschwinden wieder hinter dem Kopf")
     for klasse in ("f-datum", "f-person", "f-zeit", "f-dauer", "f-leistung",
                    "f-text"):
         pruefe(klasse in seite, f"das Feld trägt seine Klasse „{klasse}“")
@@ -5385,10 +5403,119 @@ def test_erfassraster(client: TestClient) -> None:
            and 'liste.addEventListener("change", meldungRaeumen)' in seite,
            "und die Meldung verschwindet wieder, sobald man etwas einträgt")
 
+    # --- „Weitere Zeile“ als Fläche, und Tab am Zeilenende ------------------
+    # ⚠️ Der Knopf stand als kleiner, leiser Knopf eingerückt unter
+    # Feldern, die bündig zur Karte laufen. Jetzt liegt er als
+    # gestrichelte Zeile da, wo die nächste Zeile entsteht.
+    pruefe('class="zeile-mehr"' in seite,
+           "„Weitere Zeile“ ist eine eigene Fläche, kein leiser Knopf mehr")
+    pruefe("border: 1.5px dashed" in stil.split(".zeile-mehr {")[1][:260],
+           "gestrichelt über die volle Breite")
+    pruefe("<kbd>Tab</kbd>" in seite,
+           "und nennt den Tastaturweg gleich mit")
+    pruefe("function zeileGefuellt" in seite,
+           "Tab am Zeilenende hängt die nächste Zeile an")
+    # ⚠️ Nur bei gefüllter Zeile - sonst käme man mit der Tastatur nie
+    # mehr an „Einträge speichern“ vorbei.
+    gefuellt = seite.split("function zeileGefuellt")[1][:320]
+    for feldname in ("klient", "ende", "leistung", "beschreibung"):
+        pruefe('"' + feldname + '"' in gefuellt,
+               f"gezählt wird dabei „{feldname}“")
+    pruefe('"datum"' not in gefuellt and '"start"' not in gefuellt,
+           "Datum und Startzeit nicht - die stehen durch die Übernahme da")
+    tabblock = seite.split('if (e.key !== "Tab"')[1][:200]
+    pruefe("e.shiftKey" in tabblock,
+           "Shift+Tab bleibt der Weg zurück")
+
     # Die Hilfs-Leistung wieder wegräumen, damit spätere Prüfungen dieselbe
     # Ausgangslage vorfinden wie ohne diesen Abschnitt.
     with db.db() as con:
         con.execute("DELETE FROM leistung WHERE name='Rasterprobe'")
+
+
+def test_erfasst_fuer(client: TestClient) -> None:
+    """Der eigene Name ist die Vorgabe, fremd erfassen ist die Ausnahme."""
+    abschnitt("Erfasst für")
+
+    # Das Prüfkonto heißt „pruefer“ und es gibt einen Mitarbeiter gleichen
+    # Namens - damit greift die Zuordnung über die Namensgleichheit.
+    seite = client.get("/").text
+    pruefe(">Erfasst für<" in seite,
+           "der Block heißt „Erfasst für“ statt „Mitarbeiter“")
+    pruefe('class="erfasser-name"' in seite,
+           "der eigene Name steht als Text da, nicht als Pflichtfeld")
+    band = seite.split('class="erfasser')[1].split("</div>\n\n      {% if")[0] \
+        if "{% if" in seite else seite.split('class="erfasser')[1][:4000]
+    pruefe("– bitte auswählen –" not in band,
+           "es gibt keine leere Vorauswahl mehr")
+    pruefe('id="erfasserwechsel"' in seite and "Für jemand anderen erfassen" in seite,
+           "für jemand anderen zu erfassen klappt darunter auf")
+    pruefe("<details class=\"erfasserwechsel\"" in seite,
+           "bewusst ein <details> - das geht auch ohne Skript")
+
+    # ⚠️ Das Auswahlfeld steckt IM zugeklappten Block und schickt seinen
+    # Wert trotzdem mit: ohne Skript ist damit alles bedienbar.
+    block = seite.split('id="erfasserwechsel"')[1].split("</details>")[0]
+    pruefe('name="mitarbeiter"' in block,
+           "das Auswahlfeld steht darin und schickt seinen Wert auch zugeklappt mit")
+    pruefe('selected' in block and "pruefer" in block,
+           "vorausgewählt ist der eigene Name")
+    pruefe("erfassung.fremd" not in block and "Auswertung" in block,
+           "mit einem Hinweis, was das bedeutet")
+
+    # Ohne eigene Angabe wird der eigene Name gespeichert.
+    with db.db() as con:
+        con.execute("DELETE FROM eintrag WHERE beschreibung='Vorgabeprobe'")
+    client.post("/erfassung", data={
+        "mitarbeiter": "pruefer", "datum": "20.06.2026", "klient": "Testperson",
+        "start": "09:00", "ende": "10:00", "beschreibung": "Vorgabeprobe"},
+        follow_redirects=False)
+    with db.db() as con:
+        wer = con.execute("SELECT mitarbeiter FROM eintrag "
+                          "WHERE beschreibung='Vorgabeprobe'").fetchone()
+    pruefe(wer and wer["mitarbeiter"] == "pruefer",
+           "gespeichert wird auf den eigenen Namen")
+
+    # Ein fremder Name färbt das Band und klappt den Block auf.
+    seite = client.get("/?mitarbeiter=Ehemalige+Kollegin").text
+    pruefe('class="erfasser fremd"' in seite,
+           "ein fremder Name färbt das Band")
+    pruefe("für jemand anderen" in seite,
+           "und trägt eine eigene Marke")
+    pruefe('id="erfasserwechsel" open' in seite,
+           "der Block steht dann offen - sonst sähe man den Namen nicht")
+    pruefe("Wieder auf pruefer stellen" in seite,
+           "und es gibt einen Weg zurück")
+
+    # Der Listenimport bleibt unberührt - dort lädt man eine fremde Liste
+    # hoch, die Frage nach dem Namen ist da eine andere.
+    # ⚠️ Vor den Skripten abschneiden - dort steht der Blockname als
+    # Kommentar und käme sonst als Treffer durch.
+    import_teil = seite.split('importkarte"')[1].split("<script")[0]
+    pruefe('name="mitarbeiter"' in import_teil,
+           "der Listenimport hat weiterhin sein eigenes Auswahlfeld")
+    pruefe("– bitte auswählen –" in import_teil,
+           "mit unveränderter leerer Vorauswahl")
+    pruefe("Erfasst für" not in import_teil,
+           "und ist von der Vorgabe nicht betroffen")
+
+    # ⚠️ Ohne zugeordneten Mitarbeiter gibt es keine Vorgabe - dann steht
+    # dort weiter das offene Auswahlfeld. Sonst käme ein solches Konto
+    # überhaupt nicht mehr zum Erfassen.
+    ohne = _konto(client, "ohnezuordnung", "ohnezuordnung1",
+                  ["manuelle_eintraege"])
+    seite = ohne.get("/").text
+    pruefe(">Mitarbeiter<" in seite,
+           "ohne Zuordnung heißt der Block weiter „Mitarbeiter“")
+    pruefe("– bitte auswählen –" in seite,
+           "und das Auswahlfeld steht offen da")
+    pruefe('class="erfasser-name"' not in seite,
+           "es gibt keinen Namen, der dastehen könnte")
+    pruefe('id="erfasserwechsel"' not in seite,
+           "und nichts aufzuklappen")
+
+    with db.db() as con:
+        con.execute("DELETE FROM eintrag WHERE beschreibung='Vorgabeprobe'")
 
 
 def test_logbuch_darstellung(client: TestClient) -> None:
@@ -5880,6 +6007,7 @@ def _durchlauf(client: TestClient) -> None:
         test_mehrfacherfassung(client)
         test_zeiterfassung_auswahl(client)
         test_erfassraster(client)
+        test_erfasst_fuer(client)
         test_logbuch_darstellung(client)
         test_dateien(client)
         test_menue_reihenfolge(client)

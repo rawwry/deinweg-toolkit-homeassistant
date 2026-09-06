@@ -1855,4 +1855,30 @@ CHANGELOG = [
         "zugeklappt, wen der Bereich betrifft",
         "Prüfung von 1416 auf 1439 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.25", "titel": "Erfasst für dich", "punkte": [
+        "Manuelle Erfassung: der eigene Name steht einfach da, statt "
+        "jedes Mal ausgewählt zu werden. Im Regelfall trägt jeder seine "
+        "eigenen Zeiten ein – ein Pflichtfeld, dessen Antwort immer "
+        "dieselbe ist, war nur ein Handgriff mehr",
+        "Für jemand anderen zu erfassen bleibt möglich, klappt aber "
+        "ausdrücklich auf und sagt, was es bedeutet. Ist ein fremder Name "
+        "gewählt, färbt sich das ganze Band",
+        "⚠️ Der Zeitlisten Import ist davon nicht betroffen – dort lädt "
+        "man eine fremde Liste hoch, die Frage nach dem Namen ist da eine "
+        "andere",
+        "„Weitere Zeile“ liegt jetzt als Fläche über die volle Breite da, "
+        "wo die nächste Zeile entsteht, statt als kleiner Knopf am linken "
+        "Rand",
+        "Tab am Ende einer ausgefüllten Zeile legt die nächste an und "
+        "öffnet gleich die betreute Person – ohne zum Knopf zu greifen. "
+        "Ist die letzte Zeile leer, führt Tab wie gewohnt weiter zu den "
+        "Knöpfen",
+        "⚠️ Behoben: bei mittleren Fensterbreiten liefen die "
+        "Erläuterungsfelder aus der Karte heraus. Ob die Zeile "
+        "nebeneinander passt, entscheidet jetzt die Breite der Karte und "
+        "nicht mehr die des Fensters – die wusste nichts von der "
+        "Seitenspalte daneben",
+        "Der Satz zur Vorschau im Zeitlisten Import ist entfallen",
+        "Prüfung von 1439 auf 1473 Einzelprüfungen erweitert",
+    ]},
 ]

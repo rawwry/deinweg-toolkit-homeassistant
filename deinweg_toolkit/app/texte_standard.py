@@ -35,6 +35,11 @@ TEXTE_STANDARD["start.upload_kurz"] = (
 # strings.txt gewinnt gegen jeden Standardtext (Abschnitt 8). Der Satz
 # steht seit 1.24 im zugeklappten Kopf der Importkarte und beantwortet
 # die Frage, die dort als Erstes aufkommt - „betrifft mich das?“.
+TEXTE_STANDARD["erfassung.fremd"] = (
+    "Die Zeiten laufen dann vollständig auf den gewählten Namen: sie "
+    "erscheinen in dessen Auswertung, zählen für dessen Monatsabgabe und "
+    "sind später nur noch dort zu finden. Nur nutzen, wenn du wirklich "
+    "für jemand anderen erfasst.")
 TEXTE_STANDARD["import.einleitung"] = (
     "Hier kannst du Rohdaten aus kompatiblen Zeiterfassungssystem wie "
     "Working Hours importieren, damit alle Stunden automatisch zugeordnet "

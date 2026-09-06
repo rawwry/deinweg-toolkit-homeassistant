@@ -50,20 +50,45 @@
 
       {# Der Name gilt für alle Zeilen darunter und steht deshalb
          abgesetzt in einem eigenen Band - vorher sah er aus wie das
-         erste von acht gleichrangigen Feldern. #}
-      <div class="erfasser">
+         erste von acht gleichrangigen Feldern.
+
+         ⚠️ Seit 1.25 muss ihn niemand mehr auswählen: im Regelfall trägt
+         jeder seine eigenen Zeiten ein, und ein Pflichtfeld, dessen
+         Antwort immer dieselbe ist, ist nur ein Handgriff mehr. Der Name
+         des angemeldeten Kontos steht deshalb einfach da; für andere zu
+         erfassen ist die Ausnahme und muss ausdrücklich aufgeklappt
+         werden. Bewusst <details> und kein Skript - das Auswahlfeld
+         steckt darin und schickt seinen Wert auch zugeklappt mit, die
+         Seite funktioniert also ohne Skript unverändert.
+
+         ⚠️ Der Listenimport bleibt davon unberührt: dort lädt man eine
+         fremde Liste hoch, die Frage nach dem Namen ist da eine andere. #}
+      {% set makro_titel = "Erfasst für" if eigener else "Mitarbeiter" %}
+      <div class="erfasser{{ ' fremd' if fremd }}">
         <div class="erfasser-kopf">
-          <span class="erfasser-titel">Mitarbeiter</span>
+          <span class="erfasser-titel">{{ makro_titel }}</span>
+          {% if not eigener %}
           <span class="erfasser-marke">gilt für alle Zeilen unten</span>
+          {% elif fremd %}
+          <span class="erfasser-marke achtung">für jemand anderen</span>
+          {% else %}
+          <span class="erfasser-marke">dein Konto</span>
+          {% endif %}
         </div>
+
+        {% if eigener %}
+        <p class="erfasser-name" id="erfasser-name">{{ mitarbeiter }}</p>
+        {% endif %}
+
         {# Auswahl statt Freitext: die Namen kommen aus dem gepflegten
            Team. Namen, die nur noch in alten Zeiten vorkommen, stehen
            in einer zweiten Gruppe darunter – sonst wären deren Zeiten
            über dieses Feld nicht mehr erreichbar. #}
+        {% set feldwahl %}
         <select name="mitarbeiter" form="erfassung" required
-                class="suchwahl" data-titel="Mitarbeiter"
+                class="suchwahl" data-titel="Mitarbeiter" id="mitarbeiterfeld"
                 aria-label="Mitarbeiter" {{ 'autofocus' if not mitarbeiter }}>
-          <option value="">– bitte auswählen –</option>
+          {% if not eigener %}<option value="">– bitte auswählen –</option>{% endif %}
           {% for m in mitarbeiterliste.team %}
             <option value="{{ m }}" {{ 'selected' if m == mitarbeiter }}>{{ m }}</option>
           {% endfor %}
@@ -75,7 +100,24 @@
           </optgroup>
           {% endif %}
         </select>
+        {% endset %}
+
+        {% if eigener %}
+        <details class="erfasserwechsel" id="erfasserwechsel" {{ 'open' if fremd }}>
+          <summary>
+            <span class="erfasserwechsel-titel">Für jemand anderen erfassen</span>
+          </summary>
+          <p class="felderklaerung">{{ t("erfassung.fremd") }}</p>
+          {{ feldwahl }}
+          <p class="erfasserwechsel-zurueck">
+            <button class="knopf leise klein" type="button" id="erfasser-zurueck">
+              Wieder auf {{ eigener }} stellen</button>
+          </p>
+        </details>
+        {% else %}
+        {{ feldwahl }}
         <p class="erfasser-fuss">Bleibt stehen, bis du ihn änderst.</p>
+        {% endif %}
       </div>
 
       {% if not mitarbeiterliste.team and not mitarbeiterliste.weitere %}
@@ -104,6 +146,13 @@
          Kopf ist nur eine Anzeige, Vorleseprogramme brauchen die
          Beschriftung am Feld. Am Telefon ist es umgekehrt - dort fällt
          der Kopf weg und die Beschriftungen werden wieder sichtbar. #}
+      {# ⚠️ Diese Hülle ist der Bezug für die Container-Abfrage im
+         Stylesheet: ob das Raster nebeneinander passt, hängt an der
+         Breite der KARTE, nicht an der des Fensters. Eine
+         Fensterabfrage hat davon nichts gewusst - bei 1200px Fenster
+         blieb neben der 320px-Seitenspalte zu wenig übrig, und die
+         Erläuterungsfelder liefen aus der Karte heraus. #}
+      <div class="erfassflaeche">
       <div class="erfasskopf{{ ' ohne-leistung' if not leistungen }}" aria-hidden="true">
         <span></span>
         <span>Datum</span>
@@ -124,7 +173,8 @@
             <span class="feldtitel">Datum</span>
             <input type="text" name="datum" value="{{ datum }}" required form="erfassung"
                    inputmode="numeric" placeholder="TT.MM.JJJJ" maxlength="10"
-                   class="datumfeld" autocomplete="off" aria-label="Datum">
+                   class="datumfeld" autocomplete="off" aria-label="Datum"
+                   {{ 'autofocus' if mitarbeiter }}>
           </label>
 
           <label class="feld f-person">
@@ -135,8 +185,7 @@
                Ein Skript macht daraus ein durchsuchbares Feld – ohne
                Skript bleibt es ein ganz normales Auswahlfeld. #}
             <select name="klient" required form="erfassung" class="suchwahl"
-                    data-titel="Betreute Person" aria-label="Betreute Person"
-                    {{ 'autofocus' if mitarbeiter }}>
+                    data-titel="Betreute Person" aria-label="Betreute Person">
               <option value="">– wählen –</option>
               {% for k in klientliste.personen %}
                 <option value="{{ k }}">{{ k }}</option>
@@ -201,21 +250,31 @@
       {% endif %}
 
       {# Der Knopf steht nur mit Skript zur Verfügung und wird dort
-         eingeblendet – ohne Skript ließe sich keine Zeile hinzufügen. #}
-      <div class="knopfreihe erfass-mehr" id="zeilenknopf" hidden>
-        <button class="knopf leise klein" type="button" id="zeile-mehr">
+         eingeblendet – ohne Skript ließe sich keine Zeile hinzufügen.
+
+         ⚠️ Seit 1.25 eine Fläche über die volle Breite statt eines
+         kleinen Knopfes am linken Rand. Er stand dort eingerückt unter
+         Feldern, die bündig zur Karte laufen, und sah aus wie
+         hineingerutscht; als leiser Knopf war er außerdem kaum zu sehen.
+         Jetzt liegt er als gestrichelte Zeile genau dort, wo die nächste
+         Zeile entsteht - er sieht aus wie das, was er tut. #}
+      <div class="erfass-mehr" id="zeilenknopf" hidden>
+        <button class="zeile-mehr" type="button" id="zeile-mehr">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round"/>
           </svg>
-          Weitere Zeile
+          <span class="zeile-mehr-text">Weitere Zeile</span>
+          <span class="zeile-mehr-hinweis">oder am Zeilenende
+            <kbd>Tab</kbd> drücken</span>
         </button>
-        <span class="klein leise" id="zeilenstand"></span>
       </div>
+      </div>{# /erfassflaeche #}
 
       <div class="knopfreihe erfass-fuss">
         <button class="knopf haupt" type="submit" form="erfassung" id="erfassen-knopf">
           Eintrag speichern</button>
+        <span class="klein leise" id="zeilenstand"></span>
         {% if mitarbeiter %}
         <a class="knopf leise" href="/eintraege?mitarbeiter={{ mitarbeiter | urlencode }}">
           Alle Einträge von {{ mitarbeiter }}</a>
@@ -244,9 +303,10 @@
           <span class="lead">{{ t("import.einleitung") }}</span>
         </span>
       </summary>
-      {# Der Satz zur Vorschau steht drinnen: er betrifft erst den, der
-         wirklich hochlädt. Deshalb bewusst kein zweites Infozeichen. #}
-      <p class="klein leise importvorschau">{{ t("start.upload") }}</p>
+      {# ⚠️ Der frühere Satz zur Vorschau („Exporte aus Working Hours …“,
+         Schlüssel `start.upload`) ist mit 1.25 auf Timos Wunsch entfallen:
+         die Erläuterung im Kopf sagt bereits alles Nötige. Der Schlüssel
+         bleibt in texte_standard.py stehen, nur der Absatz ist raus. #}
 
       <form action="/upload" method="post" enctype="multipart/form-data">
         {# Das nackte <input type="file"> sieht in jedem Browser anders
@@ -674,6 +734,49 @@
   document.querySelectorAll("select.suchwahl").forEach(function (f) {
     if (!f.closest("#erfassliste")) suchwahl(f);
   });
+
+  // --- Erfasst für ... ---------------------------------------------------
+  //
+  // Der Name steht als Text da; das Auswahlfeld steckt zugeklappt darunter
+  // und schickt seinen Wert trotzdem mit. Ohne Skript ist damit alles
+  // bedienbar - hier kommt nur dazu, dass der Name der Auswahl folgt und
+  // das Band sich färbt, sobald es ein fremder ist.
+  (function () {
+    var band    = document.querySelector(".erfasser"),
+        anzeige = document.getElementById("erfasser-name"),
+        wahl    = document.getElementById("mitarbeiterfeld"),
+        zurueck = document.getElementById("erfasser-zurueck"),
+        marke   = band && band.querySelector(".erfasser-marke"),
+        eigener = anzeige ? anzeige.textContent.trim() : "";
+    if (!band || !anzeige || !wahl) return;
+    // ⚠️ Der eigene Name ist der, der beim Laden dasteht - und nur dann,
+    // wenn die Seite ihn nicht schon als fremden ausweist.
+    if (band.classList.contains("fremd")) {
+      eigener = (zurueck ? zurueck.textContent : "")
+                  .replace("Wieder auf", "").replace("stellen", "").trim();
+    }
+    function nachziehen() {
+      var jetzt = (wahl.value || "").trim();
+      anzeige.textContent = jetzt || eigener;
+      var anders = !!jetzt && !!eigener &&
+                   jetzt.toLowerCase() !== eigener.toLowerCase();
+      band.classList.toggle("fremd", anders);
+      if (marke) {
+        marke.textContent = anders ? "für jemand anderen" : "dein Konto";
+        marke.classList.toggle("achtung", anders);
+      }
+    }
+    wahl.addEventListener("change", nachziehen);
+    if (zurueck) {
+      zurueck.addEventListener("click", function () {
+        wahl.value = eigener;
+        wahl.dispatchEvent(new Event("change", {bubbles: true}));
+        var block = document.getElementById("erfasserwechsel");
+        if (block) block.open = false;
+      });
+    }
+    nachziehen();
+  })();
 </script>
 
 <script>
@@ -886,6 +989,34 @@
       e.preventDefault();
       var zeile = feld.closest(".erfasszeile"), alle = zeilen();
       if (zeile === alle[alle.length - 1]) { zeileAnhaengen(); }
+    });
+
+    // ⚠️ Und dasselbe mit der Tabulatortaste: wer die letzte Zeile
+    // ausgefüllt hat und noch einmal Tab drückt, bekommt die nächste -
+    // ohne zum Knopf zu greifen. Das ist der Punkt am Tastaturweg: eine
+    // Zeile lang durchtabben, dann weiter.
+    //
+    // ⚠️ Nur wenn in der Zeile wirklich etwas steht. Sonst käme man mit
+    // der Tastatur nie mehr an „Einträge speichern“ vorbei - jedes Tab
+    // am Ende hinge eine weitere leere Zeile an. Eine leere letzte Zeile
+    // heißt „ich bin fertig“, und Tab geht wie gewohnt weiter zu den
+    // Knöpfen. Datum und Startzeit zählen dabei nicht mit: die stehen
+    // durch die Übernahme ohnehin schon da.
+    function zeileGefuellt(zeile) {
+      return ["klient", "ende", "leistung", "beschreibung"].some(function (n) {
+        var f = zeile.querySelector("[name='" + n + "']");
+        return f && (f.value || "").trim();
+      });
+    }
+    liste.addEventListener("keydown", function (e) {
+      if (e.key !== "Tab" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) {
+        return;
+      }
+      if (!e.target.matches("input[name='beschreibung']")) { return; }
+      var zeile = e.target.closest(".erfasszeile"), alle = zeilen();
+      if (zeile !== alle[alle.length - 1] || !zeileGefuellt(zeile)) { return; }
+      e.preventDefault();
+      zeileAnhaengen();
     });
 
     // ⚠️ Eine gesetzte Meldung blockiert das Formular, BEVOR das
