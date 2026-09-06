@@ -5408,11 +5408,25 @@ def test_erfassraster(client: TestClient) -> None:
     # Feldern, die bündig zur Karte laufen. Jetzt liegt er als
     # gestrichelte Zeile da, wo die nächste Zeile entsteht.
     pruefe('class="zeile-mehr"' in seite,
-           "„Weitere Zeile“ ist eine eigene Fläche, kein leiser Knopf mehr")
-    pruefe("border: 1.5px dashed" in stil.split(".zeile-mehr {")[1][:260],
-           "gestrichelt über die volle Breite")
+           "„Weitere Zeile“ ist ein eigener Knopf, kein leiser Wortknopf mehr")
+    # ⚠️ Dritter Anlauf: eine Trennlinie mit einem kleinen Knopf mitten
+    # darin. Der eingerückte Wortknopf sah aus wie hineingerutscht, die
+    # gestrichelte Fläche über die volle Breite wog schwerer als der
+    # Handgriff, den sie auslöst.
+    pruefe("border-radius: 999px" in stil.split(".zeile-mehr {")[1][:280],
+           "als Pille, nicht als Kasten über die volle Breite")
+    pruefe("dashed" not in stil.split(".zeile-mehr {")[1][:280],
+           "und ohne gestrichelte Fläche")
+    pruefe(".erfass-mehr::before" in stil
+           and "linear-gradient(to right, transparent" in stil,
+           "die Linie dahinter läuft nach beiden Seiten aus")
     pruefe("<kbd>Tab</kbd>" in seite,
-           "und nennt den Tastaturweg gleich mit")
+           "und der Tastaturweg steht klein darunter")
+    # ⚠️ Der Hinweis steht seit 1.25.1 neben dem Knopf, nicht mehr darin -
+    # die Regel für die Taste muss mitziehen, sonst steht dort blanker
+    # Text ohne Rahmen.
+    pruefe(".zeile-mehr-hinweis kbd {" in stil,
+           "und die Taste ist auch dort als Taste gesetzt")
     pruefe("function zeileGefuellt" in seite,
            "Tab am Zeilenende hängt die nächste Zeile an")
     # ⚠️ Nur bei gefüllter Zeile - sonst käme man mit der Tastatur nie

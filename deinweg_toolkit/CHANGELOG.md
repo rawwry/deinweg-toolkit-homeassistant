@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.25.1
+
+- Behoben: in der Spalte „Dauer“ lief die Zahl über die Kante ihres
+  Kastens hinaus
+- „Weitere Zeile“ als kleine Pille auf einer Trennlinie statt als
+  gestrichelte Fläche über die volle Breite
+
 ## 1.25
 
 - Manuelle Erfassung: der eigene Name ist die Vorgabe; für jemand

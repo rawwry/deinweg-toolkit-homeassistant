@@ -1881,4 +1881,16 @@ CHANGELOG = [
         "Der Satz zur Vorschau im Zeitlisten Import ist entfallen",
         "Prüfung von 1439 auf 1473 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.25.1", "titel": "Zwei Kleinigkeiten nachgezogen", "punkte": [
+        "⚠️ Behoben: in der Spalte „Dauer“ lief die Zahl über die Kante "
+        "ihres Kastens hinaus – „12:30“ in 17px brauchte mehr Platz, als "
+        "die 58px breite Spalte hergibt. Im Raster steht sie jetzt eine "
+        "Spur kleiner; breiter darf die Spalte nicht werden, sonst passt "
+        "die Zeile auf schmaleren Bildschirmen nicht mehr nebeneinander",
+        "„Weitere Zeile“ ist keine gestrichelte Fläche mehr, sondern eine "
+        "kleine Pille auf einer Trennlinie, die nach beiden Seiten "
+        "ausläuft. Sie sitzt bündig zur Liste, nimmt aber keine Fläche "
+        "weg. Der Tastaturhinweis steht klein darunter",
+        "Prüfung von 1473 auf 1476 Einzelprüfungen erweitert",
+    ]},
 ]

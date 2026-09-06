@@ -1261,24 +1261,40 @@ input[type="date"] { text-transform: uppercase; }
   content: ""; flex: 1 1 auto; height: 1px; background: var(--linie);
 }
 
-/* ⚠️ „Weitere Zeile“ ist seit 1.25 eine Fläche über die volle Breite,
-   kein kleiner Knopf am linken Rand. Er stand dort eingerückt unter
-   Feldern, die bündig zur Karte laufen, und sah aus wie hineingerutscht;
-   als leiser Knopf war er außerdem kaum zu sehen. Jetzt liegt er als
-   gestrichelte Zeile genau da, wo die nächste Zeile entsteht - er sieht
-   aus wie das, was er tut. */
-.erfass-mehr { margin-top: 10px; }
-.zeile-mehr {
-  display: flex; align-items: center; justify-content: center;
-  gap: 9px; width: 100%; padding: 11px 14px;
-  border: 1.5px dashed var(--linie-stark); border-radius: 11px;
-  background: transparent; color: var(--leise); cursor: pointer;
-  font: inherit; font-size: 13.5px; font-weight: 600; line-height: 1.2;
+/* ⚠️ „Weitere Zeile“: dritter Anlauf (1.25.1).
+   Bis 1.24 ein kleiner, leiser Knopf am linken Rand - er stand eingerückt
+   unter Feldern, die bündig zur Karte laufen, und sah aus wie
+   hineingerutscht. 1.25 dann eine gestrichelte Fläche über die volle
+   Breite - die war deutlich sichtbar, aber ein leerer Kasten unter der
+   Liste wiegt schwerer als der Handgriff, den er auslöst.
+   Jetzt: eine Trennlinie mit einem kleinen Knopf mittendrin. Sie sitzt
+   bündig zur Liste, nimmt keine Fläche weg und sagt trotzdem „hier geht
+   es weiter“. Nicht auf einen Kasten zurückbauen. */
+.erfass-mehr {
+  margin-top: 12px; display: flex; flex-direction: column;
+  align-items: center; gap: 6px;
 }
-.zeile-mehr svg { width: 15px; height: 15px; flex: 0 0 auto; }
-.zeile-mehr-hinweis { font-weight: 400; font-size: 11.5px; opacity: .8; }
-.zeile-mehr kbd {
-  font: inherit; font-size: 10.5px; font-weight: 600;
+.zeile-mehr {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 15px; border-radius: 999px;
+  border: 1px solid var(--linie-stark); background: var(--flaeche);
+  color: var(--leise); cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; line-height: 1.2;
+}
+/* Die Linie liegt hinter dem Knopf und läuft nach beiden Seiten aus -
+   deshalb ein Verlauf und keine durchgehende Kante. */
+.erfass-mehr::before {
+  content: ""; order: -1; width: 100%; height: 1px; margin-bottom: -20px;
+  background: linear-gradient(to right, transparent,
+              var(--linie-stark) 18%, var(--linie-stark) 82%, transparent);
+}
+.zeile-mehr { position: relative; }
+.zeile-mehr svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.zeile-mehr-hinweis {
+  margin: 0; font-size: 11px; color: var(--leise); opacity: .85;
+}
+.zeile-mehr-hinweis kbd {
+  font: inherit; font-size: 10px; font-weight: 600;
   padding: 1px 5px; border-radius: 4px;
   border: 1px solid var(--linie-stark); background: var(--flaeche-2);
 }
@@ -1286,7 +1302,6 @@ input[type="date"] { text-transform: uppercase; }
   border-color: var(--akzent); color: var(--akzent);
   background: var(--akzent-weich);
 }
-.zeile-mehr:hover kbd, .zeile-mehr:focus-visible kbd { border-color: var(--akzent); }
 /* Am Telefon ist für den Tastaturhinweis kein Platz - und eine Tabtaste
    gibt es dort ohnehin nicht. */
 @media (max-width: 620px) { .zeile-mehr-hinweis { display: none; } }
@@ -1449,6 +1464,12 @@ input[type="date"] { text-transform: uppercase; }
   }
   .erfasszeile-nr::before { content: none; }
   .erfasszeile-weg { position: static; }
+  /* ⚠️ Der Dauer-Kasten ist nur 58px breit; „12:30“ in 17px samt 11px
+     Polsterung braucht 60px und lief deshalb sichtbar über seine Kante
+     hinaus. Im Raster also kleiner gesetzt - gelesen wird die Zahl aus
+     nächster Nähe, und breiter darf die Spalte nicht werden, sonst
+     verschiebt sich die Schwelle im @container. */
+  .erfasszeile .dauer-ausgabe { font-size: 15px; padding: 8px 4px; }
   /* Hier steht der Knopf erst beim Überfahren der Zeile da: acht Spalten
      mit einem roten Kreuz am Ende wären auf zehn Zeilen zu unruhig. */
   .erfassliste.mehrere .zeile-weg { opacity: 0; pointer-events: none; }
