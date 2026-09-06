@@ -1893,4 +1893,17 @@ CHANGELOG = [
         "weg. Der Tastaturhinweis steht klein darunter",
         "Prüfung von 1473 auf 1476 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.26", "titel": "Logbuch aufräumen", "punkte": [
+        "Logbuch der Datensätze: ausgewählte Zeilen lassen sich entfernen "
+        "– dieselbe Mehrfachauswahl wie in der Übersicht, der Schalter "
+        "heißt „Aufräumen“",
+        "⚠️ Dass hier aufgeräumt wurde, bleibt als eigene Zeile stehen "
+        "(wer, wann, wie viele). Ohne sie wäre eine Lücke im Logbuch "
+        "nicht mehr von „da war nie etwas“ zu unterscheiden – und genau "
+        "das soll ein Logbuch unterscheidbar machen",
+        "⚠️ Nur für Administratoren, auch über die Adresse",
+        "Manuelle Erfassung: mehr Abstand zwischen der letzten Zeile und "
+        "„Weitere Zeile“",
+        "Prüfung von 1476 auf 1490 Einzelprüfungen erweitert",
+    ]},
 ]

@@ -108,6 +108,17 @@ TEXTE_STANDARD["logbuch.lead"] = (
     "Zeilen lassen sich weder ändern noch entfernen. <strong>Neu erfasste "
     "Zeiten stehen nicht drin:</strong> wer sie angelegt hat, steht im "
     "Datensatz selbst.")
+# ⚠️ Neuer Schlüssel statt geändertem Text: eine vorhandene strings.txt
+# gewinnt gegen jeden Standardtext (Abschnitt 8). Der alte Wortlaut sagte
+# "Zeilen lassen sich weder ändern noch entfernen" - seit 1.26 dürfen
+# Administratoren aufräumen, und dann stünde dort das Gegenteil.
+TEXTE_STANDARD["logbuch.einleitung"] = (
+    "Wer hat an den erfassten Zeiten etwas geändert oder gelöscht? Jede "
+    "Änderung steht hier mit Uhrzeit und Namen. <strong>Neu erfasste "
+    "Zeiten stehen nicht drin:</strong> wer sie angelegt hat, steht im "
+    "Datensatz selbst.")
+TEXTE_STANDARD["logbuch.aufraeumen"] = (
+    "Dass hier aufgeräumt wurde, bleibt als eigene Zeile stehen.")
 TEXTE_STANDARD["logbuch.leer"] = (
     "Noch nichts protokolliert – an den Datensätzen wurde bisher nichts "
     "nachträglich geändert oder gelöscht.")

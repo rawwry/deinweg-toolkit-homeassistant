@@ -1271,7 +1271,10 @@ input[type="date"] { text-transform: uppercase; }
    bündig zur Liste, nimmt keine Fläche weg und sagt trotzdem „hier geht
    es weiter“. Nicht auf einen Kasten zurückbauen. */
 .erfass-mehr {
-  margin-top: 12px; display: flex; flex-direction: column;
+  /* ⚠️ Deutlich mehr Luft nach oben als zwischen den Zeilen (die stehen
+     im Raster 6px auseinander): der Knopf gehört nicht zur Liste, er
+     hängt darunter. Bei 12px sah er aus wie eine weitere Zeile. */
+  margin-top: 26px; display: flex; flex-direction: column;
   align-items: center; gap: 6px;
 }
 .zeile-mehr {
@@ -2490,6 +2493,21 @@ label.knopf-icon { cursor: pointer; }
   display: grid; grid-template-columns: 88px minmax(0, 1fr);
   gap: 0 18px; padding: 11px 2px;
 }
+/* ⚠️ Die Auswahlspalte kommt erst mit der Mehrfachauswahl dazu, und
+   zwar über `display: none` und nicht über eine Spalte der Breite 0:
+   eine Nullspalte brächte ihren `gap` trotzdem mit und schöbe die
+   ganze Liste um 18px nach rechts. Ein ausgeblendetes Rasterkind zählt
+   dagegen gar nicht mit, die beiden übrigen liegen dann in den zwei
+   verbliebenen Spuren. Dieselbe Idee wie `.wahlspalte` in der
+   Übersicht, nur mit Raster statt Tabelle. */
+.logwahl { display: none; }
+.logwahl input {
+  width: 15px; height: 15px; margin: 3px 0 0; accent-color: var(--akzent);
+}
+.auswahlschalter:checked ~ * .logeintrag {
+  grid-template-columns: 26px 88px minmax(0, 1fr);
+}
+.auswahlschalter:checked ~ * .logwahl { display: block; }
 .logeintrag + .logeintrag { border-top: 1px solid var(--linie-fein); }
 
 .logzeit { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

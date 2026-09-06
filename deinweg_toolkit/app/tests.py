@@ -52,6 +52,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from . import auth  # noqa: E402
 from . import db  # noqa: E402
 from . import mail  # noqa: E402
+from . import texte_standard  # noqa: E402
 from .main import app  # noqa: E402
 
 
@@ -4885,6 +4886,73 @@ def test_eintraege_logbuch(client: TestClient) -> None:
     pruefe(client.get("/eintraege/logbuch").status_code == 200,
            "das Logbuch zeigt sie, ohne zu stolpern")
 
+    # 7. Aufräumen (seit 1.26). ⚠️ Das Logbuch ist sonst append-only;
+    #    Timo wollte es aufräumen können. Dass aufgeräumt wurde, bleibt
+    #    deshalb als eigene Zeile stehen - sonst wäre die Lücke nicht
+    #    mehr von „da war nie etwas“ zu unterscheiden.
+    seite = client.get("/eintraege/logbuch").text
+    pruefe('id="auswahlmodus"' in seite and 'class="auswahlschalter"' in seite,
+           "das Logbuch hat dieselbe Mehrfachauswahl wie die Übersicht")
+    pruefe('action="/eintraege/logbuch/loeschen"' in seite,
+           "und einen Weg, Ausgewähltes zu entfernen")
+    pruefe("Aufräumen" in seite, "der Schalter heißt „Aufräumen“")
+
+    with db.db() as con:
+        alle = [r["id"] for r in con.execute(
+            "SELECT id FROM eintrag_log ORDER BY id LIMIT 2")]
+        stand = con.execute("SELECT COUNT(*) c FROM eintrag_log").fetchone()["c"]
+    antwort = client.post("/eintraege/logbuch/loeschen",
+                          data={"ids": [str(i) for i in alle],
+                                "zurueck": "/eintraege/logbuch"},
+                          follow_redirects=False)
+    with db.db() as con:
+        weg = con.execute(
+            "SELECT COUNT(*) c FROM eintrag_log WHERE id IN (?,?)",
+            alle).fetchone()["c"]
+        neu3 = con.execute("SELECT COUNT(*) c FROM eintrag_log").fetchone()["c"]
+        vermerk = con.execute("SELECT * FROM eintrag_log ORDER BY id DESC "
+                              "LIMIT 1").fetchone()
+    pruefe(antwort.status_code == 303, "das Entfernen führt zurück ins Logbuch")
+    pruefe(weg == 0, "die ausgewählten Zeilen sind weg")
+    # Zwei raus, eine Vermerkzeile rein.
+    pruefe(neu3 == stand - 1, "und genau eine Zeile kommt als Vermerk dazu")
+    pruefe(vermerk["aktion"] == "aufgeräumt"
+           and "2 Zeilen" in (vermerk["aenderung"] or ""),
+           "der Vermerk nennt die Zahl der entfernten Zeilen")
+    pruefe(vermerk["wer"] and vermerk["wer"] != "unbekannt",
+           "und wer aufgeräumt hat – aus der Anmeldung, nicht aus dem Formular")
+
+    # Eine leere Auswahl ändert nichts.
+    with db.db() as con:
+        stand = con.execute("SELECT COUNT(*) c FROM eintrag_log").fetchone()["c"]
+    client.post("/eintraege/logbuch/loeschen", data={"zurueck": "/eintraege/logbuch"})
+    with db.db() as con:
+        neu4 = con.execute("SELECT COUNT(*) c FROM eintrag_log").fetchone()["c"]
+    pruefe(neu4 == stand, "eine leere Auswahl entfernt nichts und vermerkt nichts")
+
+    # ⚠️ Und ein normales Konto kommt auch an diese Route nicht heran -
+    #    der Pfad hängt über das Präfix /eintraege/logbuch an der Rolle.
+    pruefe(o.post("/eintraege/logbuch/loeschen",
+                  data={"ids": ["1"]}).status_code == 403,
+           "ein normales Konto darf hier nichts entfernen")
+
+    # ⚠️ Die Route muss VOR /eintraege/{eintrag_id}/loeschen stehen, sonst
+    #    schluckt der Platzhalter das Wort „logbuch“ und FastAPI versucht,
+    #    es als Zahl zu lesen. Genau das ist beim Bauen passiert.
+    quelle = open(os.path.join(os.path.dirname(__file__), "main.py"),
+                  encoding="utf-8").read()
+    pruefe(quelle.index('@app.post("/eintraege/logbuch/loeschen")')
+           < quelle.index('@app.post("/eintraege/{eintrag_id}/loeschen")'),
+           "und im Quelltext vor der Route mit dem Platzhalter")
+
+    # Der Einleitungstext behauptet nicht mehr, hier ließe sich nichts
+    # entfernen - unter einem neuen Schlüssel, sonst käme er nie an.
+    pruefe("logbuch.einleitung" in texte_standard.TEXTE_STANDARD,
+           "der Einleitungstext steht unter einem neuen Schlüssel")
+    pruefe("weder ändern noch entfernen"
+           not in texte_standard.TEXTE_STANDARD["logbuch.einleitung"],
+           "und behauptet nicht mehr, hier ließe sich nichts entfernen")
+
 
 def test_kosmetik(client: TestClient) -> None:
     """Kopfzeile, Tabellen am Telefon, Mülleimer – und ein Osterei."""
@@ -5415,6 +5483,10 @@ def test_erfassraster(client: TestClient) -> None:
     # Handgriff, den sie auslöst.
     pruefe("border-radius: 999px" in stil.split(".zeile-mehr {")[1][:280],
            "als Pille, nicht als Kasten über die volle Breite")
+    # ⚠️ Deutlich mehr Luft nach oben als zwischen den Zeilen (6px im
+    # Raster): der Knopf gehört nicht zur Liste, er hängt darunter.
+    pruefe("margin-top: 26px" in stil.split(".erfass-mehr {")[1][:320],
+           "und mit ordentlich Abstand zur letzten Zeile")
     pruefe("dashed" not in stil.split(".zeile-mehr {")[1][:280],
            "und ohne gestrichelte Fläche")
     pruefe(".erfass-mehr::before" in stil

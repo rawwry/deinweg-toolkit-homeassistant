@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.26
+
+- Logbuch der Datensätze: ausgewählte Zeilen lassen sich entfernen; dass
+  aufgeräumt wurde, bleibt als eigene Zeile stehen
+- Nur für Administratoren, auch über die Adresse
+- Manuelle Erfassung: mehr Abstand über „Weitere Zeile“
+
 ## 1.25.1
 
 - Behoben: in der Spalte „Dauer“ lief die Zahl über die Kante ihres

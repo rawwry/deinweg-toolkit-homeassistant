@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.25.1"
+VERSION = "1.26"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1572,6 +1572,56 @@ def eintraege_sammelloeschen(request: Request, ids: list[int] = Form([]),
     return zurueck_mit_hinweis(zurueck, text)
 
 
+# ⚠️ Diese Route muss VOR /eintraege/{eintrag_id}/loeschen stehen -
+# sonst schluckt der Platzhalter das Wort „logbuch" und FastAPI
+# versucht, es als Zahl zu lesen. Dieselbe Falle wie beim GET darauf
+# und bei den Wiki-Aktionen; sie ist mir beim Bauen prompt
+# untergekommen.
+@app.post("/eintraege/logbuch/loeschen")
+def logbuch_loeschen(request: Request, ids: list[int] = Form([]),
+                     zurueck: str = Form("/eintraege/logbuch")):
+    """Ausgewaehlte Logzeilen entfernen.
+
+    ⚠️ Das Logbuch ist sonst append-only, und das aus gutem Grund: es
+    beantwortet die Frage, wer an den erfassten Zeiten etwas geaendert
+    hat. Auf Timos Wunsch laesst es sich seit 1.26 aufraeumen - nur von
+    Administratoren, und die Seite ist ohnehin nur fuer sie erreichbar
+    (auth.ADMIN_NUR_PFADE).
+
+    ⚠️ Das Aufraeumen selbst hinterlaesst eine Zeile: wer wann wie viele
+    entfernt hat. Ohne das waere die Luecke im Logbuch nicht mehr von
+    "da war nie etwas" zu unterscheiden - und genau das soll ein Logbuch
+    unterscheidbar machen. Eine Zeile fuer den ganzen Vorgang, nicht eine
+    je geloeschter Zeile; sonst waere nach dem Aufraeumen mehr drin als
+    vorher.
+    """
+    ziel = zurueck if zurueck.startswith("/eintraege/logbuch") \
+        else "/eintraege/logbuch"
+    ids = ids[:500]          # dieselbe Obergrenze wie bei den Datensaetzen
+    if not ids:
+        return zurueck_mit_hinweis(ziel, "Es war nichts ausgewählt.")
+
+    platzhalter = ",".join("?" for _ in ids)
+    with db.db() as con:
+        weg = con.execute(
+            f"SELECT COUNT(*) c FROM eintrag_log WHERE id IN ({platzhalter})",
+            ids).fetchone()["c"]
+        con.execute(f"DELETE FROM eintrag_log WHERE id IN ({platzhalter})", ids)
+        if weg:
+            con.execute(
+                "INSERT INTO eintrag_log (eintrag_id, zeitpunkt, wer, aktion, "
+                "aenderung) VALUES (NULL, ?, ?, 'aufgeräumt', ?)",
+                (jetzt(), wer_handelt(request),
+                 f"{weg} {'Zeile' if weg == 1 else 'Zeilen'} "
+                 "aus dem Logbuch entfernt"))
+
+    if not weg:
+        return zurueck_mit_hinweis(ziel, "Es war nichts mehr da zum Entfernen.")
+    return zurueck_mit_hinweis(
+        ziel, f"{weg} {'Zeile' if weg == 1 else 'Zeilen'} entfernt. "
+              "Dass hier aufgeräumt wurde, steht als eigene Zeile im Logbuch.")
+
+
 # Dieselbe Route zusaetzlich unter /meinbereich: „Mein Bereich" haengt
 # an keiner Bereichsberechtigung, jeder soll dort seine eigenen Zeiten
 # aendern und loeschen koennen - auch ohne den Bereich „Übersicht
@@ -1603,7 +1653,7 @@ def eintrag_loeschen(request: Request, eintrag_id: int,
 # als Zahl zu lesen. Dieselbe Falle wie bei den Wiki-Aktionen.
 @app.get("/eintraege/logbuch", response_class=HTMLResponse)
 def eintraege_logbuch(request: Request, wer: str = "", q: str = "",
-                      seite: int = 1):
+                      seite: int = 1, hinweis: str = ""):
     """Wer hat an den Datensaetzen etwas geaendert oder geloescht?
 
     Administratoren vorbehalten (auth.ADMIN_NUR_PFADE). Der Knopf dorthin
@@ -1638,7 +1688,11 @@ def eintraege_logbuch(request: Request, wer: str = "", q: str = "",
         request=request, name="eintraege_logbuch.html", context={
             "seite_name": "eintraege", "gruppen": _vorgaenge.nach_tagen(zeilen),
             "gesamt": gesamt, "leute": leute, "wer": wer.strip(), "q": q.strip(),
-            "seite": seite, "seiten": seiten,
+            "seite": seite, "seiten": seiten, "hinweis": hinweis,
+            # Nach dem Aufräumen zurück auf denselben Ausschnitt.
+            "zurueck": "/eintraege/logbuch?" + urlencode(
+                {k: v for k, v in (("wer", wer.strip()), ("q", q.strip()),
+                                   ("seite", seite if seite > 1 else "")) if v}),
             "uhrzeit": _vorgaenge.uhrzeit})
 
 

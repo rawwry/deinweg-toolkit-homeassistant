@@ -12,12 +12,14 @@
   <a href="/eintraege">Übersicht</a> › Logbuch
 </p>
 
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
 <section class="karte">
   <div class="kopfzeile">
     <h1>Logbuch der Datensätze</h1>
     <p class="summe">{{ gesamt }} <span>· {{ "Eintrag" if gesamt == 1 else "Einträge" }}</span></p>
   </div>
-  <p class="lead">{{ t("logbuch.lead") }}</p>
+  <p class="lead">{{ t("logbuch.einleitung") }}</p>
 
   <form class="filter" method="get" action="/eintraege/logbuch">
     <div class="filterwahl">
@@ -49,20 +51,70 @@
   </form>
 </section>
 
+{# ⚠️ Aufräumen im Logbuch: dieselbe Form wie in der Übersicht - ein
+   Kästchen ohne Namen als Schalter, der Knopf daneben ist sein Label,
+   und die Kästchen in den Zeilen tauchen erst danach auf. Bewusst kein
+   Skript und keine Adresse: eine Auswahl ist ein Handgriff, kein
+   Zustand, den man verlinkt.
+
+   ⚠️ Das Logbuch ist sonst append-only. Dass hier aufgeräumt wurde,
+   hinterlässt deshalb selbst eine Zeile (siehe main.logbuch_loeschen) -
+   sonst wäre eine Lücke nicht mehr von „da war nie etwas“ zu
+   unterscheiden. #}
 <section class="karte logbuchkarte">
   {% if gruppen %}
+    <input type="checkbox" id="auswahlmodus" class="auswahlschalter">
+
+    {# Das Formular steht leer neben der Liste, die Kästchen verweisen
+       über form="logloeschen" darauf. #}
+    <form action="/eintraege/logbuch/loeschen" method="post" id="logloeschen"
+          onsubmit="return massenwahl_bestaetigen()">
+      <input type="hidden" name="zurueck" value="{{ zurueck }}">
+    </form>
+
+    <div class="listenkopf">
+      <span class="listenkopf-titel">{{ gesamt }} {{ 'Eintrag' if gesamt == 1 else 'Einträge' }}</span>
+      <div class="listenwerkzeuge">
+        <label class="knopf leise klein auswahlknopf" for="auswahlmodus">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" stroke-width="1.7"/>
+            <path class="auswahlhaken" d="m8.4 12.2 2.6 2.6 4.6-5.2" stroke="currentColor"
+                  stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="auswahl-aus">Aufräumen</span>
+          <span class="auswahl-an">Auswahl beenden</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="massenleiste">
+      <span class="massenstand" id="massenstand">Nichts ausgewählt</span>
+      <button class="knopf klein warn" type="submit" form="logloeschen"
+              id="massenknopf" disabled>Ausgewählte entfernen</button>
+      <span class="klein leise">{{ t("logbuch.aufraeumen") }}</span>
+    </div>
+
     {% for gruppe in gruppen %}
     <h3 class="logtag">{{ gruppe.wort }}</h3>
     <ul class="logliste">
       {% for e in gruppe.zeilen %}
       <li class="logeintrag">
+        <span class="logwahl">
+          <input type="checkbox" name="ids" value="{{ e.id }}" form="logloeschen"
+                 class="massenwahl" aria-label="Logzeile von {{ e.wer }} auswählen">
+        </span>
         <div class="logzeit">
           <span class="loguhr">{{ uhrzeit(e.zeitpunkt) }}</span>
           <span class="logwer">{{ e.wer }}</span>
         </div>
         <div class="loginhalt">
           <div class="logkopf">
-            <span class="logaktion {{ 'la-weg' if e.aktion == 'geloescht' else 'la-aenderung' }}">{{ e.aktion }}</span>
+            {# „aufgeräumt“ ist keine Änderung an den Daten, sondern eine
+               am Logbuch selbst - deshalb der neutrale Ton und nicht der
+               rote der Löschung. #}
+            <span class="logaktion {% if e.aktion == 'geloescht' %}la-weg
+                        {%- elif e.aktion == 'aufgeräumt' %}la-notiz
+                        {%- else %}la-aenderung{% endif %}">{{ e.aktion }}</span>
             {# Welcher Datensatz war das? Auch wenn es ihn nicht mehr
                gibt, steht hier, worum es ging - genau dafür liegen
                Datum, Person und Dauer noch einmal in der Logzeile. #}
@@ -107,5 +159,54 @@
   <p class="leer">{{ t("logbuch.leer") }}</p>
   {% endif %}
 </section>
+
+<script>
+  // Dieselbe Bedienung wie in der Übersicht: Zahl mitzählen, Knopf
+  // freischalten, beim Zuklappen die Häkchen wegräumen. Ohne Skript
+  // bleibt alles bedienbar - nur die Zahl fehlt und der Knopf steht
+  // von Anfang an bereit.
+  (function () {
+    var stand   = document.getElementById("massenstand"),
+        knopf   = document.getElementById("massenknopf"),
+        kaesten = Array.prototype.slice.call(
+                    document.querySelectorAll("input.massenwahl"));
+    if (!kaesten.length || !knopf) return;
+
+    function gewaehlt() {
+      return kaesten.filter(function (k) { return k.checked; });
+    }
+    function anzeigen() {
+      var n = gewaehlt().length;
+      stand.textContent = n === 0 ? "Nichts ausgewählt"
+                        : (n === 1 ? "1 Zeile ausgewählt"
+                                   : n + " Zeilen ausgewählt");
+      stand.classList.toggle("hat", n > 0);
+      knopf.disabled = n === 0;
+    }
+    kaesten.forEach(function (k) { k.addEventListener("change", anzeigen); });
+
+    var modus = document.getElementById("auswahlmodus");
+    if (modus) {
+      modus.addEventListener("change", function () {
+        if (modus.checked) return;
+        kaesten.forEach(function (k) { k.checked = false; });
+        anzeigen();
+      });
+    }
+
+    window.massenwahl_bestaetigen = function () {
+      var n = gewaehlt().length;
+      if (!n) return false;
+      return confirm(n === 1
+        ? "Diese Logzeile entfernen? Dass hier aufgeräumt wurde, bleibt "
+          + "als eigene Zeile stehen."
+        : n + " Logzeilen entfernen? Das lässt sich nicht rückgängig "
+          + "machen. Dass hier aufgeräumt wurde, bleibt als eigene Zeile "
+          + "stehen.");
+    };
+
+    anzeigen();
+  })();
+</script>
 
 {% endblock %}
