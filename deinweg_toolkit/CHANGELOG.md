@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.23
+
+- Manuelle Erfassung: Spaltentitel einmal über der Liste, ein Eintrag je
+  Bildschirmzeile
+- Eine neue Zeile übernimmt Datum, Person und Leistung der vorigen; die
+  Startzeit ist deren Endzeit
+- Enter im letzten Feld legt die nächste Zeile an
+- Am Telefon bleiben abgesetzte Blöcke, „Von“/„Bis“/„Dauer“ nebeneinander
+
 ## 1.22.1
 
 - Alle Formularfelder stehen gleich hoch (Auswahlfelder waren 3px

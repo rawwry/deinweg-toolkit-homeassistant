@@ -93,73 +93,100 @@
          Felder als parallele Listen entgegen, eine Zeile ist der
          Normalfall. Weitere kommen per Skript dazu; ohne Skript bleibt es
          bei der einen – die Seite funktioniert dann wie bisher. #}
-      <div class="erfassliste" id="erfassliste">
-        <div class="erfasszeile">
-          <div class="erfasszeile-kopf">
-            <span class="erfasszeile-nr">Eintrag 1</span>
-          </div>
+      {# --- Eine Bildschirmzeile = ein Eintrag ------------------------
+         Bis 1.22.1 stand jedes Feld mit eigener Beschriftung untereinander;
+         eine Zeile war damit 174px hoch und wiederholte sieben
+         Beschriftungen. Jetzt stehen die Spaltentitel EINMAL oben und die
+         Zeile trägt nur noch die Felder - wer zehn Besuche eines Tages
+         erfasst, sieht sie alle gleichzeitig.
 
-          <div class="feldreihe erfassreihe">
-            <label class="feld">
-              <span>Datum</span>
-              <input type="text" name="datum" value="{{ datum }}" required form="erfassung"
-                     inputmode="numeric" placeholder="TT.MM.JJJJ" maxlength="10"
-                     class="datumfeld" autocomplete="off">
-            </label>
-            <label class="feld">
-              <span>Betreute Person</span>
-              {# Auswahl statt Freitext, nach demselben Muster wie beim
-                 Mitarbeiter: erst die gepflegten Personen, darunter
-                 Namen, die nur noch in vorhandenen Zeiten vorkommen.
-                 Ein Skript macht daraus ein durchsuchbares Feld – ohne
-                 Skript bleibt es ein ganz normales Auswahlfeld. #}
-              <select name="klient" required form="erfassung" class="suchwahl"
-                      data-titel="Betreute Person" {{ 'autofocus' if mitarbeiter }}>
-                <option value="">– wählen –</option>
-                {% for k in klientliste.personen %}
+         ⚠️ Die Beschriftungen bleiben im Markup (visuell versteckt): der
+         Kopf ist nur eine Anzeige, Vorleseprogramme brauchen die
+         Beschriftung am Feld. Am Telefon ist es umgekehrt - dort fällt
+         der Kopf weg und die Beschriftungen werden wieder sichtbar. #}
+      <div class="erfasskopf{{ ' ohne-leistung' if not leistungen }}" aria-hidden="true">
+        <span></span>
+        <span>Datum</span>
+        <span>Betreute Person</span>
+        <span>Von</span>
+        <span>Bis</span>
+        <span>Dauer</span>
+        {% if leistungen %}<span>Leistung</span>{% endif %}
+        <span>Erläuterung <span class="leise">optional</span></span>
+        <span></span>
+      </div>
+
+      <div class="erfassliste{{ ' ohne-leistung' if not leistungen }}" id="erfassliste">
+        <div class="erfasszeile">
+          <span class="erfasszeile-nr" aria-hidden="true">1</span>
+
+          <label class="feld f-datum">
+            <span class="feldtitel">Datum</span>
+            <input type="text" name="datum" value="{{ datum }}" required form="erfassung"
+                   inputmode="numeric" placeholder="TT.MM.JJJJ" maxlength="10"
+                   class="datumfeld" autocomplete="off" aria-label="Datum">
+          </label>
+
+          <label class="feld f-person">
+            <span class="feldtitel">Betreute Person</span>
+            {# Auswahl statt Freitext, nach demselben Muster wie beim
+               Mitarbeiter: erst die gepflegten Personen, darunter
+               Namen, die nur noch in vorhandenen Zeiten vorkommen.
+               Ein Skript macht daraus ein durchsuchbares Feld – ohne
+               Skript bleibt es ein ganz normales Auswahlfeld. #}
+            <select name="klient" required form="erfassung" class="suchwahl"
+                    data-titel="Betreute Person" aria-label="Betreute Person"
+                    {{ 'autofocus' if mitarbeiter }}>
+              <option value="">– wählen –</option>
+              {% for k in klientliste.personen %}
+                <option value="{{ k }}">{{ k }}</option>
+              {% endfor %}
+              {% if klientliste.weitere %}
+              <optgroup label="nur noch in vorhandenen Zeiten">
+                {% for k in klientliste.weitere %}
                   <option value="{{ k }}">{{ k }}</option>
                 {% endfor %}
-                {% if klientliste.weitere %}
-                <optgroup label="nur noch in vorhandenen Zeiten">
-                  {% for k in klientliste.weitere %}
-                    <option value="{{ k }}">{{ k }}</option>
-                  {% endfor %}
-                </optgroup>
-                {% endif %}
-              </select>
-            </label>
-            <label class="feld">
-              <span>Startzeit</span>
-              <input type="text" name="start" required inputmode="numeric" form="erfassung"
-                     placeholder="HH:MM" maxlength="5" class="zeitfeld" autocomplete="off">
-            </label>
-            <label class="feld">
-              <span>Endzeit</span>
-              <input type="text" name="ende" required inputmode="numeric" form="erfassung"
-                     placeholder="HH:MM" maxlength="5" class="zeitfeld" autocomplete="off">
-            </label>
-            <div class="feld dauer-anzeige">
-              <span>Dauer</span>
-              <output class="dauer-ausgabe">–</output>
-            </div>
+              </optgroup>
+              {% endif %}
+            </select>
+          </label>
+
+          <label class="feld f-zeit">
+            <span class="feldtitel">Von</span>
+            <input type="text" name="start" required inputmode="numeric" form="erfassung"
+                   placeholder="HH:MM" maxlength="5" class="zeitfeld" autocomplete="off"
+                   aria-label="Startzeit">
+          </label>
+          <label class="feld f-zeit">
+            <span class="feldtitel">Bis</span>
+            <input type="text" name="ende" required inputmode="numeric" form="erfassung"
+                   placeholder="HH:MM" maxlength="5" class="zeitfeld" autocomplete="off"
+                   aria-label="Endzeit">
+          </label>
+
+          <div class="feld f-dauer dauer-anzeige">
+            <span class="feldtitel">Dauer</span>
+            <output class="dauer-ausgabe">–</output>
           </div>
 
-          <div class="feldreihe zwei erfassreihe-text">
-            {% if leistungen %}
-            <label class="feld">
-              <span>Leistung <span class="leise">– vorgegebene Auswahl</span></span>
-              <select name="leistung" form="erfassung">
-                <option value="">– keine –</option>
-                {% for l in leistungen %}<option value="{{ l }}">{{ l }}</option>{% endfor %}
-              </select>
-            </label>
-            {% endif %}
-            <label class="feld">
-              <span>Eigene Beschreibung <span class="leise">– Optional: Genauere Erläuterung</span></span>
-              <input type="text" name="beschreibung" autocomplete="off" form="erfassung"
-                     placeholder="z. B. Begleitung zum Amt, Hilfe im Haushalt">
-            </label>
-          </div>
+          {% if leistungen %}
+          <label class="feld f-leistung">
+            <span class="feldtitel">Leistung</span>
+            <select name="leistung" form="erfassung" aria-label="Leistung">
+              <option value="">– keine –</option>
+              {% for l in leistungen %}<option value="{{ l }}">{{ l }}</option>{% endfor %}
+            </select>
+          </label>
+          {% endif %}
+
+          <label class="feld f-text">
+            <span class="feldtitel">Erläuterung <span class="leise">optional</span></span>
+            <input type="text" name="beschreibung" autocomplete="off" form="erfassung"
+                   placeholder="z. B. Begleitung zum Amt"
+                   aria-label="Erläuterung, optional">
+          </label>
+
+          <span class="erfasszeile-weg"></span>
         </div>
       </div>
 
@@ -612,7 +639,7 @@
     function nummerieren() {
       var alle = zeilen();
       alle.forEach(function (z, i) {
-        z.querySelector(".erfasszeile-nr").textContent = "Eintrag " + (i + 1);
+        z.querySelector(".erfasszeile-nr").textContent = i + 1;
       });
       liste.classList.toggle("mehrere", alle.length > 1);
       stand.textContent = alle.length > 1 ? alle.length + " Einträge auf einmal" : "";
@@ -682,7 +709,7 @@
     // Der Entfernen-Knopf steht nicht im HTML, sondern kommt hier dazu -
     // ohne Skript liesse sich ohnehin keine Zeile hinzufuegen.
     function entfernenknopf(zeile) {
-      var kopf = zeile.querySelector(".erfasszeile-kopf");
+      var kopf = zeile.querySelector(".erfasszeile-weg");
       if (!kopf || kopf.querySelector(".zeile-weg")) return;
       var knopf = document.createElement("button");
       knopf.type = "button";
@@ -698,21 +725,56 @@
     zeilen().forEach(function (z) { entfernenknopf(z); verkabeln(z); });
     knopfreihe.hidden = false;
 
-    mehrknopf.addEventListener("click", function () {
+    // ⚠️ Eine neue Zeile übernimmt die Angaben der vorigen - Datum,
+    // betreute Person und Leistung -, und die Startzeit ist die Endzeit
+    // der Zeile darüber. Das ist der eigentliche Punkt an der ganzen
+    // Umstellung: wer zehn Besuche eines Tages erfasst, ändert je Zeile
+    // nur noch die Uhrzeit. Alles steht sichtbar da und lässt sich
+    // überschreiben; ein vorbelegtes Feld kostet nie mehr Arbeit als ein
+    // leeres, im Regelfall aber deutlich weniger.
+    function uebernehmen(neue, vorige) {
+      if (!vorige) return;
+      ["datum", "klient", "leistung"].forEach(function (name) {
+        var a = vorige.querySelector("[name='" + name + "']"),
+            b = neue.querySelector("[name='" + name + "']");
+        if (a && b) { b.value = a.value; }
+      });
+      var ende  = vorige.querySelectorAll(".zeitfeld")[1],
+          start = neue.querySelectorAll(".zeitfeld")[0];
+      if (ende && start && ende.value) { start.value = ende.value; }
+    }
+
+    function zeileAnhaengen(fokus) {
       var neue = vorlage.cloneNode(true);
       liste.appendChild(neue);
+      var alle = zeilen();
+      uebernehmen(neue, alle[alle.length - 2]);
       entfernenknopf(neue);
       verkabeln(neue);
       nummerieren();
-      // Das Datum der vorigen Zeile übernehmen: meistens werden mehrere
-      // Zeiten desselben Tages nacheinander erfasst.
-      var alle = zeilen(), vorige = alle[alle.length - 2];
-      if (vorige) {
-        neue.querySelector(".datumfeld").value =
-          vorige.querySelector(".datumfeld").value;
+      if (fokus !== false) {
+        // In die Endzeit springen: Datum, Person und Startzeit stehen
+        // durch die Übernahme schon da, das Ende ist das Erste, was
+        // wirklich neu ist.
+        var ziel = neue.querySelectorAll(".zeitfeld")[1]
+                || neue.querySelector("[name='klient']");
+        if (ziel) { ziel.focus(); }
       }
-      var ziel = neue.querySelector("[name='klient']");
-      if (ziel) ziel.focus();
+      return neue;
+    }
+
+    mehrknopf.addEventListener("click", function () { zeileAnhaengen(); });
+
+    // Enter im letzten Feld einer Zeile hängt die nächste an, statt das
+    // Formular abzuschicken. Nur dort - überall sonst bleibt Enter das,
+    // was es immer war.
+    liste.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") { return; }
+      var feld = e.target;
+      if (!feld.matches("input[name='beschreibung']")) { return; }
+      e.preventDefault();
+      var zeile = feld.closest(".erfasszeile"), alle = zeilen();
+      if (zeile === alle[alle.length - 1]) { zeileAnhaengen(); }
     });
 
     nummerieren();

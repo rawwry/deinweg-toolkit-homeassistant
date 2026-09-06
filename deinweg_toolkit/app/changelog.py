@@ -1813,4 +1813,21 @@ CHANGELOG = [
         "Ebene zur Wahl – Schutz vererbt sich ohnehin nach unten",
         "Prüfung von 1378 auf 1380 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.23", "titel": "Eine Zeile ist ein Eintrag", "punkte": [
+        "Manuelle Erfassung: die Spaltentitel stehen einmal über der "
+        "Liste, jeder Eintrag ist eine Bildschirmzeile. Vorher wiederholte "
+        "jede Zeile sieben Beschriftungen und war 174 Pixel hoch – bei "
+        "fünf Einträgen sah man nur noch Beschriftungen",
+        "Eine neue Zeile übernimmt Datum, betreute Person und Leistung "
+        "der vorigen, und ihre Startzeit ist deren Endzeit. Wer zehn "
+        "Besuche eines Tages erfasst, ändert je Zeile nur noch die Uhrzeit",
+        "Enter im letzten Feld einer Zeile legt die nächste an, statt das "
+        "Formular abzuschicken",
+        "Der Entfernen-Knopf erscheint erst ab der zweiten Zeile und "
+        "steht beim Überfahren der Zeile bereit",
+        "Am Telefon bleibt jeder Eintrag ein eigener Block mit sichtbaren "
+        "Beschriftungen; „Von“, „Bis“ und „Dauer“ stehen dort "
+        "nebeneinander statt untereinander",
+        "Prüfung von 1380 auf 1416 Einzelprüfungen erweitert",
+    ]},
 ]

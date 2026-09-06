@@ -635,8 +635,15 @@ def test_leistungen(client: TestClient) -> None:
     seite = client.get("/").text
     pruefe('name="leistung"' in seite and "Begleitung zum Amt" in seite,
            "Auswahlfeld erscheint beim manuellen Eintrag")
-    pruefe("Eigene Beschreibung" in seite,
-           "das freie Textfeld heißt „Eigene Beschreibung“")
+    # ⚠️ Der Text vor dem Hinweis auf Neuerungen: der zitiert den
+    # Changelog, und dort steht „Eigene Beschreibung“ noch als alte
+    # Bezeichnung. Ohne den Schnitt ginge diese Prüfung durch, egal wie
+    # das Feld gerade heißt - genau so blieb sie bis 1.22.1 grün.
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+    pruefe("Eigene Beschreibung" not in ohne_dialog,
+           "das freie Textfeld heißt nicht mehr „Eigene Beschreibung“")
+    pruefe(">Erläuterung " in ohne_dialog and ">optional<" in ohne_dialog,
+           "sondern „Erläuterung“ mit dem Zusatz „optional“")
 
     vorher = _anzahl_eintraege()
     client.post("/erfassung", data={
@@ -5185,6 +5192,104 @@ def test_zeiterfassung_auswahl(client: TestClient) -> None:
            "Namen ohne Teameintrag stehen in einer eigenen Gruppe")
 
 
+def test_erfassraster(client: TestClient) -> None:
+    """Eine Bildschirmzeile ist ein Eintrag, die Spaltentitel stehen einmal."""
+    abschnitt("Manuelle Erfassung: eine Zeile je Eintrag")
+    # Ohne gepflegte Leistung fehlt die Spalte - hier soll aber die volle
+    # Zeile geprüft werden, also erst einmal eine anlegen.
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO leistung (name, aktiv, angelegt_am) "
+                    "VALUES ('Rasterprobe', 1, '2026-06-01 09:00')")
+    seite = client.get("/").text
+    stil = client.get("/static/style.css").text
+
+    # --- Der Kopf steht einmal über der Liste -------------------------------
+    pruefe('class="erfasskopf' in seite, "über der Liste steht eine Kopfzeile")
+    pruefe(seite.count('class="erfasszeile"') == 1,
+           "im Markup steht genau eine Zeile - weitere kommen per Skript dazu")
+    kopf = seite.split('class="erfasskopf')[1].split("</div>")[0]
+    for titel in ("Datum", "Betreute Person", "Von", "Bis", "Dauer",
+                  "Leistung", "Erläuterung"):
+        pruefe(">" + titel in kopf, f"die Spalte „{titel}“ hat ihren Titel")
+    pruefe('aria-hidden="true"' in seite.split('class="erfasskopf')[1][:80],
+           "der Kopf ist reine Anzeige - Vorleseprogramme lesen die Felder")
+
+    # --- Die Beschriftungen bleiben am Feld, nur unsichtbar -----------------
+    zeile = seite.split('class="erfasszeile"')[1].split('erfasszeile-weg')[0]
+    pruefe(zeile.count('class="feldtitel"') == 7,
+           "jedes der sieben Felder trägt weiterhin seine Beschriftung")
+    pruefe(".erfasszeile .feldtitel {" in stil
+           and "clip-path: inset(50%)" in stil.split(".erfasszeile .feldtitel {")[1][:220],
+           "auf dem Schreibtisch ist sie versteckt, nicht entfernt")
+
+    # --- Kopf und Zeile teilen sich EINE Spaltenaufteilung ------------------
+    # ⚠️ Zwei getrennte Angaben liefen früher oder später auseinander, und
+    # dann stünde kein Titel mehr über seiner Spalte.
+    pruefe(".erfassliste, .erfasskopf {" in stil,
+           "Kopf und Liste bekommen dieselbe Rastervariable")
+    pruefe(stil.count("grid-template-columns: var(--erfassraster)") == 2,
+           "beide greifen darauf zu, keiner rechnet eigene Breiten")
+    pruefe(".erfassliste.ohne-leistung, .erfasskopf.ohne-leistung {" in stil,
+           "ohne gepflegte Leistungen fällt die Spalte in beiden weg")
+
+    # --- Der Entfernen-Knopf hängt an der zweiten Zeile ---------------------
+    pruefe('class="erfasszeile-weg"' in seite,
+           "der Platz für den Entfernen-Knopf steht in der Zeile")
+    pruefe("zeile-weg" not in zeile,
+           "der Knopf selbst kommt erst per Skript dazu")
+    pruefe(".erfassliste.mehrere .erfasszeile:hover .zeile-weg" in stil,
+           "sichtbar wird er erst, wenn es mehr als eine Zeile gibt")
+    pruefe("pointer-events: none" in
+           stil.split(".erfasszeile-weg .zeile-weg {")[1][:80],
+           "und vorher lässt er sich auch nicht anklicken")
+    pruefe('liste.classList.toggle("mehrere"' in seite,
+           "die Klasse dafür setzt das Skript beim Nummerieren")
+
+    # --- Eine neue Zeile übernimmt die Angaben der vorigen ------------------
+    pruefe('["datum", "klient", "leistung"].forEach' in seite,
+           "Datum, Person und Leistung wandern in die neue Zeile")
+    pruefe("if (ende && start && ende.value) { start.value = ende.value; }" in seite,
+           "und die Startzeit ist die Endzeit der Zeile darüber")
+    pruefe("input[name='beschreibung']" in seite and "zeileAnhaengen()" in seite,
+           "Enter im letzten Feld legt die nächste Zeile an")
+
+    # --- Am Telefon fällt das Raster auf Blöcke zurück ----------------------
+    schmal = stil.split("@media (max-width: 900px) {")
+    pruefe(len(schmal) > 1, "es gibt einen Block für schmale Fenster")
+    schmal = schmal[1].split("\n}")[0]
+    pruefe(".erfasskopf { display: none; }" in schmal,
+           "dort fällt die Kopfzeile weg")
+    pruefe("position: static" in schmal,
+           "dafür werden die Beschriftungen am Feld wieder sichtbar")
+    # ⚠️ Ausdrückliche Zuteilung statt `auto-fit`: bei 263px Innenbreite
+    # passte damit nichts mehr nebeneinander und die Zeile wurde 597px hoch.
+    pruefe("grid-template-columns: repeat(6, 1fr)" in schmal,
+           "das Raster hat feste sechs Spalten, nicht `auto-fit`")
+    pruefe(".erfasszeile > .f-zeit," in schmal and "grid-column: span 2" in schmal,
+           "Von, Bis und Dauer stehen dort in einer Zeile")
+    for klasse in ("f-datum", "f-person", "f-zeit", "f-dauer", "f-leistung",
+                   "f-text"):
+        pruefe(klasse in seite, f"das Feld trägt seine Klasse „{klasse}“")
+
+    # --- Und das Speichern geht unverändert ---------------------------------
+    with db.db() as con:
+        stand = con.execute("SELECT COUNT(*) c FROM eintrag").fetchone()["c"]
+    client.post("/erfassung", data={
+        "mitarbeiter": "pruefer",
+        "datum": ["10.06.2026", "10.06.2026"],
+        "klient": ["Testperson", "Testperson"],
+        "start": ["09:00", "10:30"], "ende": ["10:30", "11:15"],
+        "beschreibung": ["Raster A", "Raster B"]}, follow_redirects=False)
+    with db.db() as con:
+        neu = con.execute("SELECT COUNT(*) c FROM eintrag").fetchone()["c"]
+    pruefe(neu == stand + 2, "zwei Zeilen aus dem Raster landen im Bestand")
+
+    # Die Hilfs-Leistung wieder wegräumen, damit spätere Prüfungen dieselbe
+    # Ausgangslage vorfinden wie ohne diesen Abschnitt.
+    with db.db() as con:
+        con.execute("DELETE FROM leistung WHERE name='Rasterprobe'")
+
+
 def test_logbuch_darstellung(client: TestClient) -> None:
     """Das Logbuch ist nach Tagen gegliedert und faerbt die Aktionen."""
     abschnitt("Darstellung des Logbuchs")
@@ -5673,6 +5778,7 @@ def _durchlauf(client: TestClient) -> None:
         test_bearbeitungsrecht(client)
         test_mehrfacherfassung(client)
         test_zeiterfassung_auswahl(client)
+        test_erfassraster(client)
         test_logbuch_darstellung(client)
         test_dateien(client)
         test_menue_reihenfolge(client)
