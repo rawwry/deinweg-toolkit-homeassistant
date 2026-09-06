@@ -46,7 +46,7 @@
         <h1>Manuelle Zeiterfassung</h1>
         {% if mitarbeiter %}<p class="summe">{{ mitarbeiter }}</p>{% endif %}
       </div>
-      <p class="lead">{{ t("erfassung.lead") }}</p>
+      <p class="lead">{{ t("erfassung.einleitung") }}</p>
 
       {# Der Name gilt für alle Zeilen darunter und steht deshalb
          abgesetzt in einem eigenen Band - vorher sah er aus wie das
@@ -155,7 +155,7 @@
             </label>
             {% endif %}
             <label class="feld">
-              <span>Eigene Beschreibung <span class="leise">– darf leer bleiben{% if leistungen %}, wird angehängt{% endif %}</span></span>
+              <span>Eigene Beschreibung <span class="leise">– Optional: Genauere Erläuterung</span></span>
               <input type="text" name="beschreibung" autocomplete="off" form="erfassung"
                      placeholder="z. B. Begleitung zum Amt, Hilfe im Haushalt">
             </label>
@@ -193,8 +193,18 @@
     {% endif %}
 
     {% if darf_import %}
-    <div class="karte hochkant">
-      <h1>Zeitlisten einlesen</h1>
+    {# ⚠️ Zugeklappt (seit 1.22.1, Timos Wunsch): die meisten erfassen von
+       Hand, und das Ablagefeld nahm darüber dauerhaft ein Drittel der
+       Spalte. Bewusst <details> und kein Skript - ohne Skript wäre der
+       Bereich sonst gar nicht erreichbar. Die Überschrift bleibt sichtbar,
+       nur das Formular klappt weg. #}
+    <details class="karte hochkant importkarte">
+      <summary>
+        <span class="importkopf">
+          <span class="importtitel">Zeitlisten einlesen</span>
+          <span class="klein leise">{{ t("start.upload_kurz") }}</span>
+        </span>
+      </summary>
       <p class="lead">{{ t("start.upload") }}</p>
 
       <form action="/upload" method="post" enctype="multipart/form-data">
@@ -261,7 +271,7 @@
           });
         })();
       </script>
-    </div>
+    </details>
     {% endif %}
 
   </div>

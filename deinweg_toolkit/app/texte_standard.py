@@ -19,8 +19,18 @@ TEXTE_STANDARD["start.upload_name"] = (
     "sie eine eigene Mitarbeiterspalte mitbringt.")
 TEXTE_STANDARD["start.upload"] = (
     "Exporte aus Working Hours oder vergleichbare Listen als .xlsx oder .csv hochladen. Vor dem Speichern siehst du eine Vorschau mit allen Dopplungen oder anderen Fuckups.")
-TEXTE_STANDARD["erfassung.lead"] = (
-    "Für alle, die ihre Liste nicht aus Working Hours exportieren. Mitarbeiter einmal oben eintragen, dann Zeile für Zeile abtippen – der Name und das Datum bleiben stehen, bis du sie änderst.")
+# ⚠️ Neuer Schlüssel statt geänderter Text: eine vorhandene strings.txt
+# gewinnt gegen jeden Standardtext, unter „erfassung.lead" wäre der neue
+# Wortlaut also nie angekommen (Abschnitt 8). Der alte Text nannte
+# Working Hours und Listen - beides hat mit der Erfassung von Hand
+# nichts zu tun.
+TEXTE_STANDARD["erfassung.einleitung"] = (
+    "Einzelne Betreuungszeiten direkt eintragen – ohne Datei, ohne "
+    "Umweg. Mitarbeiter einmal oben wählen, dann Zeile für Zeile "
+    "erfassen; Name und Datum bleiben stehen, bis du sie änderst. Über "
+    "„Weitere Zeile“ lassen sich mehrere Einträge auf einmal anlegen.")
+TEXTE_STANDARD["start.upload_kurz"] = (
+    "Exporte als .xlsx oder .csv – zum Aufklappen")
 TEXTE_STANDARD["erfassung.leer"] = (
     "Noch nichts von Hand erfasst für {mitarbeiter}.")
 TEXTE_STANDARD["datensaetze.leer"] = (

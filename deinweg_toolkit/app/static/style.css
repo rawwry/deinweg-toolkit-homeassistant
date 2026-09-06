@@ -299,21 +299,29 @@ h2 { font-size: 12.5px; margin: 0 0 14px; text-transform: uppercase;
 
 .feld { display: block; margin-bottom: 14px; }
 .feld > span { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+/* ⚠️ 43px, nicht 40. Ein Auswahlfeld hat keine eigene Zeilenhöhe und
+   blieb deshalb bei der Mindesthöhe stehen, ein Textfeld wuchs mit
+   seiner Zeile auf 43px. Nebeneinander waren die beiden damit drei
+   Pixel verschieden hoch - sichtbar genau dort, wo sie sich eine Zeile
+   teilen („Leistung" und „Eigene Beschreibung" in der manuellen
+   Erfassung). Mit 43px als Mindestmaß stehen alle Felder gleich hoch.
+   Wer den Wert ändert, muss die Zeilenhöhe des Dateifelds unten
+   mitziehen. */
 input[type=text], input[type=search], input[type=file], input[type=password],
 input[type=email], input[type=tel], input[type=number], select {
   width: 100%; padding: 9px 11px; font: inherit;
   border: 1px solid var(--linie); border-radius: 8px;
   background: var(--flaeche-2); color: inherit;
-  min-height: 40px;
+  min-height: 43px;
 }
 
 /* Das Dateifeld trägt seinen eigenen Knopf im Inneren. Mit der normalen
    Polsterung wird es dadurch höher als ein Auswahlfeld daneben – genau
    das war im Listenimport zu sehen. Deshalb hier keine senkrechte
    Polsterung, sondern eine Zeilenhöhe, die zusammen mit den Rahmen
-   dieselben 40px ergibt wie bei allen anderen Feldern. Der Knopf sitzt
+   dieselben 43px ergibt wie bei allen anderen Feldern. Der Knopf sitzt
    auf dieser Zeile und wächst nicht darüber hinaus. */
-input[type=file] { padding-top: 0; padding-bottom: 0; line-height: 38px; }
+input[type=file] { padding-top: 0; padding-bottom: 0; line-height: 41px; }
 input[type=file]::file-selector-button {
   font: inherit; font-size: 13px; margin-right: 10px; padding: 3px 11px;
   line-height: normal; cursor: pointer;
@@ -1017,10 +1025,15 @@ footer a:hover { border-bottom-color: var(--akzent); }
 .feldreihe.zwei { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .feldreihe .feld { margin-bottom: 0; }
 .felderklaerung { margin: 8px 0 18px; }
+/* ⚠️ Datum und Uhrzeit haben eine eigene Regel (der Browser malt darin
+   sein eigenes Bedienelement) und standen dadurch einen Pixel niedriger
+   als die übrigen Felder - in der manuellen Erfassung stehen sie in
+   derselben Zeile wie ein Textfeld. Dieselbe Mindesthöhe wie oben. */
 input[type=date], input[type=time] {
   width: 100%; padding: 8px 11px; font: inherit;
   border: 1px solid var(--linie); border-radius: 8px;
   background: var(--flaeche-2); color: inherit;
+  min-height: 43px;
 }
 [data-thema="dunkel"] input[type=date]::-webkit-calendar-picker-indicator,
 [data-thema="dunkel"] input[type=time]::-webkit-calendar-picker-indicator {
@@ -5015,3 +5028,34 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 /* ⚠️ Fürs Blättern gibt es „.blaettern" schon (Aufgabenliste) - hier
    also keine zweite Regel, sonst überschriebe die spätere die frühere
    und die Aufgabenliste sähe plötzlich anders aus. */
+
+/* --- „Zeitlisten einlesen" klappt zu ------------------------------------
+   Die meisten erfassen von Hand; das Ablagefeld nahm darüber dauerhaft
+   ein Drittel der Spalte. Die Überschrift bleibt sichtbar, damit klar
+   ist, dass es den Weg gibt - nur das Formular klappt weg. Bewusst
+   <details> und kein Skript: ohne Skript wäre der Bereich sonst gar
+   nicht erreichbar. */
+.importkarte > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center;
+  gap: 12px;
+}
+.importkarte > summary::-webkit-details-marker { display: none; }
+.importkarte > summary::marker { content: ""; }
+.importkopf { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* ⚠️ Dieselbe Größe wie ein <h1> in einer Karte - die beiden Karten der
+   Zeiterfassung stehen untereinander und müssen gleich schwer wiegen.
+   Ein echtes <h1> im <summary> wäre auch möglich, brächte aber seine
+   eigenen Ränder mit und säße dann nicht mehr auf der Klickfläche. */
+.importtitel { font-size: 21px; font-weight: 700; letter-spacing: -.01em; }
+/* Der Pfeil am Zeilenende, wie bei den Konten in den Einstellungen. */
+.importkarte > summary::after {
+  content: ""; margin-left: auto; flex: 0 0 auto; width: 9px; height: 9px;
+  border-right: 2px solid var(--leise); border-bottom: 2px solid var(--leise);
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+.importkarte[open] > summary::after { transform: rotate(-135deg); }
+.importkarte > summary:hover .importtitel { color: var(--akzent); }
+.importkarte[open] > summary { margin-bottom: 4px; }
+@media (prefers-reduced-motion: no-preference) {
+  .importkarte > summary::after { transition: transform .2s ease; }
+}

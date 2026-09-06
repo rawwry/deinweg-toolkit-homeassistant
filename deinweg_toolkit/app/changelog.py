@@ -1798,4 +1798,19 @@ CHANGELOG = [
         "mitgeschützt. Doppelt Angehaktes wird zusammengefasst",
         "Prüfung von 1345 auf 1378 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.22.1", "titel": "Zeiterfassung aufgeräumt", "punkte": [
+        "⚠️ Auswahlfelder waren drei Pixel niedriger als Textfelder – "
+        "sichtbar genau dort, wo sie sich eine Zeile teilen („Leistung“ "
+        "und „Eigene Beschreibung“). Jetzt stehen alle Felder im ganzen "
+        "Programm gleich hoch",
+        "„Zeitlisten einlesen“ steht zugeklappt: die Überschrift bleibt, "
+        "das Formular klappt weg",
+        "Manuelle Erfassung: neuer Einleitungssatz ohne Bezug zu Listen "
+        "und Working Hours",
+        "„Eigene Beschreibung“ heißt jetzt „Optional: Genauere "
+        "Erläuterung“",
+        "Geschützte Wiki-Ordner: es stehen ausnahmslos Ordner der ersten "
+        "Ebene zur Wahl – Schutz vererbt sich ohnehin nach unten",
+        "Prüfung von 1378 auf 1380 Einzelprüfungen erweitert",
+    ]},
 ]

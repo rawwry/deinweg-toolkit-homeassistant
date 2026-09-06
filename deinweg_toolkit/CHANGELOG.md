@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.22.1
+
+- Alle Formularfelder stehen gleich hoch (Auswahlfelder waren 3px
+  niedriger als Textfelder)
+- „Zeitlisten einlesen“ zugeklappt, neue Einleitung der manuellen
+  Erfassung
+- Geschützte Wiki-Ordner: nur noch erste Ebene wählbar
+
 ## 1.22
 
 - Neu: Logbuch der Datensätze (Arbeitszeit → Übersicht), nur für

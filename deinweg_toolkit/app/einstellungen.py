@@ -257,13 +257,14 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
         # Benutzerverwaltung - einmal zum Pflegen der Liste, einmal fuer
         # die Haekchen je Konto.
         wiki_geschuetzt = auth.geschuetzte_ordner(con)
-        # ⚠️ Ordner, die ein geschuetzter Oberordner schon mit abdeckt,
-        # stehen gar nicht erst zur Wahl: sie anzuhaken aendert nichts.
-        # Genau das war zu sehen, sobald ein Ordner mit Unterordnern
-        # geschuetzt wurde - der Unterordner stand weiter in der Liste
-        # und sah aus, als koenne man ihn noch einzeln schuetzen.
+        # ⚠️ Nur Ordner der ERSTEN Ebene stehen zur Wahl (seit 1.22.1,
+        # Timos Wunsch). Schutz vererbt sich ohnehin nach unten, ein
+        # tiefer Ordner waere also entweder wirkungslos (weil der
+        # Oberordner schon geschuetzt ist) oder eine Sonderregel, die
+        # niemand im Baum wiederfindet. Ein Ordner ist erste Ebene, wenn
+        # sein Pfad keinen Schraegstrich enthaelt.
         wiki_alle_ordner = [o["pfad"] for o in wiki.ordnerliste()
-                            if not auth.gedeckt_von(o["pfad"], wiki_geschuetzt)]
+                            if "/" not in o["pfad"]]
         mailkonfig = mail.konfig_lesen(con)
         # Das Passwort verlaesst die Anwendung nicht im Klartext - in der
         # Oberflaeche steht nur, ob eines hinterlegt ist.
@@ -881,10 +882,14 @@ def wiki_geschuetzt_speichern(ordner: list[str] = Form([])):
     unveraendert vor. Gespeichert wird ohnehin nur, was in der Liste
     steht (auth.wiki_ordner_speichern).
     """
-    # ⚠️ Untergeordnete Ordner fallen heraus: Schutz vererbt sich, und
-    # ein doppelt gefuehrter Unterordner haette sogar geschadet (siehe
-    # auth.ohne_gedeckte).
-    liste = auth.ohne_gedeckte(auth.ordnerliste_lesen(",".join(ordner)))
+    # ⚠️ Nur die erste Ebene, und danach ohne gedeckte Unterordner. Das
+    # Formular bietet seit 1.22.1 ohnehin nur noch erste Ebenen an; hier
+    # steht die Regel noch einmal, weil ein abgeschicktes Formular alles
+    # enthalten kann. Ein aelterer, tiefer Eintrag verschwindet damit
+    # beim naechsten Speichern - bewusst dort und nicht schon beim Lesen:
+    # sonst faellt ein Schutz still weg, ohne dass jemand etwas getan hat.
+    liste = auth.ohne_gedeckte([o for o in auth.ordnerliste_lesen(",".join(ordner))
+                                if "/" not in o])
     with db.db() as con:
         mail.konfig_schreiben(con, {"wiki_geschuetzt": ",".join(liste)})
     return benutzer_zurueck(hinweis="Geschützte Wiki-Ordner gespeichert.")

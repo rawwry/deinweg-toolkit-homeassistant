@@ -4695,18 +4695,30 @@ def test_geschuetzte_unterordner(client: TestClient) -> None:
     os.makedirs(pfad, exist_ok=True)
     with open(os.path.join(pfad, "seite.md"), "w", encoding="utf-8") as f:
         f.write("# Darunter")
+    # ⚠️ Seit 1.22.1 stehen ausnahmslos Ordner der ERSTEN Ebene zur Wahl.
+    # Schutz vererbt sich ohnehin nach unten; ein tieferer Ordner wäre
+    # entweder wirkungslos oder eine Sonderregel, die niemand im Baum
+    # wiederfindet.
     seite = client.get("/einstellungen?bereich=benutzer").text
     pruefe('value="99_probeschutz"' in seite,
-           "solange nichts geschützt ist, stehen beide Ebenen zur Wahl")
-    pruefe('value="99_probeschutz/darunter"' in seite, "auch die zweite")
+           "ein Ordner der ersten Ebene steht zur Wahl")
+    pruefe('value="99_probeschutz/darunter"' not in seite,
+           "ein Unterordner nicht – auch dann nicht, wenn nichts geschützt ist")
 
     client.post("/einstellungen/wiki-geschuetzt",
                 data={"ordner": ["99_probeschutz"]})
     seite = client.get("/einstellungen?bereich=benutzer").text
     pruefe('value="99_probeschutz"' in seite,
            "nach dem Schützen steht der Oberordner weiter da")
-    pruefe('value="99_probeschutz/darunter"' not in seite,
-           "der Unterordner nicht mehr – er ist ohnehin mitgeschützt")
+    # Und ein von Hand abgeschicktes Formular kommt damit auch nicht durch.
+    client.post("/einstellungen/wiki-geschuetzt",
+                data={"ordner": ["99_probeschutz/darunter"]})
+    with db.db() as con:
+        from .auth import geschuetzte_ordner as _g
+        pruefe(_g(con) == [],
+               "ein tiefer Ordner wird auch serverseitig nicht angenommen")
+    client.post("/einstellungen/wiki-geschuetzt",
+                data={"ordner": ["99_probeschutz"]})
 
     # ⚠️ Und wären beide gespeichert, würde das sogar schaden: die
     # Durchsetzung verlangt für JEDEN berührten Eintrag eine Freigabe.
@@ -5139,9 +5151,17 @@ def test_zeiterfassung_auswahl(client: TestClient) -> None:
     abschnitt("Zeiterfassung: Auswahl und Aufbau")
     seite = client.get("/").text
 
-    pruefe("<h1>Manuelle Zeiterfassung</h1>" in seite
-           and "<h1>Zeitlisten einlesen</h1>" in seite,
-           "beide Überschriften stehen auf derselben Stufe")
+    # ⚠️ „Zeitlisten einlesen" steht seit 1.22.1 in einem <summary> und
+    # ist deshalb kein <h1> mehr - die Überschrift säße sonst nicht auf
+    # der Klickfläche. Gleich schwer wiegen muss sie trotzdem; dafür
+    # sorgt „.importtitel" im Stylesheet.
+    pruefe("<h1>Manuelle Zeiterfassung</h1>" in seite,
+           "die manuelle Erfassung trägt die Hauptüberschrift")
+    pruefe('class="importtitel">Zeitlisten einlesen<' in seite,
+           "„Zeitlisten einlesen“ steht gleichrangig daneben")
+    stil_z = client.get("/static/style.css").text
+    pruefe(".importtitel { font-size: 21px" in stil_z,
+           "und ist genauso groß wie eine Kartenüberschrift")
     pruefe(seite.count('name="mitarbeiter"') >= 2,
            "beide Karten haben ein Mitarbeiter-Feld")
     pruefe('<input type="text" name="mitarbeiter"' not in seite,
