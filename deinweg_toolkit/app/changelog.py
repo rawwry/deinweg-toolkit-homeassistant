@@ -1906,4 +1906,15 @@ CHANGELOG = [
         "„Weitere Zeile“",
         "Prüfung von 1476 auf 1490 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.27", "titel": "Neuer Schriftzug, auch oben", "punkte": [
+        "Neues Logo (Timos Fassung „für Menü“): kompakter gesetzt, in "
+        "beiden Themen. Es steht jetzt überall – Kopfzeile, Anmeldeseite "
+        "und Fußzeile",
+        "In der Kopfzeile steht damit der vollständige Schriftzug statt "
+        "nur des Zeichens, am Telefon ebenso. Die Leiste ist dafür ein "
+        "Stück gewachsen (64 auf 72 Pixel)",
+        "⚠️ Die alte Fassung ließ sich dort nicht zeigen: sie lief "
+        "breiter und ihre Unterzeile war in Kopfhöhe zwei Pixel hoch",
+        "Prüfung von 1490 auf 1493 Einzelprüfungen erweitert",
+    ]},
 ]

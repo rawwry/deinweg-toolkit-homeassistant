@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.27
+
+- Neues Logo in beiden Themen, überall eingesetzt
+- In der Kopfzeile steht jetzt der vollständige Schriftzug statt nur des
+  Zeichens, am Telefon ebenso; die Leiste ist dafür etwas höher
+
 ## 1.26
 
 - Logbuch der Datensätze: ausgewählte Zeilen lassen sich entfernen; dass

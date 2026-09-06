@@ -1383,12 +1383,18 @@ def test_marke(client: TestClient) -> None:
                f"{pfad} wird ausgeliefert")
 
     seite = client.get("/").text
-    pruefe("marke-fuer-dunkel.svg" in seite and "marke-fuer-hell.svg" in seite,
-           "die Kopfzeile trägt das Zeichen in beiden Fassungen")
-    pruefe("marke-wort" not in seite,
-           "in der Kopfzeile steht allein das Zeichen, kein Schriftzug daneben")
+    # ⚠️ Seit 1.27 steht in der Kopfzeile der vollständige Schriftzug, in
+    # beiden Fassungen. Bis 1.26 stand dort nur das Zeichen: der alte
+    # Schriftzug lief 3,9:1 breit und seine Unterzeile war in Kopfhöhe
+    # zwei Pixel hoch. Timos neue Fassung ist kompakter und bleibt bei
+    # 42px lesbar - dafür ist die Leiste gewachsen.
+    kopf_t = seite.split('class="kopf"')[1].split("</header>")[0]
+    pruefe("logo-fuer-dunkel.svg" in kopf_t and "logo-fuer-hell.svg" in kopf_t,
+           "die Kopfzeile trägt den Schriftzug in beiden Fassungen")
+    pruefe("marke-fuer-" not in kopf_t,
+           "und nicht mehr nur das Zeichen")
     pruefe("logo-fuer-dunkel.svg" in seite,
-           "der vollständige Schriftzug steht in der Fußzeile")
+           "der vollständige Schriftzug steht auch in der Fußzeile")
     # Kein PNG mehr: die vier alten Dateien sind ersetzt, nicht ergänzt.
     pruefe("logo-fuer-dunkel.png" not in seite
            and "marke-fuer-dunkel.png" not in seite,
@@ -1397,7 +1403,10 @@ def test_marke(client: TestClient) -> None:
            "die alten PNG-Dateien sind weg")
     # Ohne Versionsanhang hängt der Browser nach einem Bildtausch am alten
     # Stand - genau das war beim Einbau der neuen Grafiken zu sehen.
-    for bild in ("marke-fuer-dunkel.svg", "logo-fuer-dunkel.svg"):
+    # ⚠️ Genau daran ist der Tausch beim Bauen aufgefallen: die neue
+    # Datei lag da, der Browser zeigte weiter die alte - weil sie unter
+    # demselben Namen liegt und die Version noch stand.
+    for bild in ("logo-fuer-dunkel.svg", "logo-fuer-hell.svg"):
         pruefe(f"{bild}?v=" in seite, f"{bild} trägt einen Versionsanhang")
     pruefe("favicon-32x32.png" in seite, "die kleinen Favicons sind eingebunden")
 
@@ -1426,6 +1435,15 @@ def test_marke(client: TestClient) -> None:
            "die Kopfzeile bleibt beim Rollen stehen")
     pruefe("--kopfhoehe" in stil,
            "ihre Höhe steht als Variable für die klebenden Seitenleisten")
+    # ⚠️ Mit dem Schriftzug ist die Leiste gewachsen - die Variable muss
+    # mitziehen, sonst rutschen die klebenden Seitenleisten von Wiki,
+    # Dateien und Einstellungen unter sie.
+    pruefe(":root { --kopfhoehe: 72px; }" in stil,
+           "und ist mit dem Schriftzug auf 72px gewachsen")
+    pruefe(".marke img { height: 42px" in stil,
+           "der Schriftzug steht mit 42px in der Kopfzeile")
+    pruefe(".marke img { height: 40px" in stil,
+           "am Telefon mit 40px – dort soll er gerade lesbar bleiben")
     # Der Erklaerabsatz war eine Flexbox - jedes <strong> darin wurde zu
     # einer eigenen schmalen Spalte. Jetzt sitzt nur das Zeichen absolut.
     einzeilig = stil.replace("\n", " ")

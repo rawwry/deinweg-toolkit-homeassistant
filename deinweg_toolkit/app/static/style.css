@@ -133,7 +133,12 @@ body > * { min-width: 0; }
    nach oben, nur um den Bereich zu wechseln. Die Höhe steht als Variable
    dabei, weil die Seitenleisten von Wiki und Dateien darunter ebenfalls
    kleben und ihren Abstand daran ausrichten müssen. */
-:root { --kopfhoehe: 64px; }
+/* ⚠️ Seit 1.27 etwas höher: in der Kopfzeile steht jetzt der volle
+   Schriftzug statt nur des Zeichens, und der braucht 42px, damit
+   seine Unterzeile lesbar bleibt. Wer den Wert ändert, muss ihn mit
+   der tatsächlichen Höhe der Leiste abgleichen - vier Dinge hängen
+   daran (siehe oben). */
+:root { --kopfhoehe: 72px; }
 .kopf {
   display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
   padding: 12px 26px;
@@ -146,7 +151,10 @@ body > * { min-width: 0; }
   display: flex; align-items: center;
   text-decoration: none; margin-right: 2px; flex-shrink: 0;
 }
-.marke img { height: 34px; width: auto; display: block; }
+/* ⚠️ Der Schriftzug läuft 3,65:1 breit - bei 42px sind das 153px.
+   Darunter wird seine Unterzeile unleserlich, darüber wächst die
+   Leiste unnötig. */
+.marke img { height: 42px; width: auto; display: block; }
 [data-thema="dunkel"] .nur-hell,
 [data-thema="hell"]   .nur-dunkel { display: none; }
 
@@ -979,10 +987,10 @@ footer { flex: 0 0 auto; color: var(--leise); font-size: 12.5px;
 }
 [data-breite="begrenzt"] .fussband { max-width: 1400px; }
 /* ⚠️ Das Logo ist mit 1.17.1 gewachsen: der Satz darunter ist entfallen,
-   und die frei gewordene Höhe gehört jetzt der Marke. Die Breite ist
-   gedeckelt, weil der Schriftzug sehr breit läuft (viewBox 2093×537) -
-   ohne max-width drückte er auf schmalen Fenstern die Angaben rechts
-   aus dem Band. */
+   und die frei gewordene Höhe gehört jetzt der Marke. Die Breite bleibt
+   gedeckelt, weil der Schriftzug breit läuft (seit 1.27 viewBox
+   1000×274, also 3,65:1) - ohne max-width drückte er auf schmalen
+   Fenstern die Angaben rechts aus dem Band. */
 .fussmarke img { height: 54px; width: auto; max-width: 100%;
                  opacity: .5; display: block; transition: opacity .3s ease; }
 .fussmarke:hover img { opacity: .85; }
@@ -1970,7 +1978,10 @@ textarea:focus { border-color: var(--akzent); }
      die Kopfzeile ohnehin nicht, der Kontext wird hier also nicht
      gebraucht. */
   .kopf { position: relative; z-index: auto; gap: 12px; padding: 12px 18px; }
-  .marke img { height: 30px; }
+  /* ⚠️ Am Telefon nur wenig kleiner (Timos Wunsch: gerade dort soll
+     der Schriftzug stehen). 40px sind 146px breit - daneben bleiben
+     bei 375px Fensterbreite noch gut 150px für den Menüknopf. */
+  .marke img { height: 40px; }
 
   .burger {
     display: flex; flex-direction: column; justify-content: center; gap: 5px;

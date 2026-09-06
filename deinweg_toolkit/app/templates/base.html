@@ -48,14 +48,18 @@
 </head>
 <body>
 <header class="kopf">
-  {# In der Kopfzeile steht allein das Zeichen. Der vollständige
-     Schriftzug trägt eine Unterzeile, die in Kopfhöhe niemand mehr lesen
-     kann; er steht deshalb auf der Anmeldeseite und in der Fußzeile, wo
-     Platz dafür ist. #}
+  {# ⚠️ Seit 1.27 steht hier der vollständige Schriftzug, nicht mehr nur
+     das Zeichen. Bis 1.26 ging das nicht: der alte Schriftzug lief 3,9:1
+     breit und seine Unterzeile war in Kopfhöhe zwei Pixel hoch, also
+     Dekoration ohne Inhalt. Timos neue Fassung ist kompakter gesetzt und
+     bleibt bei 42px Höhe lesbar - dafür ist die Leiste ein Stück
+     gewachsen. Dasselbe Bild wie auf der Anmeldeseite und in der
+     Fußzeile; „marke-fuer-*.svg" (nur das Zeichen) wird nicht mehr
+     eingebunden, bleibt aber liegen. #}
   <a class="marke" href="/" title="Zur Startseite" aria-label="Zur Startseite">
-    <img class="nur-dunkel" src="/static/marke-fuer-dunkel.svg?v={{ VERSION }}"
+    <img class="nur-dunkel" src="/static/logo-fuer-dunkel.svg?v={{ VERSION }}"
          alt="Dein Weg Toolkit">
-    <img class="nur-hell"   src="/static/marke-fuer-hell.svg?v={{ VERSION }}"
+    <img class="nur-hell"   src="/static/logo-fuer-hell.svg?v={{ VERSION }}"
          alt="Dein Weg Toolkit">
   </a>
   <button type="button" class="burger" id="burger" aria-expanded="false"
