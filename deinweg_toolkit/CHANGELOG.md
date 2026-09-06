@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.29
+
+- Kopfzeile wieder mit dem vollen Schriftzug samt Unterzeile
+- Leiste dafür gewachsen: Bild 48px, Leiste 73px – die Unterzeile steht
+  damit auf 5,06px x-Höhe
+- Bewegung am Logo wieder wie ursprünglich
+- Behoben: waagerechter Rollbalken auf der Dateienseite (verstecktes
+  Dateifeld war 1328px breit statt 1px, Fehler seit 1.1)
+
 ## 1.28
 
 - Eigene Logo-Fassung für die Kopfzeile: ohne Unterzeile, dafür ein

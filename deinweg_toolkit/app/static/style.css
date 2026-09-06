@@ -133,12 +133,13 @@ body > * { min-width: 0; }
    nach oben, nur um den Bereich zu wechseln. Die Höhe steht als Variable
    dabei, weil die Seitenleisten von Wiki und Dateien darunter ebenfalls
    kleben und ihren Abstand daran ausrichten müssen. */
-/* ⚠️ Seit 1.27 etwas höher: in der Kopfzeile steht jetzt der volle
-   Schriftzug statt nur des Zeichens, und der braucht 42px, damit
-   seine Unterzeile lesbar bleibt. Wer den Wert ändert, muss ihn mit
-   der tatsächlichen Höhe der Leiste abgleichen - vier Dinge hängen
-   daran (siehe oben). */
-:root { --kopfhoehe: 72px; }
+/* ⚠️ Seit 1.29 höher: in der Kopfzeile steht der volle Schriftzug samt
+   Unterzeile, und die wird erst ab 48px Bildhöhe wirklich lesbar
+   (Rechnung bei `.marke img`). 48 + 2×12 Polsterung + 1 Linie = 73px
+   tatsächliche Höhe; die Variable trägt wie bisher ein paar Pixel Luft
+   darauf. Wer den Wert ändert, muss ihn mit der tatsächlichen Höhe der
+   Leiste abgleichen - vier Dinge hängen daran (siehe oben). */
+:root { --kopfhoehe: 78px; }
 .kopf {
   display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
   padding: 12px 26px;
@@ -148,72 +149,20 @@ body > * { min-width: 0; }
 }
 
 .marke {
-  display: flex; align-items: center; position: relative;
+  display: flex; align-items: center;
   text-decoration: none; margin-right: 2px; flex-shrink: 0;
 }
-/* ⚠️ Hier läuft die Fassung OHNE Unterzeile („menue-fuer-*.svg", 4,74:1):
-   bei 42px Bildhöhe sind das 199px Breite und 25px Versalhöhe. Die volle
-   Fassung mit Unterzeile käme dort auf 2,8px x-Höhe - unlesbar, siehe
-   den Kommentar in base.html. */
-.marke img { height: 42px; width: auto; display: block; }
+/* ⚠️ 48px Bildhöhe, und die Zahl ist gerechnet, nicht geraten.
+   Die Unterzeile des Schriftzugs hat in der Datei eine x-Höhe von 28,9
+   Einheiten bei 274,13 Einheiten Gesamthöhe - also 10,5 % der Bildhöhe.
+   Bei 48px sind das 5,06px x-Höhe; ab etwa 5px liest sich Kleinschrift
+   bequem. Bei den 42px von 1.27 waren es 4,4px, also grenzwertig - so
+   hat Timo es auch gemeldet.
+   ⚠️ Wer den Wert ändert, muss `--kopfhoehe` mitziehen. Und wer ein
+   neues Logo einsetzt, rechnet die 10,5 % neu aus: sie hängen an der
+   Datei, nicht an der Marke. */
+.marke img { height: 48px; width: auto; display: block; }
 
-/* --- Die Marke lebt (seit 1.28) ---------------------------------------
-   ⚠️ Ausdrückliche dritte Ausnahme von „keine übertriebenen Animationen"
-   (Abschnitt 13), nach dem Anmeldebildschirm und dem Panda - auf Timos
-   Wunsch. Dauerhaft läuft genau eines: ein Schein, der hinter dem
-   Zeichen atmet (9,1 s, bewusst ein ungerader Takt).
-
-   ⚠️⚠️ Die Dauerbewegung liegt AUSSCHLIESSLICH auf einem
-   Pseudoelement, nie auf dem Bild selbst. Eine laufende Transformation
-   befördert das Bild in eine eigene Compositor-Ebene: die SVG wird dann
-   einmal gerastert und danach verschoben, und bei Bruchteilen eines
-   Pixels werden die Kanten weich. Genau darüber ging die Runde davor -
-   der Schriftzug war zu klein zum Lesen. Ein Dauerschweben des Logos
-   hätte ihn wieder weichgezeichnet, jederzeit. Also nicht einbauen.
-
-   ⚠️ Bewegt werden nur `opacity` und `transform`. Beides erledigt der
-   Compositor ohne Neuzeichnen; eine Dauerbewegung auf Farbe, Filter oder
-   background-position liefe dagegen auf jeder Seite dauerhaft durch den
-   Zeichenpfad und kostete auf dem Telefon Akku.
-
-   Der ganze Block hängt weiter unten in prefers-reduced-motion; ohne
-   Bewegung bleibt der Schein auf einem festen, sehr leisen Wert stehen. */
-.marke::before, .marke::after { content: ""; position: absolute;
-                                pointer-events: none; }
-/* ⚠️ Der Schein sitzt eng um das Zeichen, mit AUSDRÜCKLICHEM Radius.
-   Ohne Größenangabe rechnet der Browser den Kreis bis zur entferntesten
-   Ecke des Kastens - der Schein lag dann als breiter rosa Schleier über
-   dem halben Schriftzug. Das Zeichen steht bei rund 11 % der Bildbreite,
-   bei 199px Bild also 22px vom linken Rand; der Kasten ragt 12px weiter
-   nach links, macht 34px.
-   Im hellen Thema ist der Ausschlag kleiner: Rosa auf Weiß trägt viel
-   weiter als auf dem dunklen Grund. */
-:root               { --markenpuls: .34; }
-[data-thema="hell"] { --markenpuls: .20; }
-.marke::before {
-  inset: -14px -10px -14px -12px;
-  background: radial-gradient(circle 30px at 34px 50%, var(--akzent) 0%,
-                              transparent 72%);
-  opacity: .10;
-}
-/* ⚠️ Der Glanz beim Überfahren ist auf die Form des Logos maskiert -
-   ohne Maske liefe ein sichtbarer heller Balken über den leeren Platz
-   daneben. Die Maske ist dieselbe Datei wie das Bild; sie trägt hier
-   keinen Versionsanhang, weil sie aus dem Stylesheet kommt. Beim
-   nächsten Logotausch also daran denken: das Bild wechselt sofort, die
-   Maske erst, wenn der Browser sie neu holt. Sie ist reine Zierde, ein
-   kurzzeitiger Versatz tut nichts. */
-:root          { --markenmaske: url("/static/menue-fuer-dunkel.svg"); }
-[data-thema="hell"] { --markenmaske: url("/static/menue-fuer-hell.svg"); }
-.marke::after {
-  inset: 0;
-  background: linear-gradient(100deg, transparent 44%,
-              rgba(255,255,255,.9) 50%, transparent 56%);
-  background-size: 320% 100%; background-position: 210% 0;
-  -webkit-mask: var(--markenmaske) center / contain no-repeat;
-          mask: var(--markenmaske) center / contain no-repeat;
-  opacity: 0;
-}
 [data-thema="dunkel"] .nur-hell,
 [data-thema="hell"]   .nur-dunkel { display: none; }
 
@@ -1173,43 +1122,8 @@ input[type=date], input[type=time] {
   .kopf nav a { transition: background .15s ease, color .15s ease,
                             transform .2s cubic-bezier(.34,1.5,.5,1); }
   .kopf nav a:hover { transform: translateY(-1px); }
-  /* Die Marke: Ruhepuls, Schweben und der Glanz beim Überfahren.
-     ⚠️ Der Ruhepuls sitzt auf dem Schein, das Schweben auf dem BILD -
-     zwei verschiedene Elemente. Lägen beide auf demselben, überschriebe
-     die laufende Animation die Transformation beim Überfahren. */
-  @keyframes markenpuls {
-    0%, 100% { opacity: .08; transform: scale(.94); }
-    50%      { opacity: var(--markenpuls); transform: scale(1.08); }
-  }
-  @keyframes markenstups {
-    0%   { transform: scale(1); }
-    38%  { transform: scale(1.055); }
-    100% { transform: scale(1); }
-  }
-  @keyframes markenglanz {
-    from { background-position: 210% 0; }
-    to   { background-position: -120% 0; }
-  }
-  .marke::before { animation: markenpuls 9.1s ease-in-out infinite; }
-
-  /* Beim Überfahren dreierlei: ein kurzer Stups aus dem Zeichen heraus,
-     ein Glanz, der einmal über die Formen läuft, und ein schnellerer
-     Puls. Bewusst ohne Drehung - die machte die Kanten der Buchstaben
-     weich.
-     ⚠️ Der Stups ist eine Animation und keine bleibende Transformation:
-     so steht das Logo auch beim Draufzeigen wieder auf scale(1) und
-     bleibt scharf. Ein dauerhaftes `transform` im :hover hielte es die
-     ganze Zeit in der Compositor-Ebene. */
-  .marke:hover, .marke:focus-visible {
-    animation: markenstups .55s cubic-bezier(.34, 1.45, .5, 1);
-    transform-origin: left center;
-  }
-  .marke:hover::before, .marke:focus-visible::before {
-    animation-duration: 2.6s;
-  }
-  .marke:hover::after, .marke:focus-visible::after {
-    opacity: 1; animation: markenglanz .9s cubic-bezier(.36, 0, .2, 1);
-  }
+  .marke img { transition: transform .3s cubic-bezier(.34, 1.6, .48, 1); }
+  .marke:hover img { transform: scale(1.045) rotate(-.6deg); }
 
   /* Der Themenschalter federt */
   .schalter button::after { transition: transform .32s cubic-bezier(.5, 1.75, .45, 1),
@@ -2073,9 +1987,10 @@ textarea:focus { border-color: var(--akzent); }
      gebraucht. */
   .kopf { position: relative; z-index: auto; gap: 12px; padding: 12px 18px; }
   /* ⚠️ Am Telefon nur wenig kleiner (Timos Wunsch: gerade dort soll
-     der Schriftzug stehen). 40px sind 146px breit - daneben bleiben
-     bei 375px Fensterbreite noch gut 150px für den Menüknopf. */
-  .marke img { height: 40px; }
+     der Schriftzug stehen). 46px sind 168px breit und lassen die
+     Unterzeile bei 4,8px x-Höhe stehen - daneben bleiben bei 375px
+     Fensterbreite noch gut 120px für den Menüknopf. */
+  .marke img { height: 46px; }
 
   .burger {
     display: flex; flex-direction: column; justify-content: center; gap: 5px;
@@ -2391,8 +2306,20 @@ textarea:focus { border-color: var(--akzent); }
 .bildfenster .knopf-icon { color: #fff; border-color: rgba(255,255,255,.3); }
 .bildfenster .knopf-icon:hover { border-color: #fff; }
 body.kein-rollen { overflow: hidden; }
-.dateifeld-versteckt {
-  position: absolute; width: 1px; height: 1px; opacity: 0;
+/* ⚠️ Der Selektor braucht das `input` davor. Weiter oben steht
+   `input[type=text], …, input[type=file], … { width: 100% }` - eine
+   Attributauswahl wiegt so schwer wie eine Klasse, die Regel ist also
+   (0,1,1) und schlägt ein einfaches `.dateifeld-versteckt` (0,1,0),
+   egal wie weit unten das steht. Das versteckte Feld war deshalb
+   1328px breit statt 1px und erzeugte auf der Dateienseite einen
+   waagerechten Rollbalken über die ganze Seite - unsichtbar, weil
+   `clip-path` nur das Zeichnen abschneidet, nie den Kasten.
+   Mit `input.` davor sind beide gleich schwer, und die spätere Regel
+   gewinnt. `min-height` und `padding` müssen mit zurückgesetzt werden,
+   sonst bleibt das Feld 43px hoch. */
+input.dateifeld-versteckt {
+  position: absolute; width: 1px; height: 1px; min-height: 0;
+  padding: 0; border: 0; opacity: 0;
   overflow: hidden; clip-path: inset(50%);
 }
 label.knopf-icon { cursor: pointer; }

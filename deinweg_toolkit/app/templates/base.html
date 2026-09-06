@@ -48,24 +48,18 @@
 </head>
 <body>
 <header class="kopf">
-  {# ⚠️ Die Kopfzeile hat seit 1.28 eine EIGENE Fassung des Logos:
-     Zeichen und Schriftzug, ohne die Unterzeile („menue-fuer-*.svg").
-     Der Grund ist gemessen und nicht gefühlt - in der vollen Fassung ist
-     die Unterzeile bei 42px Bildhöhe 5,7px hoch, ihre x-Höhe 2,8px.
-     Lesbar wird Kleinschrift ab etwa 5px x-Höhe; dafür müsste das Bild
-     76px hoch sein, also die Leiste so hoch wie zwei Navigationszeilen.
-     Ohne die Unterzeile steht der Schriftzug bei gleicher Bildhöhe mit
-     25px Versalhöhe da statt mit 18px - er liest sich oben also besser
-     als vorher, nicht schlechter.
-
-     Die volle Fassung mit Unterzeile („logo-fuer-*.svg") bleibt auf der
-     Anmeldeseite und in der Fußzeile, wo sie den Platz hat.
+  {# ⚠️ Die Kopfzeile trägt seit 1.27 den vollständigen Schriftzug samt
+     Unterzeile - dieselbe Datei wie auf der Anmeldeseite und in der
+     Fußzeile. 1.28 stand hier kurz eine eigene Fassung ohne Unterzeile;
+     sie ist auf Timos Wunsch wieder weg. Stattdessen ist die Leiste
+     gewachsen, bis die Unterzeile wirklich lesbar ist (siehe
+     `--kopfhoehe` im Stylesheet, dort steht die Rechnung).
      „marke-fuer-*.svg" (nur das Zeichen) wird seit 1.27 nirgends mehr
      eingebunden. #}
   <a class="marke" href="/" title="Zur Startseite" aria-label="Zur Startseite">
-    <img class="nur-dunkel" src="/static/menue-fuer-dunkel.svg?v={{ VERSION }}"
+    <img class="nur-dunkel" src="/static/logo-fuer-dunkel.svg?v={{ VERSION }}"
          alt="Dein Weg Toolkit">
-    <img class="nur-hell"   src="/static/menue-fuer-hell.svg?v={{ VERSION }}"
+    <img class="nur-hell"   src="/static/logo-fuer-hell.svg?v={{ VERSION }}"
          alt="Dein Weg Toolkit">
   </a>
   <button type="button" class="burger" id="burger" aria-expanded="false"

@@ -1939,4 +1939,22 @@ CHANGELOG = [
         "Wer „Bewegung reduzieren“ eingestellt hat, sieht nichts davon",
         "Prüfung von 1493 auf 1509 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.29", "titel": "Zurück zum vollen Schriftzug", "punkte": [
+        "Die Kopfzeile trägt wieder das Logo samt Unterzeile – die "
+        "Fassung ohne sie ist auf Timos Wunsch entfallen",
+        "Stattdessen ist die Leiste gewachsen, bis die Unterzeile "
+        "wirklich lesbar ist: Bild 48px statt 42px, Leiste 73px statt "
+        "67px. Damit steht die Unterzeile auf 5,06px x-Höhe",
+        "⚠️ Berichtigung: in 1.28 stand hier, die Unterzeile käme bei "
+        "42px auf 2,8px x-Höhe. Das war geschätzt und falsch – "
+        "nachgemessen sind es 4,4px. Der Wert liegt fest bei 10,54 % der "
+        "Bildhöhe; die Rechnung steht jetzt im Stylesheet",
+        "Auch die Bewegung am Logo ist wieder die ursprüngliche: eine "
+        "kurze Vergrößerung beim Überfahren, sonst nichts",
+        "⚠️ Nebenbei behoben: auf der Dateienseite erzeugte das "
+        "versteckte Dateifeld einen waagerechten Rollbalken über die "
+        "ganze Seite – es war 1328 Pixel breit statt einem. Der Fehler "
+        "bestand seit 1.1 und war nicht zu sehen, nur zu scrollen",
+        "Prüfung von 1509 auf 1501 Einzelprüfungen angepasst",
+    ]},
 ]
