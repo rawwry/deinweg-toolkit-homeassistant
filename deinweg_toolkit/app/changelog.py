@@ -1917,4 +1917,26 @@ CHANGELOG = [
         "breiter und ihre Unterzeile war in Kopfhöhe zwei Pixel hoch",
         "Prüfung von 1490 auf 1493 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.28", "titel": "Die Marke lebt", "punkte": [
+        "Die Kopfzeile hat eine eigene Fassung des Logos: Zeichen und "
+        "Schriftzug, ohne die Unterzeile. Der Schriftzug steht damit bei "
+        "gleicher Leistenhöhe mit 25px Versalhöhe da statt mit 18px – er "
+        "liest sich oben also besser als vorher",
+        "⚠️ Die Unterzeile war dort schlicht zu klein: 5,7 Pixel von der "
+        "Ober- bis zur Unterlänge, x-Höhe 2,8 Pixel. Lesbar wird "
+        "Kleinschrift ab etwa 5 Pixel x-Höhe – dafür hätte das Bild 76 "
+        "Pixel hoch sein müssen, die Leiste also so hoch wie zwei "
+        "Navigationszeilen",
+        "Die volle Fassung mit Unterzeile bleibt auf der Anmeldeseite "
+        "und in der Fußzeile, wo sie den Platz hat",
+        "Neu: das Logo lebt. Ein weicher Schein atmet hinter dem Zeichen, "
+        "und beim Überfahren läuft ein Glanz über die Formen – auf die "
+        "Umrisse maskiert, nicht als Balken über den leeren Platz",
+        "⚠️ Die dauerhafte Bewegung liegt ausschließlich hinter dem Logo, "
+        "nie auf dem Bild selbst: eine laufende Transformation hätte die "
+        "Kanten der Schrift weichgezeichnet – genau das, was hier gerade "
+        "behoben wurde",
+        "Wer „Bewegung reduzieren“ eingestellt hat, sieht nichts davon",
+        "Prüfung von 1493 auf 1509 Einzelprüfungen erweitert",
+    ]},
 ]

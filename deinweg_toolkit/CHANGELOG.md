@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.28
+
+- Eigene Logo-Fassung für die Kopfzeile: ohne Unterzeile, dafür ein
+  deutlich größerer Schriftzug bei gleicher Leistenhöhe
+- Die volle Fassung mit Unterzeile bleibt auf Anmeldeseite und Fußzeile
+- Das Logo lebt: ein weicher Schein atmet hinter dem Zeichen, beim
+  Überfahren läuft ein Glanz über die Formen
+- Alles davon liegt in `prefers-reduced-motion: no-preference`
+
 ## 1.27
 
 - Neues Logo in beiden Themen, überall eingesetzt

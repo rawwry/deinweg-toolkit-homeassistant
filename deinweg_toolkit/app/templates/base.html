@@ -48,18 +48,24 @@
 </head>
 <body>
 <header class="kopf">
-  {# ⚠️ Seit 1.27 steht hier der vollständige Schriftzug, nicht mehr nur
-     das Zeichen. Bis 1.26 ging das nicht: der alte Schriftzug lief 3,9:1
-     breit und seine Unterzeile war in Kopfhöhe zwei Pixel hoch, also
-     Dekoration ohne Inhalt. Timos neue Fassung ist kompakter gesetzt und
-     bleibt bei 42px Höhe lesbar - dafür ist die Leiste ein Stück
-     gewachsen. Dasselbe Bild wie auf der Anmeldeseite und in der
-     Fußzeile; „marke-fuer-*.svg" (nur das Zeichen) wird nicht mehr
-     eingebunden, bleibt aber liegen. #}
+  {# ⚠️ Die Kopfzeile hat seit 1.28 eine EIGENE Fassung des Logos:
+     Zeichen und Schriftzug, ohne die Unterzeile („menue-fuer-*.svg").
+     Der Grund ist gemessen und nicht gefühlt - in der vollen Fassung ist
+     die Unterzeile bei 42px Bildhöhe 5,7px hoch, ihre x-Höhe 2,8px.
+     Lesbar wird Kleinschrift ab etwa 5px x-Höhe; dafür müsste das Bild
+     76px hoch sein, also die Leiste so hoch wie zwei Navigationszeilen.
+     Ohne die Unterzeile steht der Schriftzug bei gleicher Bildhöhe mit
+     25px Versalhöhe da statt mit 18px - er liest sich oben also besser
+     als vorher, nicht schlechter.
+
+     Die volle Fassung mit Unterzeile („logo-fuer-*.svg") bleibt auf der
+     Anmeldeseite und in der Fußzeile, wo sie den Platz hat.
+     „marke-fuer-*.svg" (nur das Zeichen) wird seit 1.27 nirgends mehr
+     eingebunden. #}
   <a class="marke" href="/" title="Zur Startseite" aria-label="Zur Startseite">
-    <img class="nur-dunkel" src="/static/logo-fuer-dunkel.svg?v={{ VERSION }}"
+    <img class="nur-dunkel" src="/static/menue-fuer-dunkel.svg?v={{ VERSION }}"
          alt="Dein Weg Toolkit">
-    <img class="nur-hell"   src="/static/logo-fuer-hell.svg?v={{ VERSION }}"
+    <img class="nur-hell"   src="/static/menue-fuer-hell.svg?v={{ VERSION }}"
          alt="Dein Weg Toolkit">
   </a>
   <button type="button" class="burger" id="burger" aria-expanded="false"

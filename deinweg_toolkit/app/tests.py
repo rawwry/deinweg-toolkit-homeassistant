@@ -1377,7 +1377,11 @@ def test_marke(client: TestClient) -> None:
                              ("/static/logo-fuer-dunkel.svg", 5000),
                              ("/static/logo-fuer-hell.svg", 5000),
                              ("/static/marke-fuer-dunkel.svg", 1000),
-                             ("/static/marke-fuer-hell.svg", 1000)):
+                             ("/static/marke-fuer-hell.svg", 1000),
+                             # Seit 1.28 eine eigene Fassung ohne Unterzeile
+                             # für die Kopfzeile.
+                             ("/static/menue-fuer-dunkel.svg", 5000),
+                             ("/static/menue-fuer-hell.svg", 5000)):
         antwort = client.get(pfad)
         pruefe(antwort.status_code == 200 and len(antwort.content) >= mindestens,
                f"{pfad} wird ausgeliefert")
@@ -1389,12 +1393,17 @@ def test_marke(client: TestClient) -> None:
     # zwei Pixel hoch. Timos neue Fassung ist kompakter und bleibt bei
     # 42px lesbar - dafür ist die Leiste gewachsen.
     kopf_t = seite.split('class="kopf"')[1].split("</header>")[0]
-    pruefe("logo-fuer-dunkel.svg" in kopf_t and "logo-fuer-hell.svg" in kopf_t,
-           "die Kopfzeile trägt den Schriftzug in beiden Fassungen")
+    # ⚠️ Seit 1.28 eine eigene Fassung OHNE Unterzeile. In der vollen
+    # Fassung ist die Unterzeile bei 42px Bildhöhe 5,7px hoch, ihre
+    # x-Höhe 2,8px - lesbar wird Kleinschrift ab etwa 5px.
+    pruefe("menue-fuer-dunkel.svg" in kopf_t and "menue-fuer-hell.svg" in kopf_t,
+           "die Kopfzeile trägt den Schriftzug ohne Unterzeile")
     pruefe("marke-fuer-" not in kopf_t,
            "und nicht mehr nur das Zeichen")
+    pruefe("logo-fuer-" not in kopf_t,
+           "die volle Fassung mit Unterzeile steht dort NICHT")
     pruefe("logo-fuer-dunkel.svg" in seite,
-           "der vollständige Schriftzug steht auch in der Fußzeile")
+           "die volle Fassung steht in der Fußzeile")
     # Kein PNG mehr: die vier alten Dateien sind ersetzt, nicht ergänzt.
     pruefe("logo-fuer-dunkel.png" not in seite
            and "marke-fuer-dunkel.png" not in seite,
@@ -1406,7 +1415,8 @@ def test_marke(client: TestClient) -> None:
     # ⚠️ Genau daran ist der Tausch beim Bauen aufgefallen: die neue
     # Datei lag da, der Browser zeigte weiter die alte - weil sie unter
     # demselben Namen liegt und die Version noch stand.
-    for bild in ("logo-fuer-dunkel.svg", "logo-fuer-hell.svg"):
+    for bild in ("logo-fuer-dunkel.svg", "logo-fuer-hell.svg",
+                 "menue-fuer-dunkel.svg", "menue-fuer-hell.svg"):
         pruefe(f"{bild}?v=" in seite, f"{bild} trägt einen Versionsanhang")
     pruefe("favicon-32x32.png" in seite, "die kleinen Favicons sind eingebunden")
 
@@ -1415,7 +1425,8 @@ def test_marke(client: TestClient) -> None:
     # das Logo. In den ausgelieferten Dateien muss die Schrift deshalb in
     # Pfaden vorliegen.
     for bild in ("logo-fuer-dunkel.svg", "logo-fuer-hell.svg",
-                 "marke-fuer-dunkel.svg", "marke-fuer-hell.svg"):
+                 "marke-fuer-dunkel.svg", "marke-fuer-hell.svg",
+                 "menue-fuer-dunkel.svg", "menue-fuer-hell.svg"):
         quelle = client.get("/static/" + bild).text
         pruefe("<text" not in quelle and "font-family" not in quelle,
                f"{bild} enthält keine lebende Schrift, nur Pfade")
@@ -1444,6 +1455,39 @@ def test_marke(client: TestClient) -> None:
            "der Schriftzug steht mit 42px in der Kopfzeile")
     pruefe(".marke img { height: 40px" in stil,
            "am Telefon mit 40px – dort soll er gerade lesbar bleiben")
+
+    # --- Die Marke lebt (seit 1.28) ------------------------------------
+    # ⚠️ Dritte ausdrückliche Ausnahme von „keine übertriebenen
+    # Animationen" (nach Anmeldebildschirm und Panda), auf Timos Wunsch.
+    pruefe("@keyframes markenpuls" in stil and "@keyframes markenglanz" in stil
+           and "@keyframes markenstups" in stil,
+           "das Logo hat Ruhepuls, Glanz und Stups")
+    pruefe("--markenmaske" in stil and "-webkit-mask: var(--markenmaske)" in stil,
+           "der Glanz ist auf die Form des Logos maskiert")
+    pruefe("radial-gradient(circle 30px at 34px" in stil,
+           "der Schein hat einen ausdrücklichen Radius – ohne den zieht "
+           "der Browser ihn bis zur entferntesten Ecke")
+    # ⚠️⚠️ Die Dauerbewegung darf NICHT auf dem Bild liegen: eine laufende
+    # Transformation schiebt es in eine eigene Compositor-Ebene, und bei
+    # Bruchteilen eines Pixels werden die Kanten weich. Genau darum ging
+    # die Runde davor.
+    bewegung = stil.split("@media (prefers-reduced-motion: no-preference)")
+    marke_regeln = [t for teil in bewegung[1:]
+                    for t in teil.split("\n") if ".marke" in t]
+    pruefe(any(".marke::before { animation: markenpuls" in t for t in marke_regeln),
+           "der Ruhepuls läuft auf dem Pseudoelement")
+    pruefe(not any(t.strip().startswith(".marke img") and "animation" in t
+                   for t in marke_regeln),
+           "und ausdrücklich nicht auf dem Bild selbst")
+    pruefe(".marke:hover, .marke:focus-visible {" in stil
+           and "animation: markenstups" in stil,
+           "auch der Stups beim Überfahren ist eine Animation, "
+           "keine bleibende Transformation")
+    # Und alles zusammen liegt im Bewegungsblock.
+    for name in ("markenpuls", "markenglanz", "markenstups"):
+        pruefe(f"@keyframes {name}" in bewegung[-1] or
+               any(f"@keyframes {name}" in teil for teil in bewegung[1:]),
+               f"„{name}“ steht im prefers-reduced-motion-Block")
     # Der Erklaerabsatz war eine Flexbox - jedes <strong> darin wurde zu
     # einer eigenen schmalen Spalte. Jetzt sitzt nur das Zeichen absolut.
     einzeilig = stil.replace("\n", " ")
