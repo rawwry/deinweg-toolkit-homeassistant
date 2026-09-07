@@ -5241,6 +5241,36 @@ def test_logbaum(client: TestClient) -> None:
         con.execute("DELETE FROM eintrag_log")
 
 
+def test_texte_tot() -> None:
+    """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
+
+    ⚠️ Ohne diese Prüfung verrottet die Notiz in texte_standard.py binnen
+    zweier Versionen: ein Schlüssel kommt zurück oder ein neuer fällt
+    weg, und niemand merkt es.
+    """
+    abschnitt("Textschlüssel ohne Abnehmer")
+    import glob
+    ordner = os.path.dirname(__file__)
+    benutzt = set()
+    for datei in (glob.glob(os.path.join(ordner, "templates", "*.html"))
+                  + glob.glob(os.path.join(ordner, "*.py"))):
+        if os.path.basename(datei) in ("texte_standard.py", "tests.py"):
+            continue
+        with open(datei, encoding="utf-8") as f:
+            benutzt |= set(re.findall(r't\(\s*"([^"]+)"', f.read()))
+
+    tot = {k for k in texte_standard.TEXTE_STANDARD if k not in benutzt}
+    notiert = set(texte_standard.UNGENUTZT)
+    pruefe(tot == notiert,
+           "die notierte Liste deckt sich mit dem tatsächlichen Befund"
+           + ("" if tot == notiert else
+              f" (neu tot: {sorted(tot - notiert)}, "
+              f"wieder benutzt: {sorted(notiert - tot)})"))
+    # Und andersherum: was notiert ist, muss es auch geben.
+    fehlend = notiert - set(texte_standard.TEXTE_STANDARD)
+    pruefe(not fehlend, f"jeder notierte Schlüssel existiert noch ({sorted(fehlend)})")
+
+
 def test_kosmetik(client: TestClient) -> None:
     """Kopfzeile, Tabellen am Telefon, Mülleimer – und ein Osterei."""
     abschnitt("Kosmetik")
@@ -6447,6 +6477,7 @@ def _durchlauf(client: TestClient) -> None:
         test_aufgaben_1_30(client)
         test_mailformat(client)
         test_logbaum(client)
+        test_texte_tot()
         test_kosmetik(client)
         test_versionen()
     except Exception:

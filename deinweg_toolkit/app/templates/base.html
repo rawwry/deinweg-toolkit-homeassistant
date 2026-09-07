@@ -246,6 +246,26 @@
       return w === "liste" ? "Liste" : "Karten";
     });
 
+    // ⚠️ Die Kopfzeile wird durchscheinend, sobald gescrollt wird - der
+    // Weichzeichner läuft also nicht dauerhaft, sondern nur, wenn wirklich
+    // etwas darunter vorbeizieht. Das Stylesheet schaltet ihn zusätzlich
+    // erst ab 861px zu; am Telefon klebt die Leiste gar nicht.
+    //
+    // Der Zuhörer ist `passive` (er verhindert nichts) und schreibt nur,
+    // wenn sich der Zustand wirklich ändert - eine Klassenzuweisung bei
+    // jedem Scroll-Bild wäre unnötige Arbeit für den Browser.
+    (function () {
+      var leiste = document.querySelector(".kopf");
+      if (!leiste) { return; }
+      var an = false;
+      function pruefen() {
+        var jetzt = window.scrollY > 8;
+        if (jetzt !== an) { an = jetzt; leiste.classList.toggle("gescrollt", an); }
+      }
+      window.addEventListener("scroll", pruefen, {passive: true});
+      pruefen();
+    })();
+
     // Menü für schmale Bildschirme
     var burger   = document.getElementById("burger"),
         huelle   = document.getElementById("hauptmenue"),

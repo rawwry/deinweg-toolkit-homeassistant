@@ -22,7 +22,11 @@
 <body class="anmeldeseite">
 {# Der Schein hinter der Karte ist reines CSS - kein Bild, das geladen
    werden müsste, und er trägt in Hell wie Dunkel. #}
+{# ⚠️ Zwei Ebenen für das Mesh: die Farbkerne sollen sich gegeneinander
+   verschieben, nicht gemeinsam wandern. Eine Ebene allein sähe aus wie
+   ein geschobenes Bild. Beide rein dekorativ, deshalb aria-hidden. #}
 <div class="anmelde-schein" aria-hidden="true"></div>
+<div class="anmelde-schein-zwei" aria-hidden="true"></div>
 <main class="anmelde-huelle">
   <div class="anmelde-saeule">
 

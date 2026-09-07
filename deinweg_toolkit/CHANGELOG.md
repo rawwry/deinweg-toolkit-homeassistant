@@ -3,6 +3,17 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.31
+
+- **Wichtig:** die SMTP-Zugangsdaten sind aus dem Programmcode entfernt
+  (das Repository ist öffentlich). Einmal unter Einstellungen →
+  E-Mail-Versand neu eintragen und speichern
+- Anmeldebildschirm mit echtem Mesh Gradient, weicher Farbschein hinter
+  den Kennzahlen, durchscheinende Kopfzeile beim Scrollen (nur Desktop)
+- Zeiterfassung am Telefon: Aufklapper linksbündig
+- Tote CSS-Regeln entfernt, ungenutzte Textbausteine notiert
+- Die Prüfung läuft bei jedem Push automatisch (GitHub Action)
+
 ## 1.30.1
 
 - Doppelte und verwaiste CSS-Regeln entfernt (ohne sichtbare Änderung)

@@ -492,6 +492,12 @@ TEXTE_STANDARD["einst.zuweisungsmail_hinweis"] = (
     "Minuten, bevor die Mail rausgeht. Werden in dieser Zeit weitere "
     "Aufgaben angelegt, stehen sie alle in einer Nachricht. 0 verschickt "
     "beim nächsten Durchlauf, also innerhalb einer Minute.")
+TEXTE_STANDARD["einst.smtp_fehlt"] = (
+    "<strong>Es ist noch kein Mailserver hinterlegt.</strong> Trage "
+    "Absenderadresse, Server, Benutzername und Passwort ein und speichere "
+    "einmal – erst danach kann etwas verschickt werden. Die Angaben "
+    "liegen ausschließlich hier in der Datenbank und stehen nirgends im "
+    "Programmcode.")
 TEXTE_STANDARD["einst.aufgabenliste"] = (
     "Karten zeigen Titel, Notiz und Stand untereinander. Die Liste zeigt "
     "mehr Aufgaben auf einmal und stellt die Fristen in einer Spalte "
@@ -696,4 +702,30 @@ TEXTE_STANDARD["footer.text"] = (
     "© 2026 <a href=\"https://timovorwald.de\" target=\"_blank\" "
     "rel=\"noopener noreferrer\">timovorwald.de</a>. Alle Rechte vorbehalten.")
 
-
+# --- Schluessel ohne Abnehmer ------------------------------------------------
+#
+# ⚠️ Diese Texte werden derzeit nirgends mehr abgerufen. Sie bleiben
+# stehen, weil ein zurueckkehrender Text sonst neu geschrieben werden
+# muesste - und weil `strings_anlegen()` sie in bestehende Dateien
+# ohnehin schon geschrieben hat. Wer in strings.txt daran feilt, wundert
+# sich aber, warum nichts passiert; deshalb stehen sie hier.
+#
+# ⚠️ Die Liste haelt die automatische Pruefung aktuell (test_texte_tot):
+# wird ein Schluessel wieder gebraucht oder faellt ein neuer weg, schlaegt
+# sie an. Ohne das verrottete diese Notiz binnen zweier Versionen.
+UNGENUTZT = frozenset({
+    "dateien.ablage",       # seit 1.1.2, Hinweise aus der Seitenleiste raus
+    "dateien.erlaubt",      # dito
+    "dateien.lead",         # dito
+    "dateien.ziehen",       # seit 1.18.1
+    "footer.text",          # seit 1.1.2, die Fusszeile kommt aus dem Markup
+    "ideen.hinweis_datei",
+    "ideen.hinweis_fehler",
+    "logbuch.lead",         # seit 1.26, ersetzt durch logbuch.einleitung
+    "start.upload",         # seit 1.25
+    "start.upload_kurz",    # seit 1.24
+    "vorgaenge.datei_hinweis",
+    "vorgaenge.zustaendig_hinweis",  # seit 1.30, ersetzt durch _mehrere
+    "wiki.baum_leer_lesen",
+    "wiki.ziehen",
+})

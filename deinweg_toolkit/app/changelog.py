@@ -1995,4 +1995,27 @@ CHANGELOG = [
         "reine Kopierreste. Sichtbar ändert sich nichts",
         "Eine Regel aus 1.24 war seit 1.25 ohne Markup und ist entfallen",
     ]},
+    {"version": "1.31", "titel": "Aufgeräumt und aufgehellt", "punkte": [
+        "⚠️ WICHTIG: Mailserver, Absenderadresse und "
+        "Kontoname standen als Auslieferungswerte im Programmcode – und "
+        "der liegt öffentlich auf GitHub. Sie sind dort entfernt. Bitte "
+        "unter Einstellungen → E-Mail-Versand einmal neu eintragen und "
+        "speichern; bis dahin geht keine Nachricht raus. Die Seite sagt "
+        "es dir auch selbst",
+        "Anmeldebildschirm: der Hintergrund ist jetzt ein echter Mesh "
+        "Gradient aus sechs Farbkernen, der sehr langsam atmet",
+        "Ein weicher Farbschein hinter den Kennzahlen auf der Aufgaben- "
+        "und der Auswertungsseite",
+        "Die Kopfzeile wird durchscheinend, sobald man scrollt – nur am "
+        "Schreibtisch, wo sie überhaupt stehen bleibt. Am Telefon ändert "
+        "sich nichts und kostet nichts",
+        "Zeiterfassung am Telefon: „Für jemand anderen erfassen“ steht "
+        "linksbündig unter dem Namen statt am rechten Rand",
+        "Aufgeräumt: 15 tote CSS-Regeln entfernt; die 14 Textbausteine "
+        "ohne Abnehmer sind als solche notiert, und die Prüfung hält die "
+        "Notiz aktuell",
+        "Die Prüfung läuft ab jetzt bei jedem Push von selbst und "
+        "vergleicht dabei auch die beiden Versionsnummern",
+        "Prüfung von 1552 auf 1554 Einzelprüfungen erweitert",
+    ]},
 ]

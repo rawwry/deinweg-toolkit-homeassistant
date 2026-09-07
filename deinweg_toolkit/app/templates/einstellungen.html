@@ -1538,6 +1538,15 @@
   <h1>E-Mail-Versand</h1>
   <p class="lead">{{ t("einst.email_lead") }}</p>
 
+  {# ⚠️ Bis 1.30.1 standen Server, Absender und Kontoname als
+     Auslieferungswerte im Quelltext - und der liegt öffentlich auf
+     GitHub. Sie sind dort entfernt; wer sie noch nie gespeichert hatte,
+     findet die Felder jetzt leer vor und muss sie einmal eintragen.
+     Ohne diesen Hinweis wäre der Versand stillschweigend stumm. #}
+  {% if not mailkonfig.smtp_server %}
+  <p class="meldung offen-hinweis">{{ t("einst.smtp_fehlt") }}</p>
+  {% endif %}
+
   <form action="/einstellungen/email" method="post">
     <label class="ankreuz" style="margin-bottom: 18px;">
       <input type="checkbox" name="mail_aktiv" value="1"

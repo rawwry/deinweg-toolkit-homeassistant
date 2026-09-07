@@ -53,12 +53,23 @@ def versandzeit_erreicht(jetzt: dt.datetime | None = None) -> bool:
 
 # --- Standardwerte -----------------------------------------------------------
 
+# ⚠️⚠️ HIER STEHEN KEINE ZUGANGSDATEN. Bis 1.30.1 standen Mailserver,
+# Absenderadresse und Kontoname der echten Einrichtung als Standardwerte
+# in dieser Datei - und dieses Repository ist oeffentlich. Damit lagen
+# zwei Drittel eines Postfachzugangs frei lesbar auf GitHub; es fehlte
+# nur das Passwort.
+#
+# Die Zugangsdaten gehoeren ausschliesslich in die Datenbank
+# (Einstellungen -> E-Mail-Versand). Sie stehen dort ohnehin, sobald
+# jemand einmal gespeichert hat, und gewinnen gegen diese Standardwerte.
+# Wer hier etwas eintraegt, veroeffentlicht es - auch einen Servernamen,
+# auch eine Absenderadresse.
 STANDARD = {
-    "smtp_absender": "notifications@dein-weg-st.de",
+    "smtp_absender": "",
     "smtp_absendername": "Dein Weg Toolkit",
-    "smtp_server": "w01cf78c.kasserver.com",
+    "smtp_server": "",
     "smtp_port": "465",
-    "smtp_benutzer": "m08149da",
+    "smtp_benutzer": "",
     "smtp_passwort": "",
     "smtp_sicherheit": "ssl",
     "mail_aktiv": "0",
