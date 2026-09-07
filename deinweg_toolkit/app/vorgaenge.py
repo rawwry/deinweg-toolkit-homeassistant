@@ -546,7 +546,12 @@ def kennzahlen(con) -> dict:
 @router.get("", response_class=HTMLResponse)
 def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
                status: str = "", art: str = "", faellig: str = "",
-               zustand: str = "alle", q: str = "", sortierung: str = "dringlichkeit",
+               # ⚠️ Seit 1.34 steht der Zustandsfilter ohne eigene Angabe
+               # auf „offen" statt auf „alle" (Timos Wunsch): erledigte
+               # Aufgaben sind das Archiv, nicht die Arbeitsliste. Wer sie
+               # sehen will, klickt auf die Kennzahl „erledigt" oder legt
+               # das Auge in der Werkzeugleiste um.
+               zustand: str = "offen", q: str = "", sortierung: str = "dringlichkeit",
                seite_nr: int = 1,
                neu: str = "", fehler: str = "", hinweis: str = ""):
     if sortierung not in SORTIERUNGEN:

@@ -5102,7 +5102,9 @@ def test_aufgaben_1_30(client: TestClient) -> None:
 
     # --- Karten oder Liste -------------------------------------------------
     liste = client.get("/vorgaenge").text
-    pruefe('class="vorgangskarten"' in liste and 'class="liste dicht vorgangsliste"'
+    # ⚠️ Die Liste ist seit 1.34 keine <table> mehr, sondern eine Folge
+    # eigener Bänder - deshalb hier gegen die Hülle geprüft.
+    pruefe('class="vorgangskarten"' in liste and 'class="vorgangsliste"'
            in liste, "beide Darstellungen stehen im HTML")
     pruefe('class="knopf-icon ansichtwechsel aufgabenliste-knopf"' in liste,
            "und es gibt einen Umschalter dafür")
@@ -5633,6 +5635,108 @@ def test_status_drei(client: TestClient) -> None:
             "SELECT aktion FROM vorgang_log WHERE vorgang_id=? "
             "ORDER BY id DESC LIMIT 1", (vid,)).fetchone()["aktion"]
     pruefe(log == "Vorgang erledigt", "das Logbuch nennt die Aktion richtig")
+
+
+def test_listenansicht(client: TestClient) -> None:
+    """Die Listenansicht: Bänder statt Tabelle, Ampel, kein Rollen."""
+    abschnitt("Aufgaben: die Listenansicht")
+    stil = client.get("/static/style.css").text
+    seite = client.get("/vorgaenge?zustand=alle").text
+
+    # --- keine Tabelle mehr -------------------------------------------------
+    # ⚠️ Als <table> brauchte die Liste 820px Mindestbreite; am Telefon
+    # lagen Status, Frist und die Aktionen hinter dem rechten Rand.
+    pruefe("vorgangsliste" in seite and "<table class=\"liste dicht vorgangsliste"
+           not in seite, "die Liste ist keine Tabelle mehr")
+    pruefe(".vorgangsliste { min-width: 820px" not in stil,
+           "und braucht keine Mindestbreite mehr")
+    pruefe('<div class="vorgangsliste">' in seite,
+           "sie ist eine Folge eigener Bänder")
+    pruefe(seite.count('<article class="vz vz-') >= 1,
+           "jede Aufgabe ist ein Band")
+
+    # --- dieselbe Ampel wie die Karten --------------------------------------
+    for klasse, ton in (("vz-ueberfaellig", "--dopp"), ("vz-heute", "--warn"),
+                        ("vz-offen", "--info")):
+        pruefe(f".vz.{klasse}" in stil and ton in
+               stil.split(f".vz.{klasse}")[1].split("}")[0],
+               f"{klasse} trägt denselben Ton wie die Karte")
+    pruefe(".vz.vz-zu" in stil, "und erledigt wird grau")
+
+    # --- Abstand zwischen den Zeilen ----------------------------------------
+    huelle = stil.split(".vorgangsliste {")[1].split("}")[0]
+    pruefe("gap:" in huelle, "zwischen den Bändern steht Abstand")
+    pruefe("container-type: inline-size" in huelle,
+           "der Umbruch hängt an der Breite der Karte, nicht des Fensters")
+
+    # ⚠️ Gestapelt ist der Ausgangszustand, die Zeile kommt über die
+    # Container-Abfrage dazu - ein Browser ohne Container-Abfragen bleibt
+    # damit bedienbar. Andersherum wäre er kaputt.
+    grund = stil.split("\n.vz {")[1].split("}")[0]
+    pruefe("grid-template-areas" in grund and '"titel  aktionen"' in grund,
+           "gestapelt ist der Ausgangszustand")
+    pruefe("@container aufgabenliste (min-width: 980px)" in stil,
+           "die einzeilige Fassung steht in einer Container-Abfrage")
+
+    # Kopfzeile und Bänder greifen auf DIESELBE Rastervariable zu.
+    pruefe("--vz-raster:" in stil and stil.count("var(--vz-raster)") >= 2,
+           "Kopfzeile und Band teilen sich eine Spaltenaufteilung")
+
+    # --- Löschknopf auch in der Liste ---------------------------------------
+    liste = seite.split('<div class="vorgangsliste">')[1].split("</div>")[0] \
+        if '<div class="vorgangsliste">' in seite else ""
+    pruefe(seite.count('/loeschen" method="post"') >= 2,
+           "der Löschknopf steht auch in den Bändern, nicht nur auf den Karten")
+
+    # ⚠️ Der Name der Zuständigen steckt in einer eigenen Hülle - ohne sie
+    # greift `text-overflow: ellipsis` nicht, und zwei Namen liefen in der
+    # Zeilenansicht in die Spalte „Priorität".
+    pruefe('class="vz-wer-name"' in seite,
+           "der Name der Zuständigen hat eine eigene Hülle")
+    pruefe(".vz-wer-name" in stil and "text-overflow: ellipsis" in stil,
+           "damit er gekürzt wird statt überzulaufen")
+
+    # ⚠️ Die Lage steht in der Liste nur EINMAL: in der Spalte „Frist".
+    # Auf der Karte gibt es die Spalte nicht, dort bleibt die Marke.
+    baender = seite.split('<div class="vorgangsliste">')[1]
+    pruefe('class="vk-lage' not in baender.split("</section>")[0],
+           "die Lage-Marke steht in der Liste nicht zusätzlich am Titel")
+
+
+def test_erledigte_standard(client: TestClient) -> None:
+    """Ohne eigene Angabe sind die erledigten Aufgaben ausgeblendet."""
+    abschnitt("Aufgaben: Erledigte standardmäßig aus")
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, angelegt_am, angelegt_von) VALUES "
+            "(9380,'Testperson','Antrag','Schon fertig','pruefer','Erledigt',"
+            "'Mittel','2026-01-01 08:00','pruefer')")
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, angelegt_am, angelegt_von) VALUES "
+            "(9381,'Testperson','Antrag','Noch offen','pruefer','Offen',"
+            "'Mittel','2026-01-01 08:00','pruefer')")
+
+    standard = client.get("/vorgaenge").text
+    pruefe("Noch offen" in standard, "die offene Aufgabe steht da")
+    pruefe("/vorgaenge/9380" not in standard, "die erledigte nicht")
+    # Das Auge in der Werkzeugleiste zeigt den Zustand: schon umgelegt.
+    pruefe('id="erledigte-aus" class="erledigt-kaestchen"\n           checked'
+           in standard or 'class="erledigt-kaestchen"\n           checked' in standard,
+           "das Kästchen „Erledigte ausblenden“ steht angehakt da")
+
+    # ⚠️ Auf die beiden Titel gefiltert: erledigte Vorgänge sinken in jeder
+    # Sortierung nach ganz unten, und der Bestand der Prüfung reicht
+    # inzwischen über eine Seite hinaus.
+    alle = client.get("/vorgaenge?zustand=alle&q=fertig").text
+    pruefe("/vorgaenge/9380" in alle, "mit „alle“ ist sie wieder da")
+    # ⚠️ Gegen den Verweis geprüft, nicht gegen den Titel: die Zeile
+    # „aktive Filter" über der Liste schreibt den Suchbegriff aus, der Titel
+    # stünde also auch auf einer leeren Trefferliste da.
+    nur_zu = client.get("/vorgaenge?zustand=erledigt").text
+    pruefe("/vorgaenge/9380" in nur_zu and "/vorgaenge/9381" not in nur_zu,
+           "und „erledigt“ zeigt ausschließlich die erledigte")
 
 
 def test_kosmetik(client: TestClient) -> None:
@@ -6859,6 +6963,8 @@ def _durchlauf(client: TestClient) -> None:
         test_mailprotokoll(client)
         test_module(client)
         test_status_drei(client)
+        test_listenansicht(client)
+        test_erledigte_standard(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

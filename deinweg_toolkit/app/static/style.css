@@ -3992,25 +3992,189 @@ fieldset.feld > span {
   outline: 2px solid var(--akzent); outline-offset: 2px;
 }
 
-/* Die Zeilen tragen dieselbe Ampel wie die Karten, nur als Balken links
-   statt als Fläche - eine ganze Zeile in Rot wäre in einer Liste zu viel. */
-.vorgangsliste td { vertical-align: top; }
-.vorgangsliste .vz-titel { color: var(--tinte); text-decoration: none;
-                           font-weight: 600; display: block; }
-.vorgangsliste .vz-titel:hover { color: var(--akzent); }
-.vorgangsliste tr > td:first-child { border-left: 3px solid transparent; padding-left: 9px; }
-.vorgangsliste tr.vz-ueberfaellig > td:first-child { border-left-color: var(--dopp); }
-.vorgangsliste tr.vz-heute > td:first-child,
-.vorgangsliste tr.vz-bald  > td:first-child { border-left-color: var(--warn); }
-.vorgangsliste tr.vz-offen > td:first-child { border-left-color: var(--info); }
-.vorgangsliste tr.vz-zu    > td:first-child { border-left-color: var(--linie-stark); }
-.vorgangsliste tr.vz-zu { opacity: .68; }
-.vorgangsliste .vz-aktionen { white-space: nowrap; }
-/* Am Telefon rollt die Liste, statt sich zu stauchen - dieselbe Regel
-   wie bei allen anderen mehrspaltigen Tabellen (Abschnitt 12). */
-@media (max-width: 760px) {
-  .tabellenrolle.vorgangstabelle { overflow-x: auto; }
-  .vorgangsliste { min-width: 820px; }
+/* --- Die Listenansicht (neu gebaut mit 1.34) ---------------------------
+   ⚠️⚠️ Bis 1.33 war das eine <table> mit 820px Mindestbreite. Am Telefon
+   rollte sie seitlich weg - Status, Frist und die Aktionen lagen hinter
+   dem rechten Rand und waren auf keinem Weg erreichbar. Und die Ampel
+   trug sie nur als 3px-Strich an der ersten Zelle, während direkt daneben
+   die Karten in Rot, Orange, Blau und Grau standen: dieselbe Liste sah in
+   zwei Ansichten aus wie zwei Programme.
+
+   Jetzt ist jede Aufgabe ein eigenes Band - derselbe Ton, dieselbe Kante,
+   derselbe Radius wie eine Karte, nur flacher und in einer Zeile. Nicht
+   auf eine Tabelle zurückbauen: eine Tabelle kann nicht umbrechen, ohne
+   ihre Spalten zu verlieren, und genau das braucht es am Telefon. */
+.vorgangsliste {
+  /* ⚠️ Die Spaltenaufteilung steht EINMAL hier und wird von der Kopfzeile
+     und jedem Band gelesen. Zwei getrennte Angaben liefen früher oder
+     später auseinander, und dann stünde kein Titel mehr über seiner
+     Spalte (dieselbe Lehre wie bei --erfassraster). */
+  --vz-raster: minmax(0, 1fr) minmax(0, 140px) 150px minmax(0, 112px)
+               minmax(0, 128px) 58px 66px;
+  display: flex; flex-direction: column;
+  /* Timos Wunsch: zwischen den Zeilen Luft. Etwas dichter als bei den
+     Karten (12px) - ein Band ist flacher, sonst zerfiele die Liste. */
+  gap: 8px;
+  /* Der Container für die Umbruch-Abfrage weiter unten. Entscheidend ist
+     die Breite der KARTE, nicht die des Fensters: daneben kann eine
+     Seitenspalte stehen, und im Modus „begrenzte Breite" bleibt ohnehin
+     weniger übrig (dieselbe Lehre wie bei der manuellen Erfassung). */
+  container-type: inline-size; container-name: aufgabenliste;
+}
+
+/* Gestapelt ist der AUSGANGSZUSTAND, die Zeile kommt über die
+   Container-Abfrage dazu. Ein Browser ohne Container-Abfragen bleibt
+   damit bei den Blöcken - unschön, aber vollständig bedienbar.
+   Andersherum wäre er kaputt. Nicht umdrehen. */
+.vz {
+  display: grid; align-items: center; gap: 7px 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  /* Gestapelt liest sich das Band von oben nach unten: WAS - FÜR WEN und
+     BIS WANN - WIE WEIT und WIE DRINGEND - WER.
+     ⚠️ Die Priorität steht neben dem Status und nicht neben den
+     Zuständigen: der Status ist eine Pille von 112px, rechts daneben lag
+     sonst tote Fläche, während die Zuständigen darunter umbrachen. So
+     bekommen sie die volle Breite und „Anna Beispiel, Timo Vorwald"
+     passt in eine Zeile - das spart je Band rund 19px.
+     ⚠️ Die kurzen Angaben hängen rechts an ihrer Zeile, statt jede eine
+     eigene zu bekommen: bei 289px Bandbreite sind vier Zeilen das
+     Maximum, sonst ist das Band höher als eine Karte - und dann hätte
+     die Listenansicht auf dem Telefon keinen Grund mehr. */
+  grid-template-areas:
+    "titel  aktionen"
+    "person frist"
+    "status prio"
+    "wer    wer";
+  padding: 11px 13px; border-radius: 12px;
+  background: var(--flaeche-2);
+  border: 1px solid var(--linie);
+  border-left: 3px solid var(--linie-stark);
+}
+.vz-kopf { display: none; }
+/* ⚠️ Jedes Feld ist ein eigenes Rasterfeld - es gibt keinen Sammel-Block
+   mehr. Wo etwas steht, entscheidet allein grid-template-areas; das
+   Markup ist in beiden Zuständen dasselbe. */
+.vz-titelblock { grid-area: titel; min-width: 0; }
+.vz-person     { grid-area: person; min-width: 0; }
+.vz-frist      { grid-area: frist; justify-self: end; }
+.vz-statusform { grid-area: status; justify-self: start; }
+.vz-wer        { grid-area: wer; }
+.vz-prio       { grid-area: prio; justify-self: end; }
+.vz-aktionen   { grid-area: aktionen; display: flex; gap: 4px;
+                 align-items: center; white-space: nowrap; }
+
+.vz-titel {
+  color: var(--tinte); text-decoration: none; font-weight: 600;
+  font-size: 14px; line-height: 1.35; display: block;
+  overflow-wrap: anywhere;
+}
+.vz-titel:hover, .vz-titel:focus-visible { color: var(--akzent); }
+/* Die Vorgangsart steht klein unter dem Titel und nicht daneben: sie ist
+   die Einordnung, nicht die Sache selbst. */
+.vz-unten {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 1px;
+}
+.vz-art { font-size: 11.5px; color: var(--leise); }
+.vz-person {
+  color: var(--akzent); text-decoration: none; font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.vz-person:hover { text-decoration: underline; }
+/* ⚠️⚠️ Gestapelt darf die Frist umbrechen, in der Zeile nicht - und das
+   ist keine Kosmetik. Sie teilt sich gestapelt eine Spalte mit dem
+   Aktionsknopf, und die Spalte ist so breit wie ihr breitester Inhalt.
+   Nicht umbrechend misst „04.09.2026 überfällig" 137px; davon blieben
+   für den Titel nur 110px, er brach über drei Zeilen und das Band wurde
+   224px hoch statt 179. Umbrechend sind es 74px - der Titel bleibt
+   einzeilig. In der Zeile hat die Spalte ihre feste Breite, dort wäre
+   ein Umbruch nur unruhig. */
+.vz-frist {
+  font-size: 12.5px; color: var(--leise); text-align: right;
+  line-height: 1.4;
+}
+.vz-frist .fristwort { display: block; }
+.vz-wer {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12.5px; color: var(--leise); min-width: 0;
+}
+.vz-wer svg { width: 13px; height: 13px; flex: 0 0 auto; opacity: .8; }
+.vz-wer-name { min-width: 0; }
+/* Die Beschriftung im gestapelten Zustand. Sie steht immer im Markup und
+   wird in der Zeile ausgeblendet - dort trägt der Kopf sie. */
+.vz-marke { font-size: 11px; color: var(--leise); margin-right: 6px; }
+
+/* ⚠️ Dieselbe Ampel wie die Karten, Ton für Ton (Abschnitt 12): rot =
+   überfällig, orange = fällig, blau = offen, grau = erledigt. Das ist der
+   eigentliche Punkt dieses Umbaus - die beiden Ansichten sollen
+   dieselbe Sprache sprechen. */
+.vz.vz-ueberfaellig { border-left-color: var(--dopp); background: var(--dopp-weich); }
+.vz.vz-heute,
+.vz.vz-bald         { border-left-color: var(--warn); background: var(--warn-weich); }
+.vz.vz-offen        { border-left-color: var(--info); background: var(--info-weich); }
+.vz.vz-zu           { border-left-color: var(--linie-stark);
+                      background: var(--flaeche-2); opacity: .72; }
+.vz.vz-zu .vz-titel { color: var(--leise); }
+.vz:hover { border-color: var(--linie-stark); }
+@media (prefers-reduced-motion: no-preference) {
+  .vz { transition: border-color .15s ease; }
+}
+
+/* Dazwischen - Tablet quer, halbe Fensterbreite, geteilter Bildschirm -
+   passt noch nicht alles in eine Zeile, aber deutlich mehr als zwei
+   Angaben nebeneinander. Ohne diese Stufe stünde auf 760px Breite ein
+   112px breites Auswahlfeld allein in einer Zeile und daneben nichts. */
+@container aufgabenliste (min-width: 560px) {
+  .vz {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "titel  titel  aktionen"
+      "person frist  prio"
+      "status wer    wer";
+  }
+  .vz-frist { white-space: nowrap; text-align: left; }
+  .vz-frist .fristwort { display: inline; margin-left: 5px; }
+  .vz-wer { justify-self: start; }
+}
+
+/* Ab hier steht alles in EINER Zeile. 980px ist gerechnet, nicht
+   geraten: die sechs festen Spalten brauchen 650px, die Abstände 72px,
+   die Polsterung samt Kante 30px - macht 752px. Bleiben bei 980px rund
+   228px für den Titel, und damit bleibt er einzeilig.
+   ⚠️ Bei 880px waren es nur 128px: die Titel brachen um, die Bänder
+   wurden 62 bis 94px hoch und die Liste sah ausgefranst aus. Wer eine
+   Spalte verbreitert, muss diese Zahl mitziehen. */
+@container aufgabenliste (min-width: 980px) {
+  .vz-kopf {
+    display: grid; grid-template-columns: var(--vz-raster);
+    /* ⚠️ Links 16px statt 13px: das Band darunter trägt zusätzlich seine
+       3px breite Ampelkante, und ohne diesen Ausgleich stünde jeder
+       Spaltentitel drei Pixel neben seiner Spalte. */
+    gap: 12px; padding: 0 13px 3px 16px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--tinte-2);
+  }
+  .vz {
+    grid-template-columns: var(--vz-raster);
+    /* ⚠️ Dieselben Namen wie oben, nur in einer Zeile - deshalb bleibt
+       das Markup unverändert und nichts muss doppelt gepflegt werden. */
+    grid-template-areas: "titel person status frist wer prio aktionen";
+    gap: 12px; padding: 9px 13px;
+  }
+  /* ⚠️ Alle Felder werden auf ihre Spalte gedehnt. Ohne das behält
+     „Zuständig" aus der Stufe darüber sein `justify-self: start`, wird
+     so breit wie sein Inhalt und läuft bei zwei Namen in die Spalte
+     „Priorität" hinein - das Raster begrenzt einen Eintrag nicht, es
+     legt ihn nur an. */
+  .vz-frist, .vz-prio, .vz-statusform, .vz-wer { justify-self: stretch; }
+  .vz-frist { text-align: left; white-space: nowrap; }
+  .vz-frist .fristwort { display: inline; margin-left: 5px; }
+  .vz-person { font-size: 13px; }
+  .vz-marke { display: none; }
+  .vz-wer-name, .vz-person, .vz-art {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .vz-aktionen { justify-content: flex-end; }
 }
 
 /* --- Detailseite einer Aufgabe (seit 1.30) ------------------------------

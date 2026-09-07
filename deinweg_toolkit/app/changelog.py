@@ -2095,4 +2095,25 @@ CHANGELOG = [
         "Hand füllen",
         "Prüfung von 1617 auf 1641 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.34", "titel": "Die Listenansicht neu gebaut", "punkte": [
+        "Aufgaben als Liste: jede Aufgabe ist jetzt ein eigenes Band mit "
+        "demselben Farbton wie ihre Karte – rot überfällig, orange fällig, "
+        "blau offen, grau erledigt. Dazwischen steht Luft",
+        "Am Telefon rollt nichts mehr seitlich weg. Vorher war die Liste "
+        "eine Tabelle mit 820 Pixeln Mindestbreite: Status, Frist und die "
+        "Knöpfe lagen hinter dem rechten Rand und waren dort auf keinem "
+        "Weg erreichbar",
+        "Am Telefon braucht die Liste für neun Aufgaben 1.598 Pixel statt "
+        "1.978 als Karten – sie ist dort also tatsächlich kürzer",
+        "Drei Stufen statt einer: am Schreibtisch steht alles in einer "
+        "Zeile unter einer Spaltenüberschrift, auf dem Tablet in drei "
+        "Zeilen, am Telefon gestapelt. Entscheidend ist dabei die Breite "
+        "der Karte, nicht die des Fensters",
+        "Der Löschknopf steht jetzt auch in der Liste – vorher musste man "
+        "eine Aufgabe erst öffnen",
+        "In der Aufgabenübersicht sind erledigte Aufgaben von Haus aus "
+        "ausgeblendet. Das Auge in der Werkzeugleiste holt sie zurück, die "
+        "Kennzahl „erledigt“ zeigt nur sie",
+        "Prüfung von 1641 auf 1663 Einzelprüfungen erweitert",
+    ]},
 ]

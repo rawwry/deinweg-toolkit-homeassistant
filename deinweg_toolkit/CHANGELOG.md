@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.34
+
+- Listenansicht der Aufgaben neu gebaut: farbige Bänder statt Tabelle,
+  Abstand dazwischen, kein seitliches Rollen am Telefon
+- Löschknopf auch in der Liste
+- Erledigte Aufgaben standardmäßig ausgeblendet
+
 ## 1.33
 
 - Aufgaben: nur noch drei Status (Offen, In Bearbeitung, Erledigt)
