@@ -91,10 +91,10 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             (name,)).fetchall()
         offene_vorgaenge = con.execute(
             "SELECT COUNT(*) c FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
-            "AND status NOT IN ('Erledigt','Abgebrochen')", (name,)).fetchone()["c"]
+            "AND status <> 'Erledigt'", (name,)).fetchone()["c"]
         ueberfaellig = con.execute(
             "SELECT COUNT(*) c FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
-            "AND status NOT IN ('Erledigt','Abgebrochen') AND frist <> '' "
+            "AND status <> 'Erledigt' AND frist <> '' "
             "AND frist < ?", (name, dt.date.today().isoformat())).fetchone()["c"]
         # Nicht nur zaehlen, sondern zeigen: die naechsten eigenen
         # Aufgaben stehen mit Titel, betreuter Person und Frist da.
@@ -103,7 +103,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
         eigene_aufgaben = con.execute(
             "SELECT id, titel, klient, art, status, prioritaet, frist "
             "FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
-            "AND status NOT IN ('Erledigt','Abgebrochen') "
+            "AND status <> 'Erledigt' "
             "ORDER BY CASE WHEN frist IS NULL OR frist='' THEN 1 ELSE 0 END, "
             "frist, id LIMIT 6", (name,)).fetchall()
 

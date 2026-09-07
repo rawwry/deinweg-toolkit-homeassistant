@@ -221,7 +221,7 @@
 {% if darf_vorgang_loeschen(request, v) %}
 <section class="karte">
   <h2>Vorgang löschen</h2>
-  <p class="klein leise felderklaerung">{{ t("vorgaenge.loeschen_hinweis") }}</p>
+  <p class="klein leise felderklaerung">{{ t("vorgaenge.loeschen") }}</p>
   <form action="/vorgaenge/{{ v.id }}/loeschen" method="post"
         onsubmit="return confirm('Vorgang „{{ v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
     <input type="hidden" name="zurueck" value="/vorgaenge/person?name={{ v.klient | urlencode }}">

@@ -368,7 +368,9 @@ bewilligungen_holen = None
 
 # --- Die Anlaesse -------------------------------------------------------------
 
-ABGESCHLOSSEN = ("Erledigt", "Abgebrochen")
+# ⚠️ Muss zu vorgaenge.ABGESCHLOSSEN passen; bewusst eine eigene
+# Kopie, weil mail.py vorgaenge.py nicht importieren darf.
+ABGESCHLOSSEN = ("Erledigt",)
 
 
 def pruefe_fristen(con, k: dict) -> list[str]:
@@ -873,7 +875,7 @@ def protokoll_kuerzen(con, behalten: int = PROTOKOLL_LAENGE) -> int:
     for v in con.execute(
             "SELECT id, frist FROM vorgang "
             "WHERE frist IS NOT NULL AND frist <> '' "
-            "AND status NOT IN ('Erledigt', 'Abgebrochen')"):
+            "AND status NOT IN ('Erledigt')"):
         lebendig.add(f"vorgang:{v['id']}:{v['frist']}")
         lebendig.add(f"vorgang:{v['id']}:{v['frist']}:vor")
 

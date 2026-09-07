@@ -2076,4 +2076,23 @@ CHANGELOG = [
         "Jahresübergreifenden Auswahl und ist jetzt behoben",
         "Prüfung von 1599 auf 1617 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.33", "titel": "Drei Status statt sieben", "punkte": [
+        "Aufgaben haben nur noch drei Status: Offen, In Bearbeitung, "
+        "Erledigt",
+        "Weggefallen sind „Eingereicht“, „Warten auf Rückmeldung“, "
+        "„Rückfrage / Unterlagen fehlen“ und „Abgebrochen“. Die ersten "
+        "beiden waren aus Sicht der Liste derselbe Zustand; „Rückfrage“ "
+        "sagte nicht, wo eine Aufgabe steht, sondern warum sie hängt – "
+        "und das gehört in die Notiz",
+        "WICHTIG: Bestehende Aufgaben werden beim Update umgeschrieben. "
+        "„Eingereicht“, „Warten auf Rückmeldung“ und „Rückfrage“ werden zu "
+        "„In Bearbeitung“, „Abgebrochen“ wird zu „Erledigt“. Warum eine "
+        "Aufgabe abgeschlossen wurde, steht weiterhin in ihrem Verlauf",
+        "Die Kennzahl „wartet auf Rückmeldung“ über der Liste ist damit "
+        "entfallen – vier Kacheln statt fünf",
+        "„Eingereicht am“ wird nicht mehr automatisch gesetzt. Das Feld "
+        "bleibt und lässt sich unter „Angaben zum Vorgang bearbeiten“ von "
+        "Hand füllen",
+        "Prüfung von 1617 auf 1641 Einzelprüfungen erweitert",
+    ]},
 ]

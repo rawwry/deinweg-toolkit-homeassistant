@@ -784,7 +784,7 @@ def test_verwaltungsvorgang(client: TestClient) -> None:
            "Vorgang lässt sich öffnen")
 
     client.post(f"/vorgaenge/{nummer}/status", data={
-        "status": "Eingereicht", "wer": "pruefer", "notiz": "geprüft"})
+        "status": "In Bearbeitung", "wer": "pruefer", "notiz": "geprüft"})
     with db.db() as con:
         eintraege = con.execute(
             "SELECT COUNT(*) c FROM vorgang_log WHERE vorgang_id=?",
@@ -2618,7 +2618,7 @@ def test_vorgang_schnellwahl(client: TestClient) -> None:
 
     # --- kombiniertes „Aktualisieren": Status, Priorität, Zuständig, Notiz -
     client.post(f"/vorgaenge/{vid}/status", data={
-        "status": "Eingereicht", "prioritaet": "Hoch",
+        "status": "Erledigt", "prioritaet": "Hoch",
         "zustaendig": "andere kollegin", "notiz": "alles in einem Schritt"},
         follow_redirects=False)
     with db.db() as con:
@@ -2626,7 +2626,7 @@ def test_vorgang_schnellwahl(client: TestClient) -> None:
                         "FROM vorgang WHERE id=?", (vid,)).fetchone()
         log = con.execute("SELECT beschreibung FROM vorgang_log WHERE vorgang_id=? "
                           "ORDER BY id DESC LIMIT 1", (vid,)).fetchone()["beschreibung"]
-    pruefe(v["status"] == "Eingereicht" and v["prioritaet"] == "Hoch"
+    pruefe(v["status"] == "Erledigt" and v["prioritaet"] == "Hoch"
            and v["zustaendig"] == "andere kollegin",
            "Status, Priorität und Zuständigkeit werden zusammen gesetzt")
     pruefe("Priorität" in log and "Zuständigkeit" in log and "Notiz" in log,
@@ -2638,7 +2638,7 @@ def test_vorgang_schnellwahl(client: TestClient) -> None:
     with db.db() as con:
         vorher = con.execute("SELECT COUNT(*) c FROM vorgang_log WHERE vorgang_id=?",
                              (vid,)).fetchone()["c"]
-    client.post(f"/vorgaenge/{vid}/status", data={"status": "Eingereicht"},
+    client.post(f"/vorgaenge/{vid}/status", data={"status": "Erledigt"},
                 follow_redirects=False)
     with db.db() as con:
         nachher = con.execute("SELECT COUNT(*) c FROM vorgang_log WHERE vorgang_id=?",
@@ -5554,6 +5554,87 @@ def test_module(client: TestClient) -> None:
            "main.py bleibt unter 2000 Zeilen")
 
 
+def test_status_drei(client: TestClient) -> None:
+    """Drei Status statt sieben - samt Migration des Altbestands."""
+    abschnitt("Aufgaben: drei Status")
+    stil = client.get("/static/style.css").text
+
+    pruefe(_vorgaenge.STATUS_LISTE == ["Offen", "In Bearbeitung", "Erledigt"],
+           "es gibt nur noch drei Status")
+    pruefe(_vorgaenge.ABGESCHLOSSEN == ("Erledigt",),
+           "abgeschlossen ist nur noch „Erledigt“")
+    # ⚠️ Muss ein Tupel bleiben: die Abfragen bauen ihre Platzhalter aus
+    # der Länge, ein einzelner String wäre sieben Fragezeichen lang.
+    pruefe(isinstance(_vorgaenge.ABGESCHLOSSEN, tuple),
+           "und bleibt ein Tupel, nicht ein einzelner Text")
+    pruefe(not hasattr(_vorgaenge, "WARTEND"),
+           "WARTEND gibt es nicht mehr")
+    pruefe(set(_vorgaenge.STATUS_KLASSE) == set(_vorgaenge.STATUS_LISTE),
+           "zu jedem Status gehört genau eine Farbklasse")
+    # ⚠️ Gegen den ganzen Selektor geprüft, nicht gegen den Klassennamen:
+    # der steht daneben noch in einem Kommentar, der erklärt, warum es die
+    # Regel nicht mehr gibt.
+    for tot in (".marke-status.vs-eingereicht", ".marke-status.vs-warten",
+                ".marke-status.vs-rueckfrage", ".marke-status.vs-abgebrochen",
+                ".kennzahl.hat.k-wartend"):
+        pruefe(tot not in stil, f"die tote Regel {tot} ist aus dem Stylesheet")
+
+    # ⚠️ mail.py führt eine eigene Kopie - es darf vorgaenge.py nicht
+    # importieren. Beide müssen zusammenpassen.
+    pruefe(mail.ABGESCHLOSSEN == _vorgaenge.ABGESCHLOSSEN,
+           "mail.py und vorgaenge.py meinen dasselbe")
+
+    # --- Migration des Altbestands -----------------------------------------
+    with db.db() as con:
+        for nr, alt in ((9360, "Eingereicht"), (9361, "Warten auf Rückmeldung"),
+                        (9362, "Rückfrage / Unterlagen fehlen"),
+                        (9363, "Abgebrochen")):
+            con.execute(
+                "INSERT INTO vorgang (id, klient, art, titel, zustaendig, "
+                "status, prioritaet, angelegt_am, angelegt_von) VALUES "
+                "(?,'Testperson','Antrag','Altstatus','pruefer',?,'Mittel',"
+                "'2026-01-01 08:00','pruefer')", (nr, alt))
+    db.init()
+    with db.db() as con:
+        nach = {z["id"]: z["status"] for z in con.execute(
+            "SELECT id, status FROM vorgang WHERE id BETWEEN 9360 AND 9363")}
+    pruefe(nach.get(9360) == "In Bearbeitung", "„Eingereicht“ wird In Bearbeitung")
+    pruefe(nach.get(9361) == "In Bearbeitung", "„Warten auf Rückmeldung“ auch")
+    pruefe(nach.get(9362) == "In Bearbeitung", "„Rückfrage“ ebenfalls")
+    pruefe(nach.get(9363) == "Erledigt", "„Abgebrochen“ wird Erledigt")
+
+    # --- Oberfläche ---------------------------------------------------------
+    seite = client.get("/vorgaenge").text.split('<div class="neuheiten"')[0]
+    for weg in ("Warten auf Rückmeldung", "Rückfrage / Unterlagen fehlen",
+                "Abgebrochen", "wartet auf Rückmeldung"):
+        pruefe(weg not in seite, f"„{weg}“ steht nirgends mehr auf der Seite")
+    # 4 Kacheln plus die Hülle <div class="kennzahlen">
+    pruefe(seite.count('<a class="kennzahl') == 4,
+           "vier Kennzahlen statt fünf")
+
+    # Ein abgeschlossener Vorgang verschwindet aus „offen" und taucht unter
+    # „erledigt" wieder auf - dieselbe Prüfung wie vor der Umstellung, nur
+    # mit einem Status weniger dahinter.
+    antwort = client.post("/vorgaenge", data={
+        "klient": "Testperson", "art": "Antrag", "titel": "Statusprobe",
+        "zustaendig": ["pruefer"], "status": "Offen", "prioritaet": "Mittel"},
+        follow_redirects=False)
+    vid = int(antwort.headers.get("location", "").split("/vorgaenge/")[1].split("?")[0])
+    pruefe(f"/vorgaenge/{vid}" in client.get("/vorgaenge?zustand=offen").text,
+           "die offene Aufgabe steht in der offenen Liste")
+    client.post(f"/vorgaenge/{vid}/status", data={"status": "Erledigt"},
+                follow_redirects=False)
+    pruefe(f"/vorgaenge/{vid}" not in client.get("/vorgaenge?zustand=offen").text,
+           "nach dem Erledigen ist sie dort weg")
+    pruefe(f"/vorgaenge/{vid}" in client.get("/vorgaenge?zustand=erledigt").text,
+           "und unter „erledigt“ wieder da")
+    with db.db() as con:
+        log = con.execute(
+            "SELECT aktion FROM vorgang_log WHERE vorgang_id=? "
+            "ORDER BY id DESC LIMIT 1", (vid,)).fetchone()["aktion"]
+    pruefe(log == "Vorgang erledigt", "das Logbuch nennt die Aktion richtig")
+
+
 def test_kosmetik(client: TestClient) -> None:
     """Kopfzeile, Tabellen am Telefon, Mülleimer – und ein Osterei."""
     abschnitt("Kosmetik")
@@ -6777,6 +6858,7 @@ def _durchlauf(client: TestClient) -> None:
         test_erfassungsband(client)
         test_mailprotokoll(client)
         test_module(client)
+        test_status_drei(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

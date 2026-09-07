@@ -2257,22 +2257,17 @@ textarea:focus { border-color: var(--akzent); }
 .kennzahl.hat.k-heute { border-color: var(--warn); background: var(--warn-weich); }
 .kennzahl.hat.k-heute .kzahl { color: var(--warn); }
 .kennzahl.hat.k-bald .kzahl { color: var(--tinte); }
-.kennzahl.hat.k-wartend { background: var(--info-weich); }
-.kennzahl.hat.k-wartend .kzahl { color: var(--info); }
 
 /* Statusmarken */
 .marke-status.vs-offen        { background: var(--flaeche-2);  color: var(--tinte); }
 .marke-status.vs-arbeit       { background: var(--akzent-weich); color: var(--akzent); }
-.marke-status.vs-eingereicht  { background: var(--info-weich); color: var(--info); }
-.marke-status.vs-warten       { background: var(--warn-weich); color: var(--warn); }
-.marke-status.vs-rueckfrage   { background: var(--dopp-weich); color: var(--dopp); }
 .marke-status.vs-erledigt     { background: var(--gut-weich);  color: var(--gut); }
-.marke-status.vs-abgebrochen  { background: var(--flaeche-2);  color: var(--leise);
-                                text-decoration: line-through; }
+/* ⚠️ vs-eingereicht, vs-warten, vs-rueckfrage und vs-abgebrochen sind mit
+   1.33 entfallen - es gibt nur noch drei Status. Nicht wieder anlegen,
+   ohne STATUS_LISTE in vorgaenge.py mitzuziehen; eine Farbregel ohne
+   Status ist tot, ein Status ohne Farbregel steht farblos da. */
 
-/* Marke im Logbuch für einen gelöschten Vorgang. Bewusst NICHT
-   vs-abgebrochen: das trägt einen Durchstrich, und ein durchgestrichenes
-   „gelöscht“ liest sich wie das Gegenteil. */
+/* Marke im Logbuch für einen gelöschten Vorgang. */
 .marke-status.vorgang-weg     { background: var(--dopp-weich); color: var(--dopp); }
 
 /* Priorität */
@@ -3936,7 +3931,7 @@ fieldset.feld > span {
      rot     = überfällig (Frist überschritten)
      orange  = fällig heute oder in den nächsten Tagen
      neutral = offen, aber keine nahe Frist (weiter weg oder keine)
-     grün    = erledigt/abgebrochen (steht ohnehin ganz unten)
+     grau    = erledigt (steht ohnehin ganz unten)
    Das ist einfacher als die frühere Regel „jede Frist ist orange": eine
    Frist in drei Monaten ist keine Dringlichkeit und bekommt deshalb auch
    keinen Warnton mehr. Die Töne sind die dezenten -weich-Varianten; die

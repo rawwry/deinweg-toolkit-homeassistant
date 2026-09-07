@@ -28,13 +28,11 @@
       <span class="kzahl">{{ zahlen.bald }}</span>
       <span class="klabel">fällig in {{ bald_tage }} Tagen</span>
     </a>
-    <a class="kennzahl {{ 'hat' if zahlen.wartend }} k-wartend" href="/vorgaenge?faellig=wartend&amp;zustand=alle">
-      <span class="kzahl">{{ zahlen.wartend }}</span>
-      <span class="klabel">wartet auf Rückmeldung</span>
-    </a>
+    {# ⚠️ „wartet auf Rückmeldung“ ist mit 1.33 entfallen – die beiden
+       Status dahinter gibt es nicht mehr. Vier Kacheln statt fünf. #}
     <a class="kennzahl k-erledigt" href="/vorgaenge?zustand=erledigt">
       <span class="kzahl">{{ zahlen.erledigt }}</span>
-      <span class="klabel">erledigt / archiviert</span>
+      <span class="klabel">erledigt</span>
     </a>
   </div>
 

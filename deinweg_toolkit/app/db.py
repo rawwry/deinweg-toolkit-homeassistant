@@ -613,6 +613,24 @@ def init() -> dict | None:
                         "erledigt_gemeldet INTEGER NOT NULL DEFAULT 0")
             con.execute("UPDATE vorgang SET erledigt_gemeldet = 1")
 
+        # ⚠️⚠️ Status: seit 1.33 nur noch drei (Offen, In Bearbeitung,
+        # Erledigt). Der Altbestand wird umgeschrieben, sonst stuenden in
+        # der Spalte Werte, die es in der Auswahl nicht mehr gibt - jede
+        # Karte zeigte einen Status, den man nicht wieder einstellen kann,
+        # und der Filter fande sie nicht.
+        #   Eingereicht / Warten auf Rueckmeldung / Rueckfrage
+        #     -> In Bearbeitung (die Aufgabe laeuft, sie liegt nur gerade
+        #        woanders; WARUM steht im Logbuch des Vorgangs)
+        #   Abgebrochen -> Erledigt (beides schliesst ab; die Unterscheidung
+        #        geht damit verloren, sie steht aber weiterhin im Logbuch)
+        # Bewusst bei JEDEM Start und ohne Wenn: nach dem ersten Lauf gibt
+        # es keine solchen Zeilen mehr, der Aufruf ist dann folgenlos.
+        con.execute("UPDATE vorgang SET status='In Bearbeitung' WHERE status "
+                    "IN ('Eingereicht','Warten auf Rückmeldung',"
+                    "'Rückfrage / Unterlagen fehlen')")
+        con.execute("UPDATE vorgang SET status='Erledigt' "
+                    "WHERE status='Abgebrochen'")
+
         # ⚠️ Prioritaeten: seit 1.32 nur noch drei Stufen. „Normal" wird zu
         # „Mittel", „Dringend" zu „Hoch" - vier Stufen fuer ein Team von
         # sechs Leuten waren eine Unterscheidung, die niemand traf.

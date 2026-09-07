@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.33
+
+- Aufgaben: nur noch drei Status (Offen, In Bearbeitung, Erledigt)
+- Bestehende Aufgaben werden beim Update umgeschrieben
+- Kennzahl „wartet auf Rückmeldung“ entfallen
+
 ## 1.32.1
 
 - main.py von 3.135 auf 1.655 Zeilen aufgeteilt (rechnen.py,

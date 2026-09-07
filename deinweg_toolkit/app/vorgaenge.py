@@ -32,22 +32,37 @@ _umgebung: dict = {}
 
 # --- Festlegungen -----------------------------------------------------------
 
+# ⚠️⚠️ Seit 1.33 drei Status statt sieben (Timos Entscheidung). Weg sind
+# "Eingereicht", "Warten auf Rueckmeldung", "Rueckfrage / Unterlagen
+# fehlen" und "Abgebrochen".
+#
+# Die Begruendung, damit sie niemand aus Versehen zurueckbaut:
+# * "Eingereicht" und "Warten auf Rueckmeldung" waren aus Sicht der Liste
+#   derselbe Zustand aus zwei Blickwinkeln - der Code fasste sie schon
+#   vorher unter WARTEND zusammen.
+# * "Rueckfrage / Unterlagen fehlen" sagte nicht, WO eine Aufgabe steht,
+#   sondern WARUM sie haengt. Das gehoert in die Notiz, nicht in den
+#   Status - und in der Liste war es der laengste Eintrag und machte jede
+#   Statuspille breit.
+# * "Abgebrochen" faellt mit weg. Eine abgebrochene Aufgabe ist damit
+#   nicht mehr von einer erledigten zu unterscheiden; WARUM sie
+#   abgeschlossen wurde, steht weiterhin im Logbuch des Vorgangs.
+#
+# ⚠️ Die Migration in db.py schreibt den Altbestand um. Beim Ergaenzen
+# eines Status nicht vergessen: STATUS_LISTE, STATUS_KLASSE und die
+# Farbregeln im Stylesheet gehoeren zusammen.
 STATUS_LISTE = [
     "Offen",
     "In Bearbeitung",
-    "Eingereicht",
-    "Warten auf Rückmeldung",
-    "Rückfrage / Unterlagen fehlen",
     "Erledigt",
-    "Abgebrochen",
 ]
 
 # Status, die einen Vorgang abschliessen. Er verschwindet dann aus der
 # Uebersicht der offenen Vorgaenge, bleibt aber vollstaendig erhalten.
-ABGESCHLOSSEN = ("Erledigt", "Abgebrochen")
-
-# Status, bei denen auf jemand anderen gewartet wird
-WARTEND = ("Eingereicht", "Warten auf Rückmeldung")
+# ⚠️ Bleibt ein Tupel, obwohl nur noch ein Wert drinsteht: die Abfragen
+# bauen ihre Platzhalter aus seiner Laenge, ein einzelner String waere
+# damit sieben Fragezeichen lang.
+ABGESCHLOSSEN = ("Erledigt",)
 
 # ⚠️ Seit 1.32 drei Stufen statt vier. „Normal" und „Dringend" gab es
 # vorher zusaetzlich; in einem Team von sechs Leuten war der Unterschied
@@ -64,11 +79,7 @@ PRIO_STANDARD = "Mittel"
 STATUS_KLASSE = {
     "Offen": "vs-offen",
     "In Bearbeitung": "vs-arbeit",
-    "Eingereicht": "vs-eingereicht",
-    "Warten auf Rückmeldung": "vs-warten",
-    "Rückfrage / Unterlagen fehlen": "vs-rueckfrage",
     "Erledigt": "vs-erledigt",
-    "Abgebrochen": "vs-abgebrochen",
 }
 
 PRIO_KLASSE = {
@@ -90,7 +101,6 @@ LOG_KLASSE = {
     "Frist geändert":          "la-aenderung",
     "Notiz":                   "la-notiz",
     "Vorgang erledigt":        "la-gut",
-    "Vorgang abgebrochen":     "la-weg",
     "Vorgang gelöscht":        "la-weg",
 }
 
@@ -433,15 +443,11 @@ def filter_bauen(klient: str, zustaendig: str, status: str, art: str,
         wo.append(f"(frist IS NULL OR frist = '') AND status NOT IN ({platzhalter})")
         werte += list(ABGESCHLOSSEN)
         aktive.append(("Fälligkeit", "ohne Frist"))
-    elif faellig == "wartend":
-        wo.append("status IN (%s)" % ",".join("?" * len(WARTEND)))
-        werte += list(WARTEND)
-        aktive.append(("Fälligkeit", "wartet auf Rückmeldung"))
 
     if zustand == "erledigt":
         wo.append(f"status IN ({platzhalter})")
         werte += list(ABGESCHLOSSEN)
-        aktive.append(("Zustand", "erledigt oder abgebrochen"))
+        aktive.append(("Zustand", "erledigt"))
     elif zustand != "alle":
         zustand = "offen"
         wo.append(f"status NOT IN ({platzhalter})")
@@ -532,8 +538,6 @@ def kennzahlen(con) -> dict:
                      [tag, grenze, *ABGESCHLOSSEN]),
         "ueberfaellig": zahl(f"frist <> '' AND frist < ? AND {offen_nur}",
                              [tag, *ABGESCHLOSSEN]),
-        "wartend": zahl("status IN (%s)" % ",".join("?" * len(WARTEND)),
-                        list(WARTEND)),
         "erledigt": zahl(f"status IN ({platzhalter})", list(ABGESCHLOSSEN)),
         "gesamt": zahl("1=1", []),
     }
@@ -821,8 +825,8 @@ def loeschen(request: Request, vorgang_id: int,
     """Entfernt einen Vorgang endgueltig - das Logbuch bleibt aber stehen.
 
     Anders als bei betreuten Personen oder Mitarbeitenden gibt es hier
-    keine Stilllegung: die Statuswerte "Erledigt"/"Abgebrochen" decken den
-    Abschluss eines Vorgangs bereits ab, das Loeschen ist eine zusaetzliche,
+    keine Stilllegung: der Status "Erledigt" deckt den Abschluss eines
+    Vorgangs bereits ab, das Loeschen ist eine zusaetzliche,
     endgueltige Aktion fuer Vorgaenge, die schlicht falsch angelegt wurden
     oder nicht mehr relevant sind.
 
@@ -899,9 +903,11 @@ def status_aendern(request: Request, vorgang_id: int, status: str = Form(""),
 
         if alt_status != status:
             teile.append(f"Status von „{alt_status}“ auf „{status}“ geändert.")
-            # passende Datumsfelder mitziehen, sofern noch leer
-            if status == "Eingereicht" and not v["datum_eingereicht"]:
-                neue_werte["datum_eingereicht"] = heute()
+            # ⚠️ „Eingereicht am" wird seit 1.33 nicht mehr automatisch
+            # gesetzt - den Status gibt es nicht mehr. Das FELD bleibt und
+            # laesst sich unter „Angaben zum Vorgang bearbeiten" von Hand
+            # fuellen; sonst waere ein gespeicherter Wert nicht mehr
+            # anfassbar.
             if status == "Erledigt" and not v["datum_erledigt"]:
                 neue_werte["datum_erledigt"] = heute()
 
@@ -954,8 +960,6 @@ def status_aendern(request: Request, vorgang_id: int, status: str = Form(""),
         # Die Aktion bestimmt die Farbe im Logbuch (LOG_KLASSE).
         if status == "Erledigt" and alt_status != status:
             aktion = "Vorgang erledigt"
-        elif status == "Abgebrochen" and alt_status != status:
-            aktion = "Vorgang abgebrochen"
         elif alt_status != status:
             aktion = "Status geändert"
         elif "zustaendig" in neue_werte:

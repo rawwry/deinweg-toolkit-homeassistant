@@ -524,6 +524,10 @@ TEXTE_STANDARD["einst.erledigtmail_lead"] = (
     "Meldet der Person, die eine Aufgabe angelegt hat, dass sie "
     "abgeschlossen wurde – erledigt oder abgebrochen. Wer Aufgaben "
     "verteilt, erfährt so von selbst, wann etwas fertig ist.")
+TEXTE_STANDARD["einst.erledigtmail_wozu"] = (
+    "Meldet der Person, die eine Aufgabe angelegt hat, dass sie erledigt "
+    "wurde. Wer Aufgaben verteilt, erfährt so von selbst, wann etwas "
+    "fertig ist.")
 TEXTE_STANDARD["einst.erledigtmail_hinweis"] = (
     "Kein Sammelverzug: die Nachricht geht innerhalb einer Minute raus. "
     "Wer eine Aufgabe selbst angelegt und selbst abgeschlossen hat, "
@@ -585,6 +589,15 @@ TEXTE_STANDARD["vorgaenge.loeschen_hinweis"] = (
     "abgeschlossenen Vorgang reicht in der Regel der Status „Erledigt“ "
     "oder „Abgebrochen“ – er bleibt dann in der Betreutenansicht als "
     "Archiv erhalten.")
+# ⚠️ Neuer Schluessel statt Aenderung am alten (Abschnitt 8 der
+# CLAUDE.md): "Abgebrochen" gibt es seit 1.33 nicht mehr, und unter dem
+# alten Schluessel waere der berichtigte Wortlaut bei einer bestehenden
+# strings.txt nie angekommen.
+TEXTE_STANDARD["vorgaenge.loeschen"] = (
+    "Der Vorgang verschwindet dabei vollständig, inklusive seines "
+    "Verlaufs. Das lässt sich nicht rückgängig machen. Für einen "
+    "abgeschlossenen Vorgang reicht in der Regel der Status „Erledigt“ – "
+    "er bleibt dann in der Betreutenansicht als Archiv erhalten.")
 TEXTE_STANDARD["vorgaenge.logbuch_leer"] = "Noch keine Einträge."
 TEXTE_STANDARD["vorgaenge.person_keine_offenen"] = (
     "Aktuell ist für {name} kein Vorgang offen.")
@@ -740,6 +753,10 @@ UNGENUTZT = frozenset({
     # unter einem NEUEN Schluessel (einst.benutzer_rechte) - eine
     # vorhandene strings.txt gewinnt sonst gegen die Aenderung.
     "einst.benutzer_rechte_hinweis",
+    # seit 1.33: beide nennen "Abgebrochen", den Status gibt es nicht
+    # mehr. Ersetzt durch vorgaenge.loeschen bzw. einst.erledigtmail_wozu.
+    "einst.erledigtmail_lead",
+    "vorgaenge.loeschen_hinweis",
     "footer.text",          # seit 1.1.2, die Fusszeile kommt aus dem Markup
     "ideen.hinweis_datei",
     "ideen.hinweis_fehler",
