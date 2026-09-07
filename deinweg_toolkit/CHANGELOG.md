@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.32.1
+
+- main.py von 3.135 auf 1.655 Zeilen aufgeteilt (rechnen.py,
+  auswertung.py, meinbereich.py, ideen.py, export.py)
+- Behoben: Umlaute im Dateinamen eines Exports kamen falsch beim
+  Browser an
+
 ## 1.32
 
 - Aufgaben: drei Prioritätsstufen statt vier (Niedrig, Mittel, Hoch)

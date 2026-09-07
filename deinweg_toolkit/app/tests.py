@@ -1793,7 +1793,7 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
     Monat galten.
     """
     abschnitt("Bewilligte Zeiträume")
-    from .main import kontingent_im_monat, monatsgrenzen, soll_minuten
+    from .rechnen import kontingent_im_monat, monatsgrenzen, soll_minuten
 
     # --- Die Regel selbst ---------------------------------------------------
     pruefe(monatsgrenzen("2025-02") == ("2025-02-01", "2025-02-28"),
@@ -2069,7 +2069,7 @@ def test_monatsbloecke(client: TestClient) -> None:
     rechnet mit dem Satz, der in genau diesem Monat bewilligt war.
     """
     abschnitt("Auswertung Monat für Monat")
-    from .main import soll_minuten
+    from .rechnen import soll_minuten
     from .parser import hhmm as _hhmm
 
     client.post("/einstellungen/person", data={
@@ -2320,7 +2320,7 @@ def test_bewilligungsstand(client: TestClient) -> None:
 def test_bewilligungen_mein_bereich(client: TestClient) -> None:
     """Fehlende und auslaufende Bewilligungen stehen in „Mein Bereich“."""
     abschnitt("Bewilligungen in „Mein Bereich“")
-    from .main import bewilligungslage, BEWILLIGUNG_BALD_TAGE
+    from .rechnen import bewilligungslage, BEWILLIGUNG_BALD_TAGE
 
     heute = dt.date.today()
     h = heute.isoformat()
@@ -3691,7 +3691,7 @@ def test_farbvariablen(client: TestClient) -> None:
 def test_bewilligung_nachfolge(client: TestClient) -> None:
     """Ein hinterlegter Folgebescheid beendet die Warnung."""
     abschnitt("Bewilligung mit Folgebescheid")
-    from .main import bewilligungslage
+    from .rechnen import bewilligungslage
 
     heute = "2026-08-30"
 
@@ -4043,7 +4043,7 @@ def test_auswertung_standard(client: TestClient) -> None:
 def test_urlaub_halbe_tage(client: TestClient) -> None:
     """Halbe Urlaubstage zählen halb, ganze ganz."""
     abschnitt("Urlaub: halbe Tage")
-    from .main import urlaubswert, urlaubstage_zaehlen
+    from .rechnen import urlaubswert, urlaubstage_zaehlen
     pruefe(urlaubswert("Urlaub") == 1.0, "„Urlaub“ ist ein ganzer Tag")
     pruefe(urlaubswert("Urlaub (Halber Tag)") == 0.5,
            "„Urlaub (Halber Tag)“ ist ein halber")
@@ -4070,12 +4070,12 @@ def test_urlaub_halbe_tage(client: TestClient) -> None:
 def test_selbstzahler(client: TestClient) -> None:
     """Ein Selbstzahler braucht keinen Bescheid und wirft keine Warnung."""
     abschnitt("Betreute Person: Selbstzahler")
-    from .main import bewilligungslage
+    from .rechnen import bewilligungslage
     # Ohne Zeitraum und ohne Grundwert waere die Lage sonst „leer".
     stand = bewilligungslage([], 0, 0, "2026-06-01", selbstzahler=True)
     pruefe(stand["art"] == "selbstzahler",
            "die Lage ist „selbstzahler“, nicht „leer“")
-    from .main import BEWILLIGUNG_HANDLUNG
+    from .rechnen import BEWILLIGUNG_HANDLUNG
     pruefe("selbstzahler" not in BEWILLIGUNG_HANDLUNG,
            "und löst damit keine Bewilligungswarnung aus")
 
@@ -5508,6 +5508,52 @@ def test_mailprotokoll(client: TestClient) -> None:
            "übrig bleiben die 15 jüngsten plus die noch nötigen Sperren")
 
 
+
+def test_module(client: TestClient) -> None:
+    """Die Aufteilung von main.py haelt, was sie verspricht."""
+    abschnitt("Aufteilung der Module")
+
+    # ⚠️ rechnen.py darf nichts aus der Oberflaeche kennen - genau darauf
+    # beruht, dass main.py UND die Seitenmodule es importieren duerfen.
+    hier = os.path.dirname(__file__)
+
+    def quelltext(name):
+        with open(os.path.join(hier, name), encoding="utf-8") as f:
+            return f.read()
+
+    quelle = quelltext("rechnen.py")
+    for verboten in ("import fastapi", "from fastapi", "from .main",
+                     "import main", "templates"):
+        pruefe(verboten not in quelle,
+               f"rechnen.py kennt „{verboten}“ nicht")
+
+    # Kein Modul darf main.py importieren - das waere der Ringschluss.
+    for name in ("auswertung", "meinbereich", "ideen", "export", "rechnen"):
+        text = quelltext(f"{name}.py")
+        pruefe("from .main" not in text and "from . import main" not in text,
+               f"{name}.py importiert main.py nicht")
+
+    # Die ausgelagerten Seiten antworten weiterhin.
+    for pfad in ("/auswertung", "/meinbereich", "/ideen", "/changelog"):
+        pruefe(client.get(pfad).status_code == 200, f"{pfad} lädt")
+
+    # ⚠️ Der Dateiname des Exports war beim Auslagern die eine Stelle, die
+    # ohne Pruefung durchgerutscht wäre: er benutzt MONATSNAMEN und
+    # sicherer_name, und beide standen vorher in main.py. Beide Wege
+    # werden hier ausdrücklich abgerufen.
+    antwort = client.get("/export.csv", params={"von_monat": "03",
+                                                "bis_monat": "06"})
+    pruefe(antwort.status_code == 200, "der Export über „alle Jahre“ läuft")
+    pruefe("alle-Jahre" in antwort.headers.get("content-disposition", ""),
+           "und nennt die Monatsnamen im Dateinamen")
+    antwort = client.get("/export.xlsx", params={"mitarbeiter": "pruefer"})
+    pruefe("pruefer" in antwort.headers.get("content-disposition", ""),
+           "der Mitarbeitername steht im Dateinamen")
+
+    pruefe(len(quelltext("main.py").split("\n")) < 2000,
+           "main.py bleibt unter 2000 Zeilen")
+
+
 def test_kosmetik(client: TestClient) -> None:
     """Kopfzeile, Tabellen am Telefon, Mülleimer – und ein Osterei."""
     abschnitt("Kosmetik")
@@ -6730,6 +6776,7 @@ def _durchlauf(client: TestClient) -> None:
         test_aufgaben_1_32(client)
         test_erfassungsband(client)
         test_mailprotokoll(client)
+        test_module(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

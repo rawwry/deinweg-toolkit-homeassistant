@@ -2060,4 +2060,20 @@ CHANGELOG = [
         "verlieren",
         "Prüfung von 1556 auf 1599 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.32.1", "titel": "main.py aufgeteilt", "punkte": [
+        "Die größte Datei der Anwendung ist von 3.135 auf 1.655 Zeilen "
+        "geschrumpft. Neu daneben: rechnen.py (alles, was aus Zahlen und "
+        "Daten andere Zahlen macht), auswertung.py, meinbereich.py, "
+        "ideen.py und export.py",
+        "An der Anwendung ändert sich dabei nichts – keine Adresse, keine "
+        "Ansicht, keine Berechnung. Die Prüfung lief vor und nach jedem "
+        "Schritt durch",
+        "⚠️ Dabei aufgefallen: der Dateiname eines Exports mit Umlaut "
+        "(„Zeitnachweis_März-Juni“, oder ein Mitarbeiter namens „Müller“) "
+        "stand roh im HTTP-Kopf. Beim Herunterladen kam Buchstabensalat "
+        "an, bei einem Zeichen außerhalb von Latin-1 wäre es ein "
+        "Serverfehler gewesen. Der Fehler bestand seit der Einführung der "
+        "Jahresübergreifenden Auswahl und ist jetzt behoben",
+        "Prüfung von 1599 auf 1617 Einzelprüfungen erweitert",
+    ]},
 ]
