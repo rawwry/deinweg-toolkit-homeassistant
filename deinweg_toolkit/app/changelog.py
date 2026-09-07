@@ -2018,4 +2018,19 @@ CHANGELOG = [
         "vergleicht dabei auch die beiden Versionsnummern",
         "Prüfung von 1552 auf 1554 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.31.1", "titel": "Vier Handgriffe nachgezogen", "punkte": [
+        "Zeiterfassung: „Für jemand anderen erfassen“ steht immer auf "
+        "einer eigenen Zeile und springt beim Aufklappen nicht mehr nach "
+        "links – auch am Schreibtisch nicht",
+        "Aufgaben: die Einträge in den aufgeklappten Auswahllisten waren "
+        "gelb bzw. orange, weil sie die Farbe der Statuspille geerbt "
+        "haben. Sie stehen jetzt überall in der normalen Schriftfarbe",
+        "„Erledigte ausblenden“ ist ein Symbol neben dem Umschalter für "
+        "Karten und Liste – zwei Handgriffe an derselben Liste gehören "
+        "nebeneinander. Das Zeichen zeigt den Zustand: durchgestrichenes "
+        "Auge heißt, die Erledigten sind aus",
+        "E-Mail-Vorlagen: die Werkzeugleiste über den Textfeldern ist "
+        "entfallen – die Markierungen sind Markdown, das kennt man",
+        "Prüfung von 1554 auf 1556 Einzelprüfungen erweitert",
+    ]},
 ]

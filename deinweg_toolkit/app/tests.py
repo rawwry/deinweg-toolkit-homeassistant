@@ -5106,6 +5106,14 @@ def test_aufgaben_1_30(client: TestClient) -> None:
            in liste, "beide Darstellungen stehen im HTML")
     pruefe('class="knopf-icon ansichtwechsel aufgabenliste-knopf"' in liste,
            "und es gibt einen Umschalter dafür")
+    # ⚠️ „Erledigte ausblenden" steht seit 1.31.1 als Symbol daneben, nicht
+    # mehr als Kippschalter in der Kartenüberschrift.
+    werkzeuge = liste.split('class="listenwerkzeuge"')[1].split("</div>")[0] \
+        if 'class="listenwerkzeuge"' in liste else ""
+    pruefe('id="erledigte-aus"' in liste and "erledigt-schalter" in liste,
+           "„Erledigte ausblenden“ steht als Symbol in der Werkzeugleiste")
+    pruefe('class="filter-umschalter erledigt-schalter"' not in liste,
+           "und nicht mehr als Kippschalter in der Überschrift")
     pruefe('data-aufgabenliste="karten"' in client.get("/").text,
            "Karten sind die Voreinstellung")
     pruefe('[data-aufgabenliste="liste"] .vorgangskarten { display: none; }' in stil,
@@ -5188,8 +5196,10 @@ def test_mailformat(client: TestClient) -> None:
     seite = client.get("/einstellungen?bereich=vorlagen").text
     pruefe("Textformatierung" in seite and "**fett**" in seite,
            "die Hilfe dazu steht über den Vorlagen")
-    pruefe('class="formatleiste"' in seite or "formatleiste" in seite,
-           "und eine Leiste setzt die Markierungen")
+    # ⚠️ Die Werkzeugleiste (F K H •) ist mit 1.31.1 auf Timos Wunsch
+    # wieder entfallen: die Markierungen sind Markdown, das kennt man.
+    pruefe("formatleiste" not in seite,
+           "eine Werkzeugleiste dafür gibt es bewusst nicht")
 
 
 def test_logbaum(client: TestClient) -> None:

@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.31.1
+
+- „Für jemand anderen erfassen“ springt beim Aufklappen nicht mehr
+- Aufgaben: Einträge in den Auswahllisten nicht mehr gelb/orange
+- „Erledigte ausblenden“ als Symbol neben dem Ansichtsumschalter
+- Werkzeugleiste über den E-Mail-Vorlagen entfallen
+
 ## 1.31
 
 - **Wichtig:** die SMTP-Zugangsdaten sind aus dem Programmcode entfernt

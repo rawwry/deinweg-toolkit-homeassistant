@@ -207,14 +207,6 @@
 <section class="karte">
   <div class="kopfzeile">
     <h2>{{ gesamt_treffer }} Vorgang{{ '' if gesamt_treffer == 1 else 'e' }}</h2>
-    {# Ein Schalter statt eines weiteren Auswahlfelds: „erledigt oder
-       nicht" ist die eine Frage, die man beim Draufschauen ständig
-       umlegt. Standard ist „mit erledigten" - Erledigtes verschwinden zu
-       lassen wäre eine Entscheidung, die man selbst treffen sollte. #}
-    <label class="filter-umschalter erledigt-schalter">
-      <input type="checkbox" id="erledigte-aus" {{ 'checked' if f.zustand == 'offen' }}>
-      <span>erledigte ausblenden</span>
-    </label>
   </div>
 
   {% if liste %}
@@ -228,6 +220,31 @@
       <span class="chip"><i class="lg-offen"></i> offen</span>
       <span class="chip"><i class="lg-zu"></i> erledigt</span>
     </div>
+    <div class="listenwerkzeuge">
+    {# ⚠️ „Erledigte ausblenden" steht seit 1.31.1 als Symbol neben dem
+       Ansichtsumschalter statt als Kippschalter in der Kartenüberschrift
+       (Timos Wunsch) - zwei Handgriffe an derselben Liste gehören
+       nebeneinander. Bewusst ein <label> mit einem versteckten Kästchen
+       und kein <button>: so bleibt der Zustand ein Kästchen (per Tastatur
+       erreichbar, mit Leertaste bedienbar), und ohne Skript ändert sich
+       nur nichts - der Zustandsfilter darüber tut dasselbe. #}
+    <input type="checkbox" id="erledigte-aus" class="erledigt-kaestchen"
+           {{ 'checked' if f.zustand == 'offen' }}>
+    <label class="knopf-icon erledigt-schalter" for="erledigte-aus"
+           title="Erledigte ausblenden" aria-label="Erledigte ausblenden">
+      <svg class="nur-mit" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+              stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
+      </svg>
+      <svg class="nur-ohne" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 4l16 16" stroke="currentColor" stroke-width="1.7"
+              stroke-linecap="round"/>
+        <path d="M9.9 5.4A9.6 9.6 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-2.6 3.5M6.4 7.4C4 9.2 2.5 12 2.5 12S6 19 12 19c1.3 0 2.4-.3 3.4-.7"
+              stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+    </label>
     {# ⚠️ Beide Darstellungen stehen im HTML, umgeschaltet wird über
        data-aufgabenliste am <html> - dieselbe Technik wie bei Wiki und
        Dateien, damit beim Laden nichts aufblitzt. Der Schalter schreibt
@@ -249,6 +266,7 @@
         <rect x="13.5" y="13.5" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/>
       </svg>
     </button>
+    </div>
   </div>
   {# Eine Karte je Vorgang statt einer achtspaltigen Tabelle. In der
      Tabelle stand der Titel - das Einzige, wonach man wirklich sucht -

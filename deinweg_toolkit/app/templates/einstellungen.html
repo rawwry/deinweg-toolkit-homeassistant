@@ -2101,55 +2101,10 @@
   })();
 </script>
 
-<script>
-  // --- Formatierleiste über den Vorlagentexten (seit 1.30) -------------
-  //
-  // Setzt die Markierungen um die Auswahl herum. Reine Bequemlichkeit:
-  // ohne Skript tippt man **fett** selbst, es sind vier Zeichen - deshalb
-  // wird die Leiste auch erst hier gebaut und steht nicht im Markup.
-  (function () {
-    var knoepfe = [
-      {t: "F", titel: "Fett", vor: "**", nach: "**", stark: true},
-      {t: "K", titel: "Kursiv", vor: "*", nach: "*", kursiv: true},
-      {t: "H", titel: "Überschrift", zeile: "# "},
-      {t: "•", titel: "Aufzählung", zeile: "- "}
-    ];
-
-    document.querySelectorAll("textarea[name^='vorlage_']").forEach(function (feld) {
-      var leiste = document.createElement("div");
-      leiste.className = "formatleiste";
-      knoepfe.forEach(function (k) {
-        var b = document.createElement("button");
-        b.type = "button";
-        b.className = "formatknopf";
-        b.textContent = k.t;
-        b.title = k.titel;
-        b.setAttribute("aria-label", k.titel);
-        if (k.stark) { b.style.fontWeight = "700"; }
-        if (k.kursiv) { b.style.fontStyle = "italic"; }
-        b.addEventListener("click", function () { setzen(feld, k); });
-        leiste.appendChild(b);
-      });
-      feld.parentNode.insertBefore(leiste, feld);
-    });
-
-    function setzen(feld, k) {
-      var a = feld.selectionStart, e = feld.selectionEnd, w = feld.value;
-      if (k.zeile) {
-        // ⚠️ Zeilenmarkierungen gehören an den Zeilenanfang, nicht um die
-        // Auswahl herum - sonst stünde „# " mitten im Satz.
-        var start = w.lastIndexOf("\n", a - 1) + 1;
-        feld.value = w.slice(0, start) + k.zeile + w.slice(start);
-        feld.selectionStart = feld.selectionEnd = a + k.zeile.length;
-      } else {
-        var mitte = w.slice(a, e) || k.titel.toLowerCase();
-        feld.value = w.slice(0, a) + k.vor + mitte + k.nach + w.slice(e);
-        feld.selectionStart = a + k.vor.length;
-        feld.selectionEnd = a + k.vor.length + mitte.length;
-      }
-      feld.focus();
-    }
-  })();
-</script>
+{# ⚠️ Hier stand bis 1.31 eine kleine Leiste (F K H •), die die
+   Markierungen um die Auswahl setzte. Sie ist auf Timos Wunsch wieder
+   entfallen: die Markierungen sind Markdown, das kennt man, und vier
+   Zeichen selbst zu tippen ist kein Umweg. Die Hilfe über den Vorlagen
+   nennt sie weiterhin alle. #}
 
 {% endblock %}

@@ -1292,15 +1292,16 @@ input[type="date"] { text-transform: uppercase; }
 .erfasser:has(.erfasser-name) .erfasser-titel { order: 0; }
 .erfasser:has(.erfasser-name) .erfasser-name  { order: 1; }
 .erfasser:has(.erfasser-name) .erfasser-marke { order: 2; }
-.erfasser:has(.erfasser-name) .erfasserwechsel { order: 3; margin: 0 0 0 auto; }
-/* ⚠️ Am Telefon bricht der Aufklapper auf eine eigene Zeile um, und
-   dort schob ihn das `margin-left: auto` an den rechten Rand - allein,
-   während Beschriftung und Name linksbündig darüber standen. Auf einer
-   eigenen Zeile gibt es nichts mehr auszurichten, also weg damit. */
-@media (max-width: 620px) {
-  .erfasser:has(.erfasser-name) .erfasserwechsel {
-    margin-left: 0; width: 100%;
-  }
+/* ⚠️⚠️ Der Aufklapper steht IMMER auf einer eigenen Zeile, linksbündig -
+   auch zugeklappt, wo er nur eine Zeile Text ist.
+   Zwei Anläufe davor waren falsch: mit `margin-left: auto` saß er
+   zugeklappt am rechten Rand, und beim Öffnen wuchs er, brach um und
+   sprang nach links. Nur `width: 100%` im Zustand [open] tat dasselbe,
+   nur eine Stufe später. Ein Bedienelement, das beim Anklicken den Platz
+   wechselt, ist genau das, was man nicht will - lieber die eine Zeile
+   Höhe mehr. Das Band ist damit immer noch halb so hoch wie vor 1.30. */
+.erfasser:has(.erfasser-name) .erfasserwechsel {
+  order: 3; margin: 0; width: 100%;
 }
 /* ⚠️ Der Ton des Bandes ist die eigentliche Warnung - eine Zeile Text
    liest niemand, einen roten Balken links sieht man. Er sagt: was du
@@ -3962,6 +3963,28 @@ fieldset.feld > span {
 [data-aufgabenliste="liste"] .ansichtwechsel .nur-liste { display: block; }
 .vk-kopfleiste { align-items: center; }
 
+/* ⚠️ „Erledigte ausblenden" ist ein Kästchen, das man nicht sieht: das
+   Label daneben ist der Knopf. Bewusst kein <button> - so bleibt der
+   Zustand ein echtes Kästchen (per Tastatur erreichbar, mit Leertaste zu
+   bedienen), und der Knopf kann trotzdem aussehen wie seine Nachbarn.
+   Dieselbe Bauart wie die Mehrfachauswahl in der Übersicht. */
+.erledigt-kaestchen {
+  position: absolute; width: 1px; height: 1px; opacity: 0;
+  overflow: hidden; clip-path: inset(50%);
+}
+.erledigt-schalter { cursor: pointer; }
+.erledigt-schalter .nur-ohne { display: none; }
+/* Das Zeichen zeigt den ZUSTAND, nicht die Wirkung: sind die Erledigten
+   ausgeblendet, steht dort das durchgestrichene Auge. */
+.erledigt-kaestchen:checked + .erledigt-schalter .nur-mit { display: none; }
+.erledigt-kaestchen:checked + .erledigt-schalter .nur-ohne { display: block; }
+.erledigt-kaestchen:checked + .erledigt-schalter {
+  border-color: var(--akzent); color: var(--akzent);
+}
+.erledigt-kaestchen:focus-visible + .erledigt-schalter {
+  outline: 2px solid var(--akzent); outline-offset: 2px;
+}
+
 /* Die Zeilen tragen dieselbe Ampel wie die Karten, nur als Balken links
    statt als Fläche - eine ganze Zeile in Rot wäre in einer Liste zu viel. */
 .vorgangsliste td { vertical-align: top; }
@@ -4159,7 +4182,23 @@ a.vgk-wert:hover { text-decoration: underline; }
 .vk-statuswahl:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
 /* ⚠️ Die aufgeklappte Optionsliste soll nicht die Pillenfarbe erben -
    sonst steht z.B. orange Schrift auf orangem Grund. Zurück auf neutral. */
-.vk-statuswahl option { background: var(--flaeche); color: var(--tinte); font-weight: 500; }
+/* ⚠️ Die aufgeklappte Optionsliste erbt sonst die Schriftfarbe der Pille -
+   bei „Warten auf Rückmeldung" stünde die ganze Liste in Orange, bei
+   „Rückfrage" in Rot. Deshalb hier ausdrücklich zurück auf neutral.
+   ⚠️ Und zwar mit `!important`: die Liste malt das Betriebssystem, nicht
+   der Browser, und unter Windows und Linux gewinnt die geerbte Farbe der
+   Pille sonst gegen diese Regel. Das ist die eine Stelle im Stylesheet,
+   an der das nötig ist. */
+.vk-statuswahl option {
+  background: var(--flaeche) !important;
+  color: var(--tinte) !important;
+  font-weight: 500;
+}
+/* Dasselbe für die Auswahlfelder der Filterzeile - sie stehen auf
+   derselben Seite und sollen sich nicht anders verhalten. */
+.filter select option, .feld select option {
+  background: var(--flaeche); color: var(--tinte);
+}
 .vk-statussenden { padding: 2px 9px; }
 /* Datum und Wort („27.08.2026 überfällig“) gehören zusammen und sollen
    nicht auf zwei Zeilen zerfallen. */
