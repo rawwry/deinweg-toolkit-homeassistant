@@ -3,6 +3,10 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.30.1
+
+- Doppelte und verwaiste CSS-Regeln entfernt (ohne sichtbare Änderung)
+
 ## 1.30
 
 - Aufgaben können mehreren Personen gehören (Mehrfachfeld statt einem

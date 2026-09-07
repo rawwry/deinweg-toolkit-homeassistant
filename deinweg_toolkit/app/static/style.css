@@ -1334,6 +1334,8 @@ input[type="date"] { text-transform: uppercase; }
   border: 1px solid var(--linie-stark); background: var(--flaeche);
   color: var(--leise); cursor: pointer;
   font: inherit; font-size: 13px; font-weight: 600; line-height: 1.2;
+  /* liegt über der Trennlinie dahinter */
+  position: relative;
 }
 /* Die Linie liegt hinter dem Knopf und läuft nach beiden Seiten aus -
    deshalb ein Verlauf und keine durchgehende Kante. */
@@ -1342,7 +1344,6 @@ input[type="date"] { text-transform: uppercase; }
   background: linear-gradient(to right, transparent,
               var(--linie-stark) 18%, var(--linie-stark) 82%, transparent);
 }
-.zeile-mehr { position: relative; }
 .zeile-mehr svg { width: 14px; height: 14px; flex: 0 0 auto; }
 .zeile-mehr-hinweis {
   margin: 0; font-size: 11px; color: var(--leise); opacity: .85;
@@ -1720,12 +1721,6 @@ main > form#erfassung, main > #erfassen:not(:has(*)) { position: absolute; }
   .filterstand .knopf { margin-left: 0; width: auto; align-self: flex-start; }
 }
 
-.boxumfang {
-  margin: -8px 0 16px; padding-bottom: 13px;
-  border-bottom: 1px solid var(--linie-fein);
-  font-size: 12.5px; line-height: 1.5; color: var(--leise);
-}
-.boxumfang strong { color: var(--tinte); font-weight: 600; }
 
 /* --- Ideen ----------------------------------------------------------- */
 
@@ -2134,7 +2129,6 @@ textarea:focus { border-color: var(--akzent); }
 .ideenart { flex-shrink: 0; margin-top: 1px; }
 .ideeninhalt { flex: 1; min-width: 0; }
 .ideenzeile1 { display: flex; align-items: baseline; gap: 10px; margin-bottom: 3px; }
-.ideentext { margin: 0; white-space: pre-line; font-size: 14px; line-height: 1.55; }
 .ideenaktionen { display: flex; gap: 6px; flex-shrink: 0; align-self: flex-start; }
 .ideenaktionen form { margin: 0; }
 .ideenreihe.wirdbearbeitet { flex-direction: column; border-color: transparent; }
@@ -2637,7 +2631,9 @@ label.knopf-icon { cursor: pointer; }
 .logbezug { text-decoration: none; font-weight: 600; font-size: 13.5px;
             color: var(--tinte); overflow-wrap: anywhere; }
 a.logbezug:hover { color: var(--akzent); }
-.logbezug.weg { color: var(--leise); }
+/* Ein gelöschter Datensatz: durchgestrichen und gedämpft. */
+.logbezug.weg { color: var(--leise); text-decoration: line-through;
+                opacity: .75; }
 .logperson { font-size: 12px; color: var(--leise); text-decoration: none;
              border-bottom: 1px solid var(--linie-stark); }
 .logperson:hover { color: var(--akzent); border-bottom-color: currentColor; }
@@ -5484,7 +5480,6 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 }
 /* Ein gelöschter Datensatz: durchgestrichen, damit man ihn nicht für
    einen bestehenden hält. */
-.logbezug.weg { text-decoration: line-through; opacity: .75; }
 
 /* ⚠️ Fürs Blättern gibt es „.blaettern" schon (Aufgabenliste) - hier
    also keine zweite Regel, sonst überschriebe die spätere die frühere
@@ -5525,10 +5520,6 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 .importkarte[open] > summary::after { transform: rotate(-135deg); }
 .importkarte > summary:hover .importtitel { color: var(--akzent); }
 .importkarte[open] > summary { margin-bottom: 4px; }
-/* Der Satz zur Vorschau steht erst im aufgeklappten Zustand da und
-   bewusst ohne zweites Infozeichen - eines im Kopf reicht. Eingerückt
-   ist er trotzdem: sonst begänne er weiter links als der Satz darüber. */
-.importvorschau { margin: 0 0 14px; padding-left: 23px; }
 @media (prefers-reduced-motion: no-preference) {
   .importkarte > summary::after { transition: transform .2s ease; }
 }

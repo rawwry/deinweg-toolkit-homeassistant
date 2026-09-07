@@ -1990,4 +1990,9 @@ CHANGELOG = [
         "zugeklappt",
         "Prüfung von 1505 auf 1552 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.30.1", "titel": "Aufgeräumt im Stylesheet", "punkte": [
+        "Drei Regeln standen buchstabengleich zweimal im Stylesheet – "
+        "reine Kopierreste. Sichtbar ändert sich nichts",
+        "Eine Regel aus 1.24 war seit 1.25 ohne Markup und ist entfallen",
+    ]},
 ]
