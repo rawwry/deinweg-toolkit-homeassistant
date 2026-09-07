@@ -44,7 +44,16 @@
     <div class="karte">
       <div class="kopfzeile">
         <h1>Manuelle Zeiterfassung</h1>
-        {% if mitarbeiter %}<p class="summe">{{ mitarbeiter }}</p>{% endif %}
+        {# ⚠️ Hier stand bis 1.30 der Mitarbeitername - seit „Erfasst für"
+           direkt darunter steht, war das dieselbe Auskunft zweimal.
+           Jetzt die Zahl, die man beim Erfassen tatsächlich sucht: was
+           heute schon erfasst ist. Ohne Zeiten bleibt der Platz leer,
+           statt eine Null hinzuschreiben. #}
+        {% if tagessumme and tagessumme.n %}
+        <p class="summe">{{ tagessumme.m | hhmm }} Std
+          <span>· {{ 'heute' if ist_heute else 'am ' ~ (summentag.isoformat() | deutsch) }}
+            erfasst, {{ tagessumme.n }} Eintr{{ 'ag' if tagessumme.n == 1 else 'äge' }}</span></p>
+        {% endif %}
       </div>
       <p class="lead">{{ t("erfassung.einleitung") }}</p>
 
@@ -236,8 +245,11 @@
 
           <label class="feld f-text">
             <span class="feldtitel">Erläuterung <span class="leise">optional</span></span>
+            {# ⚠️ Ohne Platzhaltertext (seit 1.30, Timos Wunsch): ein
+               konkreter Vorschlag im Feld liest sich wie ein eingetragener
+               Wert und legt außerdem eine Formulierung nahe, die nicht
+               jede Zeile trifft. #}
             <input type="text" name="beschreibung" autocomplete="off" form="erfassung"
-                   placeholder="z. B. Begleitung zum Amt"
                    aria-label="Erläuterung, optional">
           </label>
 
@@ -266,8 +278,9 @@
           </svg>
           <span class="zeile-mehr-text">Weitere Zeile</span>
         </button>
-        <p class="zeile-mehr-hinweis">oder am Zeilenende
-          <kbd>Tab</kbd> drücken</p>
+        {# ⚠️ Der Hinweis „oder am Zeilenende Tab drücken" ist mit 1.30
+           auf Timos Wunsch entfallen. Der Weg selbst bleibt: Tab am Ende
+           einer ausgefüllten Zeile legt weiterhin die nächste an. #}
       </div>
       </div>{# /erfassflaeche #}
 

@@ -102,6 +102,9 @@ def setup(templates, umgebung=None) -> None:
     _umgebung.update(umgebung or {})
     templates.env.filters["zeitpunkt"] = zeitpunkt
     templates.env.filters["uhrzeit"] = uhrzeit
+    # „Anna, Bruno" zu einer Liste - die Vorlagen brauchen sie für die
+    # Mehrfachauswahl der Zuständigen.
+    templates.env.filters["namen"] = namensliste
     templates.env.globals.update({
         # V_ARTEN steht NICHT hier: die Vorgangsarten sind seit der
         # Einstellungen-Verwaltung pro Anfrage aus der Datenbank zu holen
@@ -192,14 +195,62 @@ def klientenliste(con) -> list[str]:
     return sorted(namen, key=lambda s: s.casefold())
 
 
+# --- Mehrere zustaendige Personen -------------------------------------------
+#
+# ⚠️ Seit 1.30 kann eine Aufgabe mehreren Personen gehoeren. Gespeichert
+# wird das als kommagetrennte Liste in derselben Spalte "zustaendig" -
+# genau wie "frist_kopie" und "bewilligung_empfaenger" in konfig. Eine
+# eigene Tabelle waere fuer eine Handvoll Namen zu viel Apparat, und die
+# Spalte traegt den Klartext ohnehin schon.
+#
+# ⚠️ Geschrieben wird IMMER mit ", " als Trenner (namen_text). Nur so
+# greift die SQL-Suche unten zuverlaessig; ein Wert mit "," ohne
+# Leerzeichen wuerde dort durchrutschen. Alte Werte mit genau einem Namen
+# passen ohne Umbau.
+TRENNER = ", "
+
+
+def namensliste(wert) -> list[str]:
+    """„Anna, Bruno“ wird zu [„Anna“, „Bruno“] - leere Teile fallen weg."""
+    return [t.strip() for t in (wert or "").split(",") if t.strip()]
+
+
+def namen_text(namen) -> str:
+    """Liste zu Klartext, ohne Dubletten und in der gegebenen Reihenfolge."""
+    gesehen, raus = set(), []
+    for n in namen:
+        n = (n or "").strip()
+        if n and n.casefold() not in gesehen:
+            gesehen.add(n.casefold())
+            raus.append(n)
+    return TRENNER.join(raus)
+
+
+def ist_zustaendig(wert, name: str) -> bool:
+    """Steht dieser Name in der Zuständigenliste?"""
+    ziel = (name or "").strip().casefold()
+    return bool(ziel) and ziel in {n.casefold() for n in namensliste(wert)}
+
+
+# ⚠️ SQL-Baustein fuer „dieser Name steht in der Liste". Der Trick sind
+# die angehaengten Trenner: aus „Anna, Bruno" wird „, Anna, Bruno, ", und
+# darin findet sich „, Anna, " eindeutig. Ohne sie faende „Anna" auch
+# „Annabelle". Der Platzhalter ist der gesuchte Name.
+ZUSTAENDIG_TRIFFT = ("LOWER(', ' || zustaendig || ', ') "
+                     "LIKE LOWER('%, ' || ? || ', %')")
+
+
 def teamliste(con) -> list[str]:
     """Mitarbeitende aus der Teamliste, ergaenzt um Namen aus den Zeiten."""
     namen = {r["name"] for r in con.execute(
         "SELECT name FROM mitarbeiter WHERE aktiv=1")}
     namen |= {r["mitarbeiter"] for r in con.execute(
         "SELECT DISTINCT mitarbeiter FROM eintrag WHERE TRIM(mitarbeiter) <> ''")}
-    namen |= {r["zustaendig"] for r in con.execute(
-        "SELECT DISTINCT zustaendig FROM vorgang WHERE TRIM(zustaendig) <> ''")}
+    # ⚠️ Hier muss aufgeteilt werden: in der Spalte koennen mehrere Namen
+    # stehen, und „Anna, Bruno" ist kein Mitarbeiter.
+    for r in con.execute(
+            "SELECT DISTINCT zustaendig FROM vorgang WHERE TRIM(zustaendig) <> ''"):
+        namen |= set(namensliste(r["zustaendig"]))
     return sorted(namen, key=lambda s: s.casefold())
 
 
@@ -336,7 +387,8 @@ def filter_bauen(klient: str, zustaendig: str, status: str, art: str,
         werte.append(klient)
         aktive.append(("Betreute Person", klient))
     if zustaendig:
-        wo.append("zustaendig = ?")
+        # ⚠️ Nicht mehr „= ?": in der Spalte koennen mehrere Namen stehen.
+        wo.append(ZUSTAENDIG_TRIFFT)
         werte.append(zustaendig)
         aktive.append(("Zuständig", zustaendig))
     if status:
@@ -506,8 +558,12 @@ def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
         # fuer die Filterfelder: nur wirklich vorkommende Werte
         vorhandene_arten = [r["art"] for r in con.execute(
             "SELECT DISTINCT art FROM vorgang ORDER BY 1")]
-        vorhandene_zustaendige = [r["zustaendig"] for r in con.execute(
-            "SELECT DISTINCT zustaendig FROM vorgang ORDER BY 1 COLLATE NOCASE")]
+        # ⚠️ Aufteilen: sonst stuende „Anna, Bruno" als eigener Filterwert
+        # in der Liste und traefe nie etwas.
+        vorhandene_zustaendige = sorted(
+            {n for r in con.execute("SELECT DISTINCT zustaendig FROM vorgang")
+             for n in namensliste(r["zustaendig"])},
+            key=lambda s: s.casefold())
 
     liste = [{"v": z, "lage": fristlage(z)} for z in zeilen]
 
@@ -534,14 +590,23 @@ def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
 @router.post("")
 def anlegen(request: Request, klient: str = Form(""), art: str = Form(""),
             titel: str = Form(""),
-            beschreibung: str = Form(""), zustaendig: str = Form(""),
-            beteiligte: str = Form(""), status: str = Form("Offen"),
+            beschreibung: str = Form(""),
+            zustaendig: list[str] = Form([]), status: str = Form("Offen"),
             prioritaet: str = Form("Normal"), frist: str = Form(""),
             dateiverweis: str = Form(""),
             zurueck: str = Form("/vorgaenge")):
+    """Legt eine Aufgabe an.
+
+    ⚠️ ``zustaendig`` kommt seit 1.30 als Liste an - das Formular hat dort
+    ein Mehrfachfeld wie die Filter unter „Arbeitszeit". Gespeichert wird
+    daraus ein kommagetrennter Klartext (siehe namen_text). Das frühere
+    Feld „Weitere beteiligte Personen" ist damit überflüssig und aus dem
+    Formular verschwunden; die Spalte ``beteiligte`` bleibt in der
+    Datenbank stehen, damit vorhandene Einträge nicht verloren gehen.
+    """
     klient = sauber(klient, 120)
     titel = sauber(titel, 160)
-    zustaendig = sauber(zustaendig, 80)
+    zustaendig = namen_text(sauber(z, 80) for z in zustaendig)[:400]
     wer = handelnde_person(request)
     art = sauber(art, 160)
     status = status if status in STATUS_LISTE else "Offen"
@@ -563,12 +628,15 @@ def anlegen(request: Request, klient: str = Form(""), art: str = Form(""),
                 f"„{art}“ ist keine eingerichtete Vorgangsart. Vorgangsarten "
                 "werden unter Einstellungen → Aufgabenarten gepflegt."))
 
+        # ⚠️ Wer die Aufgabe anlegt, steht in angelegt_von - daran hängt
+        # seit 1.30 die Mail „Aufgabe erledigt". Kein Formularfeld: eine
+        # eingetippte Angabe taugt als Nachweis nicht (Abschnitt 12).
         cur = con.execute(
             "INSERT INTO vorgang (klient, art, titel, beschreibung, zustaendig, "
-            "beteiligte, status, prioritaet, frist, angelegt_am, angelegt_von, "
-            "geaendert_am, dateiverweis) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "status, prioritaet, frist, angelegt_am, angelegt_von, "
+            "geaendert_am, dateiverweis) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (klient, art, titel, mehrzeilig(beschreibung), zustaendig,
-             sauber(beteiligte, 200), status, prioritaet, frist_iso, jetzt(),
+             status, prioritaet, frist_iso, jetzt(),
              wer, jetzt(), sauber(dateiverweis, 300)))
         neue_id = cur.lastrowid
 
@@ -745,7 +813,8 @@ def loeschen(request: Request, vorgang_id: int,
 @router.post("/{vorgang_id}/status")
 def status_aendern(request: Request, vorgang_id: int, status: str = Form(""),
                    notiz: str = Form(""), frist: str = Form(""),
-                   prioritaet: str = Form(""), zustaendig: str = Form(""),
+                   prioritaet: str = Form(""),
+                   zustaendig: list[str] = Form([]),
                    zurueck: str = Form("")):
     """Ein Handgriff für den Alltag: Status, Priorität, Zuständigkeit,
     Wiedervorlage und eine Lognotiz in EINEM Formular.
@@ -787,9 +856,10 @@ def status_aendern(request: Request, vorgang_id: int, status: str = Form(""),
         # Melde-Vermerk zurückgesetzt, damit die neue Zuständige eine
         # Zuweisungs-Mail bekommt - dieselbe Regel wie in
         # zustaendig_aendern.
-        neu_z = sauber(zustaendig, 80)
+        neu_z = namen_text(sauber(z, 80) for z in zustaendig)[:400]
         z_gewechselt = (neu_z and
-            (v["zustaendig"] or "").strip().casefold() != neu_z.strip().casefold())
+            {n.casefold() for n in namensliste(v["zustaendig"])}
+            != {n.casefold() for n in namensliste(neu_z)})
         if z_gewechselt:
             neue_werte["zustaendig"] = neu_z
             neue_werte["zuweis_gemeldet"] = 0
@@ -842,8 +912,10 @@ def status_aendern(request: Request, vorgang_id: int, status: str = Form(""),
 
 @router.post("/{vorgang_id}/zustaendig")
 def zustaendig_aendern(request: Request, vorgang_id: int,
-                       zustaendig: str = Form(""), notiz: str = Form("")):
-    wer, neu = handelnde_person(request), sauber(zustaendig, 80)
+                       zustaendig: list[str] = Form([]),
+                       notiz: str = Form("")):
+    wer = handelnde_person(request)
+    neu = namen_text(sauber(z, 80) for z in zustaendig)[:400]
     if not neu:
         return _fehler(vorgang_id, "Neue Zuständigkeit und handelnde Person "
                                    "müssen angegeben sein.")
@@ -856,7 +928,8 @@ def zustaendig_aendern(request: Request, vorgang_id: int,
         # (mail.pruefe_zuweisungen) liest dann die jetzt gültige Zuständige.
         # Nur bei echtem Wechsel, sonst löste jedes Speichern auf denselben
         # Namen eine neue Mail aus.
-        gewechselt = (alt or "").strip().casefold() != neu.strip().casefold()
+        gewechselt = ({n.casefold() for n in namensliste(alt)}
+                      != {n.casefold() for n in namensliste(neu)})
         if gewechselt:
             con.execute(
                 "UPDATE vorgang SET zustaendig=?, geaendert_am=?, "
@@ -929,7 +1002,7 @@ FELDER_BESCHRIFTUNG = {
 @router.post("/{vorgang_id}/daten")
 def daten_speichern(request: Request, vorgang_id: int, titel: str = Form(""),
                     art: str = Form(""), beschreibung: str = Form(""),
-                    prioritaet: str = Form("Normal"), beteiligte: str = Form(""),
+                    prioritaet: str = Form("Normal"),
                     dateiverweis: str = Form(""),
                     datum_eingereicht: str = Form(""),
                     datum_eingang: str = Form(""),
@@ -954,7 +1027,11 @@ def daten_speichern(request: Request, vorgang_id: int, titel: str = Form(""),
         # Formularen, überschriebe das Bearbeiten-Formular still eine
         # gerade in der Schnellwahl geänderte Priorität mit seinem alten
         # Wert. Der Parameter bleibt nur, um alte Aufrufe nicht zu brechen.
-        "beteiligte": sauber(beteiligte, 200),
+        #
+        # ⚠️ „beteiligte" steht hier seit 1.30 ebenfalls nicht mehr: das
+        # Feld ist aus dem Formular verschwunden, und ohne diesen Ausbau
+        # leerte jedes Speichern den vorhandenen Wert (Arbeitsregel 11).
+        # Die Spalte bleibt in der Datenbank, der Wert bleibt lesbar.
         "dateiverweis": sauber(dateiverweis, 300),
         "datum_eingereicht": datum_lesen(datum_eingereicht),
         "datum_eingang": datum_lesen(datum_eingang),

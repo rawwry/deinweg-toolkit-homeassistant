@@ -1957,4 +1957,37 @@ CHANGELOG = [
         "bestand seit 1.1 und war nicht zu sehen, nur zu scrollen",
         "Prüfung von 1509 auf 1501 Einzelprüfungen angepasst",
     ]},
+    {"version": "1.30", "titel": "Aufgaben zu mehreren", "punkte": [
+        "Eine Aufgabe kann mehreren Personen gehören: aus „Zuständige "
+        "Person“ ist ein Mehrfachfeld geworden, wie in den Filtern unter "
+        "„Arbeitszeit“. Jede Gewählte steht in ihrer Liste, wird bei "
+        "Fristen erinnert und bekommt ihre Zuweisungsmail",
+        "⚠️ Das Feld „Weitere beteiligte Personen“ ist dafür entfallen – "
+        "es war ein Freitext, an dem nichts hing. Vorhandene Werte bleiben "
+        "gespeichert und stehen auf der Aufgabenseite unter „Alle Angaben“",
+        "Neue E-Mail: wird eine Aufgabe abgeschlossen, erfährt die Person "
+        "davon, die sie angelegt hat. Mit eigener Vorlage; wer selbst "
+        "abhakt, bekommt keine Nachricht über sich",
+        "E-Mail-Vorlagen dürfen jetzt einfache Formatierungen tragen – "
+        "**fett**, *kursiv*, Überschriften, Aufzählungen, Links. "
+        "Verschickt wird jede Nachricht zweifach, als Text und formatiert",
+        "Aufgabenliste: erledigte Aufgaben werden grau, offene bekommen "
+        "den blauen Ton der Selbstzahler",
+        "⚠️ Die Statuspille auf den Karten ist kein grauer Fremdkörper "
+        "mehr: sie ist durchscheinend, der Ton der Karte kommt durch",
+        "Aufgaben lassen sich als Liste statt als Karten anzeigen – "
+        "Umschalter über der Liste und in den Einstellungen",
+        "Die Seite einer einzelnen Aufgabe ist neu aufgebaut: Lage und "
+        "Farbe oben, die vier Angaben, die man sucht, direkt darunter, "
+        "der Rest zugeklappt",
+        "Logbuch der Datensätze als Baum: was an einem Datensatz passiert "
+        "ist, steht unter einem gemeinsamen Kopf statt lose untereinander",
+        "Manuelle Erfassung: „Erfasst für“ in einer Zeile statt in drei, "
+        "kein doppelter Name mehr in der Kopfzeile (dort steht jetzt, was "
+        "heute schon erfasst ist), mehr Luft um „Neuer Eintrag“, kein "
+        "Beispieltext im Feld „Erläuterung“",
+        "Einstellungen: die rote Karte „Geschützte Wiki-Ordner“ ist "
+        "zugeklappt",
+        "Prüfung von 1505 auf 1552 Einzelprüfungen erweitert",
+    ]},
 ]

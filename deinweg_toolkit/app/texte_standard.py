@@ -218,6 +218,15 @@ TEXTE_STANDARD["vorgaenge.zustaendig_hinweis"] = (
     "jetzt an. Sie steht in der Liste, wird bei Fristen per E-Mail "
     "erinnert, und über sie filtert man „meine Aufgaben“. Sie kann "
     "später jederzeit gewechselt werden.")
+# ⚠️ Neuer Schlüssel: seit 1.30 können mehrere Personen zuständig sein,
+# der alte Wortlaut sprach von genau einer. Unter dem alten Schlüssel
+# wäre die Berichtigung bei einer vorhandenen strings.txt nie angekommen.
+TEXTE_STANDARD["vorgaenge.zustaendig_mehrere"] = (
+    "Alle hier gewählten Personen bearbeiten die Aufgabe: sie steht in "
+    "ihrer Liste, sie werden bei Fristen erinnert, und über sie filtert "
+    "man „meine Aufgaben“. Wer angehakt ist, bekommt eine E-Mail über "
+    "die neue Aufgabe – sofern die Meldung eingeschaltet ist. Die "
+    "Auswahl lässt sich später jederzeit ändern.")
 TEXTE_STANDARD["vorgaenge.protokoll_hinweis"] = (
     "Jede Änderung an einem Vorgang landet mit Zeitpunkt und Konto im "
     "Verlauf – dafür ist nichts auszufüllen, das kommt aus deiner "
@@ -483,6 +492,23 @@ TEXTE_STANDARD["einst.zuweisungsmail_hinweis"] = (
     "Minuten, bevor die Mail rausgeht. Werden in dieser Zeit weitere "
     "Aufgaben angelegt, stehen sie alle in einer Nachricht. 0 verschickt "
     "beim nächsten Durchlauf, also innerhalb einer Minute.")
+TEXTE_STANDARD["einst.aufgabenliste"] = (
+    "Karten zeigen Titel, Notiz und Stand untereinander. Die Liste zeigt "
+    "mehr Aufgaben auf einmal und stellt die Fristen in einer Spalte "
+    "untereinander.")
+TEXTE_STANDARD["einst.erledigtmail_lead"] = (
+    "Meldet der Person, die eine Aufgabe angelegt hat, dass sie "
+    "abgeschlossen wurde – erledigt oder abgebrochen. Wer Aufgaben "
+    "verteilt, erfährt so von selbst, wann etwas fertig ist.")
+TEXTE_STANDARD["einst.erledigtmail_hinweis"] = (
+    "Kein Sammelverzug: die Nachricht geht innerhalb einer Minute raus. "
+    "Wer eine Aufgabe selbst angelegt und selbst abgeschlossen hat, "
+    "bekommt keine – eine Meldung über die eigene Handlung ist nur Lärm.")
+TEXTE_STANDARD["einst.vorlagen_format"] = (
+    "Verschickt wird jede Nachricht zweifach: als reiner Text, in dem die "
+    "Markierungen herausgeräumt sind, und als formatierte Fassung. Jedes "
+    "Mailprogramm nimmt sich davon, was es kann – kaputt geht dabei "
+    "nichts.")
 TEXTE_STANDARD["einst.fristmail_lead"] = (
     "Erinnert die zuständige Person an Fristen aus der "
     "Aufgabenverwaltung. Abgeschlossene Vorgänge bleiben außen vor.")

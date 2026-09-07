@@ -24,6 +24,7 @@ Grundgedanken:
 from __future__ import annotations
 
 import datetime as dt
+import re
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -118,6 +119,20 @@ STANDARD = {
         "Du findest sie unter „Aufgaben“.\n\n"
         "Diese Nachricht wurde automatisch erstellt."
     ),
+    # Aufgabe erledigt -> Mail an die Person, die sie angelegt hat.
+    # Standard aus, wie bei jedem Anlass, den es vorher nicht gab.
+    "erledigt_aktiv": "0",
+    "vorlage_erledigt_betreff": "Erledigt: {titel}",
+    "vorlage_erledigt_text": (
+        "Hallo {name},\n\n"
+        "die von dir angelegte Aufgabe wurde als **{status}** markiert:\n\n"
+        "  Aufgabe:         {titel}\n"
+        "  Betreute Person: {klient}\n"
+        "  Aufgabenart:     {art}\n"
+        "  Zuständig:       {zustaendig}\n"
+        "  Abgeschlossen:   {erledigt_am} von {wer}\n\n"
+        "Diese Nachricht wurde automatisch erstellt."
+    ),
 }
 
 # Diese Schluessel werden in der Oberflaeche nie im Klartext zurueckgegeben
@@ -157,6 +172,81 @@ def fuellen(vorlage: str, werte: dict) -> str:
     return text
 
 
+# --- Einfache Textformatierung in den Vorlagen -------------------------------
+#
+# ⚠️ Seit 1.30 duerfen die Vorlagen ein paar Markierungen tragen -
+# **fett**, *kursiv*, „# Ueberschrift", „- Aufzaehlung" und nackte Links.
+# Verschickt wird die Nachricht daraufhin ZWEIFACH: als Klartext (die
+# Markierungen sind dort herausgeraeumt) und als HTML. Jedes Mailprogramm
+# nimmt sich, was es kann.
+#
+# ⚠️ Bewusst ein eigener, winziger Wandler und nicht markdown.zu_html():
+# der baut Wiki-HTML mit Klassen, und ein Mailprogramm kennt unser
+# Stylesheet nicht. Hier stehen die paar Angaben deshalb direkt am Tag.
+# Aus demselben Grund bewusst nur diese fuenf Formen - alles darueber
+# hinaus sieht in Outlook ohnehin anders aus als gedacht.
+
+_FETT = re.compile(r"\*\*(.+?)\*\*", re.S)
+_KURSIV = re.compile(r"(?<![\*\w])\*(?!\s)(.+?)(?<!\s)\*(?!\*)", re.S)
+_LINK = re.compile(r"(https?://[^\s<>\"']+)")
+
+
+def klartext(text: str) -> str:
+    """Die Markierungen herausraeumen - fuer die Nur-Text-Fassung."""
+    zeilen = []
+    for zeile in (text or "").split("\n"):
+        blank = zeile.strip()
+        if blank.startswith("#"):
+            zeile = blank.lstrip("#").strip()
+        elif blank.startswith(("- ", "* ")):
+            zeile = "  • " + blank[2:].strip()
+        zeile = _FETT.sub(r"\1", zeile)
+        zeile = _KURSIV.sub(r"\1", zeile)
+        zeilen.append(zeile)
+    return "\n".join(zeilen)
+
+
+def als_html(text: str) -> str:
+    """Denselben Text als schlichtes HTML, mit Angaben direkt am Tag."""
+    raus, liste = [], False
+
+    def zeichen(t: str) -> str:
+        t = (t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+        t = _FETT.sub(r"<strong>\1</strong>", t)
+        t = _KURSIV.sub(r"<em>\1</em>", t)
+        return _LINK.sub(r'<a href="\1">\1</a>', t)
+
+    for zeile in (text or "").split("\n"):
+        blank = zeile.strip()
+        if blank.startswith(("- ", "* ")):
+            if not liste:
+                raus.append("<ul style=\"margin:8px 0;padding-left:20px\">")
+                liste = True
+            raus.append(f"<li>{zeichen(blank[2:].strip())}</li>")
+            continue
+        if liste:
+            raus.append("</ul>")
+            liste = False
+        if blank.startswith("#"):
+            stufe = min(3, len(blank) - len(blank.lstrip("#")))
+            inhalt = zeichen(blank.lstrip("#").strip())
+            groesse = {1: "19px", 2: "16px", 3: "14px"}[stufe]
+            raus.append(f'<div style="font-size:{groesse};font-weight:700;'
+                        f'margin:16px 0 6px">{inhalt}</div>')
+        elif not blank:
+            raus.append("<div style=\"height:10px\"></div>")
+        else:
+            # ⚠️ Fuehrende Leerzeichen bleiben stehen: die
+            # Auslieferungsvorlagen richten damit ihre Wertetabellen aus.
+            vor = len(zeile) - len(zeile.lstrip(" "))
+            raus.append("<div>" + "&nbsp;" * vor + zeichen(blank) + "</div>")
+    if liste:
+        raus.append("</ul>")
+    return ('<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,'
+            'sans-serif;font-size:14px;line-height:1.55;color:#272827">'
+            + "".join(raus) + "</div>")
+
+
 # --- Versand -----------------------------------------------------------------
 
 def senden(empfaenger: str, betreff: str, text: str,
@@ -184,7 +274,11 @@ def senden(empfaenger: str, betreff: str, text: str,
     nachricht["From"] = f"{name} <{absender}>" if name else absender
     nachricht["To"] = empfaenger
     nachricht["Subject"] = betreff
-    nachricht.set_content(text)
+    # ⚠️ Zweifach: Klartext fuer alles, HTML fuer die Programme, die es
+    # koennen. set_content zuerst, add_alternative danach - dann steht der
+    # Klartext als Rueckfall an erster Stelle, wie es die Norm verlangt.
+    nachricht.set_content(klartext(text))
+    nachricht.add_alternative(als_html(text), subtype="html")
 
     benutzer = (k.get("smtp_benutzer") or "").strip()
     passwort = k.get("smtp_passwort") or ""
@@ -309,8 +403,15 @@ def pruefe_fristen(con, k: dict) -> list[str]:
         bezug = f"vorgang:{v['id']}:{v['frist']}"
         if not ueberfaellig:
             bezug += ":vor"
-        adresse = adresse_fuer(con, v["zustaendig"])
-        if not adresse:
+        # ⚠️ Seit 1.30 koennen mehrere Personen zustaendig sein - jede
+        # bekommt die Fristmeldung. Ein Aufruf mit dem ganzen Feld
+        # („Anna, Bruno") fände nie eine Adresse.
+        adressen = []
+        for name in empfaengerliste(v["zustaendig"]):
+            a = adresse_fuer(con, name)
+            if a and a not in adressen:
+                adressen.append(a)
+        if not adressen:
             protokoll.append(
                 f"Vorgang {v['id']}: kein Login mit E-Mail für „{v['zustaendig']}“")
             continue
@@ -334,7 +435,7 @@ def pruefe_fristen(con, k: dict) -> list[str]:
         # Die Zustaendige zuerst, dann alle, die mitlesen sollen. Dieselbe
         # Nachricht, derselbe Bezug - der Sperrvermerk haengt an der
         # Adresse, also bekommt jede Person ihre Mail genau einmal.
-        ziele = [adresse]
+        ziele = list(adressen)
         for name in kopie:
             weitere = adresse_fuer(con, name)
             if weitere and weitere not in ziele:
@@ -517,26 +618,42 @@ def pruefe_zuweisungen(con, k: dict) -> list[str]:
         "AND TRIM(zustaendig) <> '' "
         "ORDER BY zustaendig COLLATE NOCASE, angelegt_am").fetchall()
 
+    # ⚠️ Seit 1.30 koennen mehrere Personen zustaendig sein - die Spalte
+    # traegt dann eine kommagetrennte Liste. Jede von ihnen bekommt ihre
+    # eigene Sammelmail, sonst ginge die Nachricht an einen Namen, den es
+    # gar nicht gibt („Anna, Bruno").
     nach_person: dict[str, list] = {}
     for z in zeilen:
-        nach_person.setdefault(z["zustaendig"], []).append(z)
+        for name in empfaengerliste(z["zustaendig"]):
+            nach_person.setdefault(name, []).append(z)
 
     protokoll = []
+    # ⚠️ Eine Aufgabe gilt erst als gemeldet, wenn jede zustaendige Person
+    # dran war. Sonst blieben bei zwei Zustaendigen die Aufgaben nach der
+    # ersten Mail als erledigt vermerkt und die zweite Person bekaeme nie
+    # etwas. Deshalb wird hier gezaehlt und erst ganz am Ende geschrieben.
+    offen_je_id: dict[int, int] = {}
+    for aufgaben in nach_person.values():
+        for a in aufgaben:
+            offen_je_id[a["id"]] = offen_je_id.get(a["id"], 0) + 1
+    fertig_je_id: dict[int, int] = {}
+
+    def abhaken(ids):
+        for i in ids:
+            fertig_je_id[i] = fertig_je_id.get(i, 0) + 1
+
     for name, aufgaben in nach_person.items():
         # Ruhephase noch nicht vorbei? Dann weiter sammeln.
         neueste = max(a["angelegt_am"] for a in aufgaben)
         if neueste > grenze:
             continue
         ids = [a["id"] for a in aufgaben]
-        platz = ",".join("?" * len(ids))
         adresse = adresse_fuer(con, name)
         if not adresse:
             # Kein Login mit E-Mail: nicht ewig wiederholen, sonst bliebe
             # die Aufgabe fuer immer "offen" und blockierte kuenftige
             # Sammelmails dieser Person.
-            con.execute(
-                f"UPDATE vorgang SET zuweis_gemeldet = 1 WHERE id IN ({platz})",
-                ids)
+            abhaken(ids)
             protokoll.append(
                 f"Zuweisung: kein Login mit E-Mail für „{name}“ "
                 f"({len(ids)} Aufgabe(n))")
@@ -562,12 +679,86 @@ def pruefe_zuweisungen(con, k: dict) -> list[str]:
             adresse, fuellen(k["vorlage_zuweisung_betreff"], werte),
             fuellen(k["vorlage_zuweisung_text"], werte), k)
         if erfolg:
-            con.execute(
-                f"UPDATE vorgang SET zuweis_gemeldet = 1 WHERE id IN ({platz})",
-                ids)
+            abhaken(ids)
         protokoll.append(
             f"Zuweisung ({len(ids)}) an {adresse}: "
             f"{'ok' if erfolg else meldung}")
+
+    durch = [i for i, n in offen_je_id.items() if fertig_je_id.get(i, 0) >= n]
+    if durch:
+        con.execute("UPDATE vorgang SET zuweis_gemeldet = 1 WHERE id IN (%s)"
+                    % ",".join("?" * len(durch)), durch)
+    return protokoll
+
+
+def pruefe_erledigte(con, k: dict) -> list[str]:
+    """Abgeschlossene Aufgaben -> Mail an die Person, die sie angelegt hat.
+
+    ⚠️ Der Empfaenger ist ``vorgang.angelegt_von`` und damit die Angabe
+    aus der Anmeldung, nicht aus einem Formular - dieselbe Regel wie beim
+    Loeschen (Abschnitt 12). Wer eine Aufgabe verteilt, will wissen, wann
+    sie fertig ist; alle anderen nicht.
+
+    ⚠️ Meldet sich nicht selbst: hat dieselbe Person die Aufgabe angelegt
+    UND abgeschlossen, geht keine Mail heraus. Eine Nachricht ueber die
+    eigene Handlung ist nur Laerm.
+
+    Der Vermerk ``erledigt_gemeldet`` funktioniert wie ``zuweis_gemeldet``
+    und aus demselben Grund: er wird erst nach erfolgreichem Versand
+    gesetzt, ein SMTP-Fehler laesst die Aufgabe also offen.
+    """
+    if k.get("erledigt_aktiv") != "1":
+        return []
+
+    platz = ",".join("?" * len(ABGESCHLOSSEN))
+    zeilen = con.execute(
+        f"SELECT id, klient, titel, art, status, zustaendig, angelegt_von, "
+        f"datum_erledigt, geaendert_am FROM vorgang "
+        f"WHERE erledigt_gemeldet = 0 AND status IN ({platz}) "
+        f"AND TRIM(angelegt_von) <> '' ORDER BY id", list(ABGESCHLOSSEN)).fetchall()
+
+    protokoll, fertig = [], []
+    for v in zeilen:
+        ersteller = (v["angelegt_von"] or "").strip()
+        # Wer selbst abgeschlossen hat, braucht keine Nachricht darüber.
+        # Wer das war, steht in der jüngsten Logzeile zu diesem Vorgang.
+        letzte = con.execute(
+            "SELECT wer FROM vorgang_log WHERE vorgang_id=? "
+            "ORDER BY zeitpunkt DESC, id DESC LIMIT 1", (v["id"],)).fetchone()
+        wer = (letzte["wer"] if letzte else "") or "jemand"
+        if wer.strip().casefold() == ersteller.casefold():
+            fertig.append(v["id"])
+            protokoll.append(f"Erledigt {v['id']}: selbst abgeschlossen, "
+                             "keine Nachricht")
+            continue
+
+        adresse = adresse_fuer(con, ersteller)
+        if not adresse:
+            fertig.append(v["id"])
+            protokoll.append(
+                f"Erledigt {v['id']}: kein Login mit E-Mail für „{ersteller}“")
+            continue
+
+        werte = {
+            "name": ersteller, "titel": v["titel"], "klient": v["klient"],
+            "art": v["art"], "status": v["status"],
+            "zustaendig": v["zustaendig"] or "niemand",
+            "wer": wer,
+            "erledigt_am": _datum(v["datum_erledigt"]) or (
+                (v["geaendert_am"] or "")[:10] and
+                _datum((v["geaendert_am"] or "")[:10])) or "heute",
+        }
+        erfolg, meldung = senden(
+            adresse, fuellen(k["vorlage_erledigt_betreff"], werte),
+            fuellen(k["vorlage_erledigt_text"], werte), k)
+        if erfolg:
+            fertig.append(v["id"])
+        protokoll.append(f"Erledigt {v['id']} an {adresse}: "
+                         f"{'ok' if erfolg else meldung}")
+
+    if fertig:
+        con.execute("UPDATE vorgang SET erledigt_gemeldet = 1 WHERE id IN (%s)"
+                    % ",".join("?" * len(fertig)), fertig)
     return protokoll
 
 
@@ -591,7 +782,8 @@ def _datum(iso: str | None) -> str:
 
 def durchlauf(nur_fristen: bool = False, nur_abgaben: bool = False,
               nur_bewilligungen: bool = False,
-              nur_zuweisungen: bool = False) -> list[str]:
+              nur_zuweisungen: bool = False,
+              nur_erledigte: bool = False) -> list[str]:
     """Ein kompletter Durchlauf aller Pruefungen.
 
     ⚠️ Die Zuweisungsmail wird bewusst NICHT im stuendlichen Wecker
@@ -604,7 +796,7 @@ def durchlauf(nur_fristen: bool = False, nur_abgaben: bool = False,
     if k.get("mail_aktiv") != "1":
         return ["E-Mail-Versand ist ausgeschaltet"]
     einzeln = (nur_fristen or nur_abgaben or nur_bewilligungen
-               or nur_zuweisungen)
+               or nur_zuweisungen or nur_erledigte)
     protokoll = []
     with db.db() as con:
         # ⚠️ Zuweisungen laufen NUR ausdruecklich (nur_zuweisungen), nicht
@@ -615,6 +807,13 @@ def durchlauf(nur_fristen: bool = False, nur_abgaben: bool = False,
         # senden). Die schnelle Schleife ist die eine zustaendige Stelle.
         if nur_zuweisungen:
             protokoll += pruefe_zuweisungen(con, k)
+        # ⚠️ Dieselbe Ueberlegung wie bei den Zuweisungen: die Erledigt-
+        # Meldung soll unmittelbar kommen, nicht erst zur naechsten vollen
+        # Stunde. Sie laeuft deshalb in derselben schnellen Schleife und
+        # ausdruecklich NICHT im vollen Lauf - sonst pruefen zwei Stellen
+        # denselben Anlass und koennten ihn doppelt melden.
+        if nur_zuweisungen or nur_erledigte:
+            protokoll += pruefe_erledigte(con, k)
         if nur_fristen or not einzeln:
             protokoll += pruefe_fristen(con, k)
         if nur_abgaben or not einzeln:

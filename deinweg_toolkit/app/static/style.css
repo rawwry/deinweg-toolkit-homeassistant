@@ -56,9 +56,20 @@
   --kfz-tuev:      #e3b262;
   --kfz-sonstiges: #94a3ad;
   --kfz-km:        #6d7379;
+
+  /* ⚠️ Durchscheinender Film für Bedienelemente, die AUF einer farbigen
+     Fläche sitzen (die Statuspille der Aufgabenkarten). Ein fester
+     Grundton wäre dort ein Fremdkörper: auf einer rot getönten Karte
+     stand vorher ein graues Feld. Mit einem Film kommt der Ton der
+     Karte durch, und das Element gehört sichtbar dazu.
+     Im dunklen Thema ein heller Schleier, im hellen ein weißer. */
+  --glas:      rgba(255, 255, 255, .07);
+  --glasrand:  rgba(255, 255, 255, .16);
 }
 
 [data-thema="hell"] {
+  --glas:      rgba(255, 255, 255, .74);
+  --glasrand:  rgba(0, 0, 0, .11);
   --grund:      #f2f3f4;
   --flaeche:    #ffffff;
   --flaeche-2:  #f7f8f9;
@@ -443,6 +454,7 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
    manuelle Erfassung: dort steht dieselbe Liste bei „Betreute Person“.
    Beide Karten tragen nichts, was seitlich rollen müsste. */
 .karte:has(.filter),
+.karte:has(.wahlliste),
 .karte:has(.suchwahl-huelle) { overflow: visible; }
 
 /* --- Mehrfachauswahl im Filter ------------------------------------------
@@ -1196,13 +1208,18 @@ input[type="date"] { text-transform: uppercase; }
    darunter das Feld, darunter der Satz. Alles beginnt an derselben
    Kante. */
 .erfasser {
-  padding: 13px 16px 12px; border-radius: 12px;
+  padding: 9px 14px 8px; border-radius: 12px;
   background: var(--flaeche-2); border: 1px solid var(--linie);
   border-left: 3px solid var(--akzent);
 }
+/* ⚠️ Seit 1.30 stehen Titel, Marke und Name in EINER Zeile (Timos
+   Wunsch: platzsparender). Vorher waren es drei Zeilen für eine Angabe,
+   die sich nie ändert - „ERFASST FÜR", darunter die Pille, darunter der
+   Name in 19px. Jetzt: der Name trägt die Zeile, das Übrige steht klein
+   daneben. Am Telefon bricht die Zeile um, dann sind es wieder zwei. */
 .erfasser-kopf {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  margin-bottom: 7px;
+  display: flex; align-items: baseline; gap: 6px 10px; flex-wrap: wrap;
+  margin-bottom: 0;
 }
 .erfasser-titel {
   font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
@@ -1224,8 +1241,23 @@ input[type="date"] { text-transform: uppercase; }
    deshalb als Text da statt als Pflichtfeld; für jemand anderen zu
    erfassen ist die Ausnahme und klappt darunter auf. */
 .erfasser-name {
-  margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.01em;
+  margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -.01em;
 }
+/* ⚠️ Die Teile sitzen in EINER Zeile, und die Reihenfolge wird dabei
+   ausdrücklich gesetzt: Beschriftung, Name, Marke, Aufklapper. Im Markup
+   steht die Marke vor dem Namen (sie gehört zum Kopfblock), gelesen
+   werden soll aber „Erfasst für Anna Beispiel (dein Konto)". `display:
+   contents` am Kopf hebt dessen eigenen Kasten auf, damit alle vier
+   Teile Geschwister derselben Flexbox sind - sonst griffe `order` nicht
+   über die Blockgrenze hinweg. */
+.erfasser:has(.erfasser-name) .erfasser-kopf { display: contents; }
+.erfasser:has(.erfasser-name) {
+  display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap;
+}
+.erfasser:has(.erfasser-name) .erfasser-titel { order: 0; }
+.erfasser:has(.erfasser-name) .erfasser-name  { order: 1; }
+.erfasser:has(.erfasser-name) .erfasser-marke { order: 2; }
+.erfasser:has(.erfasser-name) .erfasserwechsel { order: 3; margin: 0 0 0 auto; }
 /* ⚠️ Der Ton des Bandes ist die eigentliche Warnung - eine Zeile Text
    liest niemand, einen roten Balken links sieht man. Er sagt: was du
    hier einträgst, läuft nicht auf dich. */
@@ -1267,9 +1299,12 @@ input[type="date"] { text-transform: uppercase; }
 /* Trennlinie mit Beschriftung zwischen Kopf und Eintragszeilen. Eine
    normale Überschrift stand dort wie ein neuer Abschnitt; hier gehört
    beides zusammen. */
+/* ⚠️ Mehr Luft nach oben als nach unten (seit 1.30): der Trenner
+   gehört zu dem, was unter ihm kommt, nicht zu dem darüber. Bei
+   gleichen Abständen schwamm er zwischen beidem. */
 .erfasstrenner {
   display: flex; align-items: center; gap: 12px;
-  margin: 22px 0 14px; color: var(--leise);
+  margin: 30px 0 12px; color: var(--leise);
   font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
   text-transform: uppercase;
 }
@@ -2519,6 +2554,44 @@ label.knopf-icon { cursor: pointer; }
 .logbuchkarte > .logtag:first-child,
 .karte > .logtag:first-of-type { margin-top: 2px; }
 
+/* --- Logbuch als Baum (seit 1.30) --------------------------------------
+   Zwei Ebenen: oben der Tag, darunter je Datensatz ein Ast mit allem,
+   was an ihm passiert ist. Vorher war es eine durchlaufende Liste, und
+   bei drei Änderungen an derselben Zeile stand dreimal fast dasselbe
+   untereinander, ohne dass zu sehen war, dass es dieselbe Zeile ist.
+   ⚠️ Der Ast bekommt seine Führungslinie nur, wenn wirklich mehrere
+   Schritte darunter hängen (`.mehrfach`). Bei einem einzelnen wäre sie
+   eine Einrückung ohne Aussage - genau das macht Bäume unruhig. */
+.logbaum { list-style: none; margin: 0; padding: 0; }
+.logast { padding: 2px 0; }
+.logast + .logast { border-top: 1px solid var(--linie-fein); }
+.logast-kopf {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 9px 2px 3px;
+}
+.logast-bezug {
+  font-size: 13.5px; font-weight: 600; color: var(--tinte);
+  text-decoration: none; overflow-wrap: anywhere;
+}
+.logast-bezug:hover { color: var(--akzent); }
+.logast-zahl {
+  font-size: 10.5px; font-weight: 600; padding: 1px 8px; border-radius: 999px;
+  background: var(--akzent-weich); color: var(--akzent);
+}
+/* Die Führungslinie liegt links neben den Schritten - dieselbe Idee wie
+   im Wiki, wo sie die Gliederung einer Liste trägt. */
+.logast.mehrfach > .logliste {
+  margin-left: 9px; padding-left: 14px;
+  border-left: 2px solid var(--linie-stark);
+}
+.logast.mehrfach > .logliste > .logeintrag { border-top: 0; }
+.logast.mehrfach > .logliste > .logeintrag + .logeintrag {
+  border-top: 1px solid var(--linie-fein);
+}
+/* Ohne Datensatzbezug (Sammeländerung der Datenpflege) gibt es keinen
+   Kopf - dann steht der Schritt direkt da. */
+.logast > .logliste > .logeintrag { padding-top: 8px; padding-bottom: 8px; }
+
 .logliste { list-style: none; margin: 0; padding: 0;
             display: flex; flex-direction: column; }
 .logeintrag {
@@ -3762,11 +3835,141 @@ fieldset.feld > span {
 .vorgangskarte.vk-heute,
 .vorgangskarte.vk-bald         { border-left-color: var(--warn);
                                  background: var(--warn-weich); }
-/* „offen" ohne nahe Frist bleibt der neutrale Kartengrund - kein Ton,
-   weil es nichts Dringendes gibt. (Kein eigener Regelblock nötig, die
-   Karte behält var(--flaeche-2); der Balken bleibt --linie-stark.) */
-.vorgangskarte.vk-zu           { border-left-color: var(--gut);
-                                 background: var(--gut-weich); opacity: .8; }
+/* ⚠️ Seit 1.30 auf Timos Wunsch: „offen" trägt den blauen Ton, den auch
+   der Selbstzahler in den Einstellungen hat, und „erledigt" wird grau.
+   Vorher war offen farblos und erledigt grün - grün liest sich aber als
+   „gut", und eine erledigte Aufgabe soll nicht mehr um Aufmerksamkeit
+   werben, sondern verblassen. Blau für offen sagt umgekehrt „hier ist
+   etwas, das noch läuft", ohne die Dringlichkeit von Rot oder Orange. */
+.vorgangskarte.vk-offen        { border-left-color: var(--info);
+                                 background: var(--info-weich); }
+.vorgangskarte.vk-zu           { border-left-color: var(--linie-stark);
+                                 background: var(--flaeche-2); opacity: .72; }
+.vorgangskarte.vk-zu .vk-titel { color: var(--leise); }
+
+/* --- Karten oder Liste (seit 1.30) -------------------------------------
+   ⚠️ Beide Darstellungen stehen im HTML, umgeschaltet wird über
+   data-aufgabenliste am <html> - dieselbe Technik wie bei Wiki und
+   Dateien, damit beim Laden nichts aufblitzt, was gleich wieder
+   verschwindet. Karten sind hier der Standard: eine Aufgabe hat einen
+   Titel, und der trägt in einer Karte besser als in einer schmalen
+   Spalte zwischen sechs anderen. */
+.vorgangstabelle { display: none; }
+[data-aufgabenliste="liste"] .vorgangskarten { display: none; }
+[data-aufgabenliste="liste"] .vorgangstabelle { display: block; }
+.ansichtwechsel .nur-liste { display: none; }
+[data-aufgabenliste="liste"] .ansichtwechsel .nur-karten { display: none; }
+[data-aufgabenliste="liste"] .ansichtwechsel .nur-liste { display: block; }
+.vk-kopfleiste { align-items: center; }
+
+/* Die Zeilen tragen dieselbe Ampel wie die Karten, nur als Balken links
+   statt als Fläche - eine ganze Zeile in Rot wäre in einer Liste zu viel. */
+.vorgangsliste td { vertical-align: top; }
+.vorgangsliste .vz-titel { color: var(--tinte); text-decoration: none;
+                           font-weight: 600; display: block; }
+.vorgangsliste .vz-titel:hover { color: var(--akzent); }
+.vorgangsliste tr > td:first-child { border-left: 3px solid transparent; padding-left: 9px; }
+.vorgangsliste tr.vz-ueberfaellig > td:first-child { border-left-color: var(--dopp); }
+.vorgangsliste tr.vz-heute > td:first-child,
+.vorgangsliste tr.vz-bald  > td:first-child { border-left-color: var(--warn); }
+.vorgangsliste tr.vz-offen > td:first-child { border-left-color: var(--info); }
+.vorgangsliste tr.vz-zu    > td:first-child { border-left-color: var(--linie-stark); }
+.vorgangsliste tr.vz-zu { opacity: .68; }
+.vorgangsliste .vz-aktionen { white-space: nowrap; }
+/* Am Telefon rollt die Liste, statt sich zu stauchen - dieselbe Regel
+   wie bei allen anderen mehrspaltigen Tabellen (Abschnitt 12). */
+@media (max-width: 760px) {
+  .tabellenrolle.vorgangstabelle { overflow-x: auto; }
+  .vorgangsliste { min-width: 820px; }
+}
+
+/* --- Detailseite einer Aufgabe (seit 1.30) ------------------------------
+   ⚠️ Die Kopfkarte trägt dieselbe Ampel wie die Karte in der Liste
+   (vk-<lage>) - wer von dort kommt, findet dieselbe Farbe wieder. Vorher
+   stand hier eine weiße Karte mit einer zwölfzeiligen Definitionsliste,
+   in der „Zuständig" gleich schwer wog wie „Rückmeldung am". Die vier
+   Angaben, mit denen man auf diese Seite kommt, stehen jetzt vorne; der
+   Rest klappt darunter auf. */
+.vorgangskopf { border-left: 4px solid var(--linie-stark); }
+.vorgangskopf.vk-ueberfaellig { border-left-color: var(--dopp); }
+.vorgangskopf.vk-heute,
+.vorgangskopf.vk-bald         { border-left-color: var(--warn); }
+.vorgangskopf.vk-offen        { border-left-color: var(--info); }
+.vorgangskopf.vk-zu           { border-left-color: var(--linie-stark); }
+/* ⚠️ Nur der Balken ist farbig, nicht die ganze Karte. Über eine halbe
+   Bildschirmhöhe wäre der Ton zu viel - in der Liste trägt ihn eine
+   Karte von 140px Höhe. */
+
+.vgk-oben { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.vgk-titelblock { flex: 1 1 320px; min-width: 0; }
+.vgk-titelblock h1 { margin: 2px 0 6px; }
+.vgk-art {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--leise);
+}
+.vgk-marken { display: flex; gap: 8px; flex-wrap: wrap; flex: 0 0 auto; }
+/* Die Lage steht als eigene Zeile unter dem Titel, in ihrer Farbe - das
+   ist die Auskunft, die man beim Aufschlagen zuerst sucht. */
+.vgk-lage { margin: 0; font-size: 13.5px; font-weight: 600; }
+.vgk-lage.l-ueberfaellig { color: var(--dopp); }
+.vgk-lage.l-heute, .vgk-lage.l-bald { color: var(--warn); }
+.vgk-lage.l-offen { color: var(--info); }
+.vgk-lage.l-zu { color: var(--leise); }
+
+.vgk-eckdaten {
+  display: grid; gap: 12px 20px; margin-top: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  padding-top: 16px; border-top: 1px solid var(--linie);
+}
+.vgk-eck { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vgk-label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--leise);
+}
+.vgk-wert { font-size: 14px; overflow-wrap: anywhere; }
+.vgk-wert.stark { font-weight: 600; }
+a.vgk-wert { color: var(--akzent); text-decoration: none; }
+a.vgk-wert:hover { text-decoration: underline; }
+.vgk-beschreibung { margin-top: 18px; padding-top: 16px;
+                    border-top: 1px solid var(--linie); }
+.vgk-beschreibung .ideentext { margin: 4px 0 0; }
+.vgk-mehr { margin-top: 16px; }
+
+/* Die Karte „Geschützte Wiki-Ordner" ist seit 1.30 zugeklappt - dieselbe
+   Bauart wie die Importkarte auf der Zeiterfassung. */
+.wikischutz > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center;
+  gap: 12px;
+}
+.wikischutz > summary::-webkit-details-marker { display: none; }
+.wikischutz > summary::marker { content: ""; }
+.wikischutz-kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wikischutz-titel { font-size: 17px; font-weight: 700; }
+.wikischutz > summary::after {
+  content: ""; margin-left: auto; flex: 0 0 auto; width: 9px; height: 9px;
+  border-right: 2px solid var(--leise); border-bottom: 2px solid var(--leise);
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+.wikischutz[open] > summary::after { transform: rotate(-135deg); }
+.wikischutz[open] > summary { margin-bottom: 10px; }
+.wikischutz > summary:hover .wikischutz-titel { color: var(--akzent); }
+@media (prefers-reduced-motion: no-preference) {
+  .wikischutz > summary::after { transition: transform .2s ease; }
+}
+
+/* ⚠️ Die Mehrfachauswahl kommt aus der Filterzeile und bringt deren
+   Klasse `.filterwahl` mit. Im Formular steht sie in einem `.feld`, und
+   ihre Beschriftung ist ein eigener Block darüber - so sieht sie aus wie
+   die Felder daneben und nicht wie ein hineingeratenes Filterelement. */
+.zustaendigwahl { display: flex; flex-direction: column; }
+.zustaendigwahl .filterwahl { flex: 1 1 auto; min-width: 0; }
+.zustaendigwahl .filterwahl-titel { display: none; }
+.feldtitel-block {
+  display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px;
+}
+/* ⚠️ `.karte` steht auf overflow-x: auto, und das klemmt die aufgeklappte
+   Namensliste ab (siehe die Regel bei `.karte:has(.filter)`). Dieselbe
+   Ausnahme gilt hier - die Auswahl steht jetzt auch in Formularen. */
 
 /* Farblegende über der Kartenliste - macht die Ampel ohne Nachdenken
    lesbar. */
@@ -3781,8 +3984,8 @@ fieldset.feld > span {
 }
 .vk-legende i.lg-ueberfaellig { background: var(--dopp-weich); border-color: var(--dopp); }
 .vk-legende i.lg-faellig      { background: var(--warn-weich); border-color: var(--warn); }
-.vk-legende i.lg-offen        { background: var(--flaeche-2);  border-color: var(--linie-stark); }
-.vk-legende i.lg-zu           { background: var(--gut-weich);  border-color: var(--gut); }
+.vk-legende i.lg-offen        { background: var(--info-weich); border-color: var(--info); }
+.vk-legende i.lg-zu           { background: var(--flaeche-2);  border-color: var(--linie-stark); }
 
 .vk-kopf { display: flex; align-items: flex-start; gap: 10px; }
 .vk-titel {
@@ -3824,24 +4027,35 @@ fieldset.feld > span {
    öffnen. Der Chevron rechts zeigt, dass es aufklappt; der „ändern"-Knopf
    daneben ist nur die Bedienung ohne Skript. */
 .vk-statusform { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+/* ⚠️⚠️ Die Pille bekommt KEINEN eigenen Grundton mehr (seit 1.30).
+   Vorher stand sie mit `--flaeche-2` als grauer Fremdkörper auf einer
+   rot oder orange getönten Karte, und ihre Schrift war hellgrau auf
+   bräunlichem Rot - genau das hat Timo gemeldet. Jetzt ist sie ein
+   durchscheinender Film: der Ton der Karte liegt darunter und kommt
+   durch, die Pille sitzt sichtbar IN ihr statt daneben. Den Status
+   trägt allein die Schriftfarbe, und die ist in jeder Fassung die
+   kräftige - nicht die gedämpfte.
+   `--glas` und `--glasrand` sind dafür eigene Token, je Thema: im
+   dunklen ein heller Film, im hellen ein weißer. Nicht auf einen festen
+   Grundton zurückbauen. */
 .vk-statuswahl {
   appearance: none; -webkit-appearance: none;
   max-width: 170px;
   padding: 3px 22px 3px 9px; border-radius: 20px;
   font: inherit; font-size: 11px; font-weight: 600; line-height: 1.45;
-  border: 1px solid var(--linie); cursor: pointer;
-  background-color: var(--flaeche-2); color: var(--leise);
+  border: 1px solid var(--glasrand); cursor: pointer;
+  background-color: var(--glas); color: var(--tinte);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat: no-repeat; background-position: right 6px center; background-size: 11px;
 }
-.vk-statuswahl.vs-offen       { background-color: var(--flaeche-2);   color: var(--tinte); }
-.vk-statuswahl.vs-arbeit      { background-color: var(--akzent-weich); color: var(--akzent); }
-.vk-statuswahl.vs-eingereicht { background-color: var(--info-weich);  color: var(--info); }
-.vk-statuswahl.vs-warten      { background-color: var(--warn-weich);  color: var(--warn); }
-.vk-statuswahl.vs-rueckfrage  { background-color: var(--dopp-weich);  color: var(--dopp); }
-.vk-statuswahl.vs-erledigt    { background-color: var(--gut-weich);   color: var(--gut); }
-.vk-statuswahl.vs-abgebrochen { background-color: var(--flaeche-2);   color: var(--leise); }
-.vk-statuswahl:hover { border-color: var(--linie-stark); }
+.vk-statuswahl.vs-offen       { color: var(--info); }
+.vk-statuswahl.vs-arbeit      { color: var(--akzent); }
+.vk-statuswahl.vs-eingereicht { color: var(--info); }
+.vk-statuswahl.vs-warten      { color: var(--warn); }
+.vk-statuswahl.vs-rueckfrage  { color: var(--dopp); }
+.vk-statuswahl.vs-erledigt    { color: var(--leise); }
+.vk-statuswahl.vs-abgebrochen { color: var(--leise); }
+.vk-statuswahl:hover { border-color: var(--tinte-2); }
 .vk-statuswahl:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
 /* ⚠️ Die aufgeklappte Optionsliste soll nicht die Pillenfarbe erben -
    sonst steht z.B. orange Schrift auf orangem Grund. Zurück auf neutral. */

@@ -49,6 +49,14 @@
       </div>
     </div>
   </form>
+
+  {% if eintrag %}
+  <p class="meldung offen-hinweis">
+    Gefiltert auf einen einzelnen Datensatz (#{{ eintrag }}) – hier steht
+    seine vollständige Geschichte.
+    <a href="/eintraege/logbuch">Wieder alles anzeigen</a>
+  </p>
+  {% endif %}
 </section>
 
 {# ⚠️ Aufräumen im Logbuch: dieselbe Form wie in der Übersicht - ein
@@ -96,48 +104,68 @@
 
     {% for gruppe in gruppen %}
     <h3 class="logtag">{{ gruppe.wort }}</h3>
-    <ul class="logliste">
-      {% for e in gruppe.zeilen %}
-      <li class="logeintrag">
-        <span class="logwahl">
-          <input type="checkbox" name="ids" value="{{ e.id }}" form="logloeschen"
-                 class="massenwahl" aria-label="Logzeile von {{ e.wer }} auswählen">
-        </span>
-        <div class="logzeit">
-          <span class="loguhr">{{ uhrzeit(e.zeitpunkt) }}</span>
-          <span class="logwer">{{ e.wer }}</span>
+    {# ⚠️ Zwei Ebenen statt einer durchlaufenden Liste (seit 1.30): oben
+       der Tag, darunter je Datensatz ein Block mit allem, was an ihm
+       passiert ist. Vorher stand bei drei Änderungen an derselben Zeile
+       dreimal fast dasselbe untereinander, ohne dass zu sehen war, dass
+       es dieselbe Zeile ist. Der Kopf des Blocks führt auf die
+       vollständige Geschichte genau dieses Datensatzes - über alle Tage
+       hinweg. #}
+    <ul class="logbaum">
+      {% for b in gruppe.bloecke %}
+      <li class="logast{{ ' mehrfach' if b.anzahl > 1 }}">
+        {% if b.eintrag_id %}
+        <div class="logast-kopf">
+          <a class="logast-bezug" href="/eintraege/logbuch?eintrag={{ b.eintrag_id }}"
+             title="Alles zu diesem Datensatz">
+            {{ b.kopf.datum | deutsch }} · {{ b.kopf.klient or "ohne Zuordnung" }}
+            {%- if b.kopf.dauer_min %} · {{ b.kopf.dauer_min | hhmm }} Std{% endif %}
+          </a>
+          {% if b.kopf.mitarbeiter %}
+          <span class="logperson-still">erfasst von {{ b.kopf.mitarbeiter }}</span>
+          {% endif %}
+          {% if b.anzahl > 1 %}
+          <span class="logast-zahl">{{ b.anzahl }} Schritte</span>
+          {% endif %}
         </div>
-        <div class="loginhalt">
-          <div class="logkopf">
-            {# „aufgeräumt“ ist keine Änderung an den Daten, sondern eine
-               am Logbuch selbst - deshalb der neutrale Ton und nicht der
-               rote der Löschung. #}
-            <span class="logaktion {% if e.aktion == 'geloescht' %}la-weg
-                        {%- elif e.aktion == 'aufgeräumt' %}la-notiz
-                        {%- else %}la-aenderung{% endif %}">{{ e.aktion }}</span>
-            {# Welcher Datensatz war das? Auch wenn es ihn nicht mehr
-               gibt, steht hier, worum es ging - genau dafür liegen
-               Datum, Person und Dauer noch einmal in der Logzeile. #}
-            {# Eine Sammeländerung der Datenpflege bezieht sich auf keinen
-               einzelnen Datensatz - dann steht hier nichts, und die Zeile
-               darunter sagt, was sie umfasst hat. #}
-            {% if e.datum %}
-            <span class="logbezug{{ ' weg' if e.aktion == 'geloescht' }}">
-              {{ e.datum | deutsch }} · {{ e.klient or "ohne Zuordnung" }}
-              {%- if e.dauer_min %} · {{ e.dauer_min | hhmm }} Std{% endif %}
+        {% endif %}
+        <ul class="logliste">
+          {% for e in b.zeilen %}
+          <li class="logeintrag">
+            <span class="logwahl">
+              <input type="checkbox" name="ids" value="{{ e.id }}" form="logloeschen"
+                     class="massenwahl" aria-label="Logzeile von {{ e.wer }} auswählen">
             </span>
-            {% endif %}
-            {% if e.mitarbeiter %}
-            <span class="logperson-still">Eintrag von {{ e.mitarbeiter }}</span>
-            {% endif %}
-          </div>
-          {% if e.beschreibung %}
-          <p class="logtext leise">{{ e.beschreibung }}</p>
-          {% endif %}
-          {% if e.aenderung %}
-          <p class="logtext logaenderung">{{ e.aenderung }}</p>
-          {% endif %}
-        </div>
+            <div class="logzeit">
+              <span class="loguhr">{{ uhrzeit(e.zeitpunkt) }}</span>
+              <span class="logwer">{{ e.wer }}</span>
+            </div>
+            <div class="loginhalt">
+              <div class="logkopf">
+                {# „aufgeräumt“ ist keine Änderung an den Daten, sondern eine
+                   am Logbuch selbst - deshalb der neutrale Ton. #}
+                <span class="logaktion {% if e.aktion == 'geloescht' %}la-weg
+                            {%- elif e.aktion == 'aufgeräumt' %}la-notiz
+                            {%- else %}la-aenderung{% endif %}">{{ e.aktion }}</span>
+                {# Ohne Datensatzbezug (Sammeländerung der Datenpflege)
+                   steht der Bezug hier, sonst trägt ihn der Kopf des
+                   Blocks - sonst stünde er bei jedem Schritt noch einmal. #}
+                {% if not b.eintrag_id and e.datum %}
+                <span class="logbezug weg">
+                  {{ e.datum | deutsch }} · {{ e.klient or "ohne Zuordnung" }}
+                </span>
+                {% endif %}
+              </div>
+              {% if e.beschreibung %}
+              <p class="logtext leise">{{ e.beschreibung }}</p>
+              {% endif %}
+              {% if e.aenderung %}
+              <p class="logtext logaenderung">{{ e.aenderung }}</p>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
       </li>
       {% endfor %}
     </ul>

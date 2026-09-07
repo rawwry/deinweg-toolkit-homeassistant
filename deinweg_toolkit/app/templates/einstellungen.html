@@ -131,7 +131,8 @@
      hier nicht - und die ganze Gruppe verschwindet, wenn beide fehlen. #}
   {% set darf_wiki = hat_zugriff(request.state.benutzer, "wiki") %}
   {% set darf_dateien = hat_zugriff(request.state.benutzer, "dateien") %}
-  {% if darf_wiki or darf_dateien %}
+  {% set darf_aufgaben = hat_zugriff(request.state.benutzer, "verwaltungsvorgaenge") %}
+  {% if darf_wiki or darf_dateien or darf_aufgaben %}
   <div class="optionsgruppe">
     <h2 class="unterkopf">Listen oder Kacheln</h2>
     <div class="optionsliste">
@@ -148,6 +149,13 @@
       {{ wahlpaar("dateiliste", "Dateien", t("einst.dateiliste"),
                   ("kacheln", "Kacheln"), ("liste", "Liste"),
                   "Zwischen Listen- und Kachelansicht in der Dateiverwaltung wechseln") }}
+      {% endif %}
+      {% if darf_aufgaben %}
+      {# Hier heißen die beiden „Karten" und „Liste" statt „Kacheln" -
+         eine Aufgabenkarte ist keine Kachel, sie trägt mehrere Zeilen. #}
+      {{ wahlpaar("aufgabenliste", "Aufgaben", t("einst.aufgabenliste"),
+                  ("karten", "Karten"), ("liste", "Liste"),
+                  "Zwischen Karten- und Listenansicht der Aufgaben wechseln") }}
       {% endif %}
     </div>
   </div>
@@ -1158,14 +1166,22 @@
 {# Geschützte Wiki-Ordner. Steht hier und nicht bei den Wiki-
    Einstellungen: es ist eine Frage von Rechten, keine von Darstellung –
    und diese Seite ist ohnehin Administratoren vorbehalten. #}
-<section class="karte gefahrenkarte">
-  <div class="kopfzeile">
-    <h2>Geschützte Wiki-Ordner</h2>
-    {% if wiki_geschuetzt %}
-    <p class="summe">{{ wiki_geschuetzt | length }}
-      {{ "Ordner" if wiki_geschuetzt | length == 1 else "Ordner" }}</p>
-    {% endif %}
-  </div>
+{# ⚠️ Seit 1.30 zugeklappt (Timos Wunsch). Die rote Karte stand als
+   Erstes auf der Benutzerverwaltung und schrie dort dauerhaft, obwohl
+   man sie zweimal im Jahr anfasst. Der Kopf sagt weiterhin, wie viele
+   Ordner geschützt sind - dafür muss man nicht aufklappen. Bewusst
+   <details> und kein Skript. #}
+<details class="karte gefahrenkarte wikischutz">
+  <summary>
+    <span class="wikischutz-kopf">
+      <span class="wikischutz-titel">Geschützte Wiki-Ordner</span>
+      {% if wiki_geschuetzt %}
+      <span class="marke-status dopp">{{ wiki_geschuetzt | length }} geschützt</span>
+      {% else %}
+      <span class="klein leise">keiner geschützt</span>
+      {% endif %}
+    </span>
+  </summary>
   <p class="lead">{{ t("einst.wiki_geschuetzt_lead") }}</p>
 
   {% if wiki_alle_ordner %}
@@ -1187,7 +1203,7 @@
   {% else %}
   <p class="leer">Im Wiki gibt es noch keine Ordner.</p>
   {% endif %}
-</section>
+</details>
 
 <section class="karte">
   <div class="kopfzeile">
@@ -1788,12 +1804,50 @@
     </div>
   </form>
 </section>
+
+{# Fünfter Anlass: eine Aufgabe wurde abgeschlossen. Die Nachricht geht
+   an die Person, die sie angelegt hat - wer verteilt, will wissen, wann
+   es fertig ist. Kein Sammelverzug: es geht um ein einzelnes Ereignis. #}
+<section class="karte">
+  <h2>Meldung über erledigte Aufgaben</h2>
+  <p class="lead">{{ t("einst.erledigtmail_lead") }}</p>
+
+  <form action="/einstellungen/erledigtmail" method="post">
+    <label class="filter-umschalter" style="margin-bottom: 18px;">
+      <input type="checkbox" name="erledigt_aktiv" value="1"
+             {{ 'checked' if mailkonfig.erledigt_aktiv == '1' }}>
+      <span>Meldung verschicken</span>
+    </label>
+    <p class="klein leise felderklaerung">{{ t("einst.erledigtmail_hinweis") }}</p>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Speichern</button>
+    </div>
+  </form>
+</section>
 {% endif %}
 
 {% if bereich == "vorlagen" %}
 <section class="karte">
   <h1>E-Mail-Vorlagen</h1>
   <p class="lead">{{ t("einst.vorlagen_lead") }}</p>
+  {# ⚠️ Seit 1.30 dürfen die Texte Markierungen tragen. Verschickt wird
+     die Nachricht dann zweifach - als Klartext (Markierungen heraus) und
+     als HTML. Die Leiste über jedem Textfeld setzt sie per Skript; ohne
+     Skript tippt man sie einfach selbst, es sind vier Zeichen. #}
+  <details class="hinweise">
+    <summary>Textformatierung</summary>
+    <table class="liste dicht formathilfe">
+      <tbody>
+        <tr><td><code>**fett**</code></td><td><strong>fett</strong></td></tr>
+        <tr><td><code>*kursiv*</code></td><td><em>kursiv</em></td></tr>
+        <tr><td><code># Überschrift</code></td><td>eine Überschrift</td></tr>
+        <tr><td><code>- Punkt</code></td><td>eine Aufzählung</td></tr>
+        <tr><td><code>https://…</code></td><td>wird von selbst verlinkt</td></tr>
+      </tbody>
+    </table>
+    <p class="klein leise">{{ t("einst.vorlagen_format") }}</p>
+  </details>
 </section>
 
 <form action="/einstellungen/vorlagen" method="post">
@@ -1855,6 +1909,20 @@
      Mehrzahl. #}
   <p class="klein leise">Platzhalter: <code>{name}</code> <code>{anzahl}</code>
     <code>{liste}</code> <code>{mehrzahl}</code> <code>{wurde}</code></p>
+
+  <h2 class="unterkopf">Aufgabe erledigt</h2>
+  <label class="feld">
+    <span>Betreff</span>
+    <input type="text" name="vorlage_erledigt_betreff" required
+           value="{{ mailkonfig.vorlage_erledigt_betreff }}">
+  </label>
+  <label class="feld">
+    <span>Text</span>
+    <textarea name="vorlage_erledigt_text" rows="10" required>{{ mailkonfig.vorlage_erledigt_text }}</textarea>
+  </label>
+  <p class="klein leise">Platzhalter: <code>{name}</code> <code>{titel}</code>
+    <code>{klient}</code> <code>{art}</code> <code>{status}</code>
+    <code>{zustaendig}</code> <code>{wer}</code> <code>{erledigt_am}</code></p>
 
   <div class="knopfreihe" style="margin-top: 20px;">
     <button class="knopf haupt" type="submit">Vorlagen speichern</button>
@@ -2021,6 +2089,57 @@
       wahl.forEach(function (k) { k.addEventListener("change", zeigen); });
       zeigen();
     });
+  })();
+</script>
+
+<script>
+  // --- Formatierleiste über den Vorlagentexten (seit 1.30) -------------
+  //
+  // Setzt die Markierungen um die Auswahl herum. Reine Bequemlichkeit:
+  // ohne Skript tippt man **fett** selbst, es sind vier Zeichen - deshalb
+  // wird die Leiste auch erst hier gebaut und steht nicht im Markup.
+  (function () {
+    var knoepfe = [
+      {t: "F", titel: "Fett", vor: "**", nach: "**", stark: true},
+      {t: "K", titel: "Kursiv", vor: "*", nach: "*", kursiv: true},
+      {t: "H", titel: "Überschrift", zeile: "# "},
+      {t: "•", titel: "Aufzählung", zeile: "- "}
+    ];
+
+    document.querySelectorAll("textarea[name^='vorlage_']").forEach(function (feld) {
+      var leiste = document.createElement("div");
+      leiste.className = "formatleiste";
+      knoepfe.forEach(function (k) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "formatknopf";
+        b.textContent = k.t;
+        b.title = k.titel;
+        b.setAttribute("aria-label", k.titel);
+        if (k.stark) { b.style.fontWeight = "700"; }
+        if (k.kursiv) { b.style.fontStyle = "italic"; }
+        b.addEventListener("click", function () { setzen(feld, k); });
+        leiste.appendChild(b);
+      });
+      feld.parentNode.insertBefore(leiste, feld);
+    });
+
+    function setzen(feld, k) {
+      var a = feld.selectionStart, e = feld.selectionEnd, w = feld.value;
+      if (k.zeile) {
+        // ⚠️ Zeilenmarkierungen gehören an den Zeilenanfang, nicht um die
+        // Auswahl herum - sonst stünde „# " mitten im Satz.
+        var start = w.lastIndexOf("\n", a - 1) + 1;
+        feld.value = w.slice(0, start) + k.zeile + w.slice(start);
+        feld.selectionStart = feld.selectionEnd = a + k.zeile.length;
+      } else {
+        var mitte = w.slice(a, e) || k.titel.toLowerCase();
+        feld.value = w.slice(0, a) + k.vor + mitte + k.nach + w.slice(e);
+        feld.selectionStart = a + k.vor.length;
+        feld.selectionEnd = a + k.vor.length + mitte.length;
+      }
+      feld.focus();
+    }
   })();
 </script>
 

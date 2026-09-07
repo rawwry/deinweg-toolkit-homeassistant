@@ -53,6 +53,7 @@ from . import auth  # noqa: E402
 from . import db  # noqa: E402
 from . import mail  # noqa: E402
 from . import texte_standard  # noqa: E402
+from . import vorgaenge as _vorgaenge  # noqa: E402
 from .main import app  # noqa: E402
 
 
@@ -1486,11 +1487,16 @@ def test_marke(client: TestClient) -> None:
     pruefe("display: flex; align-items: flex-start; gap: 8px; } .lead::before"
            not in einzeilig,
            "und keine Flexbox mehr, die Auszeichnungen zerlegt")
-    # Die Aufgabenliste ist seit 1.8 keine Tabelle mehr, sondern ein
-    # Raster aus Karten - eine Tabelle mit acht Spalten war auf dem
-    # Telefon ohnehin nur noch eine Rollflaeche.
-    pruefe(".vorgangstabelle" not in einzeilig,
-           "die achtspaltige Aufgabentabelle ist entfallen")
+    # ⚠️ Die Aufgabenliste war bis 1.7 eine achtspaltige Tabelle, mit 1.8
+    # wurde sie zu einem Raster aus Karten. Seit 1.30 gibt es die Liste
+    # wieder - aber als zweite, umschaltbare Darstellung mit sieben
+    # Spalten und nicht mehr als einzige. Karten bleiben der Standard.
+    pruefe(".vorgangskarten { display: none" in einzeilig
+           or "[data-aufgabenliste=\"liste\"] .vorgangskarten { display: none; }"
+           in einzeilig,
+           "die Liste ist die zweite Darstellung, nicht die einzige")
+    pruefe(".vorgangstabelle { display: none; }" in einzeilig,
+           "und steht ohne Umschalten nicht da")
     pruefe(re.search(r"\.vorgangskarten \{\s*display: grid", stil) is not None,
            "die Vorgänge stehen als Karten in einem Raster")
     # Höchstens zwei nebeneinander: bei vier wird jede Karte so schmal,
@@ -2529,8 +2535,18 @@ def test_vorgang_anlegen(client: TestClient) -> None:
     bloecke = re.findall(r'class="formblock-titel">([^<]+)<', offen)
     pruefe(len(bloecke) == 2,
            f"das Formular steht in zwei Blöcken (sind: {bloecke})")
-    pruefe("zuständige Person" in offen,
-           "die Rolle der zuständigen Person wird erklärt")
+    # ⚠️ Seit 1.30 ein Mehrfachfeld: mehrere Personen können zuständig
+    # sein, und jede von ihnen bekommt ihre Nachricht. Das frühere Feld
+    # „Weitere beteiligte Personen" ist damit weg - es war ein Freitext,
+    # an dem nichts hing.
+    pruefe("Zuständige Personen" in offen,
+           "die Rolle der zuständigen Personen wird erklärt")
+    pruefe('name="beteiligte"' not in offen,
+           "das Feld „Weitere beteiligte Personen“ ist entfallen")
+    wahl = offen.split('class="feld zustaendigwahl"')[1].split("</div>\n      <p")[0] \
+        if 'class="feld zustaendigwahl"' in offen else ""
+    pruefe('type="checkbox" name="zustaendig"' in offen,
+           "die Auswahl läuft über Kästchen, nicht über ein Auswahlfeld")
 
     # ⚠️ Das Feld „Handelnde Person" ist mit 1.9 ersatzlos entfallen - wer
     # handelt, kommt aus der Anmeldung. Es stammte aus der Zeit vor den
@@ -2540,7 +2556,7 @@ def test_vorgang_anlegen(client: TestClient) -> None:
            "es gibt kein Feld „Handelnde Person“ mehr")
     pruefe("Handelnde Person" not in offen,
            "und auch keine Beschriftung dazu")
-    pruefe('value="pruefer" selected' in offen,
+    pruefe(re.search(r'name="zustaendig" value="pruefer"\s+checked', offen),
            "die zuständige Person ist mit dem eigenen Konto vorbelegt")
 
     # Und das Anlegen funktioniert weiterhin.
@@ -5006,6 +5022,225 @@ def test_eintraege_logbuch(client: TestClient) -> None:
            "und behauptet nicht mehr, hier ließe sich nichts entfernen")
 
 
+def test_aufgaben_1_30(client: TestClient) -> None:
+    """Mehrere Zuständige, neue Ampel, Listenansicht, Erledigt-Mail."""
+    abschnitt("Aufgaben: mehrere Zuständige und neue Ampel")
+    stil = client.get("/static/style.css").text
+
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, "
+                    "abgabepflicht, angelegt_am) VALUES "
+                    "('Zwei Zuständig',1,1,'2026-01-01 08:00')")
+        con.execute("INSERT OR IGNORE INTO vorgangsart (name, aktiv, angelegt_am) "
+                    "VALUES ('Prüfart',1,'2026-01-01 08:00')")
+
+    # --- Mehrere Zuständige speichern und wiederfinden ---------------------
+    antwort = client.post("/vorgaenge", data={
+        "klient": "Testperson", "art": "Prüfart", "titel": "Zu zweit",
+        "zustaendig": ["pruefer", "Zwei Zuständig"],
+        "status": "Offen", "prioritaet": "Normal"}, follow_redirects=False)
+    ziel = antwort.headers.get("location", "")
+    pruefe(ziel.startswith("/vorgaenge/"), "die Aufgabe wird angelegt")
+    vid = int(ziel.split("/vorgaenge/")[1].split("?")[0])
+    with db.db() as con:
+        v = con.execute("SELECT * FROM vorgang WHERE id=?", (vid,)).fetchone()
+    pruefe(v["zustaendig"] == "pruefer, Zwei Zuständig",
+           "beide Namen stehen kommagetrennt in derselben Spalte")
+    # ⚠️ Der Trenner ist immer „, “ - die SQL-Suche hängt daran.
+    pruefe(_vorgaenge.TRENNER == ", ", "der Trenner ist ausdrücklich „, “")
+    pruefe(_vorgaenge.ist_zustaendig(v["zustaendig"], "zwei zuständig"),
+           "der Name wird unabhängig von der Schreibweise gefunden")
+    pruefe(not _vorgaenge.ist_zustaendig(v["zustaendig"], "pruef"),
+           "ein Namensanfang trifft nicht – sonst fände „Anna“ auch „Annabelle“")
+
+    # Der Filter findet die Aufgabe über JEDEN der beiden Namen.
+    for name in ("pruefer", "Zwei Zuständig"):
+        seite = client.get("/vorgaenge?zustaendig=" + name.replace(" ", "+")).text
+        pruefe("Zu zweit" in seite,
+               f"der Filter findet sie über „{name}“")
+    pruefe("Zu zweit" not in client.get("/vorgaenge?zustaendig=Kollegin+Meier").text,
+           "über einen fremden Namen dagegen nicht")
+
+    # Und das Team zerfällt nicht: „pruefer, Zwei Zuständig“ ist kein Name.
+    with db.db() as con:
+        team = _vorgaenge.teamliste(con)
+    pruefe("pruefer, Zwei Zuständig" not in team,
+           "die zusammengesetzte Angabe steht nicht als Name in der Teamliste")
+    pruefe("Zwei Zuständig" in team, "die einzelnen Namen schon")
+
+    # --- Das alte Feld „Weitere Beteiligte“ ist aus den Formularen weg -----
+    detail = client.get(f"/vorgaenge/{vid}").text
+    pruefe('name="beteiligte"' not in detail,
+           "„Weitere Beteiligte“ steht in keinem Formular mehr")
+    # ⚠️ Die Spalte bleibt: sonst leerte das nächste Speichern vorhandene
+    # Werte (Arbeitsregel 11).
+    with db.db() as con:
+        con.execute("UPDATE vorgang SET beteiligte='Alte Angabe' WHERE id=?", (vid,))
+    client.post(f"/vorgaenge/{vid}/daten", data={
+        "titel": "Zu zweit", "art": "Prüfart", "beschreibung": "neu",
+        "dateiverweis": ""})
+    with db.db() as con:
+        bleibt = con.execute("SELECT beteiligte FROM vorgang WHERE id=?",
+                             (vid,)).fetchone()["beteiligte"]
+    pruefe(bleibt == "Alte Angabe",
+           "ein vorhandener Wert überlebt das Speichern trotzdem")
+
+    # --- Ampel: offen blau, erledigt grau ----------------------------------
+    pruefe(".vorgangskarte.vk-offen        { border-left-color: var(--info);" in stil,
+           "offene Aufgaben tragen den blauen Ton der Selbstzahler")
+    pruefe("var(--linie-stark);\n                                 background: var(--flaeche-2)"
+           in stil or ".vorgangskarte.vk-zu           { border-left-color: var(--linie-stark);"
+           in stil,
+           "erledigte werden grau statt grün")
+    # ⚠️ Die Statuspille bekommt keinen eigenen Grundton mehr - sie stand
+    # als graues Feld auf einer rot getönten Karte.
+    pille = stil.split(".vk-statuswahl {")[1].split("}")[0]
+    pruefe("background-color: var(--glas)" in pille,
+           "die Statuspille ist ein durchscheinender Film")
+    pruefe("--glas:" in stil and '[data-thema="hell"] {\n  --glas:' in stil,
+           "und hat je Thema ihren eigenen Wert")
+
+    # --- Karten oder Liste -------------------------------------------------
+    liste = client.get("/vorgaenge").text
+    pruefe('class="vorgangskarten"' in liste and 'class="liste dicht vorgangsliste"'
+           in liste, "beide Darstellungen stehen im HTML")
+    pruefe('class="knopf-icon ansichtwechsel aufgabenliste-knopf"' in liste,
+           "und es gibt einen Umschalter dafür")
+    pruefe('data-aufgabenliste="karten"' in client.get("/").text,
+           "Karten sind die Voreinstellung")
+    pruefe('[data-aufgabenliste="liste"] .vorgangskarten { display: none; }' in stil,
+           "das Stylesheet blendet um, kein Skript")
+    ober = client.get("/einstellungen?bereich=oberflaeche").text
+    pruefe('class="aufgabenliste-knopf"' in ober,
+           "der Schalter steht auch in den Einstellungen")
+
+    # --- Mail „Aufgabe erledigt“ -------------------------------------------
+    pruefe("erledigt_aktiv" in mail.STANDARD
+           and "vorlage_erledigt_betreff" in mail.STANDARD,
+           "es gibt Schalter und Vorlage für die Erledigt-Meldung")
+    vorlagen = client.get("/einstellungen?bereich=vorlagen").text
+    pruefe('name="vorlage_erledigt_text"' in vorlagen,
+           "die Vorlage lässt sich bearbeiten")
+    versand = client.get("/einstellungen?bereich=email").text
+    pruefe('name="erledigt_aktiv"' in versand,
+           "und der Anlass sich einschalten")
+
+    # ⚠️ Der Empfänger ist angelegt_von - die Angabe aus der Anmeldung.
+    with db.db() as con:
+        mail.konfig_schreiben(con, {"erledigt_aktiv": "1", "mail_aktiv": "1"})
+        con.execute("UPDATE vorgang SET angelegt_von='Kollegin Meier', "
+                    "status='Erledigt', erledigt_gemeldet=0 WHERE id=?", (vid,))
+        con.execute("DELETE FROM vorgang_log WHERE vorgang_id=?", (vid,))
+        con.execute("INSERT INTO vorgang_log (vorgang_id, klient, zeitpunkt, "
+                    "wer, aktion, beschreibung) VALUES (?,?,?,?,?,?)",
+                    (vid, "Testperson", "2026-09-01 10:00", "pruefer",
+                     "Vorgang erledigt", "abgehakt"))
+        k = mail.konfig_lesen(con)
+        protokoll = mail.pruefe_erledigte(con, k)
+        gemeldet = con.execute("SELECT erledigt_gemeldet FROM vorgang WHERE id=?",
+                               (vid,)).fetchone()["erledigt_gemeldet"]
+    pruefe(any(str(vid) in z for z in protokoll),
+           "die erledigte Aufgabe wird gemeldet")
+    pruefe(gemeldet == 1, "und danach als gemeldet vermerkt")
+
+    # Wer selbst abschließt, bekommt keine Nachricht über sich.
+    with db.db() as con:
+        con.execute("UPDATE vorgang SET angelegt_von='pruefer', "
+                    "erledigt_gemeldet=0 WHERE id=?", (vid,))
+        protokoll = mail.pruefe_erledigte(con, mail.konfig_lesen(con))
+    pruefe(any("selbst abgeschlossen" in z for z in protokoll),
+           "wer selbst abgeschlossen hat, bekommt keine Meldung")
+
+    with db.db() as con:
+        mail.konfig_schreiben(con, {"erledigt_aktiv": "0", "mail_aktiv": "0"})
+        con.execute("DELETE FROM vorgang WHERE id=?", (vid,))
+
+
+def test_mailformat(client: TestClient) -> None:
+    """Einfache Textformatierung in den E-Mail-Vorlagen."""
+    abschnitt("E-Mail: Textformatierung")
+    text = ("Hallo Anna,\n\nDie Aufgabe ist **erledigt**.\n"
+            "# Überschrift\n- Punkt eins\n- Punkt zwei\n"
+            "Mehr unter https://example.org/x")
+
+    klar = mail.klartext(text)
+    pruefe("**" not in klar and "# " not in klar,
+           "im Klartext sind die Markierungen weggeräumt")
+    pruefe("erledigt" in klar and "Überschrift" in klar,
+           "der Inhalt bleibt vollständig")
+    pruefe("• Punkt eins" in klar, "Aufzählungen bekommen einen Punkt")
+
+    html = mail.als_html(text)
+    pruefe("<strong>erledigt</strong>" in html, "fett wird zu <strong>")
+    pruefe("<ul" in html and "<li>Punkt eins</li>" in html,
+           "die Aufzählung wird zu einer Liste")
+    pruefe('<a href="https://example.org/x">' in html,
+           "nackte Adressen werden verlinkt")
+    pruefe("font-weight:700" in html,
+           "die Überschrift trägt ihre Angabe direkt am Tag")
+    # ⚠️ Ein Mailprogramm kennt unser Stylesheet nicht - im HTML darf
+    # deshalb keine Klasse stehen, auf die es sich verlässt.
+    pruefe('class="' not in html, "und es gibt keine Klassen im HTML")
+    # Und nichts Fremdes läuft durch.
+    pruefe("&lt;script&gt;" in mail.als_html("<script>x</script>"),
+           "HTML aus der Vorlage wird entschärft")
+
+    seite = client.get("/einstellungen?bereich=vorlagen").text
+    pruefe("Textformatierung" in seite and "**fett**" in seite,
+           "die Hilfe dazu steht über den Vorlagen")
+    pruefe('class="formatleiste"' in seite or "formatleiste" in seite,
+           "und eine Leiste setzt die Markierungen")
+
+
+def test_logbaum(client: TestClient) -> None:
+    """Das Logbuch der Datensätze gliedert nach Datensatz."""
+    abschnitt("Logbuch als Baum")
+    with db.db() as con:
+        con.execute("DELETE FROM eintrag_log")
+        for i, aend in enumerate(("Dauer: 01:00 → 01:30",
+                                  "Leistung: A → B", "")):
+            con.execute(
+                "INSERT INTO eintrag_log (eintrag_id, zeitpunkt, wer, aktion, "
+                "datum, klient, mitarbeiter, dauer_min, beschreibung, aenderung) "
+                "VALUES (777, ?, 'pruefer', 'geändert', '2026-09-01', "
+                "'Baumperson', 'pruefer', 90, 'Hausbesuch', ?)",
+                (dt.datetime.now().strftime("%Y-%m-%d %H:%M"), aend))
+        # Eine Zeile, die zu keinem Datensatz gehört (Datenpflege).
+        con.execute(
+            "INSERT INTO eintrag_log (eintrag_id, zeitpunkt, wer, aktion, "
+            "aenderung) VALUES (NULL, ?, 'pruefer', 'geändert', "
+            "'Datenpflege: 12 Zeilen')",
+            (dt.datetime.now().strftime("%Y-%m-%d %H:%M"),))
+
+    seite = client.get("/eintraege/logbuch").text
+    pruefe('class="logbaum"' in seite, "das Logbuch ist ein Baum")
+    pruefe('class="logast mehrfach"' in seite,
+           "mehrere Schritte an einem Datensatz stehen unter einem Kopf")
+    pruefe("3 Schritte" in seite, "und der Kopf nennt ihre Zahl")
+    pruefe("Baumperson" in seite.split("logast-bezug")[1][:200],
+           "der Kopf nennt den Datensatz")
+    # ⚠️ Der Bezug steht EINMAL am Kopf, nicht bei jedem Schritt.
+    ast = seite.split('class="logast mehrfach"')[1].split("</li>\n      </ul>")[0]
+    pruefe(ast.count("Baumperson") == 1,
+           "und nicht noch einmal bei jedem einzelnen Schritt")
+    pruefe('href="/eintraege/logbuch?eintrag=777"' in seite,
+           "ein Klick darauf zeigt die ganze Geschichte dieses Datensatzes")
+
+    einzeln = client.get("/eintraege/logbuch?eintrag=777").text
+    pruefe("Datenpflege: 12 Zeilen" not in einzeln,
+           "gefiltert bleibt Fremdes draußen")
+    pruefe("vollständige Geschichte" in einzeln,
+           "und die Seite sagt, dass gefiltert wird")
+
+    # Eine Zeile ohne Datensatzbezug bekommt keinen Kopf, sondern steht für
+    # sich - sie hängt an nichts, was man aufklappen könnte.
+    pruefe('class="logast"' in seite,
+           "eine Zeile ohne Bezug steht ohne Kopf da")
+
+    with db.db() as con:
+        con.execute("DELETE FROM eintrag_log")
+
+
 def test_kosmetik(client: TestClient) -> None:
     """Kopfzeile, Tabellen am Telefon, Mülleimer – und ein Osterei."""
     abschnitt("Kosmetik")
@@ -5544,13 +5779,12 @@ def test_erfassraster(client: TestClient) -> None:
     pruefe(".erfass-mehr::before" in stil
            and "linear-gradient(to right, transparent" in stil,
            "die Linie dahinter läuft nach beiden Seiten aus")
-    pruefe("<kbd>Tab</kbd>" in seite,
-           "und der Tastaturweg steht klein darunter")
-    # ⚠️ Der Hinweis steht seit 1.25.1 neben dem Knopf, nicht mehr darin -
-    # die Regel für die Taste muss mitziehen, sonst steht dort blanker
-    # Text ohne Rahmen.
-    pruefe(".zeile-mehr-hinweis kbd {" in stil,
-           "und die Taste ist auch dort als Taste gesetzt")
+    # ⚠️ Der Hinweis „oder am Zeilenende Tab drücken" ist mit 1.30 auf
+    # Timos Wunsch entfallen - der Weg selbst bleibt und wird gleich
+    # darunter geprüft.
+    ohne_dialog2 = seite.split('<div class="neuheiten"')[0]
+    pruefe("<kbd>Tab</kbd>" not in ohne_dialog2,
+           "der Tastaturhinweis unter dem Knopf ist entfallen")
     pruefe("function zeileGefuellt" in seite,
            "Tab am Zeilenende hängt die nächste Zeile an")
     # ⚠️ Nur bei gefüllter Zeile - sonst käme man mit der Tastatur nie
@@ -6210,6 +6444,9 @@ def _durchlauf(client: TestClient) -> None:
         test_einstellungen_form(client)
         test_geschuetzte_unterordner(client)
         test_eintraege_logbuch(client)
+        test_aufgaben_1_30(client)
+        test_mailformat(client)
+        test_logbaum(client)
         test_kosmetik(client)
         test_versionen()
     except Exception:

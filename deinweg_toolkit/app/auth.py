@@ -240,6 +240,7 @@ ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
                    "/einstellungen/email", "/einstellungen/abgabemail",
                    "/einstellungen/bewilligungsmail", "/einstellungen/fristmail",
                    "/einstellungen/zuweisungsmail",
+                   "/einstellungen/erledigtmail",
                    # E-Mail-Vorlagen
                    "/einstellungen/vorlagen",
                    # System und Sicherung

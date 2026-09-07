@@ -1,0 +1,46 @@
+{# Mehrfachauswahl aus einer Namensliste.
+
+   ⚠️ Steht seit 1.30 in einer eigenen Datei, weil sie an zwei Stellen
+   gebraucht wird: in der Filterzeile (_filter.html) und im Formular der
+   Aufgaben. Zweimal dasselbe Markup wäre früher oder später
+   auseinandergelaufen.
+
+   Das zugehörige Skript liegt aus demselben Grund in base.html und
+   nicht hier - so läuft es auf jeder Seite genau einmal, egal wie oft
+   das Makro aufgerufen wird. Bewusst Kästchen und kein
+   <select multiple>: das verlangt Strg-Klick und weiß niemand. #}
+{% macro mehrfachwahl(titel, feldname, werte, gewaehlt, wort_eins, wort_viele) %}
+<div class="filterwahl {{ 'gesetzt' if gewaehlt }}">
+  <span class="filterwahl-titel">{{ titel }}</span>
+  <details class="wahlliste" data-eins="{{ wort_eins }}" data-viele="{{ wort_viele }}">
+    <summary>
+      <span class="wahlliste-text">
+        {%- if not gewaehlt -%}alle
+        {%- elif gewaehlt | length == 1 -%}{{ gewaehlt[0] }}
+        {%- else -%}{{ gewaehlt | length }} {{ wort_viele }}
+        {%- endif -%}
+      </span>
+    </summary>
+    <div class="wahlliste-panel">
+      {% if werte %}
+      <div class="wahlliste-suche">
+        <input type="text" class="wahlliste-feld" placeholder="tippen zum Suchen"
+               autocomplete="off" aria-label="{{ titel }} durchsuchen">
+      </div>
+      {% endif %}
+      <div class="wahlliste-eintraege">
+        {% for w in werte %}
+        <label class="wahlzeile" data-name="{{ w | lower }}">
+          <input type="checkbox" name="{{ feldname }}" value="{{ w }}"
+                 {{ 'checked' if w in gewaehlt }}>
+          <span>{{ w }}</span>
+        </label>
+        {% else %}
+        <p class="klein leise" style="margin: 6px 8px;">Noch keine Namen erfasst.</p>
+        {% endfor %}
+      </div>
+      <p class="wahlliste-leer klein leise" hidden>Kein Treffer.</p>
+    </div>
+  </details>
+</div>
+{% endmacro %}

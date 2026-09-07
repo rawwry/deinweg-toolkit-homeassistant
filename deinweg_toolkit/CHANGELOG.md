@@ -3,6 +3,18 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.30
+
+- Aufgaben können mehreren Personen gehören (Mehrfachfeld statt einem
+  Namen); „Weitere beteiligte Personen“ ist entfallen
+- Neue E-Mail, wenn eine Aufgabe abgeschlossen wird – an die Person, die
+  sie angelegt hat, mit eigener Vorlage
+- E-Mail-Vorlagen mit einfacher Textformatierung, zweifach verschickt
+- Neue Ampel: offen blau, erledigt grau; Statuspille durchscheinend
+- Aufgaben wahlweise als Liste statt als Karten
+- Aufgabenseite neu aufgebaut, Logbuch der Datensätze als Baum
+- Manuelle Erfassung aufgeräumt, geschützte Wiki-Ordner zugeklappt
+
 ## 1.29
 
 - Kopfzeile wieder mit dem vollen Schriftzug samt Unterzeile

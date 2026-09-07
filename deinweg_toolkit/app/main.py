@@ -37,7 +37,7 @@ from . import wiki as _wiki
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.29"
+VERSION = "1.30"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -556,12 +556,15 @@ async def wecker_schleife() -> None:
 
 
 async def zuweisungs_schleife() -> None:
-    """Verschickt gesammelte Mails ueber neu zugewiesene Aufgaben.
+    """Verschickt die Mails, die nicht bis zur naechsten vollen Stunde
+    warten sollen: neu zugewiesene Aufgaben und abgeschlossene Aufgaben.
 
     Eigene Schleife statt im Stundenwecker: der Sammelverzug misst in
     Minuten, ein Stundentakt waere dafuer zu grob. Der Verzug selbst
     steckt in mail.pruefe_zuweisungen; hier wird nur oft genug
-    nachgesehen, ob ein Sammelfenster inzwischen zu ist.
+    nachgesehen, ob ein Sammelfenster inzwischen zu ist. Die
+    Erledigt-Meldung (seit 1.30) haengt aus demselben Grund hier mit
+    drin - sie soll kommen, solange man noch am Schreibtisch sitzt.
     """
     await asyncio.sleep(20)
     while True:
@@ -737,19 +740,25 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
             letzte = con.execute(
                 "SELECT * FROM eintrag WHERE mitarbeiter=? AND import_id IS NULL "
                 "ORDER BY id DESC LIMIT 12", (mitarbeiter,)).fetchall()
-            tag = parse_datum(datum)
+            # ⚠️ Ohne eigene Angabe der heutige Tag (seit 1.30). Vorher
+            # stand hier nur das gerade gespeicherte Datum aus der
+            # Adresse; beim ersten Aufruf war das leer, und die Zahl in
+            # der Kopfzeile blieb dauerhaft aus.
+            tag = parse_datum(datum) or heute
             tagessumme = con.execute(
                 "SELECT COALESCE(SUM(dauer_min),0) m, COUNT(*) n FROM eintrag "
                 "WHERE mitarbeiter=? AND datum=?",
-                (mitarbeiter, tag.isoformat() if tag else "")).fetchone()
+                (mitarbeiter, tag.isoformat())).fetchone()
+            summentag = tag
         else:
-            letzte, tagessumme = [], {"m": 0, "n": 0}
+            letzte, tagessumme, summentag = [], {"m": 0, "n": 0}, heute
     return templates.TemplateResponse(request=request, name="index.html", context={
         "importe": importe, "summe": summe, "leute": leute,
         "klienten": klienten, "leistungen": leistungen, "letzte": letzte,
         "mitarbeiterliste": mitarbeiterliste, "klientliste": klientliste,
         "tagessumme": tagessumme, "mitarbeiter": mitarbeiter, "datum": datum,
         "eigener": eigener, "fremd": fremd,
+        "summentag": summentag, "ist_heute": summentag == heute,
         "fehler": fehler, "hinweis": hinweis, "seite": "zeiterfassung",
         "offene": offene, "spruch": spruch(),
         "alle": bool(alle),
@@ -1651,9 +1660,52 @@ def eintrag_loeschen(request: Request, eintrag_id: int,
 # ⚠️ Diese Route MUSS vor "/eintraege/{eintrag_id}/..." stehen - sonst
 # schluckt der Platzhalter das Wort "logbuch" und FastAPI versucht, es
 # als Zahl zu lesen. Dieselbe Falle wie bei den Wiki-Aktionen.
+def log_baum(zeilen) -> list[dict]:
+    """Aus der flachen Logliste eine zweistufige Gliederung machen.
+
+    Oben der Tag, darunter je DATENSATZ ein Block mit allem, was an ihm
+    passiert ist. Vorher war es eine durchlaufende Liste, und bei drei
+    Aenderungen an derselben Zeile stand dreimal fast dasselbe
+    untereinander, ohne dass zu sehen war, dass es dieselbe Zeile ist.
+
+    ⚠️ Gruppiert wird innerhalb eines Tages, nicht ueber alle Tage: die
+    Zeitachse ist die eigentliche Ordnung eines Logbuchs. Wer die
+    vollstaendige Geschichte eines Datensatzes sehen will, klickt den
+    Kopf des Blocks an - das filtert auf genau diese Kennung.
+
+    ⚠️ Zeilen ohne Datensatzbezug (die Sammelaenderung der Datenpflege)
+    bekommen jede ihren eigenen Block. Sie zusammenzufassen waere falsch:
+    sie haengen an nichts, was man aufklappen koennte.
+    """
+    tage = []
+    for gruppe in _vorgaenge.nach_tagen(zeilen):
+        bloecke: list[dict] = []
+        nach_id: dict[int, dict] = {}
+        for z in gruppe["zeilen"]:
+            kennung = z["eintrag_id"]
+            # ⚠️ Zusammengefasst wird ueber den ganzen Tag, nicht nur bei
+            # unmittelbar aufeinanderfolgenden Zeilen: zwei Aenderungen an
+            # derselben Zeile sind oft von einer dritten an einer anderen
+            # unterbrochen, und dann waeren es wieder drei lose Bloecke.
+            # Die Reihenfolge der Bloecke richtet sich nach ihrem ersten
+            # (also neuesten) Schritt - die Zeitachse bleibt lesbar.
+            if kennung is None:
+                bloecke.append({"eintrag_id": None, "zeilen": [z], "kopf": z})
+                continue
+            if kennung not in nach_id:
+                nach_id[kennung] = {"eintrag_id": kennung, "zeilen": [],
+                                    "kopf": z}
+                bloecke.append(nach_id[kennung])
+            nach_id[kennung]["zeilen"].append(z)
+        for b in bloecke:
+            b["anzahl"] = len(b["zeilen"])
+        tage.append({"wort": gruppe["wort"], "bloecke": bloecke})
+    return tage
+
+
 @app.get("/eintraege/logbuch", response_class=HTMLResponse)
 def eintraege_logbuch(request: Request, wer: str = "", q: str = "",
-                      seite: int = 1, hinweis: str = ""):
+                      eintrag: int = 0, seite: int = 1, hinweis: str = ""):
     """Wer hat an den Datensaetzen etwas geaendert oder geloescht?
 
     Administratoren vorbehalten (auth.ADMIN_NUR_PFADE). Der Knopf dorthin
@@ -1669,6 +1721,11 @@ def eintraege_logbuch(request: Request, wer: str = "", q: str = "",
         wo.append("(klient LIKE ? OR mitarbeiter LIKE ? OR beschreibung LIKE ? "
                   "OR aenderung LIKE ?)")
         werte += [f"%{q.strip()}%"] * 4
+    if eintrag > 0:
+        # Die ganze Geschichte eines einzelnen Datensatzes - ueber alle
+        # Tage hinweg. Der Weg dorthin ist der Kopf eines Blocks.
+        wo.append("eintrag_id = ?")
+        werte.append(eintrag)
     bedingung = " AND ".join(wo)
 
     with db.db() as con:
@@ -1686,12 +1743,14 @@ def eintraege_logbuch(request: Request, wer: str = "", q: str = "",
     seiten = max(1, -(-gesamt // pro_seite))
     return templates.TemplateResponse(
         request=request, name="eintraege_logbuch.html", context={
-            "seite_name": "eintraege", "gruppen": _vorgaenge.nach_tagen(zeilen),
+            "seite_name": "eintraege", "gruppen": log_baum(zeilen),
             "gesamt": gesamt, "leute": leute, "wer": wer.strip(), "q": q.strip(),
+            "eintrag": eintrag,
             "seite": seite, "seiten": seiten, "hinweis": hinweis,
             # Nach dem Aufräumen zurück auf denselben Ausschnitt.
             "zurueck": "/eintraege/logbuch?" + urlencode(
                 {k: v for k, v in (("wer", wer.strip()), ("q", q.strip()),
+                                   ("eintrag", eintrag or ""),
                                    ("seite", seite if seite > 1 else "")) if v}),
             "uhrzeit": _vorgaenge.uhrzeit})
 

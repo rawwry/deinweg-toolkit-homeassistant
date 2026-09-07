@@ -234,7 +234,12 @@ CREATE TABLE IF NOT EXISTS vorgang (
     -- Bestehende Vorgaenge werden in der Migration ausdruecklich auf 1
     -- gesetzt, sonst bekaeme das Team beim Update eine Sammelmail ueber
     -- jede jemals angelegte Aufgabe.
-    zuweis_gemeldet    INTEGER NOT NULL DEFAULT 0
+    zuweis_gemeldet    INTEGER NOT NULL DEFAULT 0,
+    -- Wurde die Mail „Aufgabe erledigt" an die anlegende Person schon
+    -- verschickt? Dieselbe Bauart und dieselbe Falle wie oben: bestehende
+    -- Vorgaenge werden in der Migration auf 1 gesetzt, sonst meldete der
+    -- erste Durchlauf nach dem Update jede jemals erledigte Aufgabe.
+    erledigt_gemeldet  INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_vorgang_klient ON vorgang(klient);
@@ -588,6 +593,15 @@ def init() -> dict | None:
             con.execute("ALTER TABLE vorgang ADD COLUMN "
                         "zuweis_gemeldet INTEGER NOT NULL DEFAULT 0")
             con.execute("UPDATE vorgang SET zuweis_gemeldet = 1")
+
+        # ⚠️ Dieselbe Regel fuer die Mail „Aufgabe erledigt" (seit 1.30):
+        # Altbestand auf 1, sonst bekaeme die Verwaltung beim ersten
+        # Durchlauf eine Nachricht ueber jede jemals abgehakte Aufgabe.
+        if "erledigt_gemeldet" not in {
+                r["name"] for r in con.execute("PRAGMA table_info(vorgang)")}:
+            con.execute("ALTER TABLE vorgang ADD COLUMN "
+                        "erledigt_gemeldet INTEGER NOT NULL DEFAULT 0")
+            con.execute("UPDATE vorgang SET erledigt_gemeldet = 1")
 
         # Selbstzahler: betreute Person ohne Kostentraeger. Standard 0.
         # Ein bestehender Bestand bleibt damit unveraendert - niemand wird

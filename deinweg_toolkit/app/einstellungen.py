@@ -1149,6 +1149,20 @@ def zuweisungsmail_speichern(zuweisung_aktiv: str = Form(""),
     return email_zurueck(hinweis="Erinnerung an neue Aufgaben gespeichert.")
 
 
+@router.post("/einstellungen/erledigtmail")
+def erledigtmail_speichern(erledigt_aktiv: str = Form("")):
+    """Mail an die anlegende Person, sobald eine Aufgabe abgeschlossen ist.
+
+    Kein Verzug und keine Sammlung: anders als bei den Zuweisungen geht es
+    hier um ein einzelnes Ereignis, das sofort interessiert.
+    """
+    with db.db() as con:
+        mail.konfig_schreiben(con, {
+            "erledigt_aktiv": "1" if erledigt_aktiv else "0",
+        })
+    return email_zurueck(hinweis="Meldung über erledigte Aufgaben gespeichert.")
+
+
 @router.post("/einstellungen/email/test")
 def email_test(request: Request, empfaenger: str = Form("")):
     empfaenger = empfaenger.strip() or (request.state.benutzer["email"] or "")
@@ -1180,7 +1194,9 @@ def vorlagen_speichern(vorlage_frist_betreff: str = Form(""),
                        vorlage_bewilligung_betreff: str = Form(""),
                        vorlage_bewilligung_text: str = Form(""),
                        vorlage_zuweisung_betreff: str = Form(""),
-                       vorlage_zuweisung_text: str = Form("")):
+                       vorlage_zuweisung_text: str = Form(""),
+                       vorlage_erledigt_betreff: str = Form(""),
+                       vorlage_erledigt_text: str = Form("")):
     werte = {
         "vorlage_frist_betreff": vorlage_frist_betreff.strip(),
         "vorlage_frist_text": vorlage_frist_text.replace("\r\n", "\n").strip(),
@@ -1192,6 +1208,9 @@ def vorlagen_speichern(vorlage_frist_betreff: str = Form(""),
         "vorlage_zuweisung_betreff": vorlage_zuweisung_betreff.strip(),
         "vorlage_zuweisung_text":
             vorlage_zuweisung_text.replace("\r\n", "\n").strip(),
+        "vorlage_erledigt_betreff": vorlage_erledigt_betreff.strip(),
+        "vorlage_erledigt_text":
+            vorlage_erledigt_text.replace("\r\n", "\n").strip(),
     }
     leer = [k for k, v in werte.items() if not v]
     if leer:

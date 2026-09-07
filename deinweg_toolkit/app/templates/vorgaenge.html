@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_vorgang_teile.html" import statusmarke, priomarke, frist with context %}
+{% from "_mehrfachwahl.html" import mehrfachwahl with context %}
 {% block titel %} – Aufgaben{% endblock %}
 {% block inhalt %}
 
@@ -97,21 +98,19 @@
 
       <div class="formblock">
       <span class="formblock-titel">Wer kümmert sich, bis wann?</span>
-      <div class="feldreihe zwei">
-        <label class="feld">
-          <span>Zuständige Person <span class="leise">– bearbeitet den Vorgang</span></span>
-          <select name="zustaendig" required>
-            <option value="">bitte wählen</option>
-            {% for m in leute %}<option value="{{ m }}" {{ 'selected' if eigener_name == m }}>{{ m }}</option>{% endfor %}
-          </select>
-        </label>
-        <label class="feld">
-          <span>Weitere beteiligte Personen <span class="leise">– optional, mit Komma</span></span>
-          <input type="text" name="beteiligte" maxlength="200" autocomplete="off"
-                 placeholder="z. B. zwei Namen aus dem Team">
-        </label>
+      {# ⚠️ Seit 1.30 ein Mehrfachfeld - dasselbe wie in den Filtern unter
+         „Arbeitszeit". Das frühere Feld „Weitere beteiligte Personen" ist
+         damit weg: es war ein Freitext, an dem nichts hing - keine Mail,
+         kein Filter, keine Liste. Wer beteiligt ist, ist jetzt zuständig
+         und bekommt seine Nachricht. #}
+      <div class="feld zustaendigwahl">
+        <span class="feldtitel-block">Zuständige Personen
+          <span class="leise">– alle Gewählten bearbeiten die Aufgabe</span></span>
+        {{ mehrfachwahl("", "zustaendig", leute,
+                        [eigener_name] if eigener_name else [],
+                        "Person", "Personen") }}
       </div>
-      <p class="klein leise felderklaerung">{{ t("vorgaenge.zustaendig_hinweis") }}</p>
+      <p class="klein leise felderklaerung">{{ t("vorgaenge.zustaendig_mehrere") }}</p>
 
       <div class="feldreihe">
         <label class="feld">
@@ -222,11 +221,34 @@
   {# Kleine Legende, damit die Farben der Karten ohne Nachdenken lesbar
      sind: rot = überfällig, orange = fällig (heute oder bald), neutral =
      offen ohne nahe Frist, grün = erledigt. #}
-  <div class="vk-legende" aria-label="Bedeutung der Farben">
-    <span class="chip"><i class="lg-ueberfaellig"></i> überfällig</span>
-    <span class="chip"><i class="lg-faellig"></i> fällig (heute/bald)</span>
-    <span class="chip"><i class="lg-offen"></i> offen</span>
-    <span class="chip"><i class="lg-zu"></i> erledigt</span>
+  <div class="listenkopf vk-kopfleiste">
+    <div class="vk-legende" aria-label="Bedeutung der Farben">
+      <span class="chip"><i class="lg-ueberfaellig"></i> überfällig</span>
+      <span class="chip"><i class="lg-faellig"></i> fällig (heute/bald)</span>
+      <span class="chip"><i class="lg-offen"></i> offen</span>
+      <span class="chip"><i class="lg-zu"></i> erledigt</span>
+    </div>
+    {# ⚠️ Beide Darstellungen stehen im HTML, umgeschaltet wird über
+       data-aufgabenliste am <html> - dieselbe Technik wie bei Wiki und
+       Dateien, damit beim Laden nichts aufblitzt. Der Schalter schreibt
+       nach localStorage, gilt also je Browser und nicht je Konto. #}
+    {# ⚠️ Die Klasse muss `<name>-knopf` heißen - danach sucht aufbauen()
+       in base.html. Und bewusst OHNE data-wert: dann kippt der Knopf
+       zwischen beiden Werten, statt einen festzusetzen (dieselbe Form
+       wie die kleinen Umschalter in Wiki und Dateien). #}
+    <button type="button" class="knopf-icon ansichtwechsel aufgabenliste-knopf"
+            title="Darstellung wechseln" aria-label="Darstellung wechseln">
+      <svg class="nur-karten" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 6.5h16M4 12h16M4 17.5h16" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <svg class="nur-liste" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3.5" y="3.5" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="13.5" y="3.5" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="3.5" y="13.5" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="13.5" y="13.5" width="7" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/>
+      </svg>
+    </button>
   </div>
   {# Eine Karte je Vorgang statt einer achtspaltigen Tabelle. In der
      Tabelle stand der Titel - das Einzige, wonach man wirklich sucht -
@@ -236,7 +258,10 @@
      Balken links sagt schon vor dem Lesen, wie dringend es ist. #}
   <div class="vorgangskarten">
     {% for z in liste %}
-    <article class="vorgangskarte vk-{{ z.lage }}{{ ' vk-zu' if z.v.status in V_ABGESCHLOSSEN }}">
+    {# `lage` ist bei abgeschlossenen Vorgängen ohnehin schon „zu“
+       (fristlage() prüft den Status zuerst) - eine zweite Klasse braucht
+       es dafür nicht. #}
+    <article class="vorgangskarte vk-{{ z.lage }}">
       <div class="vk-kopf">
         <a class="vk-titel" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}{%
           if z.lage == "ueberfaellig" %}<span class="vk-lage l-ueberfaellig">überfällig</span>{%
@@ -304,6 +329,49 @@
       </div>
     </article>
     {% endfor %}
+  </div>
+
+  {# Dieselben Vorgänge als Liste. Sie zeigt mehr auf einmal - bei
+     zwanzig Aufgaben sieht man alle Fristen untereinander statt sie
+     über die Karten zu suchen. #}
+  <div class="tabellenrolle vorgangstabelle">
+    <table class="liste dicht vorgangsliste">
+      <thead>
+        <tr><th>Titel</th><th>Betreute Person</th><th>Status</th>
+            <th>Frist</th><th>Zuständig</th><th>Priorität</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for z in liste %}
+      <tr class="vz-{{ z.lage }}{{ ' vz-zu' if z.v.status in V_ABGESCHLOSSEN }}">
+        <td><a class="vz-titel" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}</a>
+            <span class="leise klein">{{ z.v.art }}</span></td>
+        <td><a href="/vorgaenge/person?name={{ z.v.klient | urlencode }}">{{ z.v.klient }}</a></td>
+        <td>
+          <form class="vk-statusform" method="post" action="/vorgaenge/{{ z.v.id }}/status">
+            <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
+            <select name="status" class="vk-statuswahl {{ V_STATUS_KLASSE.get(z.v.status, 'weg') }}"
+                    aria-label="Status von „{{ z.v.titel }}“ ändern">
+              {% for stt in V_STATUS %}<option value="{{ stt }}" {{ 'selected' if stt == z.v.status }}>{{ stt }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="knopf klein leise vk-statussenden">ändern</button>
+          </form>
+        </td>
+        <td class="zahlen">{{ frist(z.v, z.lage) }}</td>
+        <td>{{ z.v.zustaendig }}</td>
+        <td>{% if z.v.prioritaet and z.v.prioritaet != "Normal" %}{{ priomarke(z.v.prioritaet) }}{% endif %}</td>
+        <td class="vz-aktionen">
+          <a class="knopf-icon" href="/vorgaenge/{{ z.v.id }}" title="Öffnen" aria-label="Öffnen">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"
+                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
+            </svg>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
 
   {% if seiten_gesamt > 1 %}

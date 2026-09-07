@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_vorgang_teile.html" import statusmarke, priomarke, frist, logzeile,
    logtag with context %}
+{% from "_mehrfachwahl.html" import mehrfachwahl with context %}
 {% block titel %} – {{ v.titel }}{% endblock %}
 {% block inhalt %}
 
@@ -13,37 +14,80 @@
   Vorgang #{{ v.id }}
 </p>
 
-<section class="karte">
-  <div class="kopfzeile">
-    <h1>{{ v.titel }}</h1>
-    <p class="nowrap">{{ statusmarke(v.status) }} {{ priomarke(v.prioritaet) }}</p>
+{# ⚠️ Die Kopfkarte trägt dieselbe Ampel wie die Karte in der Liste
+   (vk-<lage>) - wer von dort kommt, sieht dieselbe Farbe wieder. Vorher
+   stand hier eine weiße Karte mit einer 12-zeiligen Definitionsliste,
+   in der „Zuständig" gleich schwer wog wie „Rückmeldung am". Jetzt
+   steht oben, was man wirklich sucht: Lage, Person, Zuständige, Frist -
+   und der ganze Rest klappt darunter auf. #}
+<section class="karte vorgangskopf vk-{{ lage }}">
+  <div class="vgk-oben">
+    <div class="vgk-titelblock">
+      <span class="vgk-art">{{ v.art }}</span>
+      <h1>{{ v.titel }}</h1>
+      <p class="vgk-lage l-{{ lage }}">
+        {%- if lage == "ueberfaellig" %}Überfällig seit {{ v.frist | deutsch }}
+        {%- elif lage == "heute" %}Heute fällig
+        {%- elif lage == "bald" %}Fällig am {{ v.frist | deutsch }}
+        {%- elif lage == "zu" %}Abgeschlossen{% if v.datum_erledigt %} am {{ v.datum_erledigt | deutsch }}{% endif %}
+        {%- elif v.frist %}Frist am {{ v.frist | deutsch }}
+        {%- else %}Ohne Frist{% endif -%}
+      </p>
+    </div>
+    <div class="vgk-marken">
+      {{ statusmarke(v.status) }} {{ priomarke(v.prioritaet) }}
+    </div>
   </div>
 
-  <dl class="systemliste breit">
-    <dt>Betreute Person</dt>
-    <dd><a href="/vorgaenge/person?name={{ v.klient | urlencode }}">{{ v.klient }}</a>
-      {% if andere %}<span class="klein leise">· {{ andere }} weitere{{ 'r' if andere == 1 }} offene{{ 'r' if andere == 1 }} Vorgang{{ '' if andere == 1 else 'e' }}</span>{% endif %}
-    </dd>
-    <dt>Vorgangsart</dt><dd>{{ v.art }}</dd>
-    <dt>Zuständig</dt><dd>{{ v.zustaendig }}</dd>
-    {% if v.beteiligte %}<dt>Weitere Beteiligte</dt><dd>{{ v.beteiligte }}</dd>{% endif %}
-    <dt>Frist / Wiedervorlage</dt><dd class="zahlen">{{ frist(v, lage) }}</dd>
-    <dt>Angelegt</dt>
-    <dd class="zahlen">{{ v.angelegt_am | zeitpunkt }} <span class="klein leise">von {{ v.angelegt_von }}</span></dd>
-    {% if v.geaendert_am %}
-    <dt>Letzte Änderung</dt><dd class="zahlen">{{ v.geaendert_am | zeitpunkt }}</dd>
-    {% endif %}
-    {% if v.datum_eingereicht %}<dt>Eingereicht</dt><dd class="zahlen">{{ v.datum_eingereicht | deutsch }}</dd>{% endif %}
-    {% if v.datum_eingang %}<dt>Eingang</dt><dd class="zahlen">{{ v.datum_eingang | deutsch }}</dd>{% endif %}
-    {% if v.datum_rueckmeldung %}<dt>Rückmeldung</dt><dd class="zahlen">{{ v.datum_rueckmeldung | deutsch }}</dd>{% endif %}
-    {% if v.datum_erledigt %}<dt>Erledigt</dt><dd class="zahlen">{{ v.datum_erledigt | deutsch }}</dd>{% endif %}
-    {% if v.dateiverweis %}<dt>Dokument</dt><dd><code>{{ v.dateiverweis }}</code></dd>{% endif %}
-  </dl>
+  {# Die vier Angaben, mit denen man auf diese Seite kommt. Alles
+     Weitere steht darunter im Aufklapper - es wird selten gebraucht. #}
+  <div class="vgk-eckdaten">
+    <div class="vgk-eck">
+      <span class="vgk-label">Betreute Person</span>
+      <a class="vgk-wert stark" href="/vorgaenge/person?name={{ v.klient | urlencode }}">{{ v.klient }}</a>
+      {% if andere %}<span class="klein leise">{{ andere }} weitere{{ 'r' if andere == 1 }} offene{{ 'r' if andere == 1 }} Aufgabe{{ '' if andere == 1 else 'n' }}</span>{% endif %}
+    </div>
+    <div class="vgk-eck">
+      <span class="vgk-label">Zuständig</span>
+      <span class="vgk-wert stark">{{ v.zustaendig or "niemand" }}</span>
+    </div>
+    <div class="vgk-eck">
+      <span class="vgk-label">Frist / Wiedervorlage</span>
+      <span class="vgk-wert zahlen">{{ frist(v, lage) }}</span>
+    </div>
+    <div class="vgk-eck">
+      <span class="vgk-label">Angelegt von</span>
+      <span class="vgk-wert">{{ v.angelegt_von }}</span>
+      <span class="klein leise zahlen">{{ v.angelegt_am | zeitpunkt }}</span>
+    </div>
+  </div>
 
   {% if v.beschreibung %}
-  <h2 class="unterkopf">Beschreibung</h2>
-  <p class="ideentext">{{ v.beschreibung }}</p>
+  <div class="vgk-beschreibung">
+    <span class="vgk-label">Beschreibung</span>
+    <p class="ideentext">{{ v.beschreibung }}</p>
+  </div>
   {% endif %}
+
+  <details class="hinweise vgk-mehr">
+    <summary>Alle Angaben</summary>
+    <dl class="systemliste breit">
+      <dt>Vorgangsart</dt><dd>{{ v.art }}</dd>
+      {% if v.beteiligte %}
+      {# Das Feld gibt es im Formular seit 1.30 nicht mehr; wo noch etwas
+         drinsteht, bleibt es lesbar. #}
+      <dt>Weitere Beteiligte <span class="klein leise">(altes Feld)</span></dt>
+      <dd>{{ v.beteiligte }}</dd>{% endif %}
+      {% if v.geaendert_am %}
+      <dt>Letzte Änderung</dt><dd class="zahlen">{{ v.geaendert_am | zeitpunkt }}</dd>
+      {% endif %}
+      {% if v.datum_eingereicht %}<dt>Eingereicht</dt><dd class="zahlen">{{ v.datum_eingereicht | deutsch }}</dd>{% endif %}
+      {% if v.datum_eingang %}<dt>Eingang</dt><dd class="zahlen">{{ v.datum_eingang | deutsch }}</dd>{% endif %}
+      {% if v.datum_rueckmeldung %}<dt>Rückmeldung</dt><dd class="zahlen">{{ v.datum_rueckmeldung | deutsch }}</dd>{% endif %}
+      {% if v.datum_erledigt %}<dt>Erledigt</dt><dd class="zahlen">{{ v.datum_erledigt | deutsch }}</dd>{% endif %}
+      {% if v.dateiverweis %}<dt>Dokument</dt><dd><code>{{ v.dateiverweis }}</code></dd>{% endif %}
+    </dl>
+  </details>
 </section>
 
 <section class="karte">
@@ -87,12 +131,11 @@
       </label>
     </div>
     <div class="feldreihe zwei">
-      <label class="feld">
-        <span>Zuständige Person</span>
-        <select name="zustaendig" required>
-          {% for m in leute %}<option value="{{ m }}" {{ 'selected' if m == v.zustaendig }}>{{ m }}</option>{% endfor %}
-        </select>
-      </label>
+      <div class="feld zustaendigwahl">
+        <span class="feldtitel-block">Zuständige Personen</span>
+        {{ mehrfachwahl("", "zustaendig", leute, v.zustaendig | namen,
+                        "Person", "Personen") }}
+      </div>
       <label class="feld">
         <span>Wiedervorlage <span class="leise">– leer = unverändert</span></span>
         <input type="date" name="frist" value="" min="2020-01-01">
@@ -134,16 +177,14 @@
       {# Priorität steht seit 1.19 oben in „Aktualisieren", nicht mehr
          hier - sonst überschriebe dieses Formular sie still mit dem alten
          Wert. #}
-      <div class="feldreihe zwei">
-        <label class="feld">
-          <span>Weitere Beteiligte</span>
-          <input type="text" name="beteiligte" value="{{ v.beteiligte or '' }}" maxlength="200">
-        </label>
-        <label class="feld">
-          <span>Dokumentenverweis</span>
-          <input type="text" name="dateiverweis" value="{{ v.dateiverweis or '' }}" maxlength="300">
-        </label>
-      </div>
+      {# „Weitere Beteiligte" ist mit 1.30 entfallen - wer beteiligt ist,
+         ist zuständig und bekommt seine Nachricht. Der gespeicherte Wert
+         bleibt in der Datenbank und wird oben unter „Alle Angaben"
+         angezeigt, solange er da ist. #}
+      <label class="feld">
+        <span>Dokumentenverweis</span>
+        <input type="text" name="dateiverweis" value="{{ v.dateiverweis or '' }}" maxlength="300">
+      </label>
       <div class="feldreihe">
         <label class="feld"><span>Eingereicht am</span>
           <input type="date" name="datum_eingereicht" value="{{ v.datum_eingereicht or '' }}"></label>
@@ -153,8 +194,6 @@
           <input type="date" name="datum_rueckmeldung" value="{{ v.datum_rueckmeldung or '' }}"></label>
         <label class="feld"><span>Erledigt am</span>
           <input type="date" name="datum_erledigt" value="{{ v.datum_erledigt or '' }}"></label>
-      </div>
-      <div class="feldreihe zwei">
       </div>
       <div class="knopfreihe">
         <button class="knopf haupt" type="submit">Änderungen speichern</button>
