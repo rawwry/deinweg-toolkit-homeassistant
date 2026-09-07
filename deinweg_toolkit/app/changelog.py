@@ -2033,4 +2033,31 @@ CHANGELOG = [
         "entfallen – die Markierungen sind Markdown, das kennt man",
         "Prüfung von 1554 auf 1556 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.32", "titel": "Aufgeräumt in Aufgaben und Erfassung", "punkte": [
+        "Aufgaben: nur noch drei Prioritätsstufen – Niedrig, Mittel, Hoch. "
+        "„Normal“ wird zu „Mittel“, „Dringend“ zu „Hoch“; bestehende "
+        "Aufgaben werden beim Update umgeschrieben",
+        "Neues Recht in der Benutzerverwaltung: „Aufgaben anderer "
+        "löschen“. Die selbst angelegten darf weiterhin jeder wegräumen, "
+        "an fremde kommt man ohne dieses Recht nicht mehr – auch nicht "
+        "über die Adresse",
+        "Detailseite einer Aufgabe: der Aufklapper „Alle Angaben“ ist "
+        "weg, „Aktualisieren“ heißt „Vorgang aktualisieren“, und der "
+        "Verlauf steht darunter statt darüber",
+        "Der Verlauf ist eine knappe Zeitleiste: keine Tagesüberschriften, "
+        "kein Verweis auf die Seite, auf der man schon steht, und die "
+        "Anlegezeile wiederholt den Beschreibungstext nicht mehr",
+        "Aufgaben: die Statuspille trägt keine eigene Farbe mehr – die "
+        "Ampel der Karte sagt dasselbe, und im dunklen Thema stand die "
+        "Schrift zuletzt in einem blassen Blau",
+        "Zeiterfassung: „Erfasst für …“ ist eine einzige Zeile mit einem "
+        "„ändern“ am rechten Rand. Die Pille „dein Konto“ ist entfallen",
+        "Zeiterfassung: „Alle Einträge von …“ ist weg, dafür sitzt "
+        "„Eintrag speichern“ in einer eigenen Fußleiste am unteren Rand "
+        "der Karte",
+        "E-Mail-Versand: das Protokoll behält nur noch die letzten 15 "
+        "Nachrichten – ohne dabei die Sperre gegen Doppelversand zu "
+        "verlieren",
+        "Prüfung von 1556 auf 1599 Einzelprüfungen erweitert",
+    ]},
 ]

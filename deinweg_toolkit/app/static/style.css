@@ -1271,37 +1271,52 @@ input[type="date"] { text-transform: uppercase; }
 .erfasser > select { max-width: 420px; }
 .erfasser-fuss { margin: 7px 0 0; font-size: 11.5px; color: var(--leise); }
 
-/* --- Erfasst für ... (seit 1.25) ---------------------------------------
+/* --- Erfasst für ... (seit 1.25, neu gebaut mit 1.32) ------------------
    Im Regelfall trägt jeder seine eigenen Zeiten ein. Der Name steht
    deshalb als Text da statt als Pflichtfeld; für jemand anderen zu
-   erfassen ist die Ausnahme und klappt darunter auf. */
-.erfasser-name {
-  margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -.01em;
+   erfassen ist die Ausnahme.
+
+   ⚠️⚠️ Seit 1.32 ist das GANZE Band das <details>, und die eine Zeile
+   „Erfasst für Anna Beispiel … ändern" ist sein <summary>. Das ist die
+   dritte Fassung, und die beiden davor sind der Grund dafür:
+   * Bis 1.30 standen Beschriftung, Pille und Name in drei Zeilen,
+     darunter der Aufklapper - vier Zeilen für eine Angabe, die sich nie
+     ändert.
+   * In 1.31/1.31.1 saß der Aufklapper in derselben Flexzeile und sprang
+     beim Öffnen an eine andere Stelle (erst `margin-left: auto`, dann
+     `width: 100%` nur im Zustand [open]). Ein Bedienelement, das beim
+     Anklicken den Platz wechselt, ist genau das, was man nicht will.
+   Als <summary> nimmt die Zeile immer die volle Breite ein - sie KANN
+   nicht mehr springen, und aus vier Zeilen ist eine geworden. Die Pille
+   „dein Konto" ist ersatzlos entfallen: stünde da nicht das eigene
+   Konto, stünde da ein anderer Name. */
+.erfasser-zeile {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: baseline; gap: 4px 9px; flex-wrap: wrap;
 }
-/* ⚠️ Die Teile sitzen in EINER Zeile, und die Reihenfolge wird dabei
-   ausdrücklich gesetzt: Beschriftung, Name, Marke, Aufklapper. Im Markup
-   steht die Marke vor dem Namen (sie gehört zum Kopfblock), gelesen
-   werden soll aber „Erfasst für Anna Beispiel (dein Konto)". `display:
-   contents` am Kopf hebt dessen eigenen Kasten auf, damit alle vier
-   Teile Geschwister derselben Flexbox sind - sonst griffe `order` nicht
-   über die Blockgrenze hinweg. */
-.erfasser:has(.erfasser-name) .erfasser-kopf { display: contents; }
-.erfasser:has(.erfasser-name) {
-  display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap;
+.erfasser-zeile::-webkit-details-marker { display: none; }
+.erfasser-zeile::marker { content: ""; }
+.erfasser-name { margin: 0; font-size: 15px; font-weight: 700; }
+/* „ändern" hängt am rechten Rand und trägt das Dreieck des Aufklappers.
+   Es ist absichtlich leise: der Name ist die Auskunft, dies nur der Weg
+   zur Ausnahme. */
+.erfasser-aendern {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--leise);
 }
-.erfasser:has(.erfasser-name) .erfasser-titel { order: 0; }
-.erfasser:has(.erfasser-name) .erfasser-name  { order: 1; }
-.erfasser:has(.erfasser-name) .erfasser-marke { order: 2; }
-/* ⚠️⚠️ Der Aufklapper steht IMMER auf einer eigenen Zeile, linksbündig -
-   auch zugeklappt, wo er nur eine Zeile Text ist.
-   Zwei Anläufe davor waren falsch: mit `margin-left: auto` saß er
-   zugeklappt am rechten Rand, und beim Öffnen wuchs er, brach um und
-   sprang nach links. Nur `width: 100%` im Zustand [open] tat dasselbe,
-   nur eine Stufe später. Ein Bedienelement, das beim Anklicken den Platz
-   wechselt, ist genau das, was man nicht will - lieber die eine Zeile
-   Höhe mehr. Das Band ist damit immer noch halb so hoch wie vor 1.30. */
-.erfasser:has(.erfasser-name) .erfasserwechsel {
-  order: 3; margin: 0; width: 100%;
+.erfasser-aendern::after {
+  content: ""; flex: 0 0 auto; width: 6px; height: 6px;
+  border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+}
+.erfasser[open] .erfasser-aendern::after { transform: rotate(-135deg) translateY(-1px); }
+.erfasser-zeile:hover .erfasser-aendern { color: var(--akzent); }
+/* Die Marke steht immer im Markup und wird nur bei einem fremden Namen
+   gezeigt - so braucht das Skript sie nicht zu bauen. */
+.erfasser-zeile .erfasser-marke { display: none; }
+.erfasser.fremd .erfasser-zeile .erfasser-marke { display: inline-flex; }
+.erfasser-panel {
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--linie);
 }
 /* ⚠️ Der Ton des Bandes ist die eigentliche Warnung - eine Zeile Text
    liest niemand, einen roten Balken links sieht man. Er sagt: was du
@@ -1311,26 +1326,12 @@ input[type="date"] { text-transform: uppercase; }
   color: var(--warn); background: transparent; border-color: var(--warn);
 }
 
-.erfasserwechsel { margin-top: 10px; }
-.erfasserwechsel > summary {
-  list-style: none; cursor: pointer; display: inline-flex; align-items: center;
-  gap: 7px; font-size: 12px; color: var(--leise);
-}
-.erfasserwechsel > summary::-webkit-details-marker { display: none; }
-.erfasserwechsel > summary::marker { content: ""; }
-.erfasserwechsel > summary::before {
-  content: ""; flex: 0 0 auto; width: 7px; height: 7px;
-  border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor;
-  transform: rotate(-45deg) translate(-1px, -1px);
-}
-.erfasserwechsel[open] > summary::before { transform: rotate(45deg); }
-.erfasserwechsel > summary:hover { color: var(--akzent); }
-.erfasserwechsel[open] > summary { color: var(--tinte); margin-bottom: 8px; }
-.erfasserwechsel .felderklaerung { margin: 0 0 10px; }
-.erfasserwechsel select, .erfasserwechsel .suchwahl-huelle { max-width: 420px; }
+.erfasser-panel .felderklaerung { margin: 0 0 10px; }
+.erfasser-panel select, .erfasser-panel .suchwahl-huelle { max-width: 420px; }
 .erfasserwechsel-zurueck { margin: 10px 0 0; }
 @media (prefers-reduced-motion: no-preference) {
-  .erfasserwechsel > summary::before { transition: transform .16s ease; }
+  .erfasser-aendern::after { transition: transform .16s ease; }
+  .erfasser-aendern { transition: color .15s ease; }
 }
 
 /* Anklickbare Namen in der Abgabenliste. Sie sollen wie Namen aussehen,
@@ -1410,10 +1411,22 @@ input[type="date"] { text-transform: uppercase; }
                             background-color .15s ease; }
 }
 
+/* ⚠️ Eine echte Fußleiste, keine Knopfreihe mehr (seit 1.32). Neben dem
+   Speichern-Knopf stand bis dahin „Alle Einträge von …" - der ist auf
+   Timos Wunsch entfallen, und der Knopf allein wirkte danach verloren:
+   ein einzelnes Element in einer sonst leeren Zeile unter einer breiten
+   Karte. Jetzt trägt die Leiste einen eigenen Grund über die volle
+   Kartenbreite, links die Zahl der Zeilen, rechts der Knopf - man
+   sieht, wo die Eingabe endet. */
 .erfass-fuss {
-  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--linie);
-  align-items: center;
+  margin: 20px -24px -22px; padding: 13px 24px;
+  border-top: 1px solid var(--linie);
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--flaeche-2);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
 }
+.erfass-fuss .knopf { margin-left: auto; }
 
 /* Ablagefeld für die Zeitlisten. Das nackte <input type="file"> sieht in
    jedem Browser anders aus und wirkt zwischen den übrigen Feldern wie
@@ -2266,7 +2279,6 @@ textarea:focus { border-color: var(--akzent); }
 .prio { font-size: 11.5px; font-weight: 700; letter-spacing: .02em; }
 .prio.vp-niedrig  { color: var(--leise); font-weight: 500; }
 .prio.vp-hoch     { color: var(--warn); }
-.prio.vp-dringend { color: var(--dopp); }
 
 /* Fristen */
 .fristmarke { font-variant-numeric: tabular-nums; }
@@ -4056,7 +4068,48 @@ a.vgk-wert:hover { text-decoration: underline; }
 .vgk-beschreibung { margin-top: 18px; padding-top: 16px;
                     border-top: 1px solid var(--linie); }
 .vgk-beschreibung .ideentext { margin: 4px 0 0; }
-.vgk-mehr { margin-top: 16px; }
+/* Der alte Wert aus „Weitere Beteiligte". Steht nur da, wenn wirklich
+   etwas drinsteht - das Feld gibt es seit 1.30 nicht mehr. */
+.vgk-alt { margin: 14px 0 0; }
+.vgk-alt .vgk-label { display: inline; margin-right: 6px; }
+
+/* --- Verlauf eines einzelnen Vorgangs (seit 1.32) ----------------------
+   Bewusst eine andere, knappere Form als das globale Logbuch: dort
+   braucht jede Zeile den Bezug zum Vorgang und eine Tagesüberschrift,
+   hier steht der Vorgang schon oben auf der Seite und es sind meist
+   drei bis zehn Zeilen. Eine Zeitleiste mit einem Punkt je Schritt. */
+.verlaufsleiste {
+  list-style: none; margin: 4px 0 0; padding: 0 0 0 20px;
+  position: relative;
+}
+/* Die durchgehende Linie hinter den Punkten. Sie endet mit dem letzten
+   Punkt, nicht mit der Liste - deshalb ein Pseudoelement mit bottom. */
+.verlaufsleiste::before {
+  content: ""; position: absolute; left: 4px; top: 7px; bottom: 9px;
+  width: 1px; background: var(--linie-stark);
+}
+.vls { position: relative; padding: 0 0 14px; }
+.vls:last-child { padding-bottom: 0; }
+.vls::before {
+  content: ""; position: absolute; left: -20px; top: 5px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--flaeche); border: 2px solid var(--leise);
+}
+/* Der Punkt trägt die Farbe der Aktion - dieselbe Zuordnung wie die
+   Marke im globalen Logbuch, nur ohne Pille. */
+.vls.la-neu::before       { border-color: var(--akzent); }
+.vls.la-aenderung::before { border-color: var(--info); }
+.vls.la-gut::before       { border-color: var(--gut); }
+.vls.la-weg::before       { border-color: var(--dopp); }
+.vls-kopf {
+  display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap;
+}
+.vls-aktion { font-size: 13px; font-weight: 600; }
+.vls-meta { font-size: 11.5px; color: var(--leise); }
+.vls-text {
+  margin: 2px 0 0; font-size: 13px; color: var(--tinte-2);
+  overflow-wrap: anywhere; white-space: pre-line;
+}
 
 /* Die Karte „Geschützte Wiki-Ordner" ist seit 1.30 zugeklappt - dieselbe
    Bauart wie die Importkarte auf der Zeiterfassung. */
@@ -4171,13 +4224,16 @@ a.vgk-wert:hover { text-decoration: underline; }
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat: no-repeat; background-position: right 6px center; background-size: 11px;
 }
-.vk-statuswahl.vs-offen       { color: var(--info); }
-.vk-statuswahl.vs-arbeit      { color: var(--akzent); }
-.vk-statuswahl.vs-eingereicht { color: var(--info); }
-.vk-statuswahl.vs-warten      { color: var(--warn); }
-.vk-statuswahl.vs-rueckfrage  { color: var(--dopp); }
-.vk-statuswahl.vs-erledigt    { color: var(--leise); }
-.vk-statuswahl.vs-abgebrochen { color: var(--leise); }
+/* ⚠️⚠️ Die Pille trägt seit 1.32 KEINE Statusfarbe mehr - weder im
+   zugeklappten Zustand noch in der Liste. Sie stand zuletzt in Blau,
+   Orange, Rot oder Rosa auf einer Karte, die dieselbe Auskunft schon
+   über ihre Ampel gibt, und war damit farbig ohne etwas Zusätzliches zu
+   sagen. Zwei Anläufe hingen daran: 1.31.1 hat nur die aufgeklappte
+   Liste weiß gemacht (die `option`-Regeln unten) - die zugeklappte
+   Pille blieb bunt, und genau die hatte Timo gemeint.
+   Die Klassen vs-* bleiben im Markup: die statischen Marken
+   (.marke-status) auf anderen Seiten hängen daran. Hier setzt sie nur
+   niemand mehr in Farbe. Nicht wieder einfärben. */
 .vk-statuswahl:hover { border-color: var(--tinte-2); }
 .vk-statuswahl:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
 /* ⚠️ Die aufgeklappte Optionsliste soll nicht die Pillenfarbe erben -
@@ -4221,7 +4277,6 @@ a.vgk-wert:hover { text-decoration: underline; }
   color: var(--leise); font-weight: 600;
 }
 .vk-prio .prio.vp-hoch { color: var(--warn); border-color: var(--warn); opacity: .8; }
-.vk-prio .prio.vp-dringend { color: var(--dopp); border-color: var(--dopp); opacity: .85; }
 
 /* Die Fristlage steht als Marke gleich neben dem Titel - sie ist das
    Erste, was zählt, und darf nicht unten in der Fußzeile untergehen. */

@@ -57,77 +57,85 @@
       </div>
       <p class="lead">{{ t("erfassung.einleitung") }}</p>
 
-      {# Der Name gilt für alle Zeilen darunter und steht deshalb
-         abgesetzt in einem eigenen Band - vorher sah er aus wie das
-         erste von acht gleichrangigen Feldern.
-
-         ⚠️ Seit 1.25 muss ihn niemand mehr auswählen: im Regelfall trägt
-         jeder seine eigenen Zeiten ein, und ein Pflichtfeld, dessen
-         Antwort immer dieselbe ist, ist nur ein Handgriff mehr. Der Name
-         des angemeldeten Kontos steht deshalb einfach da; für andere zu
-         erfassen ist die Ausnahme und muss ausdrücklich aufgeklappt
-         werden. Bewusst <details> und kein Skript - das Auswahlfeld
-         steckt darin und schickt seinen Wert auch zugeklappt mit, die
-         Seite funktioniert also ohne Skript unverändert.
+      {# ⚠️ Seit 1.25 muss den Mitarbeiter niemand mehr auswählen: im
+         Regelfall trägt jeder seine eigenen Zeiten ein, und ein
+         Pflichtfeld, dessen Antwort immer dieselbe ist, ist nur ein
+         Handgriff mehr. Der Name des angemeldeten Kontos steht deshalb
+         einfach da; für jemand anderen zu erfassen ist die Ausnahme.
 
          ⚠️ Der Listenimport bleibt davon unberührt: dort lädt man eine
-         fremde Liste hoch, die Frage nach dem Namen ist da eine andere. #}
-      {% set makro_titel = "Erfasst für" if eigener else "Mitarbeiter" %}
-      <div class="erfasser{{ ' fremd' if fremd }}">
-        <div class="erfasser-kopf">
-          <span class="erfasser-titel">{{ makro_titel }}</span>
-          {% if not eigener %}
-          <span class="erfasser-marke">gilt für alle Zeilen unten</span>
-          {% elif fremd %}
-          <span class="erfasser-marke achtung">für jemand anderen</span>
-          {% else %}
-          <span class="erfasser-marke">dein Konto</span>
-          {% endif %}
-        </div>
+         fremde Liste hoch, die Frage nach dem Namen ist da eine andere.
 
-        {% if eigener %}
-        <p class="erfasser-name" id="erfasser-name">{{ mitarbeiter }}</p>
-        {% endif %}
-
-        {# Auswahl statt Freitext: die Namen kommen aus dem gepflegten
-           Team. Namen, die nur noch in alten Zeiten vorkommen, stehen
-           in einer zweiten Gruppe darunter – sonst wären deren Zeiten
-           über dieses Feld nicht mehr erreichbar. #}
-        {% set feldwahl %}
-        <select name="mitarbeiter" form="erfassung" required
-                class="suchwahl" data-titel="Mitarbeiter" id="mitarbeiterfeld"
-                aria-label="Mitarbeiter" {{ 'autofocus' if not mitarbeiter }}>
-          {% if not eigener %}<option value="">– bitte auswählen –</option>{% endif %}
-          {% for m in mitarbeiterliste.team %}
+         Auswahl statt Freitext: die Namen kommen aus dem gepflegten
+         Team. Namen, die nur noch in alten Zeiten vorkommen, stehen in
+         einer zweiten Gruppe darunter – sonst wären deren Zeiten über
+         dieses Feld nicht mehr erreichbar. #}
+      {% set feldwahl %}
+      <select name="mitarbeiter" form="erfassung" required
+              class="suchwahl" data-titel="Mitarbeiter" id="mitarbeiterfeld"
+              aria-label="Mitarbeiter" {{ 'autofocus' if not mitarbeiter }}>
+        {% if not eigener %}<option value="">– bitte auswählen –</option>{% endif %}
+        {% for m in mitarbeiterliste.team %}
+          <option value="{{ m }}" {{ 'selected' if m == mitarbeiter }}>{{ m }}</option>
+        {% endfor %}
+        {% if mitarbeiterliste.weitere %}
+        <optgroup label="nicht mehr im Team">
+          {% for m in mitarbeiterliste.weitere %}
             <option value="{{ m }}" {{ 'selected' if m == mitarbeiter }}>{{ m }}</option>
           {% endfor %}
-          {% if mitarbeiterliste.weitere %}
-          <optgroup label="nicht mehr im Team">
-            {% for m in mitarbeiterliste.weitere %}
-              <option value="{{ m }}" {{ 'selected' if m == mitarbeiter }}>{{ m }}</option>
-            {% endfor %}
-          </optgroup>
-          {% endif %}
-        </select>
-        {% endset %}
+        </optgroup>
+        {% endif %}
+      </select>
+      {% endset %}
 
-        {% if eigener %}
-        <details class="erfasserwechsel" id="erfasserwechsel" {{ 'open' if fremd }}>
-          <summary>
-            <span class="erfasserwechsel-titel">Für jemand anderen erfassen</span>
-          </summary>
+      {% if eigener %}
+      {# ⚠️ Seit 1.32 ist das GANZE Band der Aufklapper: eine Zeile
+         „Erfasst für Anna Beispiel", rechts „ändern", darunter erst
+         nach dem Klick die Auswahl. Vorher waren es zwei Zeilen plus
+         eine Pille „dein Konto" - eine Auskunft, die niemand braucht,
+         denn wenn es nicht das eigene Konto wäre, stünde da ein
+         anderer Name. Für eine Funktion, die man selten braucht, war
+         das zu viel Fläche.
+
+         ⚠️ Und es löst zugleich das Springen, an dem zwei Anläufe in
+         1.31 und 1.31.1 hingen: das <summary> ist immer die volle
+         Breite des Bandes, „ändern" sitzt darin rechtsbündig und
+         wechselt beim Öffnen den Platz nicht mehr.
+
+         Bewusst weiterhin <details> und kein Skript - das Auswahlfeld
+         steckt darin und schickt seinen Wert auch zugeklappt mit. #}
+      <details class="erfasser erfasserwechsel{{ ' fremd' if fremd }}"
+               id="erfasserwechsel" {{ 'open' if fremd }}>
+        <summary class="erfasser-zeile"
+                 aria-label="Für jemand anderen erfassen">
+          <span class="erfasser-titel">Erfasst für</span>
+          <span class="erfasser-name" id="erfasser-name">{{ mitarbeiter }}</span>
+          {# Steht immer im Markup und wird per CSS nur bei .fremd
+             gezeigt - so muss das Skript sie nicht bauen und die Seite
+             sieht ohne Skript genauso aus. #}
+          <span class="erfasser-marke achtung">nicht du</span>
+          <span class="erfasser-aendern"
+                title="Für jemand anderen erfassen">ändern</span>
+        </summary>
+        <div class="erfasser-panel">
           <p class="felderklaerung">{{ t("erfassung.fremd") }}</p>
           {{ feldwahl }}
           <p class="erfasserwechsel-zurueck">
             <button class="knopf leise klein" type="button" id="erfasser-zurueck">
               Wieder auf {{ eigener }} stellen</button>
           </p>
-        </details>
-        {% else %}
+        </div>
+      </details>
+      {% else %}
+      <div class="erfasser">
+        <div class="erfasser-kopf">
+          <span class="erfasser-titel">Mitarbeiter</span>
+          <span class="erfasser-marke">gilt für alle Zeilen unten</span>
+        </div>
         {{ feldwahl }}
         <p class="erfasser-fuss">Bleibt stehen, bis du ihn änderst.</p>
-        {% endif %}
       </div>
+      {% endif %}
 
       {% if not mitarbeiterliste.team and not mitarbeiterliste.weitere %}
       <p class="meldung offen-hinweis">{{ t("erfassung.kein_team") }}</p>
@@ -284,14 +292,20 @@
       </div>
       </div>{# /erfassflaeche #}
 
-      <div class="knopfreihe erfass-fuss">
+      {# ⚠️ „Alle Einträge von …" ist mit 1.32 entfallen (Timos Wunsch) -
+         der Weg zur Übersicht steht schon in der Reiterleiste ganz oben,
+         und ein zweiter Knopf neben dem Speichern-Knopf machte aus einer
+         eindeutigen Handlung eine Auswahl zwischen zweien.
+
+         Damit der Speichern-Knopf allein nicht verloren dasteht, sitzt
+         er jetzt in einer echten Fußleiste: getönt, über die volle
+         Breite der Karte, links die Zahl der Zeilen, rechts der Knopf.
+         Dieselbe Rolle wie eine Dialogfußzeile - man sieht, wo die
+         Eingabe endet. #}
+      <div class="erfass-fuss">
+        <span class="klein leise" id="zeilenstand">1 Eintrag</span>
         <button class="knopf haupt" type="submit" form="erfassung" id="erfassen-knopf">
           Eintrag speichern</button>
-        <span class="klein leise" id="zeilenstand"></span>
-        {% if mitarbeiter %}
-        <a class="knopf leise" href="/eintraege?mitarbeiter={{ mitarbeiter | urlencode }}">
-          Alle Einträge von {{ mitarbeiter }}</a>
-        {% endif %}
       </div>
 
     </div>
@@ -759,7 +773,6 @@
         anzeige = document.getElementById("erfasser-name"),
         wahl    = document.getElementById("mitarbeiterfeld"),
         zurueck = document.getElementById("erfasser-zurueck"),
-        marke   = band && band.querySelector(".erfasser-marke"),
         eigener = anzeige ? anzeige.textContent.trim() : "";
     if (!band || !anzeige || !wahl) return;
     // ⚠️ Der eigene Name ist der, der beim Laden dasteht - und nur dann,
@@ -773,11 +786,9 @@
       anzeige.textContent = jetzt || eigener;
       var anders = !!jetzt && !!eigener &&
                    jetzt.toLowerCase() !== eigener.toLowerCase();
+      // Die Marke „nicht du" steht immer im Markup; sichtbar macht sie
+      // allein diese Klasse (siehe style.css).
       band.classList.toggle("fremd", anders);
-      if (marke) {
-        marke.textContent = anders ? "für jemand anderen" : "dein Konto";
-        marke.classList.toggle("achtung", anders);
-      }
     }
     wahl.addEventListener("change", nachziehen);
     if (zurueck) {
@@ -821,7 +832,10 @@
         z.querySelector(".erfasszeile-nr").textContent = i + 1;
       });
       liste.classList.toggle("mehrere", alle.length > 1);
-      stand.textContent = alle.length > 1 ? alle.length + " Einträge auf einmal" : "";
+      // Steht jetzt in der Fußleiste links neben dem Knopf und ist
+      // deshalb auch bei einer Zeile ausgeschrieben - eine leere
+      // Stelle dort sähe aus, als fehlte etwas.
+      stand.textContent = alle.length > 1 ? alle.length + " Einträge" : "1 Eintrag";
       speichern.textContent = alle.length > 1 ? "Einträge speichern"
                                               : "Eintrag speichern";
     }

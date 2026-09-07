@@ -272,7 +272,7 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
         mailkonfig = {k: v for k, v in mailkonfig.items() if k not in mail.GEHEIM}
         letzte_mails = con.execute(
             "SELECT * FROM benachrichtigung ORDER BY gesendet_am DESC, id DESC "
-            "LIMIT 15").fetchall()
+            "LIMIT ?", (mail.PROTOKOLL_LAENGE,)).fetchall()
         zahlen = con.execute(
             "SELECT (SELECT COUNT(*) FROM eintrag) datensaetze, "
             "(SELECT COALESCE(SUM(dauer_min),0) FROM eintrag) minuten, "
@@ -901,6 +901,7 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
                      mitarbeiter: str = Form(""),
                      fremde_loeschen: str = Form(""),
                      fremde_bearbeiten: str = Form(""),
+                     aufgaben_loeschen: str = Form(""),
                      wiki_schreiben: str = Form(""),
                      bewilligungen_sehen: str = Form(""),
                      bereiche: list[str] = Form([]),
@@ -925,13 +926,14 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
         con.execute(
             "INSERT INTO benutzer (benutzername, passwort_hash, rolle, "
             "berechtigungen, email, mitarbeiter, fremde_loeschen, "
-            "fremde_bearbeiten, wiki_schreiben, bewilligungen_sehen, "
+            "fremde_bearbeiten, aufgaben_loeschen, wiki_schreiben, "
+            "bewilligungen_sehen, "
             "einst_bereiche, wiki_ordner, gesehen_version, angelegt_am) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (benutzername, db.passwort_hashen(passwort), rolle,
              auth.berechtigungen_speichern(bereiche), email or None,
              mitarbeiter or None, 1 if fremde_loeschen else 0,
-             1 if fremde_bearbeiten else 0,
+             1 if fremde_bearbeiten else 0, 1 if aufgaben_loeschen else 0,
              1 if wiki_schreiben else 0, 1 if bewilligungen_sehen else 0,
              auth.einst_bereiche_speichern(einst_bereiche),
              auth.wiki_ordner_speichern(wiki_ordner,
@@ -947,6 +949,7 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                        aktiv: str = Form(""), neues_passwort: str = Form(""),
                        fremde_loeschen: str = Form(""),
                        fremde_bearbeiten: str = Form(""),
+                       aufgaben_loeschen: str = Form(""),
                        wiki_schreiben: str = Form(""),
                        bewilligungen_sehen: str = Form(""),
                        bereiche: list[str] = Form([]),
@@ -981,6 +984,7 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                   "mitarbeiter": mitarbeiter or None,
                   "fremde_loeschen": 1 if fremde_loeschen else 0,
                   "fremde_bearbeiten": 1 if fremde_bearbeiten else 0,
+                  "aufgaben_loeschen": 1 if aufgaben_loeschen else 0,
                   "wiki_schreiben": 1 if wiki_schreiben else 0,
                   "bewilligungen_sehen": 1 if bewilligungen_sehen else 0,
                   "berechtigungen": auth.berechtigungen_speichern(bereiche),

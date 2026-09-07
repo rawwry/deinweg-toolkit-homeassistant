@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% from "_vorgang_teile.html" import statusmarke, priomarke, frist, logzeile,
-   logtag with context %}
+{# logzeile/logtag braucht diese Seite seit 1.32 nicht mehr - der
+   Verlauf steht hier als eigene, knappere Zeitleiste. #}
+{% from "_vorgang_teile.html" import statusmarke, priomarke, frist with context %}
 {% from "_mehrfachwahl.html" import mehrfachwahl with context %}
 {% block titel %} – {{ v.titel }}{% endblock %}
 {% block inhalt %}
@@ -69,46 +70,25 @@
   </div>
   {% endif %}
 
-  <details class="hinweise vgk-mehr">
-    <summary>Alle Angaben</summary>
-    <dl class="systemliste breit">
-      <dt>Vorgangsart</dt><dd>{{ v.art }}</dd>
-      {% if v.beteiligte %}
-      {# Das Feld gibt es im Formular seit 1.30 nicht mehr; wo noch etwas
-         drinsteht, bleibt es lesbar. #}
-      <dt>Weitere Beteiligte <span class="klein leise">(altes Feld)</span></dt>
-      <dd>{{ v.beteiligte }}</dd>{% endif %}
-      {% if v.geaendert_am %}
-      <dt>Letzte Änderung</dt><dd class="zahlen">{{ v.geaendert_am | zeitpunkt }}</dd>
-      {% endif %}
-      {% if v.datum_eingereicht %}<dt>Eingereicht</dt><dd class="zahlen">{{ v.datum_eingereicht | deutsch }}</dd>{% endif %}
-      {% if v.datum_eingang %}<dt>Eingang</dt><dd class="zahlen">{{ v.datum_eingang | deutsch }}</dd>{% endif %}
-      {% if v.datum_rueckmeldung %}<dt>Rückmeldung</dt><dd class="zahlen">{{ v.datum_rueckmeldung | deutsch }}</dd>{% endif %}
-      {% if v.datum_erledigt %}<dt>Erledigt</dt><dd class="zahlen">{{ v.datum_erledigt | deutsch }}</dd>{% endif %}
-      {% if v.dateiverweis %}<dt>Dokument</dt><dd><code>{{ v.dateiverweis }}</code></dd>{% endif %}
-    </dl>
-  </details>
-</section>
-
-<section class="karte">
-  <div class="kopfzeile">
-    <h2>Verlauf dieses Vorgangs</h2>
-    <p class="klein leise">{{ verlauf | length }} Einträge · neueste oben</p>
-  </div>
-  {% if verlauf %}
-  {% for gruppe in verlauf_tage %}
-    {{ logtag(gruppe.wort) }}
-    <ul class="logliste">
-      {% for e in gruppe.zeilen %}{{ logzeile(e, false) }}{% endfor %}
-    </ul>
-    {% endfor %}
-  {% else %}
-  <p class="leer">{{ t("vorgaenge.verlauf_leer") }}</p>
+  {# ⚠️ Der Aufklapper „Alle Angaben" ist mit 1.32 entfallen (Timos
+     Wunsch): er wiederholte die Vorgangsart, die schon über dem Titel
+     steht, und die vier Bearbeitungsdaten stehen ohnehin ausgefüllt im
+     Formular „Angaben zum Vorgang bearbeiten" weiter unten. Von der
+     Liste bleiben zwei Dinge übrig, und beide stehen jetzt dort, wo sie
+     hingehören: die letzte Änderung im Kopf des Verlaufs, und das alte
+     Feld „Weitere Beteiligte" hier - aber nur, solange etwas drinsteht.
+     Ohne diese Zeile wäre der gespeicherte Wert nirgends mehr zu sehen;
+     ein Formular dafür gibt es seit 1.30 nicht mehr. #}
+  {% if v.beteiligte %}
+  <p class="vgk-alt klein leise">
+    <span class="vgk-label">Weitere Beteiligte</span> {{ v.beteiligte }}
+    <span class="klein leise">(altes Feld, wird nicht mehr gepflegt)</span>
+  </p>
   {% endif %}
 </section>
 
 <section class="karte">
-  <h2>Aktualisieren</h2>
+  <h2>Vorgang aktualisieren</h2>
   <p class="lead">{{ t("vorgaenge.aktualisieren_hinweis") }}</p>
   {# ⚠️ Ein Formular statt vorher drei („Stand ändern", „Zuständigkeit
      übergeben", „Notiz nachtragen"). Zwei davon schrieben dasselbe -
@@ -151,6 +131,39 @@
       <button class="knopf haupt" type="submit">Speichern</button>
     </div>
   </form>
+</section>
+
+{# ⚠️ Der Verlauf steht seit 1.32 UNTER dem Formular (Timos Wunsch): man
+   kommt auf diese Seite, um etwas einzutragen, nicht um zu lesen, was
+   schon war. Und er ist deutlich knapper geworden - vorher war jede
+   Zeile ein zweispaltiger Block mit Uhrzeit, Name, Marke, dem Titel des
+   Vorgangs als Link (auf genau diese Seite!) und dem vollen Text. Der
+   Link ist hier sinnlos, die Tagesüberschriften bei fünf Zeilen auch.
+   Jetzt: eine Zeitleiste, ein Punkt je Schritt, alles Übrige in einer
+   Zeile. Die Form des globalen Logbuchs bleibt davon unberührt. #}
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Verlauf dieses Vorgangs</h2>
+    <p class="klein leise">
+      {{ verlauf | length }} Eintrag{{ '' if verlauf | length == 1 else 'e' }} · neueste oben
+      {%- if v.geaendert_am %} · zuletzt geändert {{ v.geaendert_am | zeitpunkt }}{% endif %}
+    </p>
+  </div>
+  {% if verlauf %}
+  <ol class="verlaufsleiste">
+    {% for e in verlauf %}
+    <li class="vls {{ V_LOG_KLASSE.get(e.aktion, 'la-notiz') }}">
+      <div class="vls-kopf">
+        <span class="vls-aktion">{{ e.aktion }}</span>
+        <span class="vls-meta zahlen">{{ e.zeitpunkt | zeitpunkt }} · {{ e.wer }}</span>
+      </div>
+      {% if e.beschreibung %}<p class="vls-text">{{ e.beschreibung }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="leer">{{ t("vorgaenge.verlauf_leer") }}</p>
+  {% endif %}
 </section>
 
 <section class="karte">
@@ -203,6 +216,9 @@
   </details>
 </section>
 
+{# Nur bei eigenen Aufgaben oder mit dem Recht „aufgaben_loeschen" -
+   dieselbe Funktion entscheidet hier wie in der Route. #}
+{% if darf_vorgang_loeschen(request, v) %}
 <section class="karte">
   <h2>Vorgang löschen</h2>
   <p class="klein leise felderklaerung">{{ t("vorgaenge.loeschen_hinweis") }}</p>
@@ -212,5 +228,6 @@
     <button class="knopf warn" type="submit">Vorgang endgültig löschen</button>
   </form>
 </section>
+{% endif %}
 
 {% endblock %}

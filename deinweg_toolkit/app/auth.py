@@ -70,6 +70,7 @@ def setup(templates, sitzung_tage: int) -> None:
     templates.env.globals["darf_wiki_schreiben"] = darf_wiki_schreiben
     templates.env.globals["darf_bewilligungen_sehen"] = darf_bewilligungen_sehen
     templates.env.globals["darf_fremde_loeschen"] = darf_fremde_loeschen
+    templates.env.globals["darf_aufgaben_loeschen"] = darf_aufgaben_loeschen
     templates.env.globals["darf_fremde_bearbeiten"] = darf_fremde_bearbeiten
     templates.env.globals["darf_wiki_ordner"] = darf_wiki_ordner
 
@@ -295,6 +296,7 @@ def hat_zugriff(benutzer, bereich: str) -> bool:
 # deshalb als eigene Spalten an "benutzer" und nicht in der Kommaliste:
 # * fremde_loeschen   - Zeiteintraege anderer Leute loeschen
 # * fremde_bearbeiten - Zeiteintraege anderer Leute aendern
+# * aufgaben_loeschen - Aufgaben loeschen, die jemand anderes angelegt hat
 # * wiki_schreiben    - Wiki-Seiten aendern statt nur lesen
 #
 # Beide Funktionen nehmen bewusst auch None entgegen und verweigern dann,
@@ -333,6 +335,18 @@ def darf_fremde_bearbeiten(benutzer) -> bool:
     duerfen.
     """
     return _schalter(benutzer, "fremde_bearbeiten", False)
+
+
+def darf_aufgaben_loeschen(benutzer) -> bool:
+    """Darf Aufgaben loeschen, die jemand anderes angelegt hat.
+
+    Die eigenen darf jeder loeschen - das haengt wie bei den Zeiteintraegen
+    nicht an diesem Recht, sondern wird beim Loeschen selbst geprueft
+    (vorgaenge.darf_vorgang_loeschen). Standard 0: eine geloeschte Aufgabe
+    ist fuer die Person, die sie angelegt hat, spurlos weg - im Logbuch
+    steht sie zwar noch, in ihrer Liste aber nicht mehr.
+    """
+    return _schalter(benutzer, "aufgaben_loeschen", False)
 
 
 def darf_wiki_schreiben(benutzer) -> bool:
@@ -507,7 +521,7 @@ def sitzung_benutzer(con, token: str, sitzung_tage: int):
         "b.berechtigungen, b.email, b.mitarbeiter, b.aktiv, "
         "b.fremde_loeschen, b.fremde_bearbeiten, b.wiki_schreiben, "
         "b.bewilligungen_sehen, b.einst_bereiche, b.gesehen_version, "
-        "b.wiki_ordner "
+        "b.wiki_ordner, b.aufgaben_loeschen "
         "FROM sitzung s JOIN benutzer b ON b.id = s.benutzer_id "
         "WHERE s.token = ?", (token,)).fetchone()
     if not zeile or not zeile["aktiv"]:

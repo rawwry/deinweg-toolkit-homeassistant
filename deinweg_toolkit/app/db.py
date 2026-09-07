@@ -165,6 +165,9 @@ CREATE TABLE IF NOT EXISTS benutzer (
     -- werden muss - waere leer "alle", bekaeme ihn jedes bestehende
     -- Konto beim Update stillschweigend zu sehen.
     wiki_ordner TEXT,
+    -- Darf dieses Konto Aufgaben loeschen, die jemand anderes angelegt
+    -- hat? Standard 0, wie fremde_loeschen: die eigenen darf jeder.
+    aufgaben_loeschen INTEGER NOT NULL DEFAULT 0,
     -- Zuletzt zur Kenntnis genommene Version. Leer heisst: der Hinweis
     -- auf die Neuerungen steht beim naechsten Aufruf da.
     gesehen_version TEXT,
@@ -219,7 +222,9 @@ CREATE TABLE IF NOT EXISTS vorgang (
     zustaendig         TEXT NOT NULL,
     beteiligte         TEXT,
     status             TEXT NOT NULL DEFAULT 'Offen',
-    prioritaet         TEXT NOT NULL DEFAULT 'Normal',
+    -- Seit 1.32 nur noch drei Stufen: Niedrig, Mittel, Hoch. „Normal" und
+    -- „Dringend" werden von der Migration umgeschrieben.
+    prioritaet         TEXT NOT NULL DEFAULT 'Mittel',
     frist              TEXT,
     angelegt_am        TEXT NOT NULL,
     angelegt_von       TEXT NOT NULL,
@@ -580,6 +585,11 @@ def init() -> dict | None:
         # Leer heisst: noch keine - dann steht beim naechsten Aufruf der
         # Hinweis auf die Neuerungen da.
         spalte_ergaenzen(con, "benutzer", "gesehen_version", "TEXT")
+        # Darf dieses Konto FREMDE Aufgaben loeschen (seit 1.32)? Standard
+        # 0, dieselbe Ueberlegung wie bei fremde_loeschen: die eigenen darf
+        # jeder wegraeumen, an die einer Kollegin geht man nicht ungefragt.
+        spalte_ergaenzen(con, "benutzer", "aufgaben_loeschen",
+                         "INTEGER NOT NULL DEFAULT 0")
         # Titel eines geloeschten Vorgangs, siehe Schema oben.
         spalte_ergaenzen(con, "vorgang_log", "vorgang_titel", "TEXT")
 
@@ -602,6 +612,16 @@ def init() -> dict | None:
             con.execute("ALTER TABLE vorgang ADD COLUMN "
                         "erledigt_gemeldet INTEGER NOT NULL DEFAULT 0")
             con.execute("UPDATE vorgang SET erledigt_gemeldet = 1")
+
+        # ⚠️ Prioritaeten: seit 1.32 nur noch drei Stufen. „Normal" wird zu
+        # „Mittel", „Dringend" zu „Hoch" - vier Stufen fuer ein Team von
+        # sechs Leuten waren eine Unterscheidung, die niemand traf.
+        # Bewusst bei JEDEM Start und ohne Wenn: nach dem ersten Lauf gibt
+        # es keine solchen Zeilen mehr, der Aufruf ist dann folgenlos.
+        con.execute("UPDATE vorgang SET prioritaet='Mittel' "
+                    "WHERE prioritaet='Normal'")
+        con.execute("UPDATE vorgang SET prioritaet='Hoch' "
+                    "WHERE prioritaet='Dringend'")
 
         # Selbstzahler: betreute Person ohne Kostentraeger. Standard 0.
         # Ein bestehender Bestand bleibt damit unveraendert - niemand wird

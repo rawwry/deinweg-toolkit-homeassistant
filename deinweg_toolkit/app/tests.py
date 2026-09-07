@@ -2647,8 +2647,8 @@ def test_vorgang_schnellwahl(client: TestClient) -> None:
 
     # --- Detailseite: ein „Aktualisieren", die alten drei Formulare weg ----
     detail = client.get(f"/vorgaenge/{vid}").text
-    pruefe(detail.count("<h2>Aktualisieren</h2>") == 1,
-           "die Detailseite hat eine Karte „Aktualisieren“")
+    pruefe(detail.count("<h2>Vorgang aktualisieren</h2>") == 1,
+           "die Detailseite hat eine Karte „Vorgang aktualisieren“")
     pruefe('action="/vorgaenge/' + str(vid) + '/zustaendig"' not in detail
            and 'action="/vorgaenge/' + str(vid) + '/notiz"' not in detail,
            "die getrennten Formulare für Übergabe und Notiz sind zusammengeführt")
@@ -5281,6 +5281,233 @@ def test_texte_tot() -> None:
     pruefe(not fehlend, f"jeder notierte Schlüssel existiert noch ({sorted(fehlend)})")
 
 
+def test_aufgaben_1_32(client: TestClient) -> None:
+    """Drei Prioritaeten, aufgeraeumte Detailseite, Loeschrecht."""
+    abschnitt("Aufgaben: drei Stufen, knappere Detailseite, Löschrecht")
+    stil = client.get("/static/style.css").text
+
+    # --- Prioritäten --------------------------------------------------------
+    pruefe(_vorgaenge.PRIORITAETEN == ["Niedrig", "Mittel", "Hoch"],
+           "es gibt nur noch drei Prioritätsstufen")
+    pruefe(_vorgaenge.PRIO_STANDARD == "Mittel", "die mittlere ist die Vorgabe")
+    pruefe("Dringend" not in _vorgaenge.PRIO_KLASSE
+           and "Normal" not in _vorgaenge.PRIO_KLASSE,
+           "„Normal“ und „Dringend“ gibt es nicht mehr")
+    pruefe("vp-dringend" not in stil,
+           "die tote Farbregel für „Dringend“ ist aus dem Stylesheet")
+
+    # ⚠️ Die Migration schreibt den Altbestand um - sonst stünden nach dem
+    # Update Werte in der Spalte, die es in der Auswahl nicht mehr gibt,
+    # und jedes Speichern zöge sie stillschweigend auf „Mittel“.
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, angelegt_am, angelegt_von) VALUES "
+            "(9310,'Testperson','Antrag','Alt-Normal','pruefer','Offen',"
+            "'Normal','2026-01-01 08:00','pruefer')")
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, angelegt_am, angelegt_von) VALUES "
+            "(9311,'Testperson','Antrag','Alt-Dringend','pruefer','Offen',"
+            "'Dringend','2026-01-01 08:00','pruefer')")
+    db.init()
+    with db.db() as con:
+        alt = {z["id"]: z["prioritaet"] for z in con.execute(
+            "SELECT id, prioritaet FROM vorgang WHERE id IN (9310, 9311)")}
+    pruefe(alt.get(9310) == "Mittel", "„Normal“ wird zu „Mittel“")
+    pruefe(alt.get(9311) == "Hoch", "„Dringend“ wird zu „Hoch“")
+
+    # --- Statuspille ohne Statusfarbe --------------------------------------
+    # ⚠️ 1.31.1 hat nur die aufgeklappte Liste weiß gemacht; die zugeklappte
+    # Pille blieb bunt - genau die war gemeint.
+    for klasse in ("vs-offen", "vs-warten", "vs-rueckfrage", "vs-arbeit"):
+        pruefe(f".vk-statuswahl.{klasse}" not in stil,
+               f"die Statuspille trägt keine eigene Farbe mehr ({klasse})")
+    pruefe(".vk-statuswahl option" in stil and "!important" in stil,
+           "die Optionsliste bleibt ausdrücklich neutral")
+
+    # --- Detailseite --------------------------------------------------------
+    antwort = client.post("/vorgaenge", data={
+        "klient": "Testperson", "art": "Antrag", "titel": "Aufräumprobe",
+        "beschreibung": "Ein laengerer Beschreibungstext zur Probe.",
+        "zustaendig": ["pruefer"], "status": "Offen",
+        "prioritaet": "Hoch", "frist": "2026-12-01"}, follow_redirects=False)
+    vid = int(antwort.headers.get("location", "").split("/vorgaenge/")[1].split("?")[0])
+    detail = client.get(f"/vorgaenge/{vid}").text
+    ohne_dialog = detail.split('<div class="neuheiten"')[0]
+    pruefe(">Alle Angaben<" not in ohne_dialog,
+           "der Aufklapper „Alle Angaben“ ist weg")
+    pruefe("<h2>Vorgang aktualisieren</h2>" in ohne_dialog,
+           "der Bereich heißt „Vorgang aktualisieren“")
+    pruefe(ohne_dialog.index("<h2>Vorgang aktualisieren</h2>")
+           < ohne_dialog.index("<h2>Verlauf dieses Vorgangs</h2>"),
+           "der Verlauf steht UNTER dem Formular")
+    pruefe("zuletzt geändert" in ohne_dialog,
+           "die letzte Änderung steht im Kopf des Verlaufs")
+    pruefe('class="verlaufsleiste"' in ohne_dialog,
+           "der Verlauf ist eine eigene, knappe Zeitleiste")
+    pruefe('class="logliste"' not in ohne_dialog,
+           "und nicht mehr die zweispaltige Form des globalen Logbuchs")
+    # ⚠️ Der Bezug auf den Vorgang wäre hier ein Link auf genau diese Seite.
+    pruefe('class="logbezug"' not in ohne_dialog,
+           "kein Verweis auf den Vorgang, auf dem man schon steht")
+
+    # Die Anlegezeile wiederholt die Beschreibung nicht mehr.
+    with db.db() as con:
+        erste = con.execute(
+            "SELECT beschreibung FROM vorgang_log WHERE vorgang_id=? "
+            "AND aktion='Vorgang angelegt'", (vid,)).fetchone()["beschreibung"]
+    pruefe("Ein laengerer Beschreibungstext" not in erste,
+           "die Anlegezeile wiederholt den Beschreibungstext nicht mehr")
+    pruefe("Art: Antrag" in erste and "zuständig: pruefer" in erste,
+           "sie nennt weiterhin Art und Zuständigkeit")
+
+    # --- Löschrecht ---------------------------------------------------------
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, "
+                    "abgabepflicht, angelegt_am) VALUES "
+                    "('Fremde Kollegin',1,1,'2026-01-01 08:00')")
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, angelegt_am, angelegt_von) VALUES "
+            "(9320,'Testperson','Antrag','Fremd angelegt','pruefer','Offen',"
+            "'Mittel','2026-01-01 08:00','Fremde Kollegin')")
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, angelegt_am, angelegt_von) VALUES "
+            "(9321,'Testperson','Antrag','Selbst angelegt','pruefer','Offen',"
+            "'Mittel','2026-01-01 08:00','loescher')")
+
+    ohne = _konto(client, "loescher", "loescherpasswort",
+                  ["verwaltungsvorgaenge"])
+    ohne.post("/vorgaenge/9320/loeschen", data={"zurueck": "/vorgaenge"})
+    with db.db() as con:
+        da = con.execute("SELECT COUNT(*) c FROM vorgang WHERE id=9320").fetchone()["c"]
+    pruefe(da == 1, "eine fremde Aufgabe bleibt ohne Recht stehen")
+    seite = ohne.get("/vorgaenge/9320").text.split('<div class="neuheiten"')[0]
+    pruefe("Vorgang endgültig löschen" not in seite,
+           "und trägt gar keinen Löschknopf")
+
+    ohne.post("/vorgaenge/9321/loeschen", data={"zurueck": "/vorgaenge"})
+    with db.db() as con:
+        da = con.execute("SELECT COUNT(*) c FROM vorgang WHERE id=9321").fetchone()["c"]
+    pruefe(da == 0, "die selbst angelegte Aufgabe darf jeder löschen")
+
+    # Mit dem Recht geht auch die fremde.
+    with db.db() as con:
+        bid = con.execute("SELECT id FROM benutzer WHERE benutzername='loescher'"
+                          ).fetchone()["id"]
+    client.post(f"/einstellungen/benutzer/{bid}", data={
+        "benutzername": "loescher", "rolle": "benutzer", "aktiv": "1",
+        "bereiche": ["verwaltungsvorgaenge"], "aufgaben_loeschen": "1"})
+    mit = TestClient(app)
+    mit.post("/login", data={"benutzername": "loescher",
+                             "passwort": "loescherpasswort"},
+             follow_redirects=False)
+    seite = mit.get("/vorgaenge/9320").text
+    pruefe("Vorgang endgültig löschen" in seite,
+           "mit dem Recht steht der Knopf wieder da")
+    mit.post("/vorgaenge/9320/loeschen", data={"zurueck": "/vorgaenge"})
+    with db.db() as con:
+        da = con.execute("SELECT COUNT(*) c FROM vorgang WHERE id=9320").fetchone()["c"]
+    pruefe(da == 0, "und die fremde Aufgabe lässt sich löschen")
+    pruefe(not auth.darf_aufgaben_loeschen(None),
+           "ohne Anmeldung gilt das Recht nicht")
+
+
+def test_erfassungsband(client: TestClient) -> None:
+    """Das Band „Erfasst fuer" ist eine Zeile, die Fussleiste traegt den Knopf."""
+    abschnitt("Zeiterfassung: Band und Fußleiste")
+    seite = client.get("/").text
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+    stil = client.get("/static/style.css").text
+
+    pruefe('<details class="erfasser erfasserwechsel' in ohne_dialog,
+           "das ganze Band ist der Aufklapper")
+    pruefe('<summary class="erfasser-zeile"' in ohne_dialog,
+           "seine Zeile ist das <summary> und damit immer volle Breite")
+    pruefe("dein Konto" not in ohne_dialog,
+           "die Pille „dein Konto“ ist ersatzlos entfallen")
+    # ⚠️ Das Auswahlfeld steckt weiterhin IM zugeklappten Block und
+    # schickt seinen Wert mit - ohne Skript bleibt alles bedienbar.
+    block = ohne_dialog.split('<details class="erfasser erfasserwechsel')[1]
+    pruefe('name="mitarbeiter"' in block.split("</details>")[0],
+           "das Auswahlfeld steckt darin und schickt seinen Wert mit")
+
+    pruefe("Alle Einträge von" not in ohne_dialog,
+           "der zweite Knopf neben „Speichern“ ist weg")
+    pruefe('id="zeilenstand">1 Eintrag<' in ohne_dialog,
+           "die Fußleiste nennt die Zahl auch bei einer Zeile")
+    fuss = stil.split(".erfass-fuss {")[1].split("}")[0]
+    pruefe("var(--flaeche-2)" in fuss and "space-between" in fuss,
+           "die Fußleiste ist getönt und schiebt den Knopf nach rechts")
+    pruefe("margin: 20px -24px -22px" in fuss,
+           "sie läuft bis an den Rand der Karte – dieselben 24/22px "
+           "Polsterung wie .karte")
+
+
+def test_mailprotokoll(client: TestClient) -> None:
+    """Das Versandprotokoll bleibt kurz, ohne die Sperre zu verlieren."""
+    abschnitt("E-Mail: Protokoll auf 15 Zeilen")
+    pruefe(mail.PROTOKOLL_LAENGE == 15, "es bleiben 15 Zeilen stehen")
+
+    heute = dt.date.today()
+    vormonat = (heute.replace(day=1) - dt.timedelta(days=1)).strftime("%Y-%m")
+    uralt = "2019-01"
+    jahr, woche, _ = heute.isocalendar()
+    frist = (heute + dt.timedelta(days=30)).isoformat()
+
+    with db.db() as con:
+        con.execute("DELETE FROM benachrichtigung")
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, frist, angelegt_am, angelegt_von) VALUES "
+            "(9350,'Testperson','Antrag','Offene Frist','pruefer','Offen',"
+            f"'Mittel','{frist}','2026-01-01 08:00','pruefer')")
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, frist, angelegt_am, angelegt_von) VALUES "
+            "(9351,'Testperson','Antrag','Erledigte Frist','pruefer',"
+            f"'Erledigt','Mittel','{frist}','2026-01-01 08:00','pruefer')")
+        # 20 alte, belanglose Zeilen
+        for i in range(20):
+            con.execute(
+                "INSERT INTO benachrichtigung (art, bezug, empfaenger, "
+                "gesendet_am, erfolg) VALUES ('abgabe',?,?,?,1)",
+                (f"abgabe:{uralt}", f"alt{i}@example.org",
+                 f"2019-01-{i + 1:02d} 08:00"))
+        # und drei, die noch als Sperre gebraucht werden
+        for art, bezug in (("frist", "vorgang:9350:" + frist),
+                           ("abgabe", f"abgabe:{vormonat}"),
+                           ("bewilligung",
+                            f"bewilligung:{jahr}-KW{woche:02d}:Testperson")):
+            con.execute(
+                "INSERT INTO benachrichtigung (art, bezug, empfaenger, "
+                "gesendet_am, erfolg) VALUES (?,?,?,?,1)",
+                (art, bezug, "wichtig@example.org", "2019-01-01 07:00"))
+        # eine Sperre, die niemand mehr braucht: der Vorgang ist erledigt
+        con.execute(
+            "INSERT INTO benachrichtigung (art, bezug, empfaenger, "
+            "gesendet_am, erfolg) VALUES ('frist',?,?,?,1)",
+            ("vorgang:9351:" + frist, "egal@example.org", "2019-01-01 07:00"))
+        weg = mail.protokoll_kuerzen(con)
+        rest = con.execute("SELECT art, bezug FROM benachrichtigung").fetchall()
+
+    bezuege = {z["bezug"] for z in rest}
+    pruefe(weg > 0, "alte Zeilen fallen weg")
+    pruefe("vorgang:9350:" + frist in bezuege,
+           "die Sperre eines offenen Vorgangs bleibt – sonst käme die "
+           "Erinnerung ein zweites Mal")
+    pruefe(f"abgabe:{vormonat}" in bezuege,
+           "die Abgabe des Vormonats bleibt gesperrt")
+    pruefe(f"bewilligung:{jahr}-KW{woche:02d}:Testperson" in bezuege,
+           "die Bewilligung dieser Kalenderwoche bleibt gesperrt")
+    pruefe("vorgang:9351:" + frist not in bezuege,
+           "die Sperre eines erledigten Vorgangs darf weg")
+    pruefe(len(rest) <= mail.PROTOKOLL_LAENGE + 3,
+           "übrig bleiben die 15 jüngsten plus die noch nötigen Sperren")
+
+
 def test_kosmetik(client: TestClient) -> None:
     """Kopfzeile, Tabellen am Telefon, Mülleimer – und ein Osterei."""
     abschnitt("Kosmetik")
@@ -5860,10 +6087,23 @@ def test_erfasst_fuer(client: TestClient) -> None:
         if "{% if" in seite else seite.split('class="erfasser')[1][:4000]
     pruefe("– bitte auswählen –" not in band,
            "es gibt keine leere Vorauswahl mehr")
-    pruefe('id="erfasserwechsel"' in seite and "Für jemand anderen erfassen" in seite,
+    # ⚠️ Die Beschriftung steht seit 1.32 nur noch als aria-label und
+    # title an der Zeile - sichtbar ist „ändern". Hier ausdrücklich gegen
+    # das Attribut geprüft und nicht gegen den Fließtext: der Hinweis auf
+    # Neuerungen zitiert den Changelog und würde jede Textsuche
+    # verwässern.
+    pruefe('id="erfasserwechsel"' in seite
+           and 'aria-label="Für jemand anderen erfassen"' in seite,
            "für jemand anderen zu erfassen klappt darunter auf")
-    pruefe("<details class=\"erfasserwechsel\"" in seite,
+    # ⚠️ Seit 1.32 ist das ganze Band das <details>; die Klasse steht
+    # deshalb neben „erfasser" und nicht mehr allein.
+    pruefe('<details class="erfasser erfasserwechsel' in seite,
            "bewusst ein <details> - das geht auch ohne Skript")
+    pruefe('class="erfasser-zeile"' in seite
+           and '>ändern<' in seite,
+           "Name und „ändern“ stehen in EINER Zeile")
+    pruefe("dein Konto" not in seite.split('<div class="neuheiten"')[0],
+           "die Pille „dein Konto“ ist entfallen")
 
     # ⚠️ Das Auswahlfeld steckt IM zugeklappten Block und schickt seinen
     # Wert trotzdem mit: ohne Skript ist damit alles bedienbar.
@@ -5890,9 +6130,9 @@ def test_erfasst_fuer(client: TestClient) -> None:
 
     # Ein fremder Name färbt das Band und klappt den Block auf.
     seite = client.get("/?mitarbeiter=Ehemalige+Kollegin").text
-    pruefe('class="erfasser fremd"' in seite,
+    pruefe('erfasserwechsel fremd"' in seite,
            "ein fremder Name färbt das Band")
-    pruefe("für jemand anderen" in seite,
+    pruefe(">nicht du<" in seite,
            "und trägt eine eigene Marke")
     pruefe('id="erfasserwechsel" open' in seite,
            "der Block steht dann offen - sonst sähe man den Namen nicht")
@@ -6487,6 +6727,9 @@ def _durchlauf(client: TestClient) -> None:
         test_aufgaben_1_30(client)
         test_mailformat(client)
         test_logbaum(client)
+        test_aufgaben_1_32(client)
+        test_erfassungsband(client)
+        test_mailprotokoll(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

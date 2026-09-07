@@ -1271,7 +1271,7 @@
          innerhalb eines Bereichs ziehen. Deshalb stehen sie hier getrennt. #}
       <fieldset class="feld bereichsfeld">
         <span>Einzelrechte</span>
-        <p class="klein leise felderklaerung">{{ t("einst.benutzer_rechte_hinweis") }}</p>
+        <p class="klein leise felderklaerung">{{ t("einst.benutzer_rechte") }}</p>
         <div class="bereichsraster">
           <label class="bereich-kachel">
             <input type="checkbox" name="fremde_bearbeiten" value="1">
@@ -1280,6 +1280,10 @@
           <label class="bereich-kachel">
             <input type="checkbox" name="fremde_loeschen" value="1">
             Einträge anderer löschen
+          </label>
+          <label class="bereich-kachel">
+            <input type="checkbox" name="aufgaben_loeschen" value="1">
+            Aufgaben anderer löschen
           </label>
           <label class="bereich-kachel">
             <input type="checkbox" name="wiki_schreiben" value="1" checked>
@@ -1470,6 +1474,11 @@
             <input type="checkbox" name="fremde_loeschen" value="1" form="bn-{{ b.id }}"
                    {{ 'checked' if b.fremde_loeschen }}>
             Einträge anderer löschen
+          </label>
+          <label class="bereich-kachel">
+            <input type="checkbox" name="aufgaben_loeschen" value="1" form="bn-{{ b.id }}"
+                   {{ 'checked' if b.aufgaben_loeschen }}>
+            Aufgaben anderer löschen
           </label>
           <label class="bereich-kachel">
             <input type="checkbox" name="wiki_schreiben" value="1" form="bn-{{ b.id }}"

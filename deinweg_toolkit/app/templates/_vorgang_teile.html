@@ -6,7 +6,7 @@
 {%- endmacro %}
 
 {% macro priomarke(prio) -%}
-{% if prio and prio != "Normal" %}<span class="prio {{ V_PRIO_KLASSE.get(prio, '') }}">{{ prio }}</span>{% else %}<span class="leise klein">Normal</span>{% endif %}
+{% if prio and prio != "Mittel" %}<span class="prio {{ V_PRIO_KLASSE.get(prio, '') }}">{{ prio }}</span>{% else %}<span class="leise klein">Mittel</span>{% endif %}
 {%- endmacro %}
 
 {% macro frist(v, lage) -%}

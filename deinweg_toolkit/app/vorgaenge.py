@@ -49,7 +49,16 @@ ABGESCHLOSSEN = ("Erledigt", "Abgebrochen")
 # Status, bei denen auf jemand anderen gewartet wird
 WARTEND = ("Eingereicht", "Warten auf Rückmeldung")
 
-PRIORITAETEN = ["Niedrig", "Normal", "Hoch", "Dringend"]
+# ⚠️ Seit 1.32 drei Stufen statt vier. „Normal" und „Dringend" gab es
+# vorher zusaetzlich; in einem Team von sechs Leuten war der Unterschied
+# zwischen „Hoch" und „Dringend" eine Frage, die niemand beantworten
+# konnte, und beides bedeutete in der Praxis dasselbe. Die Migration in
+# db.py schreibt den Altbestand um (Normal -> Mittel, Dringend -> Hoch).
+PRIORITAETEN = ["Niedrig", "Mittel", "Hoch"]
+
+# Die mittlere Stufe ist die Vorgabe und wird an der Karte nicht
+# angezeigt - sie sagt nichts, was man nicht ohnehin annimmt.
+PRIO_STANDARD = "Mittel"
 
 # Farbklassen fuer die Statusmarke, siehe style.css
 STATUS_KLASSE = {
@@ -64,9 +73,8 @@ STATUS_KLASSE = {
 
 PRIO_KLASSE = {
     "Niedrig": "vp-niedrig",
-    "Normal": "vp-normal",
+    "Mittel": "vp-normal",
     "Hoch": "vp-hoch",
-    "Dringend": "vp-dringend",
 }
 
 BALD_TAGE = 7  # was als "bald fällig" gilt
@@ -115,6 +123,11 @@ def setup(templates, umgebung=None) -> None:
         "V_PRIO_KLASSE": PRIO_KLASSE,
         "V_ABGESCHLOSSEN": ABGESCHLOSSEN,
         "V_LOG_KLASSE": LOG_KLASSE,
+        # ⚠️ Als Funktion und nicht als vorgerechnete Menge: die Liste
+        # zeigt bis zu 50 Karten, und die Entscheidung haengt an genau
+        # einem Feld je Vorgang. So kann Anzeige und Durchsetzung nicht
+        # auseinanderlaufen - beide rufen dieselbe Funktion.
+        "darf_vorgang_loeschen": darf_vorgang_loeschen,
     })
 
 
@@ -447,11 +460,11 @@ def filter_bauen(klient: str, zustaendig: str, status: str, art: str,
             "query": urlencode({k: v for k, v in felder.items() if v})}
 
 
-# Rang der Priorität für die Sortierung. Dringend zuerst.
-_PRIO_RANG = ("CASE prioritaet WHEN 'Dringend' THEN 0 WHEN 'Hoch' THEN 1 "
-              "WHEN 'Normal' THEN 2 ELSE 3 END")
+# Rang der Priorität für die Sortierung. Hoch zuerst.
+_PRIO_RANG = ("CASE prioritaet WHEN 'Hoch' THEN 0 "
+              "WHEN 'Mittel' THEN 1 ELSE 2 END")
 
-# ⚠️ „Überfällig“ wiegt schwerer als „Dringend“: das eine ist eine
+# ⚠️ „Überfällig“ wiegt schwerer als „Hoch“: das eine ist eine
 # Tatsache, das andere eine Einschätzung. Die Standardsortierung stellt
 # deshalb zuerst alles Überfällige nach vorn und ordnet erst danach nach
 # Frist und Priorität.
@@ -592,7 +605,7 @@ def anlegen(request: Request, klient: str = Form(""), art: str = Form(""),
             titel: str = Form(""),
             beschreibung: str = Form(""),
             zustaendig: list[str] = Form([]), status: str = Form("Offen"),
-            prioritaet: str = Form("Normal"), frist: str = Form(""),
+            prioritaet: str = Form(PRIO_STANDARD), frist: str = Form(""),
             dateiverweis: str = Form(""),
             zurueck: str = Form("/vorgaenge")):
     """Legt eine Aufgabe an.
@@ -610,7 +623,7 @@ def anlegen(request: Request, klient: str = Form(""), art: str = Form(""),
     wer = handelnde_person(request)
     art = sauber(art, 160)
     status = status if status in STATUS_LISTE else "Offen"
-    prioritaet = prioritaet if prioritaet in PRIORITAETEN else "Normal"
+    prioritaet = prioritaet if prioritaet in PRIORITAETEN else PRIO_STANDARD
     frist_iso = datum_lesen(frist)
 
     if not klient or not titel or not zustaendig or not art:
@@ -640,13 +653,17 @@ def anlegen(request: Request, klient: str = Form(""), art: str = Form(""),
              wer, jetzt(), sauber(dateiverweis, 300)))
         neue_id = cur.lastrowid
 
-        text = f"Vorgang „{titel}“ angelegt (Art: {art}). Zuständig: {zustaendig}."
+        # ⚠️ Knapp halten (seit 1.32). Bis dahin stand hier der Titel, die
+        # Art, die Zustaendigen, die Frist UND die ganze Beschreibung -
+        # bis zu 600 Zeichen, die auf der Vorgangsseite direkt darueber
+        # schon einmal stehen. Der Titel kommt im Logbuch ohnehin aus dem
+        # Bezug, die Art und die Frist stehen am Vorgang.
+        teile = [f"Art: {art}", f"zuständig: {zustaendig}"]
         if status != "Offen":
-            text += f" Status: {status}."
+            teile.append(f"Status: {status}")
         if frist_iso:
-            text += f" Wiedervorlage/Frist: {deutsch(frist_iso)}."
-        if beschreibung.strip():
-            text += f" Notiz: {mehrzeilig(beschreibung, 600)}"
+            teile.append(f"Frist: {deutsch(frist_iso)}")
+        text = " · ".join(teile)
         protokoll(con, neue_id, klient, wer, "Vorgang angelegt", text)
 
     return RedirectResponse(f"/vorgaenge/{neue_id}?hinweis=Vorgang+angelegt.",
@@ -697,7 +714,8 @@ def logbuch(request: Request, klient: str = "", wer: str = "", q: str = ""):
 # --- Betreutenansicht -------------------------------------------------------
 
 @router.get("/person", response_class=HTMLResponse)
-def personenansicht(request: Request, name: str = "", hinweis: str = ""):
+def personenansicht(request: Request, name: str = "", hinweis: str = "",
+                    fehler: str = ""):
     name = sauber(name, 120)
     if not name:
         return RedirectResponse("/vorgaenge", status_code=303)
@@ -731,7 +749,8 @@ def personenansicht(request: Request, name: str = "", hinweis: str = ""):
                  offene=[{"v": z, "lage": fristlage(z)} for z in offene],
                  erledigte=erledigte, verlauf=verlauf,
                  verlauf_tage=nach_tagen(verlauf), eintraege=eintraege,
-                 stamm=stamm, leute=leute, hinweis=hinweis, heute_iso=heute())
+                 stamm=stamm, leute=leute, hinweis=hinweis, fehler=fehler,
+                 heute_iso=heute())
 
 
 # --- Einzelner Vorgang ------------------------------------------------------
@@ -756,6 +775,40 @@ def ansicht(request: Request, vorgang_id: int, hinweis: str = "",
                  V_ARTEN=arten,
                  lage=fristlage(v), andere=andere, hinweis=hinweis,
                  fehler=fehler, heute_iso=heute())
+
+
+def darf_vorgang_loeschen(request, v) -> bool:
+    """Darf dieses Konto diesen Vorgang loeschen?
+
+    Dieselbe Bauart wie main.darf_eintrag_loeschen und aus demselben
+    Grund: die EIGENE Aufgabe darf jeder wegraeumen - wer sie versehentlich
+    angelegt hat, soll das nicht bei der Verwaltung beantragen muessen.
+    Fremde brauchen das ausdrueckliche Recht ``aufgaben_loeschen``.
+
+    ⚠️ „Eigen" heisst hier: selbst ANGELEGT (vorgang.angelegt_von), nicht
+    „zustaendig". Zustaendig kann man werden, ohne gefragt zu werden -
+    daran ein Loeschrecht zu haengen, hiesse die Aufgabe der Person
+    wegnehmen zu koennen, die sie vergeben hat.
+
+    Verglichen wird gegen beides, Mitarbeitername und Benutzername:
+    ``angelegt_von`` kommt aus handelnde_person(), und die bevorzugt den
+    Mitarbeiternamen, faellt aber auf den Benutzernamen zurueck.
+    """
+    benutzer = getattr(request.state, "benutzer", None)
+    from . import auth as _auth
+    if _auth.darf_aufgaben_loeschen(benutzer):
+        return True
+    angelegt = (v["angelegt_von"] or "").strip().casefold()
+    if not angelegt:
+        return False
+    eigene = {handelnde_person(request).strip().casefold()}
+    try:
+        eigene.add((benutzer["benutzername"] or "").strip().casefold())
+    except (IndexError, KeyError, TypeError):
+        pass
+    eigene.discard("")
+    eigene.discard("unbekannt")
+    return angelegt in eigene
 
 
 def _fehler(vorgang_id: int, text: str) -> RedirectResponse:
@@ -793,6 +846,13 @@ def loeschen(request: Request, vorgang_id: int,
 
     with db.db() as con:
         v = lade(con, vorgang_id)
+        # ⚠️ Serverseitig geprueft, nicht nur in der Vorlage: der Knopf
+        # fehlt dort zwar, ein abgeschicktes Formular kann aber alles
+        # enthalten.
+        if not darf_vorgang_loeschen(request, v):
+            return zurueck_zu(
+                zurueck, fehler="Diese Aufgabe hat jemand anderes angelegt – "
+                                "zum Löschen fehlt dir die Berechtigung.")
         angaben = [f"Art: {v['art']}", f"Status: {v['status']}"]
         if v["zustaendig"]:
             angaben.append(f"zuständig: {v['zustaendig']}")
@@ -1002,7 +1062,7 @@ FELDER_BESCHRIFTUNG = {
 @router.post("/{vorgang_id}/daten")
 def daten_speichern(request: Request, vorgang_id: int, titel: str = Form(""),
                     art: str = Form(""), beschreibung: str = Form(""),
-                    prioritaet: str = Form("Normal"),
+                    prioritaet: str = Form(PRIO_STANDARD),
                     dateiverweis: str = Form(""),
                     datum_eingereicht: str = Form(""),
                     datum_eingang: str = Form(""),

@@ -338,6 +338,24 @@ TEXTE_STANDARD["einst.benutzer_rechte_hinweis"] = (
     "Zeile fällt auf, eine stillschweigend geänderte nicht. "
     "<strong>Wiki bearbeiten</strong>: ohne dieses Recht bleibt das Wiki "
     "vollständig lesbar, lässt sich aber nicht ändern.")
+# ⚠️ Neuer Schluessel statt Aenderung am alten (siehe Abschnitt 8 der
+# CLAUDE.md): eine vorhandene strings.txt gewinnt gegen jeden
+# Standardtext - unter "…_hinweis" waere der berichtigte Wortlaut bei
+# einer bestehenden Installation nie angekommen. Der alte Schluessel
+# bleibt stehen und steht in UNGENUTZT.
+TEXTE_STANDARD["einst.benutzer_rechte"] = (
+    "Vier Rechte, die keinen eigenen Bereich bilden, sondern innerhalb "
+    "eines Bereichs eine Grenze ziehen. <strong>Einträge anderer "
+    "bearbeiten</strong> und <strong>Einträge anderer löschen</strong>: "
+    "ohne diese Rechte kann das Konto in der Übersicht nur seine eigenen "
+    "Zeiten ändern beziehungsweise löschen – die eigenen aber immer. Beide "
+    "sind getrennt, weil beides verschieden schwer wiegt: eine gelöschte "
+    "Zeile fällt auf, eine stillschweigend geänderte nicht. "
+    "<strong>Aufgaben anderer löschen</strong>: dasselbe für die Aufgaben. "
+    "Wer eine Aufgabe selbst angelegt hat, darf sie immer wieder "
+    "wegräumen; an die einer Kollegin geht man ohne dieses Recht nicht. "
+    "<strong>Wiki bearbeiten</strong>: ohne dieses Recht bleibt das Wiki "
+    "vollständig lesbar, lässt sich aber nicht ändern.")
 TEXTE_STANDARD["einst.benutzer_selbst"] = "das eigene Konto"
 TEXTE_STANDARD["mein.konto_lead"] = (
     "Hier änderst du dein eigenes Passwort und die Adresse, an die "
@@ -718,6 +736,10 @@ UNGENUTZT = frozenset({
     "dateien.erlaubt",      # dito
     "dateien.lead",         # dito
     "dateien.ziehen",       # seit 1.18.1
+    # seit 1.32: der Text nennt jetzt vier Rechte und steht deshalb
+    # unter einem NEUEN Schluessel (einst.benutzer_rechte) - eine
+    # vorhandene strings.txt gewinnt sonst gegen die Aenderung.
+    "einst.benutzer_rechte_hinweis",
     "footer.text",          # seit 1.1.2, die Fusszeile kommt aus dem Markup
     "ideen.hinweis_datei",
     "ideen.hinweis_fehler",

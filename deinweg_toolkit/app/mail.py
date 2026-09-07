@@ -673,7 +673,7 @@ def pruefe_zuweisungen(con, k: dict) -> list[str]:
         eintraege = []
         for a in aufgaben:
             teil = f"  • {a['titel']} (Art: {a['art']}, Person: {a['klient']}"
-            if a["prioritaet"] and a["prioritaet"] != "Normal":
+            if a["prioritaet"] and a["prioritaet"] != "Mittel":
                 teil += f", Priorität: {a['prioritaet']}"
             if a["frist"]:
                 teil += f", Frist: {_datum(a['frist'])}"
@@ -831,4 +831,67 @@ def durchlauf(nur_fristen: bool = False, nur_abgaben: bool = False,
             protokoll += pruefe_abgaben(con, k)
         if nur_bewilligungen or not einzeln:
             protokoll += pruefe_bewilligungen(con, k)
+        protokoll_kuerzen(con)
     return protokoll or ["nichts zu tun"]
+
+
+# Wie viele verschickte Nachrichten bleiben im Protokoll stehen. Die
+# Einstellungsseite zeigt ohnehin nur diese Zahl - laenger aufzuheben
+# hilft niemandem.
+PROTOKOLL_LAENGE = 15
+
+
+def protokoll_kuerzen(con, behalten: int = PROTOKOLL_LAENGE) -> int:
+    """Raeumt die Tabelle ``benachrichtigung`` auf und gibt zurueck, wie
+    viele Zeilen weggefallen sind.
+
+    ⚠️⚠️ Diese Tabelle ist zweierlei zugleich: Protokoll UND Sperre gegen
+    Doppelversand (siehe schon_gesendet). Einfach „alles ausser den 15
+    juengsten loeschen" waere deshalb ein Fehler mit Folgen - faellt der
+    Vermerk einer Erinnerung heraus, die noch aussteht, verschickt der
+    naechste Weckerlauf sie ein zweites Mal.
+
+    Geloescht wird darum nur, was BEIDES nicht mehr ist: nicht unter den
+    juengsten und auch nicht mehr als Sperre gebraucht. Gebraucht wird ein
+    Vermerk noch, solange sein Bezug ueberhaupt wieder entstehen kann:
+
+    * ``frist``  – die Aufgabe gibt es noch, sie ist offen, und ihre Frist
+      steht unveraendert. Eine verschobene Frist ergibt einen neuen Bezug,
+      der alte kann also niemandem mehr im Weg stehen.
+    * ``abgabe`` – nur der abgelaufene Monat wird je geprueft, alles
+      Aeltere ist erledigt.
+    * ``bewilligung`` – gedeckelt auf eine Mail je Kalenderwoche, also
+      zaehlt nur die laufende.
+    """
+    heute = dt.date.today()
+    # Der Monat, den pruefe_abgaben() betrachtet: der abgelaufene.
+    erster = heute.replace(day=1)
+    vormonat = (erster - dt.timedelta(days=1)).strftime("%Y-%m")
+    jahr, woche, _ = heute.isocalendar()
+
+    lebendig = set()
+    for v in con.execute(
+            "SELECT id, frist FROM vorgang "
+            "WHERE frist IS NOT NULL AND frist <> '' "
+            "AND status NOT IN ('Erledigt', 'Abgebrochen')"):
+        lebendig.add(f"vorgang:{v['id']}:{v['frist']}")
+        lebendig.add(f"vorgang:{v['id']}:{v['frist']}:vor")
+
+    weg = []
+    zeilen = con.execute(
+        "SELECT id, art, bezug FROM benachrichtigung "
+        "ORDER BY gesendet_am DESC, id DESC").fetchall()
+    for z in zeilen[behalten:]:
+        art, bezug = z["art"], z["bezug"] or ""
+        if art == "frist" and bezug in lebendig:
+            continue
+        if art == "abgabe" and bezug >= f"abgabe:{vormonat}":
+            continue
+        if art == "bewilligung" and bezug.startswith(
+                f"bewilligung:{jahr}-KW{woche:02d}:"):
+            continue
+        weg.append(z["id"])
+    if weg:
+        con.executemany("DELETE FROM benachrichtigung WHERE id=?",
+                        [(i,) for i in weg])
+    return len(weg)

@@ -3,6 +3,7 @@
 {% block titel %} – {{ name }}{% endblock %}
 {% block inhalt %}
 
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
 {% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
 
 <p class="statuszeile klein leise">

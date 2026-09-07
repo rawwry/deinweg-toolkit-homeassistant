@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.32
+
+- Aufgaben: drei Prioritätsstufen statt vier (Niedrig, Mittel, Hoch)
+- Neues Recht „Aufgaben anderer löschen“ in der Benutzerverwaltung
+- Detailseite einer Aufgabe aufgeräumt, Verlauf knapper und darunter
+- Statuspille ohne eigene Farbe
+- Zeiterfassung: „Erfasst für …“ in einer Zeile, eigene Fußleiste
+- E-Mail-Protokoll auf die letzten 15 Nachrichten begrenzt
+
 ## 1.31.1
 
 - „Für jemand anderen erfassen“ springt beim Aufklappen nicht mehr

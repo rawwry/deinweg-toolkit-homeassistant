@@ -293,6 +293,10 @@
               <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
             </svg>
           </a>
+          {# ⚠️ Der Löschknopf steht nur bei eigenen Aufgaben da - für
+             fremde braucht es das Recht „aufgaben_loeschen". Entschieden
+             wird das mit derselben Funktion, die auch die Route prüft. #}
+          {% if darf_vorgang_loeschen(request, z.v) %}
           <form class="inline" action="/vorgaenge/{{ z.v.id }}/loeschen" method="post"
                 onsubmit="return confirm('Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
             <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
@@ -304,6 +308,7 @@
               </svg>
             </button>
           </form>
+          {% endif %}
         </div>
       </div>
 
@@ -341,7 +346,7 @@
           </svg>
           {{ z.v.zustaendig }}
         </span>
-        {% if z.v.prioritaet and z.v.prioritaet != "Normal" %}
+        {% if z.v.prioritaet and z.v.prioritaet != "Mittel" %}
         <span class="vk-prio">{{ priomarke(z.v.prioritaet) }}</span>
         {% endif %}
       </div>
@@ -376,7 +381,7 @@
         </td>
         <td class="zahlen">{{ frist(z.v, z.lage) }}</td>
         <td>{{ z.v.zustaendig }}</td>
-        <td>{% if z.v.prioritaet and z.v.prioritaet != "Normal" %}{{ priomarke(z.v.prioritaet) }}{% endif %}</td>
+        <td>{% if z.v.prioritaet and z.v.prioritaet != "Mittel" %}{{ priomarke(z.v.prioritaet) }}{% endif %}</td>
         <td class="vz-aktionen">
           <a class="knopf-icon" href="/vorgaenge/{{ z.v.id }}" title="Öffnen" aria-label="Öffnen">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
