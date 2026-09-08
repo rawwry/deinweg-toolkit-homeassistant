@@ -17,6 +17,7 @@ from urllib.parse import urlencode
 from fastapi import (FastAPI, File, Form, HTTPException, Query, Request,
                      UploadFile)
 from fastapi.responses import HTMLResponse, RedirectResponse
+from starlette.responses import Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
@@ -42,7 +43,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.34"
+VERSION = "1.35"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -106,6 +107,7 @@ templates.env.filters["deutsch"] = deutsch
 # ganze Datei, greift der Standardtext von hier. Die Datei wird beim Start
 # angelegt, falls sie noch nicht existiert.
 
+from . import texte_standard  # noqa: E402
 from .texte_standard import TEXTE_STANDARD  # noqa: E402
 
 _texte_zwischenspeicher: dict = {"stand": None, "werte": {}}
@@ -121,25 +123,11 @@ def texte() -> dict:
     if stand != _texte_zwischenspeicher["stand"]:
         werte = dict(TEXTE_STANDARD)
         if stand is not None:
-            schluessel = None
-            teile: list[str] = []
-            try:
-                with open(STRINGS_DATEI, encoding="utf-8") as f:
-                    for zeile in f:
-                        roh = zeile.rstrip("\n")
-                        if roh.startswith("#") and not schluessel:
-                            continue
-                        kopf = re.fullmatch(r"\[([\w.]+)\]\s*", roh)
-                        if kopf:
-                            if schluessel:
-                                werte[schluessel] = " ".join(" ".join(teile).split())
-                            schluessel, teile = kopf.group(1), []
-                        elif schluessel is not None:
-                            teile.append(roh)
-                if schluessel:
-                    werte[schluessel] = " ".join(" ".join(teile).split())
-            except OSError:
-                pass
+            # ⚠️ Gelesen wird über texte_standard.datei_lesen() - dieselbe
+            # Funktion, die die Einstellungen zum Schreiben benutzen.
+            # Vorher stand hier ein zweiter Parser, der ein anderes Format
+            # meinte als der Schreiber; siehe die Warnung dort.
+            werte.update(texte_standard.datei_lesen(STRINGS_DATEI))
         _texte_zwischenspeicher.update({"stand": stand, "werte": werte})
     return _texte_zwischenspeicher["werte"]
 
@@ -202,11 +190,14 @@ def fusstext() -> Markup:
         k = mail.konfig_lesen(con)
     recht = (k.get("fusszeile_recht") or "").strip() or FUSS_STANDARD["recht"]
     name, v = escape(APP_NAME), escape(VERSION)
+    # ⚠️ Eigener Stand für die Bilder: die Programmversion ändert sich
+    # beim Tausch eines Logos nicht, der Browser hinge am alten Bild.
+    mv = escape(markenstand())
     return Markup(
         '<div class="fussband">'
         '<div class="fussmarke">'
-        f'<img class="nur-dunkel" src="/static/logo-fuer-dunkel.svg?v={v}" alt="{name}">'
-        f'<img class="nur-hell" src="/static/logo-fuer-hell.svg?v={v}" alt="{name}">'
+        f'<img class="nur-dunkel" src="/marke/logo-fuer-dunkel.svg?v={mv}" alt="{name}">'
+        f'<img class="nur-hell" src="/marke/logo-fuer-hell.svg?v={mv}" alt="{name}">'
         '</div>'
         '<div class="fussangaben">'
         f'<p class="fuss-zeile fuss-fassung">{name}'
@@ -216,27 +207,105 @@ def fusstext() -> Markup:
         '</div></div>')
 
 
+# --- Eigene Logos -------------------------------------------------------------
+#
+# Die beiden Schriftzuege der Kopfzeile lassen sich unter Einstellungen ->
+# System und Sicherung durch eigene SVG-Dateien ersetzen.
+#
+# ⚠️⚠️ Gespeichert wird in der DATENBANK (Tabelle konfig), nicht als Datei
+# neben app/static/. Grund: der Programmcode liegt im Add-on-Abbild
+# (COPY app /opt/deinweg/app im Dockerfile) - eine dort abgelegte Datei
+# waere beim naechsten Update spurlos weg, und zwar ohne Fehlermeldung.
+# In der Datenbank ueberlebt sie jedes Update und liegt ausserdem in der
+# Sicherung mit drin. Eine SVG-Datei ist Text und ein paar Dutzend
+# Kilobyte gross - das traegt die Tabelle muehelos.
+
+MARKEN = {
+    "logo-fuer-dunkel": ("logo_dunkel", "Schriftzug für das dunkle Thema"),
+    "logo-fuer-hell": ("logo_hell", "Schriftzug für das helle Thema"),
+}
+
+# Wird beim Start und nach jedem Tausch neu gefuellt. Ohne den Puffer
+# fragte jeder Seitenaufbau die Datenbank nach dem Zeitstempel - nur um
+# ihn an eine Bildadresse zu haengen.
+_marken_puffer: dict = {"stand": "", "geladen": False}
+
+
+def markenstand() -> str:
+    """Der Anhang fuer ?v= an den Logo-Adressen.
+
+    ⚠️ NICHT die Programmversion: die aendert sich beim Tausch eines Logos
+    ja gerade nicht, und der Browser haenge dann am alten Bild. Genau
+    diese Falle ist beim Grafiktausch in 1.27 schon einmal zugeschnappt.
+    """
+    if not _marken_puffer["geladen"]:
+        try:
+            with db.db() as con:
+                zeile = con.execute(
+                    "SELECT wert FROM konfig WHERE schluessel='logo_stand'"
+                ).fetchone()
+            # ⚠️ Nur die Ziffern: der Wert ist ein Zeitpunkt
+            # („2026-09-08 10:48"), und Leerzeichen wie Doppelpunkte
+            # haben in einer Bildadresse nichts verloren.
+            roh = (zeile["wert"] if zeile else "") or ""
+            _marken_puffer["stand"] = re.sub(r"\D", "", roh)
+        except Exception:
+            _marken_puffer["stand"] = ""
+        _marken_puffer["geladen"] = True
+    return _marken_puffer["stand"] or VERSION
+
+
+def marken_puffer_leeren() -> None:
+    _marken_puffer.update({"stand": "", "geladen": False})
+
+
+@app.get("/marke/{name}.svg")
+def marke(name: str):
+    """Liefert den Schriftzug aus - eigener aus der Datenbank, sonst der
+    ausgelieferte aus app/static/.
+
+    ⚠️ Der CSP-Kopf muss bleiben. In einem <img> ist eine SVG-Datei
+    harmlos, Skript darin laeuft dort nicht; gefaehrlich ist allein der
+    direkte Aufruf DIESER Adresse, denn dann ist sie ein eigenes
+    Dokument. Dieselbe Regel wie bei dateien.holen().
+    """
+    if name not in MARKEN:
+        raise HTTPException(404, "Unbekannte Marke")
+    koepfe = {
+        "Cache-Control": "public, max-age=86400",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "sandbox; default-src 'none'",
+    }
+    schluessel = MARKEN[name][0]
+    try:
+        with db.db() as con:
+            zeile = con.execute("SELECT wert FROM konfig WHERE schluessel=?",
+                                (schluessel,)).fetchone()
+    except Exception:
+        zeile = None
+    if zeile and (zeile["wert"] or "").strip():
+        return Response(content=zeile["wert"], media_type="image/svg+xml",
+                        headers=koepfe)
+    pfad = os.path.join(BASIS, "static", f"{name}.svg")
+    try:
+        with open(pfad, encoding="utf-8") as f:
+            inhalt = f.read()
+    except OSError:
+        raise HTTPException(404, "Marke nicht gefunden")
+    return Response(content=inhalt, media_type="image/svg+xml", headers=koepfe)
+
+
 def strings_anlegen() -> None:
-    """Schreibt strings.txt mit allen Standardtexten, falls sie fehlt."""
+    """Schreibt strings.txt mit allen Standardtexten, falls sie fehlt.
+
+    ⚠️ Geschrieben wird ueber texte_standard.datei_schreiben() - dieselbe
+    Funktion, die auch der Texteditor der Einstellungen benutzt. Es gibt
+    genau ein Dateiformat, und es steht an genau einer Stelle.
+    """
     if os.path.exists(STRINGS_DATEI):
         return
-    zeilen = [
-        "# Texte der Oberfläche. Änderungen wirken sofort, ohne Neustart.",
-        "# Aufbau: [schluessel] in eckigen Klammern, darunter der Text.",
-        "# Ein Text darf über mehrere Zeilen gehen, Umbrüche werden zu Leerzeichen.",
-        "# Einfaches HTML wie <strong> oder <a href=\"...\"> ist erlaubt.",
-        "# Geschweifte Klammern wie {zeitraum} sind Platzhalter und bleiben stehen.",
-        "# Wird ein Schlüssel gelöscht, greift wieder der eingebaute Standardtext.",
-        "",
-    ]
-    for schluessel, text in TEXTE_STANDARD.items():
-        zeilen.append(f"[{schluessel}]")
-        zeilen.append(text)
-        zeilen.append("")
     try:
-        os.makedirs(os.path.dirname(STRINGS_DATEI) or ".", exist_ok=True)
-        with open(STRINGS_DATEI, "w", encoding="utf-8") as f:
-            f.write("\n".join(zeilen))
+        texte_standard.datei_schreiben(STRINGS_DATEI, dict(TEXTE_STANDARD))
         print(f"[start] {STRINGS_DATEI} angelegt", flush=True)
     except OSError as e:
         print(f"[start] strings.txt nicht schreibbar: {e}", flush=True)
@@ -275,6 +344,8 @@ def spruch() -> dict:
 # Die Formatfunktionen selbst stehen in rechnen.py; angemeldet werden sie
 # hier, weil es die Templates nur hier gibt.
 templates.env.globals["monat_wort"] = monat_wort
+# Der Anhang an den Logo-Adressen, siehe markenstand().
+templates.env.globals["markenstand"] = markenstand
 templates.env.filters["euro"] = euro
 templates.env.filters["zahl"] = zahl
 templates.env.filters["stunden"] = stunden
@@ -672,7 +743,11 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
         "eigener": eigener, "fremd": fremd,
         "summentag": summentag, "ist_heute": summentag == heute,
         "fehler": fehler, "hinweis": hinweis, "seite": "zeiterfassung",
-        "offene": offene, "spruch": spruch(),
+        # ⚠️ Leeres Dict statt des Spruchs, wenn dieses Konto sie
+        # abgestellt hat: die Vorlage prüft `spruch.text` und lässt den
+        # Block dann ganz weg - der Zitatblock ist 61px hoch.
+        "offene": offene,
+        "spruch": spruch() if auth.zeigt_sprueche(request.state.benutzer) else {},
         "alle": bool(alle),
         "abgabe": abgabe_uebersicht(monat),
         "monat_vor": monat_verschieben(monat, -1),
@@ -1565,6 +1640,9 @@ _einstellungen.setup(templates, {
     "sicherungsdateien": sicherungsdateien,
     "sicherung_anlegen": sicherung_anlegen,
     "FUSS_STANDARD": FUSS_STANDARD,
+    # Damit der Logo-Tausch den Puffer für ?v= leeren kann.
+    "marken_puffer_leeren": marken_puffer_leeren,
+    "MARKEN": MARKEN,
 })
 app.include_router(_einstellungen.router)
 

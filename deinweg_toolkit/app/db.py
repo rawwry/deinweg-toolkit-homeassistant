@@ -168,6 +168,10 @@ CREATE TABLE IF NOT EXISTS benutzer (
     -- Darf dieses Konto Aufgaben loeschen, die jemand anderes angelegt
     -- hat? Standard 0, wie fremde_loeschen: die eigenen darf jeder.
     aufgaben_loeschen INTEGER NOT NULL DEFAULT 0,
+    -- Zeigt dieses Konto die Sprueche auf Zeiterfassung und "Mein
+    -- Bereich"? Standard 1. ⚠️ Kein Recht, sondern eine Anzeigefrage -
+    -- deshalb gilt sie auch fuer Administratoren (siehe auth).
+    sprueche_sehen INTEGER NOT NULL DEFAULT 1,
     -- Zuletzt zur Kenntnis genommene Version. Leer heisst: der Hinweis
     -- auf die Neuerungen steht beim naechsten Aufruf da.
     gesehen_version TEXT,
@@ -590,6 +594,10 @@ def init() -> dict | None:
         # jeder wegraeumen, an die einer Kollegin geht man nicht ungefragt.
         spalte_ergaenzen(con, "benutzer", "aufgaben_loeschen",
                          "INTEGER NOT NULL DEFAULT 0")
+        # Sprueche anzeigen? Standard 1 - bisher sah sie jeder, und ein
+        # Standard von 0 naehme bestehenden Konten stillschweigend etwas weg.
+        spalte_ergaenzen(con, "benutzer", "sprueche_sehen",
+                         "INTEGER NOT NULL DEFAULT 1")
         # Titel eines geloeschten Vorgangs, siehe Schema oben.
         spalte_ergaenzen(con, "vorgang_log", "vorgang_titel", "TEXT")
 

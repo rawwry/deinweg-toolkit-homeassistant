@@ -2116,4 +2116,30 @@ CHANGELOG = [
         "Kennzahl „erledigt“ zeigt nur sie",
         "Prüfung von 1641 auf 1663 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.35", "titel": "Sprüche, Logos und ein Texteditor", "punkte": [
+        "Benutzerverwaltung: je Konto lässt sich einstellen, ob die "
+        "Sprüche über der Zeiterfassung und über „Mein Bereich“ "
+        "erscheinen. Kein Recht, sondern Geschmackssache – der Haken "
+        "wirkt deshalb auch bei Administratoren",
+        "Einstellungen → System und Sicherung: die beiden Schriftzüge "
+        "der Anwendung lassen sich durch eigene SVG-Dateien ersetzen, "
+        "getrennt für das helle und das dunkle Thema. Nur für "
+        "Administratoren",
+        "Die Dateien liegen in der Datenbank und nicht im Programmordner "
+        "– sie überstehen damit jedes Update und sind in der Sicherung "
+        "mit drin. Skript oder Ereignis-Angaben in einer SVG-Datei werden "
+        "abgewiesen",
+        "Neuer Punkt „Hinweistexte“ für Administratoren: alle 201 "
+        "erklärenden Texte der Oberfläche, nach Bereichen gruppiert, mit "
+        "Suche, einer Markierung „geändert“ und einem Rücksetzer je Text "
+        "und je Bereich. strings.txt muss niemand mehr von Hand anfassen",
+        "WICHTIG – dabei behoben: „Fehlende Texte ergänzen“ hat bisher "
+        "jeden selbst geschriebenen Text vernichtet. Der Knopf las ein "
+        "anderes Dateiformat als die Anwendung schreibt, hielt strings.txt "
+        "deshalb für leer und schrieb sie im falschen Format neu – danach "
+        "war die Datei für die Anwendung unlesbar. Beide Wege gehen jetzt "
+        "durch dieselbe Stelle, und eine im alten Format geschriebene "
+        "Datei wird weiterhin gelesen",
+        "Prüfung von 1663 auf 1714 Einzelprüfungen erweitert",
+    ]},
 ]

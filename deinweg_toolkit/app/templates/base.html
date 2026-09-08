@@ -59,9 +59,14 @@
      „marke-fuer-*.svg" (nur das Zeichen) wird seit 1.27 nirgends mehr
      eingebunden. #}
   <a class="marke" href="/" title="Zur Startseite" aria-label="Zur Startseite">
-    <img class="nur-dunkel" src="/static/logo-fuer-dunkel.svg?v={{ VERSION }}"
+    {# ⚠️ /marke/… statt /static/…: der Schriftzug lässt sich unter
+       Einstellungen → System und Sicherung durch einen eigenen ersetzen,
+       und der liegt in der Datenbank. Der Anhang ist der Stand des
+       Logos, NICHT die Programmversion - sonst hinge der Browser nach
+       einem Tausch am alten Bild. #}
+    <img class="nur-dunkel" src="/marke/logo-fuer-dunkel.svg?v={{ markenstand() }}"
          alt="Dein Weg Toolkit">
-    <img class="nur-hell"   src="/static/logo-fuer-hell.svg?v={{ VERSION }}"
+    <img class="nur-hell"   src="/marke/logo-fuer-hell.svg?v={{ markenstand() }}"
          alt="Dein Weg Toolkit">
   </a>
   <button type="button" class="burger" id="burger" aria-expanded="false"

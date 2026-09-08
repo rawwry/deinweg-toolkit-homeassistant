@@ -4270,6 +4270,72 @@ a.vgk-wert:hover { text-decoration: underline; }
   overflow-wrap: anywhere; white-space: pre-line;
 }
 
+/* --- Eigene Logos (seit 1.35) -------------------------------------------
+   Die Vorschau steht auf dem Grund, für den das jeweilige Bild gedacht
+   ist - ein weißer Schriftzug auf hellem Grund wäre sonst unsichtbar,
+   und man hielte den Tausch für misslungen. */
+.logovorschau {
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 8px; padding: 14px 16px; border-radius: 10px;
+  border: 1px solid var(--linie);
+}
+.logovorschau img { max-height: 46px; width: auto; }
+.logovorschau.auf-dunkel { background: #1b1520; }
+.logovorschau.auf-hell   { background: #f7f5f8; }
+
+/* --- Hinweistexte (seit 1.35) -------------------------------------------
+   Knapp zweihundert Texte. Jede Gruppe ein zugeklapptes <details>, sonst
+   scrollt man an fünfzehn Bereichen vorbei, um den einen zu finden. */
+.textgruppe {
+  border: 1px solid var(--linie); border-radius: 12px;
+  background: var(--flaeche-2); margin-bottom: 8px;
+}
+.textgruppe > summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 11px 14px;
+}
+.textgruppe > summary::-webkit-details-marker { display: none; }
+.textgruppe > summary::marker { content: ""; }
+.textgruppe > summary::before {
+  content: ""; flex: 0 0 auto; width: 7px; height: 7px;
+  border-right: 1.7px solid var(--leise); border-bottom: 1.7px solid var(--leise);
+  transform: rotate(-45deg) translate(-1px, -1px);
+}
+.textgruppe[open] > summary::before { transform: rotate(45deg); }
+.textgruppe-titel { font-weight: 600; font-size: 14px; }
+.textgruppe > summary:hover .textgruppe-titel { color: var(--akzent); }
+.textliste {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 4px 14px 14px;
+}
+.textzeile { display: flex; flex-direction: column; gap: 4px; }
+.textkopf {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.textschluessel {
+  font-size: 11.5px; color: var(--leise);
+  background: var(--flaeche); padding: 1px 7px; border-radius: 5px;
+  border: 1px solid var(--linie);
+}
+/* Ein geänderter Text bekommt eine Kante, keine Fläche: bei zwanzig
+   Feldern untereinander wäre eine getönte Fläche je Feld zu viel. */
+.textzeile.ist-geaendert textarea { border-color: var(--akzent); }
+.textmarke {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--akzent);
+}
+.textzeile textarea {
+  width: 100%; min-height: 0; font-size: 13px; line-height: 1.5;
+  resize: vertical;
+}
+.textzurueck { margin-left: auto; }
+.textgruppe-fuss { padding: 0 14px 14px; margin: 0; }
+.textsuche { flex: 1 1 260px; max-width: 420px; }
+@media (prefers-reduced-motion: no-preference) {
+  .textgruppe > summary::before { transition: transform .16s ease; }
+}
+
 /* Die Karte „Geschützte Wiki-Ordner" ist seit 1.30 zugeklappt - dieselbe
    Bauart wie die Importkarte auf der Zeiterfassung. */
 .wikischutz > summary {

@@ -66,6 +66,9 @@
   <span class="seitenmenue-gruppe">Wartung</span>
   {% if nur_admin %}
   <a href="/einstellungen?bereich=system" class="{{ 'aktiv' if bereich=='system' }}">System und Sicherung</a>
+  {# Der Editor der Hinweistexte schreibt strings.txt, und die gewinnt
+     gegen jeden eingebauten Text - deshalb ebenfalls nur Administratoren. #}
+  <a href="/einstellungen?bereich=hinweistexte" class="{{ 'aktiv' if bereich=='hinweistexte' }}">Hinweistexte</a>
   {% endif %}
   {# Eigene Seite, kein Punkt dieser Seite: die Datenpflege bringt ihren
      eigenen zweistufigen Ablauf mit und hängt an einem eigenen Bereich,

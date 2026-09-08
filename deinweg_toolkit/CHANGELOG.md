@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.35
+
+- Sprüche je Konto abschaltbar
+- Eigene Logos (SVG) unter „System und Sicherung“, nur für Administratoren
+- Neuer Punkt „Hinweistexte“: strings.txt komfortabel bearbeiten
+- Behoben: „Fehlende Texte ergänzen“ zerstörte eigene Texte
+
 ## 1.34
 
 - Listenansicht der Aufgaben neu gebaut: farbige Bänder statt Tabelle,

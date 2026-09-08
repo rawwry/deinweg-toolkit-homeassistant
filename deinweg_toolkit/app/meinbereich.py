@@ -43,6 +43,17 @@ def setup(templates, umgebung=None) -> None:
     _u.update(umgebung or {})
 
 
+def _spruch(benutzer) -> dict:
+    """Der Spruch - oder nichts, wenn dieses Konto ihn abgestellt hat.
+
+    Die Vorlage prueft `spruch.text`; ein leeres Dict laesst den ganzen
+    Zitatblock weg statt ihn leer stehen zu lassen.
+    """
+    if not auth.zeigt_sprueche(benutzer):
+        return {}
+    return _u["spruch"]()
+
+
 # --- Persönlicher Bereich -----------------------------------------------------
 #
 # Jede angemeldete Person sieht hier ausschliesslich die eigenen Zahlen.
@@ -69,7 +80,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                 request=request, name="meinbereich.html",
                 context={"seite": "meinbereich", "person": None,
                          "monate": [], "benutzer": benutzer,
-                         "spruch": _u["spruch"](), "eigene_aufgaben": [],
+                         "spruch": _spruch(benutzer), "eigene_aufgaben": [],
                          "passwort_offen": bool(pw),
                          "bewilligungen": [
                              b for b in (bewilligungen_pruefen(con)
@@ -367,7 +378,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "diagramm": diagramm, "urlaub": urlaub,
             "letzter": letzter, "trend": trend,
             "offene_vorgaenge": offene_vorgaenge, "ueberfaellig": ueberfaellig,
-            "eigene_aufgaben": eigene_aufgaben, "spruch": _u["spruch"](),
+            "eigene_aufgaben": eigene_aufgaben, "spruch": _spruch(benutzer),
             "heute": dt.date.today().isoformat(),
             "bewilligungen": [b for b in alle_lagen if b["art"] != "grundwert"],
             "bewilligungen_grundwert": [b for b in alle_lagen

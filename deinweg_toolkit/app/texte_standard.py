@@ -7,7 +7,86 @@ Ausgelagert aus main.py, weil es reine Daten sind.
 
 from __future__ import annotations
 
+import os
+import re
+
 TEXTE_STANDARD: dict[str, str] = {}
+
+# --- Das Dateiformat von strings.txt -----------------------------------------
+#
+# ⚠️⚠️ Lesen und Schreiben stehen seit 1.35 HIER und nirgends sonst.
+# Vorher gab es zwei Fassungen, die verschiedene Formate meinten:
+# main.texte() las Bloecke ("[schluessel]" in einer Zeile, der Text
+# darunter), einstellungen.texte_nachziehen() las und schrieb dagegen
+# "schluessel = wert" je Zeile. Folge: der Knopf "Fehlende Texte
+# ergaenzen" fand in einer echten strings.txt keinen einzigen Schluessel,
+# hielt sie fuer leer und schrieb sie komplett im anderen Format neu -
+# eigene Formulierungen weg, und die Datei danach fuer main.texte()
+# unlesbar. Der Knopf, der die eigenen Texte gerade retten sollte, hat
+# sie zerstoert. Beide Wege gehen jetzt durch dieselben zwei Funktionen.
+
+KOPFZEILEN = [
+    "# Texte der Oberfläche. Änderungen wirken sofort, ohne Neustart.",
+    "# Aufbau: [schluessel] in eckigen Klammern, darunter der Text.",
+    "# Ein Text darf über mehrere Zeilen gehen, Umbrüche werden zu Leerzeichen.",
+    "# Einfaches HTML wie <strong> oder <a href=\"...\"> ist erlaubt.",
+    "# Geschweifte Klammern wie {zeitraum} sind Platzhalter und bleiben stehen.",
+    "# Wird ein Schlüssel gelöscht, greift wieder der eingebaute Standardtext.",
+    "",
+]
+
+
+def datei_lesen(pfad: str) -> dict[str, str]:
+    """Liest strings.txt. Fehlt sie oder ist sie unlesbar, kommt {} zurueck.
+
+    ⚠️ Zeilen der alten Form "schluessel = wert" werden mitgelesen. Wer
+    vor 1.35 einmal auf "Fehlende Texte ergaenzen" gedrueckt hat, hat eine
+    Datei in genau dieser Form; ohne die Nachsicht hier waeren seine Texte
+    endgueltig verloren, obwohl sie noch dastehen.
+    """
+    werte: dict[str, str] = {}
+    schluessel = None
+    teile: list[str] = []
+    try:
+        with open(pfad, encoding="utf-8") as f:
+            for zeile in f:
+                roh = zeile.rstrip("\n")
+                if roh.startswith("#") and schluessel is None:
+                    continue
+                kopf = re.fullmatch(r"\[([\w.]+)\]\s*", roh)
+                if kopf:
+                    if schluessel:
+                        werte[schluessel] = " ".join(" ".join(teile).split())
+                    schluessel, teile = kopf.group(1), []
+                    continue
+                if schluessel is None:
+                    alt = re.fullmatch(r"([\w.]+)\s*=\s*(.*)", roh)
+                    if alt:
+                        werte[alt.group(1)] = alt.group(2).strip()
+                    continue
+                teile.append(roh)
+        if schluessel:
+            werte[schluessel] = " ".join(" ".join(teile).split())
+    except OSError:
+        return {}
+    return werte
+
+
+def datei_schreiben(pfad: str, werte: dict[str, str]) -> None:
+    """Schreibt strings.txt im Blockformat. Wirft OSError weiter."""
+    zeilen = list(KOPFZEILEN)
+    # Die Reihenfolge der Standardtexte zuerst, alles Uebrige hinten dran -
+    # so bleibt die Datei lesbar, auch wenn jemand einen eigenen
+    # Schluessel ergaenzt hat.
+    reihenfolge = ([k for k in TEXTE_STANDARD if k in werte]
+                   + [k for k in werte if k not in TEXTE_STANDARD])
+    for schluessel in reihenfolge:
+        zeilen.append(f"[{schluessel}]")
+        zeilen.append(werte[schluessel])
+        zeilen.append("")
+    os.makedirs(os.path.dirname(pfad) or ".", exist_ok=True)
+    with open(pfad, "w", encoding="utf-8") as f:
+        f.write("\n".join(zeilen))
 
 TEXTE_STANDARD["start.kein_team"] = (
     "Noch niemand im Team – <a href=\"/einstellungen?bereich=mitarbeiter\">anlegen</a>.")
@@ -356,6 +435,36 @@ TEXTE_STANDARD["einst.benutzer_rechte"] = (
     "wegräumen; an die einer Kollegin geht man ohne dieses Recht nicht. "
     "<strong>Wiki bearbeiten</strong>: ohne dieses Recht bleibt das Wiki "
     "vollständig lesbar, lässt sich aber nicht ändern.")
+TEXTE_STANDARD["einst.logo_lead"] = (
+    "Der Schriftzug in der Kopfzeile, in der Fußzeile und auf dem "
+    "Anmeldebildschirm. Zwei Dateien, weil das helle und das dunkle Thema "
+    "verschiedene Farben brauchen – wer nur eine austauscht, behält für "
+    "das andere Thema den ausgelieferten.")
+TEXTE_STANDARD["einst.logo_hinweis"] = (
+    "Nur SVG, höchstens 512 KB. <strong>Die Schrift muss in Pfade "
+    "umgewandelt sein</strong> – eine Schriftart, die es nur auf deinem "
+    "Rechner gibt, wird im Browser durch irgendeine andere ersetzt. "
+    "Skript oder Ereignis-Angaben in der Datei werden abgewiesen; ein "
+    "Logo braucht sie nicht. Die Dateien liegen in der Datenbank und "
+    "überstehen damit jedes Update – und sie sind in der Sicherung mit "
+    "drin.")
+TEXTE_STANDARD["einst.hinweistexte_lead"] = (
+    "Alle erklärenden Texte der Oberfläche, nach Bereichen sortiert. Was "
+    "du hier änderst, steht sofort auf der Seite – ohne Neustart.")
+TEXTE_STANDARD["einst.hinweistexte_hinweis"] = (
+    "Einfaches HTML wie <strong>&lt;strong&gt;</strong> oder ein Link ist "
+    "erlaubt. Geschweifte Klammern wie <code>{name}</code> sind "
+    "Platzhalter und müssen stehen bleiben – sonst fehlt an der Stelle "
+    "die eingesetzte Angabe. Ein leer gemachtes Feld heißt „wieder der "
+    "eingebaute Text“. Zeilenumbrüche werden zu Leerzeichen; ein Text ist "
+    "immer ein Absatz.")
+TEXTE_STANDARD["einst.hinweistexte_leer"] = (
+    "Ein leeres Feld stellt den eingebauten Text wieder her.")
+TEXTE_STANDARD["einst.sprueche_sehen"] = (
+    "Der wechselnde Spruch über der Zeiterfassung und über „Mein "
+    "Bereich“. Kein Recht, sondern Geschmackssache – der Haken wirkt "
+    "deshalb auch bei Administratoren. Ohne ihn verschwindet der ganze "
+    "Block, es bleibt keine Lücke stehen.")
 TEXTE_STANDARD["einst.benutzer_selbst"] = "das eigene Konto"
 TEXTE_STANDARD["mein.konto_lead"] = (
     "Hier änderst du dein eigenes Passwort und die Adresse, an die "

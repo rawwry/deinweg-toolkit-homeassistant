@@ -21,8 +21,33 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
-from . import auth, db, kfz, mail, wiki
+from . import auth, db, kfz, mail, texte_standard, wiki
 from .parser import norm, NICHT_ABRECHENBAR
+
+# Klartextnamen der Textgruppen. Der Schluesselpraefix allein ("vorgaenge",
+# "kfz", "einst") sagt niemandem etwas, der nicht im Code liest.
+# ⚠️ Ein fehlender Praefix ist kein Fehler - dann steht er selbst da.
+# Wer eine neue Textgruppe anlegt, traegt sie hier nach.
+TEXTGRUPPEN = {
+    "start": "Zeiterfassung – Übersicht",
+    "import": "Zeiterfassung – Listenimport",
+    "erfassung": "Zeiterfassung – manuelle Erfassung",
+    "datensaetze": "Arbeitszeit – Übersicht",
+    "bearbeiten": "Arbeitszeit – Eintrag bearbeiten",
+    "logbuch": "Arbeitszeit – Logbuch",
+    "auswertung": "Auswertung",
+    "mein": "Mein Bereich",
+    "vorgaenge": "Aufgaben",
+    "kfz": "Fuhrpark",
+    "wiki": "Wiki",
+    "dateien": "Dateien",
+    "ideen": "Ideen",
+    "datenpflege": "Datenpflege",
+    "einst": "Einstellungen",
+    "login": "Anmeldung",
+    "changelog": "Changelog",
+    "footer": "Fußzeile",
+}
 
 router = APIRouter()
 
@@ -162,7 +187,7 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
     ist_admin = request.state.benutzer["rolle"] == "admin"
     if bereich not in ("oberflaeche", "quotes", "betreute", "mitarbeiter",
                        "vorgangsarten", "leistungen", "kfz", "benutzer",
-                       "email", "vorlagen", "system"):
+                       "email", "vorlagen", "system", "hinweistexte"):
         bereich = "oberflaeche"
     # Benutzerverwaltung ist unabhaengig von der allgemeinen
     # "einstellungen"-Berechtigung ausschliesslich Administratoren
@@ -174,7 +199,8 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
     # Benutzerverwaltung, E-Mail-Versand, E-Mail-Vorlagen und System und
     # Sicherung. "bereich" ist nur ein Abfrageparameter auf derselben
     # Route und wuerde vom Pfadpraefix nicht erfasst - deshalb hier.
-    if bereich in ("benutzer", "email", "vorlagen", "system") and not ist_admin:
+    if (bereich in ("benutzer", "email", "vorlagen", "system", "hinweistexte")
+            and not ist_admin):
         bereich = "oberflaeche"
     # Zweite Ebene: einzelne Punkte lassen sich je Konto abschalten.
     # "oberflaeche" bleibt immer erreichbar - deshalb ist das hier auch
@@ -266,6 +292,13 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
         wiki_alle_ordner = [o["pfad"] for o in wiki.ordnerliste()
                             if "/" not in o["pfad"]]
         mailkonfig = mail.konfig_lesen(con)
+        # Welche Schriftzüge sind durch eigene ersetzt? Nur die Frage,
+        # nicht der Inhalt - eine SVG-Datei gehört nicht ins Markup der
+        # Einstellungsseite.
+        eigene_logos = {
+            r["schluessel"]: True for r in con.execute(
+                "SELECT schluessel FROM konfig WHERE schluessel IN "
+                "('logo_dunkel','logo_hell') AND TRIM(COALESCE(wert,'')) <> ''")}
         # Das Passwort verlaesst die Anwendung nicht im Klartext - in der
         # Oberflaeche steht nur, ob eines hinterlegt ist.
         passwort_gesetzt = bool(mailkonfig.get("smtp_passwort"))
@@ -395,6 +428,14 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "sprueche": sprueche_lesen() if bereich == "quotes" else [],
             "spruch_bearbeiten": spruch_bearbeiten,
             "sicherungen": sicherungen, "fuss_standard": _u["FUSS_STANDARD"],
+            # ⚠️ Nur bauen, wenn die Seite auch angezeigt wird: knapp
+            # zweihundert Texte je Seitenaufruf durchzusortieren wäre auf
+            # jeder anderen Einstellungsseite Verschwendung.
+            "textgruppen": (hinweistexte_gruppen(
+                texte_standard.datei_lesen(_u["STRINGS_DATEI"]))
+                if bereich == "hinweistexte" else []),
+            "eigene_logos": eigene_logos,
+            "MARKEN": _u["MARKEN"],
             "bereich": bereich, "hinweis": hinweis, "fehler": fehler,
             "seite": "einstellungen"})
 
@@ -902,6 +943,7 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
                      fremde_loeschen: str = Form(""),
                      fremde_bearbeiten: str = Form(""),
                      aufgaben_loeschen: str = Form(""),
+                     sprueche_sehen: str = Form(""),
                      wiki_schreiben: str = Form(""),
                      bewilligungen_sehen: str = Form(""),
                      bereiche: list[str] = Form([]),
@@ -927,14 +969,15 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
             "INSERT INTO benutzer (benutzername, passwort_hash, rolle, "
             "berechtigungen, email, mitarbeiter, fremde_loeschen, "
             "fremde_bearbeiten, aufgaben_loeschen, wiki_schreiben, "
-            "bewilligungen_sehen, "
+            "bewilligungen_sehen, sprueche_sehen, "
             "einst_bereiche, wiki_ordner, gesehen_version, angelegt_am) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (benutzername, db.passwort_hashen(passwort), rolle,
              auth.berechtigungen_speichern(bereiche), email or None,
              mitarbeiter or None, 1 if fremde_loeschen else 0,
              1 if fremde_bearbeiten else 0, 1 if aufgaben_loeschen else 0,
              1 if wiki_schreiben else 0, 1 if bewilligungen_sehen else 0,
+             1 if sprueche_sehen else 0,
              auth.einst_bereiche_speichern(einst_bereiche),
              auth.wiki_ordner_speichern(wiki_ordner,
                                         auth.geschuetzte_ordner(con)),
@@ -950,6 +993,7 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                        fremde_loeschen: str = Form(""),
                        fremde_bearbeiten: str = Form(""),
                        aufgaben_loeschen: str = Form(""),
+                       sprueche_sehen: str = Form(""),
                        wiki_schreiben: str = Form(""),
                        bewilligungen_sehen: str = Form(""),
                        bereiche: list[str] = Form([]),
@@ -987,6 +1031,7 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                   "aufgaben_loeschen": 1 if aufgaben_loeschen else 0,
                   "wiki_schreiben": 1 if wiki_schreiben else 0,
                   "bewilligungen_sehen": 1 if bewilligungen_sehen else 0,
+                  "sprueche_sehen": 1 if sprueche_sehen else 0,
                   "berechtigungen": auth.berechtigungen_speichern(bereiche),
                   "einst_bereiche": auth.einst_bereiche_speichern(einst_bereiche),
                   "wiki_ordner": auth.wiki_ordner_speichern(
@@ -1290,19 +1335,19 @@ def texte_nachziehen(modus: str = Form("fehlende")):
     "fehlende" ergaenzt nur, was noch nicht drinsteht - eigene Formu-
     lierungen bleiben dabei unangetastet. "alle" setzt auf den
     Auslieferungsstand zurueck.
+
+    ⚠️⚠️ Gelesen und geschrieben wird seit 1.35 ueber
+    texte_standard.datei_lesen/-schreiben. Vorher stand hier ein eigener
+    Parser fuer das Format "schluessel = wert", waehrend die Datei in
+    Wahrheit Bloecke ("[schluessel]" plus Text darunter) enthaelt: der
+    Knopf fand also nie einen einzigen vorhandenen Schluessel, hielt die
+    Datei fuer leer und schrieb sie im falschen Format neu. Eigene Texte
+    weg, Datei danach unlesbar - ausgerechnet der Knopf, der die eigenen
+    Texte schonen sollte.
     """
     pfad = _u["STRINGS_DATEI"]
     standard = _u["TEXTE_STANDARD"]
-    vorhanden: dict[str, str] = {}
-    try:
-        with open(pfad, encoding="utf-8") as f:
-            for zeile in f:
-                if zeile.startswith("#") or "=" not in zeile:
-                    continue
-                schluessel, wert = zeile.split("=", 1)
-                vorhanden[schluessel.strip()] = wert.strip()
-    except OSError:
-        vorhanden = {}
+    vorhanden = texte_standard.datei_lesen(pfad)
 
     if modus == "alle":
         neu = dict(standard)
@@ -1315,18 +1360,203 @@ def texte_nachziehen(modus: str = Form("fehlende")):
     if not zahl:
         return systemseite(hinweis="Es fehlte nichts – alle Texte sind vorhanden.")
     try:
-        os.makedirs(os.path.dirname(pfad) or ".", exist_ok=True)
-        with open(pfad, "w", encoding="utf-8") as f:
-            f.write("# Texte der Oberfläche. Eine Zeile je Schlüssel.\n")
-            f.write("# Was hier steht, gewinnt gegen die eingebauten Texte.\n\n")
-            for schluessel in sorted(neu):
-                f.write(f"{schluessel} = {neu[schluessel]}\n")
+        texte_standard.datei_schreiben(pfad, neu)
     except OSError as e:
         return systemseite(fehler=f"Konnte {pfad} nicht schreiben: {e}")
 
     return systemseite(hinweis=(
         f"{zahl} Texte auf den Auslieferungsstand gesetzt."
         if modus == "alle" else f"{zahl} fehlende Texte ergänzt."))
+
+
+# --- Hinweistexte bearbeiten (seit 1.35) --------------------------------------
+#
+# strings.txt von Hand zu pflegen war zumutbar, solange es dreissig Texte
+# waren; bei knapp zweihundert findet man den gesuchten nicht mehr. Der
+# Editor zeigt sie nach Bereichen gruppiert, sagt bei jedem, ob er vom
+# Auslieferungsstand abweicht, und schreibt dieselbe Datei.
+
+def hinweistexte_gruppen(werte: dict) -> list[dict]:
+    """Alle Textschluessel, nach Bereich gruppiert und aufbereitet."""
+    nach_praefix: dict[str, list] = {}
+    for schluessel, standard in _u["TEXTE_STANDARD"].items():
+        praefix = schluessel.split(".")[0]
+        jetzt = werte.get(schluessel, standard)
+        nach_praefix.setdefault(praefix, []).append({
+            "schluessel": schluessel,
+            "wert": jetzt,
+            "standard": standard,
+            "geaendert": jetzt.strip() != standard.strip(),
+            # Schluessel ohne Abnehmer stehen weiter da (jemand koennte
+            # eine eigene strings.txt haben), sind aber als solche
+            # gekennzeichnet - sonst sucht man den Text vergeblich auf
+            # der Seite.
+            "tot": schluessel in texte_standard.UNGENUTZT,
+        })
+    gruppen = []
+    for praefix in sorted(nach_praefix, key=lambda x: TEXTGRUPPEN.get(x, x).lower()):
+        eintraege = sorted(nach_praefix[praefix], key=lambda e: e["schluessel"])
+        gruppen.append({
+            "schluessel": praefix,
+            "titel": TEXTGRUPPEN.get(praefix, praefix),
+            "eintraege": eintraege,
+            "anzahl": len(eintraege),
+            "geaendert": sum(1 for e in eintraege if e["geaendert"]),
+        })
+    return gruppen
+
+
+@router.post("/einstellungen/hinweistexte")
+async def hinweistexte_speichern(request: Request):
+    """Speichert die bearbeiteten Texte in strings.txt.
+
+    ⚠️ Die Felder werden ueber request.form() gelesen und nicht ueber
+    einzelne Form(...)-Parameter: es sind knapp zweihundert, und ihre
+    Namen stehen erst zur Laufzeit fest.
+
+    ⚠️ Ein Feld, das buchstabengleich dem Standardtext entspricht, wird
+    NICHT weggelassen. Sonst verschwaende ein spaeteres Update den Text
+    stillschweigend - genau das Verhalten, das strings.txt eigentlich
+    verhindern soll. Wer zurueck zum Standard will, nimmt den Knopf.
+    """
+    formular = await request.form()
+    standard = _u["TEXTE_STANDARD"]
+    pfad = _u["STRINGS_DATEI"]
+    vorhanden = texte_standard.datei_lesen(pfad)
+    neu = dict(vorhanden)
+    geaendert = 0
+    for schluessel in standard:
+        feld = f"t_{schluessel}"
+        if feld not in formular:
+            continue
+        # Umbrueche zu Leerzeichen: die Datei traegt einen Text je Block,
+        # und texte_standard.datei_lesen() faltet ohnehin zusammen.
+        wert = " ".join(str(formular[feld]).split())
+        if not wert:
+            # Leer heisst "wieder der eingebaute Text" - so wie ein
+            # geloeschter Schluessel in der Datei.
+            if schluessel in neu:
+                del neu[schluessel]
+                geaendert += 1
+            continue
+        if neu.get(schluessel, standard[schluessel]) != wert:
+            geaendert += 1
+        neu[schluessel] = wert
+
+    if not geaendert:
+        return _texte_zurueck(hinweis="Es gab nichts zu ändern.")
+    try:
+        texte_standard.datei_schreiben(pfad, neu)
+    except OSError as e:
+        return _texte_zurueck(fehler=f"Konnte {pfad} nicht schreiben: {e}")
+    return _texte_zurueck(
+        hinweis=f"{geaendert} Text{'e' if geaendert != 1 else ''} gespeichert.")
+
+
+@router.post("/einstellungen/hinweistexte/zuruecksetzen")
+def hinweistexte_zuruecksetzen(gruppe: str = Form("")):
+    """Setzt eine ganze Gruppe zurueck - oder alle, wenn keine genannt ist."""
+    pfad = _u["STRINGS_DATEI"]
+    standard = _u["TEXTE_STANDARD"]
+    werte = texte_standard.datei_lesen(pfad)
+    betroffen = [k for k in standard
+                 if not gruppe or k.split(".")[0] == gruppe]
+    zahl = 0
+    for schluessel in betroffen:
+        if werte.get(schluessel, standard[schluessel]) != standard[schluessel]:
+            zahl += 1
+        werte[schluessel] = standard[schluessel]
+    try:
+        texte_standard.datei_schreiben(pfad, werte)
+    except OSError as e:
+        return _texte_zurueck(fehler=f"Konnte {pfad} nicht schreiben: {e}")
+    wohin = TEXTGRUPPEN.get(gruppe, gruppe) if gruppe else "Alle Bereiche"
+    return _texte_zurueck(hinweis=f"{wohin}: {zahl} Text"
+                                  f"{'e' if zahl != 1 else ''} zurückgesetzt.")
+
+
+def _texte_zurueck(**werte):
+    werte.setdefault("bereich", "hinweistexte")
+    return RedirectResponse("/einstellungen?" + urlencode(werte), status_code=303)
+
+
+# --- Eigene Logos (seit 1.35) -------------------------------------------------
+#
+# Der Schriftzug in Kopfzeile, Fusszeile und auf dem Anmeldebildschirm
+# laesst sich durch eigene SVG-Dateien ersetzen. Gespeichert wird in der
+# Datenbank, nicht als Datei - der Programmordner liegt im Add-on-Abbild
+# und waere beim naechsten Update ueberschrieben (siehe main.MARKEN).
+
+# 512 KB. Ein Schriftzug in Pfaden misst ein paar Dutzend Kilobyte; wer
+# hier ein halbes Megabyte hochlaedt, hat ein eingebettetes Foto darin.
+LOGO_MAX = 512 * 1024
+
+# ⚠️ Auch wenn die Datei nur in einem <img> steht (dort laeuft kein
+# Skript) und die Auslieferung zusaetzlich einen CSP-Sandbox-Kopf traegt:
+# was offensichtlich aktiv ist, kommt gar nicht erst hinein. Eine
+# Sperrliste ist zwar nie vollstaendig - hier ist sie die dritte
+# Verteidigungslinie, nicht die erste.
+_LOGO_VERBOTEN = re.compile(
+    r"<\s*script|<\s*foreignObject|javascript\s*:|\son\w+\s*=", re.I)
+
+
+def logo_pruefen(rohdaten: bytes) -> tuple[str, str]:
+    """Gibt (svg, "") zurueck - oder ("", Fehlermeldung)."""
+    if len(rohdaten) > LOGO_MAX:
+        return "", (f"Die Datei ist größer als "
+                    f"{LOGO_MAX // 1024} KB. Ein Schriftzug in Pfaden "
+                    f"braucht keine 50 KB – vermutlich steckt ein Bild darin.")
+    try:
+        text = rohdaten.decode("utf-8")
+    except UnicodeDecodeError:
+        return "", "Das ist keine Textdatei – SVG muss UTF-8 sein."
+    anfang = text.lstrip()[:400].lower()
+    if "<svg" not in anfang and not anfang.startswith("<?xml"):
+        return "", "Darin steht kein <svg> – ist es wirklich eine SVG-Datei?"
+    if "<svg" not in text.lower():
+        return "", "Darin steht kein <svg> – ist es wirklich eine SVG-Datei?"
+    if _LOGO_VERBOTEN.search(text):
+        return "", ("Die Datei enthält Skript oder Ereignis-Angaben. "
+                    "Ein Logo braucht das nicht; exportiere es ohne "
+                    "Interaktivität neu.")
+    return text, ""
+
+
+@router.post("/einstellungen/logo")
+async def logo_speichern(logo_dunkel: UploadFile = File(None),
+                         logo_hell: UploadFile = File(None),
+                         zuruecksetzen: str = Form("")):
+    """Nimmt eigene Schriftzuege entgegen oder stellt die eingebauten her."""
+    jetzt = _u["jetzt"]()
+    if zuruecksetzen:
+        with db.db() as con:
+            con.execute("DELETE FROM konfig WHERE schluessel IN "
+                        "('logo_dunkel','logo_hell')")
+            mail.konfig_schreiben(con, {"logo_stand": jetzt})
+        _u["marken_puffer_leeren"]()
+        return systemseite(hinweis="Die ausgelieferten Logos gelten wieder.")
+
+    neue: dict[str, str] = {}
+    for feld, datei in (("logo_dunkel", logo_dunkel), ("logo_hell", logo_hell)):
+        if datei is None or not (datei.filename or "").strip():
+            continue
+        if not datei.filename.lower().endswith(".svg"):
+            return systemseite(fehler=f"„{datei.filename}“ ist keine SVG-Datei.")
+        svg, problem = logo_pruefen(await datei.read())
+        if problem:
+            return systemseite(fehler=f"„{datei.filename}“: {problem}")
+        neue[feld] = svg
+
+    if not neue:
+        return systemseite(fehler="Es war keine Datei dabei.")
+    neue["logo_stand"] = jetzt
+    with db.db() as con:
+        mail.konfig_schreiben(con, neue)
+    # ⚠️ Ohne das Leeren zeigt der Browser weiter das alte Bild: der
+    # Anhang ?v= an der Adresse kommt aus diesem Puffer.
+    _u["marken_puffer_leeren"]()
+    zahl = len(neue) - 1
+    return systemseite(hinweis=f"{zahl} Logo{'s' if zahl != 1 else ''} ersetzt.")
 
 
 def systemseite(**werte):

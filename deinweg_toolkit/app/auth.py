@@ -71,6 +71,7 @@ def setup(templates, sitzung_tage: int) -> None:
     templates.env.globals["darf_bewilligungen_sehen"] = darf_bewilligungen_sehen
     templates.env.globals["darf_fremde_loeschen"] = darf_fremde_loeschen
     templates.env.globals["darf_aufgaben_loeschen"] = darf_aufgaben_loeschen
+    templates.env.globals["zeigt_sprueche"] = zeigt_sprueche
     templates.env.globals["darf_fremde_bearbeiten"] = darf_fremde_bearbeiten
     templates.env.globals["darf_wiki_ordner"] = darf_wiki_ordner
 
@@ -246,7 +247,14 @@ ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
                    "/einstellungen/vorlagen",
                    # System und Sicherung
                    "/einstellungen/sicherung", "/einstellungen/texte",
-                   "/einstellungen/fusszeile")
+                   "/einstellungen/fusszeile",
+                   # Eigene Logos: sie stehen auf JEDER Seite und auf dem
+                   # Anmeldebildschirm - das ist keine Kleinigkeit, die
+                   # man nebenbei mitgibt.
+                   "/einstellungen/logo",
+                   # Der Editor der Hinweistexte. Er schreibt strings.txt,
+                   # und die gewinnt gegen jeden eingebauten Text.
+                   "/einstellungen/hinweistexte")
 
 # Oeffentlich ohne Anmeldung erreichbar
 OEFFENTLICHE_PFADE = ("/gesundheit", "/login")
@@ -347,6 +355,27 @@ def darf_aufgaben_loeschen(benutzer) -> bool:
     steht sie zwar noch, in ihrer Liste aber nicht mehr.
     """
     return _schalter(benutzer, "aufgaben_loeschen", False)
+
+
+def zeigt_sprueche(benutzer) -> bool:
+    """Sollen die Sprueche auf Zeiterfassung und "Mein Bereich" erscheinen?
+
+    ⚠️⚠️ Bewusst NICHT ueber _schalter(): das ist kein Recht, sondern eine
+    Anzeigefrage, und _schalter() gibt fuer Administratoren immer True
+    zurueck. Genau die koennten die Sprueche dann bei sich selbst nicht
+    abstellen - und Timo ist Administrator.
+
+    Standard 1: bisher sah sie jeder. Eine noch vor der Migration
+    entstandene Sitzung traegt die Spalte nicht mit; dann gilt ebenfalls
+    der Standard.
+    """
+    if not benutzer:
+        return True
+    try:
+        wert = benutzer["sprueche_sehen"]
+    except (IndexError, KeyError, TypeError):
+        return True
+    return True if wert is None else bool(wert)
 
 
 def darf_wiki_schreiben(benutzer) -> bool:
@@ -521,7 +550,7 @@ def sitzung_benutzer(con, token: str, sitzung_tage: int):
         "b.berechtigungen, b.email, b.mitarbeiter, b.aktiv, "
         "b.fremde_loeschen, b.fremde_bearbeiten, b.wiki_schreiben, "
         "b.bewilligungen_sehen, b.einst_bereiche, b.gesehen_version, "
-        "b.wiki_ordner, b.aufgaben_loeschen "
+        "b.wiki_ordner, b.aufgaben_loeschen, b.sprueche_sehen "
         "FROM sitzung s JOIN benutzer b ON b.id = s.benutzer_id "
         "WHERE s.token = ?", (token,)).fetchone()
     if not zeile or not zeile["aktiv"]:
@@ -625,7 +654,12 @@ class SessionAuth(BaseHTTPMiddleware):
                 "abgewiesen. Bitte die Seite neu laden und noch einmal "
                 "versuchen.", status_code=403)
 
-        if pfad in OEFFENTLICHE_PFADE or pfad.startswith("/static/"):
+        # ⚠️ /marke/ gehört dazu: der Anmeldebildschirm zeigt den
+        # Schriftzug, und er kommt seit 1.35 nicht mehr aus /static/,
+        # sondern aus der Datenbank. Ohne diese Ausnahme bliebe die
+        # Anmeldeseite ohne Logo.
+        if (pfad in OEFFENTLICHE_PFADE or pfad.startswith("/static/")
+                or pfad.startswith("/marke/")):
             return await call_next(request)
 
         token = request.cookies.get(COOKIE_NAME, "")

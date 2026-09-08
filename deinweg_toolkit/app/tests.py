@@ -2994,32 +2994,52 @@ def test_erinnerungsoptionen(client: TestClient) -> None:
 def test_texte_nachziehen(client: TestClient) -> None:
     """strings.txt gewinnt gegen die Standardtexte - deshalb nachziehbar."""
     abschnitt("Standardtexte nachziehen")
-    from .main import STRINGS_DATEI, TEXTE_STANDARD
+    from .main import STRINGS_DATEI, TEXTE_STANDARD, texte
+    from . import texte_standard as ts
 
     seite = client.get("/einstellungen?bereich=system").text
     pruefe("/einstellungen/texte" in seite,
            "die Einstellungen bieten das Nachziehen an")
 
-    # Eine Datei mit genau einem, selbst geaenderten Text.
-    with open(STRINGS_DATEI, "w", encoding="utf-8") as f:
-        f.write("login.lead = Selbst geschrieben\n")
+    # ⚠️⚠️ Diese Prüfung hat bis 1.34 den eigentlichen Fehler NICHT
+    # gesehen, weil sie die Datei selbst im Format "schluessel = wert"
+    # angelegt hat - dem Format, das nur texte_nachziehen() las. Eine
+    # echte strings.txt steht im Blockformat, und darin fand der Knopf
+    # keinen einzigen Schlüssel: er hielt sie für leer, schrieb sie im
+    # falschen Format neu und machte damit jeden eigenen Text zunichte.
+    # Deshalb wird sie hier jetzt so geschrieben, wie die Anwendung sie
+    # anlegt.
+    ts.datei_schreiben(STRINGS_DATEI, {"login.lead": "Selbst geschrieben"})
+    pruefe(ts.datei_lesen(STRINGS_DATEI).get("login.lead") == "Selbst geschrieben",
+           "eine echte strings.txt liest sich wieder ein")
 
     antwort = client.post("/einstellungen/texte", data={"modus": "fehlende"},
                           follow_redirects=False)
     pruefe(antwort.status_code == 303, "„Fehlende ergänzen“ läuft durch")
-    inhalt = open(STRINGS_DATEI, encoding="utf-8").read()
-    pruefe("login.lead = Selbst geschrieben" in inhalt,
+    danach = ts.datei_lesen(STRINGS_DATEI)
+    pruefe(danach.get("login.lead") == "Selbst geschrieben",
            "der eigene Text bleibt unangetastet")
-    pruefe("einst.fusszeile_lead" in inhalt,
+    pruefe("einst.fusszeile_lead" in danach,
            "und die fehlenden Schlüssel stehen jetzt drin")
-    fehlend = [s for s in TEXTE_STANDARD if s + " =" not in inhalt]
+    fehlend = [s for s in TEXTE_STANDARD if s not in danach]
     pruefe(not fehlend, f"es fehlt keiner mehr (offen: {fehlend[:3]})")
+    # ⚠️ Und die Datei muss danach auch von der Anwendung lesbar sein -
+    # genau das war vorher nicht der Fall.
+    pruefe(texte().get("login.lead") == "Selbst geschrieben",
+           "die Anwendung liest die geschriebene Datei wieder")
+
+    # Eine Datei in der ALTEN Form darf nicht verloren gehen: wer vor 1.35
+    # einmal auf den Knopf gedrückt hat, hat genau so eine.
+    with open(STRINGS_DATEI, "w", encoding="utf-8") as f:
+        f.write("# Kopf\n\nlogin.lead = Aus der alten Form\n")
+    pruefe(ts.datei_lesen(STRINGS_DATEI).get("login.lead") == "Aus der alten Form",
+           "die alte Schreibweise wird noch gelesen")
 
     antwort = client.post("/einstellungen/texte", data={"modus": "alle"},
                           follow_redirects=False)
     pruefe(antwort.status_code == 303, "„Alle zurücksetzen“ läuft durch")
-    inhalt = open(STRINGS_DATEI, encoding="utf-8").read()
-    pruefe("login.lead = Selbst geschrieben" not in inhalt,
+    danach = ts.datei_lesen(STRINGS_DATEI)
+    pruefe(danach.get("login.lead") != "Aus der alten Form",
            "danach gilt wieder der ausgelieferte Wortlaut")
 
 
@@ -5739,6 +5759,181 @@ def test_erledigte_standard(client: TestClient) -> None:
            "und „erledigt“ zeigt ausschließlich die erledigte")
 
 
+def test_sprueche_schalter(client: TestClient) -> None:
+    """Die Sprüche lassen sich je Konto abschalten - auch als Administrator."""
+    abschnitt("Sprüche je Konto")
+    from .main import SPRUCH_DATEI
+
+    with open(SPRUCH_DATEI, "w", encoding="utf-8") as f:
+        f.write("Der Weg ist das Ziel.\n– Konfuzius\n")
+
+    pruefe(auth.zeigt_sprueche(None), "ohne Anmeldung gilt der Standard")
+    with db.db() as con:
+        spalten = {r["name"] for r in con.execute("PRAGMA table_info(benutzer)")}
+    pruefe("sprueche_sehen" in spalten, "die Spalte gibt es")
+
+    seite = client.get("/").text
+    pruefe('class="spruch"' in seite, "mit Haken steht der Spruch da")
+
+    # ⚠️⚠️ Der Prüfer ist Administrator. Genau darum geht es: das hier ist
+    # kein Recht, sondern eine Anzeigefrage - über auth._schalter() gebaut
+    # (das für Administratoren immer True liefert) könnte ausgerechnet
+    # Timo die Sprüche bei sich selbst nicht abstellen.
+    with db.db() as con:
+        bid = con.execute("SELECT id, rolle FROM benutzer "
+                          "WHERE benutzername='pruefer'").fetchone()
+    pruefe(bid["rolle"] == "admin", "der Prüfer ist Administrator")
+    client.post(f"/einstellungen/benutzer/{bid['id']}", data={
+        "benutzername": "pruefer", "rolle": "admin", "aktiv": "1"})
+    with db.db() as con:
+        wert = con.execute("SELECT sprueche_sehen FROM benutzer WHERE id=?",
+                           (bid["id"],)).fetchone()["sprueche_sehen"]
+    pruefe(wert == 0, "der Haken lässt sich abwählen")
+    pruefe('class="spruch"' not in client.get("/").text,
+           "auf der Zeiterfassung ist der Spruch weg")
+    pruefe('class="spruch"' not in client.get("/meinbereich").text,
+           "in „Mein Bereich“ ebenfalls")
+
+    client.post(f"/einstellungen/benutzer/{bid['id']}", data={
+        "benutzername": "pruefer", "rolle": "admin", "aktiv": "1",
+        "sprueche_sehen": "1"})
+    pruefe('class="spruch"' in client.get("/").text, "und wieder zurück")
+    seite = client.get("/einstellungen?bereich=benutzer").text
+    pruefe('name="sprueche_sehen"' in seite,
+           "der Schalter steht in der Benutzerverwaltung")
+
+
+def test_logos(client: TestClient) -> None:
+    """Eigene Logos: ausliefern, ersetzen, abweisen, zurücksetzen."""
+    abschnitt("Eigene Logos")
+    gut = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">'
+           '<rect width="200" height="60" fill="#0af"/></svg>')
+
+    antwort = client.get("/marke/logo-fuer-dunkel.svg")
+    pruefe(antwort.status_code == 200, "der Schriftzug wird ausgeliefert")
+    pruefe(antwort.headers.get("content-type", "").startswith("image/svg+xml"),
+           "mit festem Inhaltstyp")
+    # ⚠️ Der Sandbox-Kopf muss bleiben: in einem <img> ist SVG harmlos,
+    # beim direkten Aufruf DIESER Adresse ist sie ein eigenes Dokument.
+    pruefe("sandbox" in antwort.headers.get("content-security-policy", ""),
+           "und mit dem Sandbox-Kopf")
+    pruefe(antwort.headers.get("x-content-type-options") == "nosniff",
+           "und nosniff")
+    pruefe(client.get("/marke/gibtsnicht.svg").status_code == 404,
+           "ein unbekannter Name gibt 404")
+
+    # ⚠️ Ohne Anmeldung erreichbar: der Anmeldebildschirm zeigt das Logo.
+    ohne = TestClient(app)
+    pruefe(ohne.get("/marke/logo-fuer-hell.svg").status_code == 200,
+           "auch ohne Anmeldung – sonst wäre die Anmeldeseite ohne Logo")
+
+    vorher = client.get("/").text
+    marke_vorher = vorher.split("logo-fuer-dunkel.svg?v=")[1].split('"')[0]
+
+    antwort = client.post("/einstellungen/logo", follow_redirects=False,
+                          files={"logo_dunkel": ("eigen.svg", gut, "image/svg+xml")})
+    pruefe(antwort.status_code == 303, "eine eigene Datei wird angenommen")
+    pruefe("fehler" not in antwort.headers.get("location", ""),
+           "ohne Fehlermeldung")
+    pruefe('fill="#0af"' in client.get("/marke/logo-fuer-dunkel.svg").text,
+           "und danach ausgeliefert")
+    pruefe("Layer_1" in client.get("/marke/logo-fuer-hell.svg").text
+           or client.get("/marke/logo-fuer-hell.svg").status_code == 200,
+           "das andere Thema bleibt beim ausgelieferten")
+    marke_nachher = client.get("/").text.split(
+        "logo-fuer-dunkel.svg?v=")[1].split('"')[0]
+    # ⚠️ Der Anhang muss sich ändern, sonst hängt der Browser am alten Bild -
+    # genau diese Falle ist beim Grafiktausch in 1.27 zugeschnappt.
+    pruefe(marke_nachher != marke_vorher, "der Anhang ?v= ändert sich mit")
+    pruefe(marke_nachher.isdigit(),
+           "und enthält nur Ziffern – kein Leerzeichen in einer Adresse")
+
+    # --- was abgewiesen wird ------------------------------------------------
+    for name, inhalt, wobei in (
+            ("boese.svg", '<svg xmlns="http://www.w3.org/2000/svg">'
+                          '<script>alert(1)</script></svg>', "Skript darin"),
+            ("klick.svg", '<svg xmlns="http://www.w3.org/2000/svg" '
+                          'onload="alert(1)"></svg>', "eine Ereignis-Angabe"),
+            ("kein.txt", "nur Text", "eine andere Dateiendung"),
+            ("leer.svg", "hallo, kein Markup", "gar kein <svg>")):
+        antwort = client.post("/einstellungen/logo", follow_redirects=False,
+                              files={"logo_hell": (name, inhalt, "image/svg+xml")})
+        pruefe("fehler" in antwort.headers.get("location", ""),
+               f"abgewiesen: {wobei}")
+    riesig = '<svg xmlns="http://www.w3.org/2000/svg">' + "<!--" + ("x" * 600000) + "-->"
+    antwort = client.post("/einstellungen/logo", follow_redirects=False,
+                          files={"logo_hell": ("gross.svg", riesig, "image/svg+xml")})
+    pruefe("fehler" in antwort.headers.get("location", ""),
+           "abgewiesen: zu groß")
+    pruefe("#0af" in client.get("/marke/logo-fuer-dunkel.svg").text,
+           "keine der abgewiesenen Dateien hat etwas überschrieben")
+
+    antwort = client.post("/einstellungen/logo", follow_redirects=False,
+                          data={"zuruecksetzen": "1"})
+    pruefe(antwort.status_code == 303, "zurücksetzen läuft durch")
+    pruefe("#0af" not in client.get("/marke/logo-fuer-dunkel.svg").text,
+           "danach gilt wieder der ausgelieferte Schriftzug")
+
+    seite = client.get("/einstellungen?bereich=system").text
+    pruefe("/einstellungen/logo" in seite,
+           "die Karte steht unter „System und Sicherung“")
+    pruefe("/einstellungen/logo" in auth.ADMIN_NUR_PFADE,
+           "und die Route ist Administratoren vorbehalten")
+
+
+def test_hinweistexte(client: TestClient) -> None:
+    """Der Editor für die Hinweistexte."""
+    abschnitt("Hinweistexte bearbeiten")
+    from .main import STRINGS_DATEI, texte
+    from . import texte_standard as ts
+
+    seite = client.get("/einstellungen?bereich=hinweistexte").text
+    pruefe("Hinweistexte" in seite, "die Seite lädt")
+    pruefe('class="textgruppe"' in seite, "die Texte stehen in Gruppen")
+    pruefe('name="t_login.lead"' in seite, "und jeder in einem eigenen Feld")
+    # Der Schlüsselpräfix allein sagt niemandem etwas, der nicht im Code liest.
+    pruefe("Mein Bereich" in seite and "Fuhrpark" in seite,
+           "die Gruppen tragen Klartextnamen")
+
+    antwort = client.post("/einstellungen/hinweistexte", follow_redirects=False,
+                          data={"t_login.lead": "Ganz eigener Anmeldetext"})
+    pruefe(antwort.status_code == 303, "Speichern läuft durch")
+    pruefe(ts.datei_lesen(STRINGS_DATEI).get("login.lead")
+           == "Ganz eigener Anmeldetext", "der Text steht in strings.txt")
+    pruefe(texte().get("login.lead") == "Ganz eigener Anmeldetext",
+           "und wirkt sofort, ohne Neustart")
+    pruefe("Ganz eigener Anmeldetext" in client.get("/einstellungen"
+           "?bereich=hinweistexte").text, "der Editor zeigt ihn wieder")
+
+    # Ein leeres Feld heißt „wieder der eingebaute Text".
+    client.post("/einstellungen/hinweistexte", data={"t_login.lead": "   "},
+                follow_redirects=False)
+    pruefe(texte().get("login.lead") == ts.TEXTE_STANDARD["login.lead"],
+           "ein leeres Feld stellt den eingebauten Text wieder her")
+
+    # Eine ganze Gruppe zurücksetzen.
+    client.post("/einstellungen/hinweistexte",
+                data={"t_mein.lead": "Abweichend"}, follow_redirects=False)
+    pruefe(texte().get("mein.lead") == "Abweichend", "Gruppentext geändert")
+    antwort = client.post("/einstellungen/hinweistexte/zuruecksetzen",
+                          data={"gruppe": "mein"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "die Gruppe lässt sich zurücksetzen")
+    pruefe(texte().get("mein.lead") == ts.TEXTE_STANDARD["mein.lead"],
+           "und steht wieder auf dem Auslieferungsstand")
+
+    # ⚠️ Nur für Administratoren - die Datei gewinnt gegen jeden
+    # eingebauten Text und wirkt auf ALLE Konten.
+    pruefe("/einstellungen/hinweistexte" in auth.ADMIN_NUR_PFADE,
+           "die Routen sind Administratoren vorbehalten")
+    normal = _konto(client, "textkonto", "textpasswort", ["einstellungen"])
+    pruefe(normal.post("/einstellungen/hinweistexte",
+                       data={"t_login.lead": "x"}).status_code == 403,
+           "ein normales Konto bekommt 403")
+    pruefe('class="textgruppe"' not in normal.get(
+        "/einstellungen?bereich=hinweistexte").text,
+        "und sieht die Seite gar nicht erst")
+
+
 def test_kosmetik(client: TestClient) -> None:
     """Kopfzeile, Tabellen am Telefon, Mülleimer – und ein Osterei."""
     abschnitt("Kosmetik")
@@ -6965,6 +7160,9 @@ def _durchlauf(client: TestClient) -> None:
         test_status_drei(client)
         test_listenansicht(client)
         test_erledigte_standard(client)
+        test_sprueche_schalter(client)
+        test_logos(client)
+        test_hinweistexte(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

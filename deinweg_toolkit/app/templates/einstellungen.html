@@ -1294,6 +1294,16 @@
             Bewilligungen in „Mein Bereich“
           </label>
         </div>
+        {# ⚠️ Die Sprüche stehen bewusst NICHT bei den Einzelrechten: sie
+           sind kein Recht, sondern eine Anzeigefrage. Deshalb gelten sie
+           auch für Administratoren - wer sie abstellt, sieht sie nicht
+           mehr, egal welche Rolle er hat. #}
+        <div class="bereichsraster" style="margin-top: 10px;">
+          <label class="bereich-kachel">
+            <input type="checkbox" name="sprueche_sehen" value="1" checked>
+            Sprüche anzeigen
+          </label>
+        </div>
         {# ⚠️ Geschützte Wiki-Ordner sind hier NIE vorbelegt – anders als
            „Wiki bearbeiten“ oder die Bereiche darüber. Ein neues Konto
            bekommt sie ausdrücklich zugeteilt oder gar nicht. Dieselbe
@@ -1491,6 +1501,20 @@
             Bewilligungen in „Mein Bereich“
           </label>
         </div>
+      </fieldset>
+
+      {# Kein Recht, sondern eine Anzeigefrage - deshalb ein eigener
+         Block und deshalb auch für Administratoren wirksam. #}
+      <fieldset class="feld bereichsfeld">
+        <span>Anzeige</span>
+        <div class="bereichsraster">
+          <label class="bereich-kachel">
+            <input type="checkbox" name="sprueche_sehen" value="1" form="bn-{{ b.id }}"
+                   {{ 'checked' if b.sprueche_sehen }}>
+            Sprüche anzeigen
+          </label>
+        </div>
+        <p class="klein leise felderklaerung">{{ t("einst.sprueche_sehen") }}</p>
       </fieldset>
 
       {# Geschützte Wiki-Ordner. Der Block erscheint nur, wenn überhaupt
@@ -2019,6 +2043,51 @@
   </form>
 </section>
 
+{# ⚠️ Eigene Logos: sie stehen auf jeder Seite und auf dem
+   Anmeldebildschirm, deshalb nur für Administratoren (die Route liegt
+   in auth.ADMIN_NUR_PFADE). Gespeichert wird in der Datenbank, nicht
+   als Datei - der Programmordner liegt im Add-on-Abbild und wäre beim
+   nächsten Update überschrieben. #}
+<section class="karte">
+  <h2>Eigene Logos</h2>
+  <p class="lead">{{ t("einst.logo_lead") }}</p>
+  <details class="hinweise">
+    <summary>Worauf zu achten ist</summary>
+    <p>{{ t("einst.logo_hinweis") }}</p>
+  </details>
+  <form action="/einstellungen/logo" method="post" enctype="multipart/form-data">
+    <div class="feldreihe zwei">
+      {% for name, angabe in MARKEN.items() %}
+      <label class="feld">
+        <span>{{ angabe[1] }}
+          {% if eigene_logos.get(angabe[0]) %}
+          <span class="marke-status gut">eigenes</span>
+          {% else %}<span class="leise">– ausgeliefert</span>{% endif %}</span>
+        <input type="file" name="{{ angabe[0] }}" accept=".svg,image/svg+xml">
+        {# Zeigt, was gerade gilt - eingebettet als <img>, dort läuft kein
+           Skript. Der Anhang ist der Stand, sonst hinge der Browser nach
+           einem Tausch am alten Bild. #}
+        <span class="logovorschau {{ 'auf-dunkel' if 'dunkel' in name else 'auf-hell' }}">
+          <img src="/marke/{{ name }}.svg?v={{ markenstand() }}" alt="{{ angabe[1] }}">
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Logos übernehmen</button>
+    </div>
+  </form>
+  {% if eigene_logos %}
+  <form action="/einstellungen/logo" method="post" enctype="multipart/form-data"
+        onsubmit="return confirm('Wieder die ausgelieferten Logos verwenden? Die hochgeladenen Dateien werden dabei entfernt.')">
+    <input type="hidden" name="zuruecksetzen" value="1">
+    <div class="knopfreihe">
+      <button class="knopf leise" type="submit">Wieder die ausgelieferten verwenden</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
 <section class="karte">
   <h2>Standardtexte</h2>
   <p class="lead">{{ t("einst.texte_lead") }}</p>
@@ -2084,6 +2153,95 @@
 {% endif %}
 {% endif %}
 
+{# --- Hinweistexte ------------------------------------------------------
+   ⚠️ strings.txt von Hand zu pflegen war zumutbar, solange es dreißig
+   Texte waren; bei knapp zweihundert findet man den gesuchten nicht mehr.
+   Hier stehen sie nach Bereichen gruppiert, jede Gruppe zugeklappt, und
+   jeder Text sagt, ob er vom Auslieferungsstand abweicht.
+   Nur für Administratoren - die Datei gewinnt gegen jeden eingebauten
+   Text und wirkt auf alle Konten. #}
+{% if bereich == "hinweistexte" %}
+{% call punktkopf("Hinweistexte", t("einst.hinweistexte_lead")) %}
+  <p>{{ t("einst.hinweistexte_hinweis") }}</p>
+{% endcall %}
+
+<div class="karte">
+  <div class="kopfzeile">
+    <h2>{{ textgruppen | sum(attribute='anzahl') }} Texte</h2>
+    <p class="klein leise">
+      {% set geaendert = textgruppen | sum(attribute='geaendert') %}
+      {{ geaendert }} vom Auslieferungsstand abweichend
+    </p>
+  </div>
+  {# Ein Suchfeld ohne Skript wäre ein Formular mit Serverlauf für eine
+     Sache, die im Browser nichts kostet. Ohne Skript bleibt es einfach
+     weg (siehe unten). #}
+  <div class="listenkopf" id="textsuche-huelle" hidden>
+    <label class="feld textsuche">
+      <span class="feldtitel">Suchen</span>
+      <input type="search" id="textsuche" placeholder="Text oder Schlüssel …"
+             autocomplete="off">
+    </label>
+    <span class="klein leise" id="textsuche-stand"></span>
+  </div>
+
+  <form action="/einstellungen/hinweistexte" method="post" id="hinweistexte">
+    {% for g in textgruppen %}
+    <details class="textgruppe" data-gruppe="{{ g.schluessel }}">
+      <summary>
+        <span class="textgruppe-titel">{{ g.titel }}</span>
+        <span class="klein leise">{{ g.anzahl }} Text{{ 'e' if g.anzahl != 1 }}</span>
+        {% if g.geaendert %}
+        <span class="marke-status info">{{ g.geaendert }} geändert</span>
+        {% endif %}
+      </summary>
+      <div class="textliste">
+        {% for e in g.eintraege %}
+        <div class="textzeile{{ ' ist-geaendert' if e.geaendert }}"
+             data-suche="{{ (e.schluessel ~ ' ' ~ e.wert) | lower }}">
+          <div class="textkopf">
+            <code class="textschluessel">{{ e.schluessel }}</code>
+            {% if e.tot %}
+            <span class="marke-status" title="Dieser Text wird zurzeit nirgends angezeigt">ohne Abnehmer</span>
+            {% endif %}
+            {% if e.geaendert %}<span class="textmarke">geändert</span>{% endif %}
+            <button type="button" class="knopf klein leise textzurueck" hidden>
+              zurücksetzen</button>
+          </div>
+          <textarea name="t_{{ e.schluessel }}" rows="2"
+                    data-standard="{{ e.standard }}">{{ e.wert }}</textarea>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="knopfreihe textgruppe-fuss">
+        <button class="knopf leise klein" type="submit"
+                form="textgruppe-{{ g.schluessel }}">
+          Diesen Bereich auf Standard zurücksetzen</button>
+      </div>
+    </details>
+    {% endfor %}
+
+    <div class="knopfreihe erfass-fuss">
+      <span class="klein leise">{{ t("einst.hinweistexte_leer") }}</span>
+      <button class="knopf haupt" type="submit">Texte speichern</button>
+    </div>
+  </form>
+
+  {# ⚠️ Die Rücksetz-Formulare stehen AUSSERHALB des großen Formulars -
+     verschachtelte Formulare sind ungültiges HTML und werden vom Browser
+     stillschweigend aufgetrennt. Dieselbe Technik wie auf der
+     Zeiterfassung: leeres <form> hier, der Knopf oben verweist über
+     form="…" darauf. #}
+  {% for g in textgruppen %}
+  <form id="textgruppe-{{ g.schluessel }}" method="post"
+        action="/einstellungen/hinweistexte/zuruecksetzen"
+        onsubmit="return confirm('Alle Texte im Bereich „{{ g.titel }}“ auf den Auslieferungsstand setzen?')">
+    <input type="hidden" name="gruppe" value="{{ g.schluessel }}">
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+
 </div>
 </div>
 
@@ -2106,6 +2264,68 @@
       }
       wahl.forEach(function (k) { k.addEventListener("change", zeigen); });
       zeigen();
+    });
+  })();
+</script>
+
+<script>
+  // --- Hinweistexte: Suche und Zurücksetzen je Feld --------------------
+  //
+  // Beides ist reine Bequemlichkeit und deshalb erst hier: ohne Skript
+  // bleibt das Suchfeld versteckt (es könnte nichts filtern) und der
+  // „zurücksetzen"-Knopf am einzelnen Feld ebenso. Die Gruppen klappen
+  // ohne Skript weiterhin auf, gespeichert wird über das Formular, und
+  // ganze Bereiche lassen sich über ihren eigenen Knopf zurücksetzen.
+  (function () {
+    var formular = document.getElementById("hinweistexte");
+    if (!formular) { return; }
+
+    // Ein Feld auf seinen Auslieferungstext zurückstellen. Der Standard
+    // hängt als data-Attribut am Textfeld - so braucht es keinen zweiten
+    // Weg zum Server für etwas, das die Seite schon weiß.
+    formular.querySelectorAll(".textzurueck").forEach(function (knopf) {
+      knopf.hidden = false;
+      knopf.addEventListener("click", function () {
+        var zeile = knopf.closest(".textzeile"),
+            feld = zeile.querySelector("textarea");
+        feld.value = feld.dataset.standard || "";
+        zeile.classList.remove("ist-geaendert");
+        feld.focus();
+      });
+    });
+
+    var huelle = document.getElementById("textsuche-huelle"),
+        suche = document.getElementById("textsuche"),
+        stand = document.getElementById("textsuche-stand"),
+        zeilen = [].slice.call(formular.querySelectorAll(".textzeile")),
+        gruppen = [].slice.call(formular.querySelectorAll(".textgruppe"));
+    if (!huelle || !suche) { return; }
+    huelle.hidden = false;
+
+    suche.addEventListener("input", function () {
+      var wort = suche.value.trim().toLowerCase();
+      if (!wort) {
+        zeilen.forEach(function (z) { z.hidden = false; });
+        gruppen.forEach(function (g) { g.hidden = false; g.open = false; });
+        stand.textContent = "";
+        return;
+      }
+      var treffer = 0;
+      zeilen.forEach(function (z) {
+        // Gesucht wird im Schlüssel UND im Text - man erinnert sich mal
+        // an das eine, mal an das andere.
+        var passt = (z.dataset.suche || "").indexOf(wort) !== -1;
+        z.hidden = !passt;
+        if (passt) { treffer++; }
+      });
+      // Eine Gruppe ohne Treffer verschwindet ganz, die übrigen klappen
+      // auf - sonst müsste man nach dem Tippen noch fünfmal klicken.
+      gruppen.forEach(function (g) {
+        var offen = g.querySelectorAll(".textzeile:not([hidden])").length > 0;
+        g.hidden = !offen;
+        g.open = offen;
+      });
+      stand.textContent = treffer + (treffer === 1 ? " Treffer" : " Treffer");
     });
   })();
 </script>
