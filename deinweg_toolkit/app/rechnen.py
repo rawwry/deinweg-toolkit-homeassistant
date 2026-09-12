@@ -328,6 +328,87 @@ def urlaubswert(beschreibung: str) -> float:
     return 0.5 if URLAUB_HALB in text else 1.0
 
 
+# ⚠️ Krankmeldung (seit 1.37). Timo hat dafuer eine eigene Leistung
+# angelegt, die EXAKT so heisst - deshalb wird hier auch exakt verglichen
+# und nicht "beginnt mit" wie beim Urlaub. Das ist Absicht: "Urlaub" steht
+# in den echten Daten auch mitten in Saetzen ("… Strukturplan Urlaub"),
+# und ein "beginnt mit" waere bei einem Wort wie "Krankmeldung" zwar
+# ungefaehrlicher, aber eben auch ungenauer. Eine Leistung, die es als
+# Auswahlpunkt gibt, kommt immer buchstabengleich herein.
+KRANK_TEXT = "krankmeldung"
+
+# Arbeitstage je Monat: 4,33 Wochen zu 5 Tagen. Dieselbe Pauschale wie
+# beim Soll selbst (MONATSFAKTOR) - alles andere waere Scheingenauigkeit,
+# denn das Monatssoll entsteht ja auch nicht aus einem Kalender.
+ARBEITSTAGE_MONAT = MONATSFAKTOR * 5
+
+
+# ⚠️⚠️ Dieselbe Regel in SQL - und zwar an genau EINER Stelle, damit sie
+# nicht auseinanderlaeuft. Die Wahrheit ist abwesenheitswert() in Python;
+# das hier ist die Vorauswahl bzw. der Ausschluss in der Abfrage, und
+# beide muessen dasselbe meinen. TRIM, weil urlaubswert() ebenfalls
+# strippt - ohne das zaehlte " Urlaub" in Python, in SQL aber nicht.
+# LIKE vergleicht bei ASCII ohne Ruecksicht auf Gross-/Kleinschreibung,
+# und beide Woerter sind ASCII.
+ABWESEND_SQL = ("(TRIM(beschreibung) LIKE 'Urlaub%' "
+                "OR TRIM(beschreibung) LIKE 'Krankmeldung')")
+
+
+def abwesenheitswert(beschreibung: str) -> float:
+    """Wie viel freier Tag steckt in dieser Zeile? 1.0, 0.5 oder 0.
+
+    Urlaub (auch halbe Tage) und Krankmeldung zaehlen gleich: an beiden
+    wurde nicht gearbeitet, und beide duerfen deshalb kein Soll erzeugen.
+    """
+    text = (beschreibung or "").strip().lower()
+    if text == KRANK_TEXT:
+        return 1.0
+    return urlaubswert(beschreibung)
+
+
+def abwesenheitstage(zeilen) -> dict[str, float]:
+    """Freie Tage je MONAT (JJJJ-MM) aus den Eintraegen einer Person.
+
+    ⚠️ Gezaehlt wird je Kalendertag, nicht je Zeile - dieselbe Regel wie
+    bei urlaubstage_zaehlen() und aus demselben Grund: an einem Tag
+    koennen mehrere Eintraege stehen, es bleibt derselbe freie Tag.
+    """
+    je_tag: dict[str, float] = {}
+    for z in zeilen:
+        wert = abwesenheitswert(z["beschreibung"])
+        if not wert:
+            continue
+        je_tag[z["datum"]] = max(je_tag.get(z["datum"], 0.0), wert)
+    monate: dict[str, float] = {}
+    for datum, wert in je_tag.items():
+        monate[datum[:7]] = monate.get(datum[:7], 0.0) + wert
+    return monate
+
+
+def soll_mit_abwesenheit(soll_min: int, freie_tage: float) -> int:
+    """Senkt das Monatssoll um die Tage, an denen nicht gearbeitet wurde.
+
+    ⚠️⚠️ **Das ist die Antwort auf den groessten fachlichen Bruch, den das
+    Programm hatte** (seit 1.37, Timos Auftrag). Bis dahin stand ein Monat
+    mit zwei Wochen Urlaub im tiefroten Minus, obwohl niemand etwas
+    falsch gemacht hatte - "Monate ohne Zeiten erscheinen mit vollem Soll
+    im Minus" war ausdruecklich so gewollt, damit vergessene Abgaben
+    auffallen. Der Preis war, dass das Team gelernt hat, die Zahl zu
+    ignorieren; und dann taugt sie auch fuer den Fall nicht mehr, in dem
+    wirklich etwas fehlt.
+
+    ⚠️ Feiertage bleiben ausdruecklich aussen vor (Timos Entscheidung):
+    in der Einrichtung wird auch an Feiertagen gearbeitet, sie haben also
+    keine Bedeutung fuers Soll. **Nicht ungefragt ergaenzen.**
+
+    ⚠️ Nie unter null: wer 25 Tage frei hat, hat kein negatives Soll.
+    """
+    if not soll_min or not freie_tage:
+        return soll_min
+    tagessoll = soll_min / ARBEITSTAGE_MONAT
+    return max(0, int(round(soll_min - tagessoll * freie_tage)))
+
+
 def urlaubstage_zaehlen(zeilen) -> dict[str, float]:
     """Urlaubstage je Jahr aus den Eintraegen einer Person.
 

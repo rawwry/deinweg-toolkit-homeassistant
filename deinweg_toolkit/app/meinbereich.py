@@ -28,9 +28,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from . import auth
 from . import db
 from .parser import hhmm
-from .rechnen import (MONATSNAMEN, bewilligungen_pruefen,
-                      mitarbeiter_zu_benutzer, monat_wort,
-                      urlaubstage_zaehlen)
+from .rechnen import (ABWESEND_SQL, MONATSNAMEN, abwesenheitstage,
+                      bewilligungen_pruefen, mitarbeiter_zu_benutzer,
+                      monat_wort, soll_mit_abwesenheit, urlaubstage_zaehlen)
 
 router = APIRouter()
 
@@ -96,10 +96,24 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
 
         name = person["name"]
         soll_std = float(person["monatsstunden"] or 0)
+        # ⚠️⚠️ Urlaub und Krankmeldung zaehlen seit 1.37 NICHT mehr als
+        # geleistete Zeit - dafuer senken sie das Soll (siehe unten). Nur
+        # beides zusammen ergibt ein stimmiges Bild: wer eine Woche krank
+        # war, hat in dieser Woche weder gearbeitet noch etwas
+        # schuldig bleiben koennen. Wuerde man nur das Soll senken, aber
+        # eine mit acht Stunden gebuchte Urlaubszeile weiter als Ist
+        # zaehlen, stuende der Monat ploetzlich im PLUS.
         zeilen = con.execute(
             "SELECT monat, COUNT(*) n, COALESCE(SUM(dauer_min),0) m "
-            "FROM eintrag WHERE mitarbeiter=? GROUP BY monat ORDER BY monat",
+            f"FROM eintrag WHERE mitarbeiter=? AND NOT {ABWESEND_SQL} "
+            "GROUP BY monat ORDER BY monat",
             (name,)).fetchall()
+        # Die freien Tage je Monat. Dieselbe Vorauswahl wie beim Urlaub -
+        # entschieden wird in Python (abwesenheitswert), weil ein halber
+        # Tag 0,5 traegt und SQLite das nicht unterscheiden kann.
+        frei_je_monat = abwesenheitstage(con.execute(
+            f"SELECT datum, beschreibung FROM eintrag WHERE mitarbeiter=? "
+            f"AND {ABWESEND_SQL}", (name,)).fetchall())
         offene_vorgaenge = con.execute(
             "SELECT COUNT(*) c FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
             "AND status <> 'Erledigt'", (name,)).fetchone()["c"]
@@ -180,13 +194,20 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
         while lauf <= ende:
             schluessel = lauf.strftime("%Y-%m")
             daten = ist_je_monat.get(schluessel, {"m": 0, "n": 0})
-            soll_min = int(round(soll_std * 60))
+            voll = int(round(soll_std * 60))
+            frei = frei_je_monat.get(schluessel, 0.0)
+            soll_min = soll_mit_abwesenheit(voll, frei)
             monate.append({
                 "monat": schluessel,
                 "wort": monat_wort(schluessel),
                 "ist": daten["m"],
                 "n": daten["n"],
                 "soll": soll_min,
+                # Beide Zahlen mitgeben, nicht nur die gesenkte: ein Soll,
+                # das ohne Erklaerung von 160 auf 123 faellt, sieht wie ein
+                # Fehler aus. Die Vorlage schreibt es dazu.
+                "soll_voll": voll,
+                "frei": frei,
                 "saldo": daten["m"] - soll_min if soll_min else 0,
                 "laufend": schluessel == dieser_monat,
             })
@@ -266,21 +287,29 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             # bekommt. Ein einzelner Balken neben einer Soll-Linie laesst
             # einen die Differenz schaetzen.
             h_ueber = h_fehlt = 0.0
-            if soll_min and not m["laufend"]:
-                if m["ist"] >= soll_min:
-                    h_basis = hoch(soll_min)
+            # ⚠️ Gerechnet wird gegen das Soll DIESES Monats, nicht gegen
+            # das volle Monatssoll (seit 1.37): ein Monat mit zwei Wochen
+            # Urlaub hat ein kleineres Soll, und der gestrichelte Umriss
+            # muesste sonst eine Luecke zeigen, die es nicht gibt. Die
+            # waagerechte Soll-Linie im Bild bleibt dagegen beim vollen
+            # Wert - sie ist der vereinbarte Massstab, und eine Treppe
+            # waere dort nicht mehr als Bezugsgroesse zu lesen.
+            monatssoll = m["soll"]
+            if monatssoll and not m["laufend"]:
+                if m["ist"] >= monatssoll:
+                    h_basis = hoch(monatssoll)
                     h_ueber = h_ist - h_basis
                     klasse = "saeule-gut"
                 else:
                     h_basis = h_ist
-                    h_fehlt = hoch(soll_min) - h_ist
+                    h_fehlt = hoch(monatssoll) - h_ist
                     klasse = "saeule-unter"
             else:
                 h_basis = h_ist
                 klasse = "saeule-laufend" if m["laufend"] else "saeule-neutral"
 
             y_basis = grundlinie - max(h_basis, 2)
-            saldo = m["saldo"] if soll_min and not m["laufend"] else None
+            saldo = m["saldo"] if monatssoll and not m["laufend"] else None
             balken.append({
                 "x": round(x, 1), "b": round(b, 1),
                 "mitte": round(x + b / 2, 1),
@@ -312,7 +341,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                                + hhmm(abs(saldo))) if saldo is not None else None,
                 "klasse": klasse,
             })
-            if soll_min and not m["laufend"]:
+            if monatssoll and not m["laufend"]:
                 summe += m["saldo"]
                 saldopunkte.append({"x": round(x + b / 2, 1), "saldo": summe,
                                     "wort": hhmm(abs(summe)),

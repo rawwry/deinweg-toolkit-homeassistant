@@ -2191,4 +2191,40 @@ CHANGELOG = [
         "heraus, und sie las dafür die echte Uhr",
         "Prüfung von 1775 auf 1793 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.37", "titel": "Urlaub zählt, Texte ziehen nach", "punkte": [
+        "Mein Bereich: Urlaub und Krankmeldung senken das Monatssoll, "
+        "statt es zu reißen. Ein Monat mit zwei Wochen Urlaub stand "
+        "vorher im tiefroten Minus, obwohl niemand etwas falsch "
+        "gemacht hatte",
+        "Die beiden zählen auch nicht mehr als geleistete Zeit – nur "
+        "beides zusammen ergibt ein stimmiges Bild. Die Monatszeile "
+        "sagt dazu, um wie viele freie Tage das Soll gesenkt wurde",
+        "Krank heißt die Leistung „Krankmeldung“, buchstabengleich. Feiertage bleiben außen vor – bei uns wird auch dann gearbeitet",
+        "Zeiterfassung: eine schmale Zeile ganz oben, wenn eigene "
+        "Aufgaben überfällig oder heute fällig sind. Sie führt in die "
+        "schon gefilterte Liste und erscheint nur, wenn wirklich "
+        "etwas ansteht",
+        "Dateien: Suchfeld und Knopf für einen neuen Ordner in der "
+        "Seitenleiste, wie im Wiki. Gesucht wird in Namen von Dateien "
+        "und Ordnern; versteckte Ordner bleiben versteckt",
+        "WICHTIG: strings.txt trägt nur noch, was du selbst anders "
+        "formuliert hast. Bis jetzt stand dort ALLES – und weil die "
+        "Datei gegen jeden eingebauten Text gewinnt, ist seit der "
+        "Erstinstallation keine einzige Textverbesserung bei dir "
+        "angekommen. Der Start räumt die Datei beim Update auf",
+        "Sieh einmal unter Einstellungen → Hinweistexte nach: was "
+        "dort als „abweichend“ steht, sind entweder deine eigenen "
+        "Formulierungen oder alte Fassungen. Wenn du nie etwas "
+        "umformuliert hast, setz einmal alles zurück",
+        "Die Karte „Standardtexte“ unter System und Sicherung ist "
+        "damit entfallen – der Texteditor kann alles, was sie konnte",
+        "Der Spruch wechselt nur noch täglich statt bei jedem "
+        "Seitenaufruf. Damit springt die Seite darunter auch nicht "
+        "mehr",
+        "Die Tabelle „quelldatei“ ist weggefallen: sie wurde bei "
+        "jedem Import geschrieben und nirgends gelesen",
+        "Zeiterfassung: der Akzentstrich vor „Neuer Eintrag“ ist "
+        "wieder weg",
+        "Prüfung von 1793 auf 1850 Einzelprüfungen erweitert",
+    ]},
 ]

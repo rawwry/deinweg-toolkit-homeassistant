@@ -5,6 +5,50 @@
 
 {{ arbeitszeit('zeiterfassung') }}
 
+{# --- Was heute drängt (seit 1.37) -------------------------------------
+   ⚠️ Eine schmale Zeile, keine Karte: die Zeiterfassung hat schon zwei
+   Spalten voller Kästen, und ein weiterer oben hätte die Seite um einen
+   ganzen Block nach unten geschoben. Sie steht ZWISCHEN Reiterleiste und
+   Zitat – also über allem Inhalt, aber unter der Navigation –, trägt die
+   Ampelfarbe der Aufgaben (rot = überfällig, orange = heute fällig) und
+   ist als Ganzes der Verweis in die schon gefilterte Liste.
+   ⚠️ Sie steht ÜBER dem Zitat: eine Warnung gehört vor die
+   Dekoration. Dafür trägt sie selbst keinen Außenabstand – der
+   flex-gap von `main` setzt den Takt, und die Sonderregel für den
+   unteren Rand der Reiterleiste zieht mit (siehe Stylesheet).
+   ⚠️ Sie erscheint nur, wenn wirklich etwas ansteht. Eine Zeile, die an
+   guten Tagen „0 überfällig“ meldet, ist nach einer Woche Tapete – und
+   dann fällt sie auch an dem Tag nicht mehr auf, an dem sie etwas sagt.
+   ⚠️ Der Farbton kommt aus denselben Variablen wie die Aufgabenkarten
+   (--dopp-weich / --warn-weich). Zwei Stellen, die dasselbe meinen,
+   müssen auch gleich aussehen. #}
+{% if draengt %}
+<a class="draengt {{ 'draengt-rot' if draengt.ueberfaellig else 'draengt-orange' }}"
+   href="/vorgaenge?zustaendig={{ draengt.wer | urlencode }}&amp;sortierung=dringlichkeit">
+  <span class="draengt-zeichen" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.7"/>
+      <path d="M12 7.6v5.1M12 16.1h.01" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round"/>
+    </svg>
+  </span>
+  <span class="draengt-text">
+    {% if draengt.ueberfaellig %}
+    <strong>{{ draengt.ueberfaellig }} {{ 'Aufgaben sind' if draengt.ueberfaellig != 1 else 'Aufgabe ist' }} überfällig</strong>
+    {% if draengt.heute %}<span class="draengt-dazu">· {{ draengt.heute }} {{ 'weitere werden' if draengt.heute != 1 else 'weitere wird' }} heute fällig</span>{% endif %}
+    {% else %}
+    <strong>{{ draengt.heute }} {{ 'Aufgaben werden' if draengt.heute != 1 else 'Aufgabe wird' }} heute fällig</strong>
+    {% endif %}
+  </span>
+  <span class="draengt-hin">Ansehen
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="m9.5 5.5 6.5 6.5-6.5 6.5" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </span>
+</a>
+{% endif %}
+
 {% if spruch.text %}
 <figure class="spruch">
   <blockquote>{{ spruch.text }}</blockquote>

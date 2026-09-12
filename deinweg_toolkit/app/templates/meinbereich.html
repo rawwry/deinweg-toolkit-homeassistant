@@ -391,7 +391,13 @@
     </p>
     <dl class="systemliste">
       <dt>Erfasst</dt><dd>{{ letzter.ist | gesamtstunden }}</dd>
-      <dt>Soll</dt><dd>{{ letzter.soll | gesamtstunden }}</dd>
+      <dt>Soll</dt><dd>{{ letzter.soll | gesamtstunden }}
+        {% if letzter.frei %}
+        <span class="frei-marke" title="Volles Soll {{ letzter.soll_voll | gesamtstunden }}">−{{ letzter.frei | tage }} frei</span>
+        {% endif %}</dd>
+      {% if letzter.frei %}
+      <dt>Volles Soll</dt><dd class="leise">{{ letzter.soll_voll | gesamtstunden }}</dd>
+      {% endif %}
     </dl>
 
     {% if trend %}
@@ -423,7 +429,9 @@
     {% if laufend %}
     <p class="lead">{{ t("mein.laufend_hinweis") }}</p>
     <p class="zahl">{{ laufend.ist | gesamtstunden }}</p>
-    <p class="zahl-label">von {{ laufend.soll | gesamtstunden }} · {{ laufend.wort }}</p>
+    <p class="zahl-label">von {{ laufend.soll | gesamtstunden }}
+      {%- if laufend.frei %} <span class="frei-marke" title="Volles Soll {{ laufend.soll_voll | gesamtstunden }}">−{{ laufend.frei | tage }} frei</span>{% endif %}
+      · {{ laufend.wort }}</p>
     <dl class="systemliste">
       <dt>Noch offen</dt>
       <dd>
@@ -641,7 +649,18 @@
         </td>
         <td class="zahlen nowrap stark">{{ m.ist | hhmm }}</td>
         {% if soll_std %}
-        <td class="zahlen leise nowrap">{{ m.soll | hhmm }}</td>
+        {# ⚠️ Ein Soll, das ohne Erklärung von 160:00 auf 123:00 fällt,
+           sieht wie ein Fehler aus. Deshalb steht der volle Wert
+           durchgestrichen daneben und die Zahl der freien Tage darunter. #}
+        <td class="zahlen leise nowrap">
+          {{ m.soll | hhmm }}
+          {% if m.frei %}
+          {# ⚠️ Der Filter `tage` und nicht `zahl`: der schreibt zwei
+             Nachkommastellen wie bei einem Geldbetrag („2,00 Tage“). #}
+          <span class="frei-marke" title="Volles Soll {{ m.soll_voll | hhmm }}, gesenkt um {{ m.frei | tage }}">
+            −{{ m.frei | tage }} frei</span>
+          {% endif %}
+        </td>
         <td class="zahlen nowrap">
           {% if m.laufend %}
             <span class="leise">–</span>

@@ -2992,56 +2992,90 @@ def test_erinnerungsoptionen(client: TestClient) -> None:
                 follow_redirects=False)
 
 
-def test_texte_nachziehen(client: TestClient) -> None:
-    """strings.txt gewinnt gegen die Standardtexte - deshalb nachziehbar."""
-    abschnitt("Standardtexte nachziehen")
-    from .main import STRINGS_DATEI, TEXTE_STANDARD, texte
+def test_texte_nur_abweichungen(client: TestClient) -> None:
+    """strings.txt traegt nur noch, was wirklich anders formuliert ist."""
+    abschnitt("Texte: nur noch Abweichungen")
+    from .main import STRINGS_DATEI, TEXTE_STANDARD, texte, texte_verschlanken
     from . import texte_standard as ts
 
+    # Die Karte „Standardtexte" mit ihren beiden Knöpfen ist weg.
     seite = client.get("/einstellungen?bereich=system").text
-    pruefe("/einstellungen/texte" in seite,
-           "die Einstellungen bieten das Nachziehen an")
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+    pruefe("/einstellungen/texte" not in ohne_dialog,
+           "die Karte „Standardtexte“ ist aus den Einstellungen verschwunden")
+    pruefe(">Standardtexte<" not in ohne_dialog,
+           "auch ihre Überschrift steht nicht mehr da")
+    pruefe(client.post("/einstellungen/texte",
+                       data={"modus": "alle"}).status_code == 404,
+           "und ihre Route antwortet nicht mehr")
 
-    # ⚠️⚠️ Diese Prüfung hat bis 1.34 den eigentlichen Fehler NICHT
-    # gesehen, weil sie die Datei selbst im Format "schluessel = wert"
-    # angelegt hat - dem Format, das nur texte_nachziehen() las. Eine
-    # echte strings.txt steht im Blockformat, und darin fand der Knopf
-    # keinen einzigen Schlüssel: er hielt sie für leer, schrieb sie im
-    # falschen Format neu und machte damit jeden eigenen Text zunichte.
-    # Deshalb wird sie hier jetzt so geschrieben, wie die Anwendung sie
-    # anlegt.
-    ts.datei_schreiben(STRINGS_DATEI, {"login.lead": "Selbst geschrieben"})
-    pruefe(ts.datei_lesen(STRINGS_DATEI).get("login.lead") == "Selbst geschrieben",
-           "eine echte strings.txt liest sich wieder ein")
+    # ⚠️⚠️ DER Punkt: eine Datei mit allen Standardtexten - genau das, was
+    # bis 1.36.1 beim ersten Start entstand - schluckte jede spätere
+    # Textverbesserung. Der Start räumt sie jetzt auf.
+    voll = dict(TEXTE_STANDARD)
+    voll["login.lead"] = "Ganz eigener Anmeldetext"
+    ts.datei_schreiben(STRINGS_DATEI, voll)
+    texte_verschlanken()
+    schlank = ts.datei_lesen(STRINGS_DATEI)
+    pruefe(schlank == {"login.lead": "Ganz eigener Anmeldetext"},
+           f"der Start wirft alles Gleichlautende weg (übrig: {len(schlank)})")
+    pruefe(texte().get("login.lead") == "Ganz eigener Anmeldetext",
+           "der eigene Text gilt weiterhin")
+    pruefe(texte().get("mein.lead") == TEXTE_STANDARD["mein.lead"],
+           "und alle übrigen kommen wieder aus dem Programm")
 
-    antwort = client.post("/einstellungen/texte", data={"modus": "fehlende"},
-                          follow_redirects=False)
-    pruefe(antwort.status_code == 303, "„Fehlende ergänzen“ läuft durch")
-    danach = ts.datei_lesen(STRINGS_DATEI)
-    pruefe(danach.get("login.lead") == "Selbst geschrieben",
-           "der eigene Text bleibt unangetastet")
-    pruefe("einst.fusszeile_lead" in danach,
-           "und die fehlenden Schlüssel stehen jetzt drin")
-    fehlend = [s for s in TEXTE_STANDARD if s not in danach]
-    pruefe(not fehlend, f"es fehlt keiner mehr (offen: {fehlend[:3]})")
-    # ⚠️ Und die Datei muss danach auch von der Anwendung lesbar sein -
-    # genau das war vorher nicht der Fall.
-    pruefe(texte().get("login.lead") == "Selbst geschrieben",
-           "die Anwendung liest die geschriebene Datei wieder")
+    # ⚠️⚠️ Was das Verschlanken NICHT kann, und das muss hier stehen,
+    # damit es niemand für erledigt hält: ein Text, der beim Aufräumen
+    # schon vom aktuellen Standard abwich, BLEIBT stehen - die Regel kann
+    # „selbst formuliert“ nicht von „alte Fassung eingefroren“
+    # unterscheiden, beides sieht gleich aus. Genau deshalb sagt der
+    # Editor die Zahl der Abweichungen an und bietet den Rücksetzer über
+    # alle Bereiche an; wegwerfen darf das nur Timo, nicht der Start.
+    echt = TEXTE_STANDARD["mein.lead"]
+    try:
+        ts.datei_schreiben(STRINGS_DATEI, {"mein.lead": echt})
+        TEXTE_STANDARD["mein.lead"] = "Neu formuliert in einer neuen Fassung"
+        texte_verschlanken()
+        pruefe("mein.lead" in ts.datei_lesen(STRINGS_DATEI),
+               "ein abweichender Text bleibt beim Verschlanken stehen")
+        # Und der Weg heraus: der Rücksetzer löscht den Schlüssel, statt
+        # den heutigen Wortlaut hineinzuschreiben.
+        client.post("/einstellungen/hinweistexte/zuruecksetzen",
+                    data={"gruppe": "mein"}, follow_redirects=False)
+        pruefe("mein.lead" not in ts.datei_lesen(STRINGS_DATEI),
+               "der Rücksetzer LÖSCHT ihn, statt den Standard hineinzuschreiben")
+        pruefe(texte().get("mein.lead") == "Neu formuliert in einer neuen Fassung",
+               "danach kommt die neue Formulierung an – das ging vorher NIE")
+    finally:
+        TEXTE_STANDARD["mein.lead"] = echt
 
-    # Eine Datei in der ALTEN Form darf nicht verloren gehen: wer vor 1.35
-    # einmal auf den Knopf gedrückt hat, hat genau so eine.
+    # Ohne Datei darf nicht der leere Text herauskommen.
+    # ⚠️ Genau das war bis 1.37 der Fall: der Zwischenspeicher stand auf
+    # stand=None, und None ist auch der Wert bei fehlender Datei - der
+    # Vergleich schlug nie an und t() gab für jeden Schlüssel "" zurück.
+    if os.path.exists(STRINGS_DATEI):
+        os.remove(STRINGS_DATEI)
+    pruefe(texte().get("login.lead") == TEXTE_STANDARD["login.lead"],
+           "ohne strings.txt gelten die eingebauten Texte")
+    pruefe(len(texte()) == len(TEXTE_STANDARD),
+           "und zwar alle, nicht ein leeres Verzeichnis")
+    pruefe("keinerlei Relevanz" in client.get("/").text,
+           "die Erklärtexte stehen dann auch wirklich auf der Seite")
+    pruefe(not os.path.exists(STRINGS_DATEI),
+           "der Start legt die Datei nicht mehr von selbst an")
+
+    # Eine Datei in der ALTEN Form („schluessel = wert") darf nicht
+    # verloren gehen: wer vor 1.35 einmal auf den Knopf gedrückt hat, hat
+    # genau so eine.
     with open(STRINGS_DATEI, "w", encoding="utf-8") as f:
         f.write("# Kopf\n\nlogin.lead = Aus der alten Form\n")
     pruefe(ts.datei_lesen(STRINGS_DATEI).get("login.lead") == "Aus der alten Form",
-           "die alte Schreibweise wird noch gelesen")
-
-    antwort = client.post("/einstellungen/texte", data={"modus": "alle"},
-                          follow_redirects=False)
-    pruefe(antwort.status_code == 303, "„Alle zurücksetzen“ läuft durch")
-    danach = ts.datei_lesen(STRINGS_DATEI)
-    pruefe(danach.get("login.lead") != "Aus der alten Form",
-           "danach gilt wieder der ausgelieferte Wortlaut")
+           "die alte Schreibweise wird weiterhin gelesen")
+    texte_verschlanken()
+    pruefe(ts.datei_lesen(STRINGS_DATEI).get("login.lead") == "Aus der alten Form",
+           "und ein abweichender Text überlebt das Verschlanken")
+    if os.path.exists(STRINGS_DATEI):
+        os.remove(STRINGS_DATEI)
 
 
 def test_fusszeile(client: TestClient) -> None:
@@ -4088,6 +4122,101 @@ def test_urlaub_halbe_tage(client: TestClient) -> None:
     pruefe(jahre.get("2025") == 1.0, "und ein ganzer Tag 2025")
 
 
+def test_abwesenheit(client: TestClient) -> None:
+    """Urlaub und Krankmeldung senken das Soll, statt es zu reissen."""
+    abschnitt("Urlaub und Krankmeldung im Soll")
+    from .rechnen import (ARBEITSTAGE_MONAT, abwesenheitstage,
+                          abwesenheitswert, soll_mit_abwesenheit)
+
+    # --- Die Regel selbst ---------------------------------------------------
+    pruefe(abwesenheitswert("Krankmeldung") == 1.0,
+           "„Krankmeldung“ ist ein ganzer freier Tag")
+    pruefe(abwesenheitswert("krankmeldung") == 1.0,
+           "Groß-/Kleinschreibung ist egal")
+    # ⚠️ EXAKT, nicht „beginnt mit": Timo hat dafür eine eigene Leistung
+    # angelegt, die kommt immer buchstabengleich herein.
+    pruefe(abwesenheitswert("Krankmeldung Kind") == 0.0,
+           "ein Zusatz dahinter zählt NICHT – die Leistung heißt genau so")
+    pruefe(abwesenheitswert("Urlaub") == 1.0, "Urlaub zählt weiterhin ganz")
+    pruefe(abwesenheitswert("Urlaub (Halber Tag)") == 0.5, "und halb halb")
+    pruefe(abwesenheitswert("Hausbesuch") == 0.0, "gearbeitet ist gearbeitet")
+
+    zeilen = [
+        {"datum": "2026-04-02", "beschreibung": "Urlaub"},
+        {"datum": "2026-04-03", "beschreibung": "Krankmeldung"},
+        {"datum": "2026-04-03", "beschreibung": "Hausbesuch"},
+        {"datum": "2026-04-06", "beschreibung": "Urlaub (Halber Tag)"},
+        {"datum": "2026-05-04", "beschreibung": "Krankmeldung"},
+    ]
+    je_monat = abwesenheitstage(zeilen)
+    pruefe(je_monat.get("2026-04") == 2.5,
+           f"April: 1 Urlaub + 1 krank + ein halber = 2,5 (ist {je_monat.get('2026-04')})")
+    pruefe(je_monat.get("2026-05") == 1.0, "Mai: ein Tag")
+
+    # ⚠️ Von Hand nachgerechnet: 160 Std Monatssoll, 21,65 Arbeitstage
+    # (4,33 Wochen x 5). Ein Tag ist damit 160*60/21,65 = 443,4 Minuten.
+    voll = 160 * 60
+    tagessoll = voll / ARBEITSTAGE_MONAT
+    pruefe(abs(ARBEITSTAGE_MONAT - 21.65) < 0.001,
+           "ein Monat hat pauschal 21,65 Arbeitstage – wie das Soll selbst")
+    pruefe(soll_mit_abwesenheit(voll, 0) == voll,
+           "ohne freie Tage bleibt das Soll, wie es war")
+    pruefe(soll_mit_abwesenheit(voll, 5) == int(round(voll - tagessoll * 5)),
+           "fünf freie Tage senken es um fünf Tagessoll")
+    pruefe(soll_mit_abwesenheit(voll, 5) == 7383,
+           f"also auf 7383 Minuten (ist {soll_mit_abwesenheit(voll, 5)})")
+    pruefe(soll_mit_abwesenheit(voll, 0.5) == int(round(voll - tagessoll / 2)),
+           "und ein halber Tag zählt halb")
+    # ⚠️ Nie unter null - wer den ganzen Monat frei hat, schuldet nichts.
+    pruefe(soll_mit_abwesenheit(voll, 40) == 0,
+           "mehr freie Tage als der Monat hat ergeben kein negatives Soll")
+    pruefe(soll_mit_abwesenheit(0, 5) == 0,
+           "ohne hinterlegtes Monatssoll bleibt alles bei null")
+
+    # --- Und im Betrieb -----------------------------------------------------
+    monat = dt.date.today().replace(day=1) - dt.timedelta(days=1)
+    monat = monat.strftime("%Y-%m")
+    with db.db() as con:
+        con.execute("DELETE FROM eintrag WHERE mitarbeiter='Frei Probe'")
+        con.execute(
+            "INSERT OR IGNORE INTO mitarbeiter (name, abgabepflicht, "
+            "monatsstunden, urlaubstage, aktiv, angelegt_am) "
+            "VALUES ('Frei Probe',1,160,30,1,'2026-01-01 08:00')")
+        con.execute("UPDATE benutzer SET mitarbeiter='Frei Probe' "
+                    "WHERE benutzername='pruefer'")
+        for tag, text, dauer in ((2, "Hausbesuch", 480),
+                                 (3, "Urlaub", 480),
+                                 (6, "Krankmeldung", 480)):
+            con.execute(
+                "INSERT INTO eintrag (mitarbeiter, datum, monat, klient, "
+                "beschreibung, dauer_min, abrechenbar, fingerprint, angelegt_am) "
+                "VALUES (?,?,?,'Testperson',?,?,1,?,?)",
+                ("Frei Probe", f"{monat}-{tag:02d}", monat, text, dauer,
+                 f"frei-{tag}", "2026-01-01 08:00"))
+
+    seite = client.get("/meinbereich").text
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+    # ⚠️⚠️ Beides muss zusammen greifen: das Soll sinkt UND die beiden
+    # freien Tage zählen nicht als geleistete Zeit. Würde nur das Soll
+    # sinken, stünde der Monat mit 24 gebuchten Stunden im PLUS.
+    pruefe("08:00" in ohne_dialog,
+           "erfasst sind nur die acht gearbeiteten Stunden, nicht 24")
+    pruefe("2 Tage frei" in ohne_dialog,
+           "und die Zeile sagt, dass zwei Tage frei waren")
+    pruefe("frei-marke" in ohne_dialog, "als eigene Marke, nicht als Fließtext")
+    # Die Zahl selbst: 160 Std minus 2 Tagessoll.
+    erwartet = soll_mit_abwesenheit(160 * 60, 2)
+    pruefe(f"{erwartet // 60:02d}:{erwartet % 60:02d}" in ohne_dialog,
+           f"das Soll steht gesenkt da ({erwartet // 60:02d}:{erwartet % 60:02d})")
+    pruefe("160:00" in ohne_dialog,
+           "und das volle Soll steht als Vergleich daneben")
+
+    with db.db() as con:
+        con.execute("DELETE FROM eintrag WHERE mitarbeiter='Frei Probe'")
+        con.execute("UPDATE benutzer SET mitarbeiter=NULL "
+                    "WHERE benutzername='pruefer'")
+
+
 def test_selbstzahler(client: TestClient) -> None:
     """Ein Selbstzahler braucht keinen Bescheid und wirft keine Warnung."""
     abschnitt("Betreute Person: Selbstzahler")
@@ -4656,7 +4785,7 @@ def test_verwaltungspunkte(client: TestClient) -> None:
             ("/einstellungen/zuweisungsmail", {"zuweisung_aktiv": "1"}),
             ("/einstellungen/vorlagen", {"frist_betreff": "x"}),
             ("/einstellungen/vorlagen/zuruecksetzen", {}),
-            ("/einstellungen/texte", {"was": "alle"}),
+            ("/einstellungen/hinweistexte", {"t_login.lead": "x"}),
             ("/einstellungen/fusszeile", {"fusszeile_recht": "x"}),
             ("/einstellungen/sicherung", {}),
             ("/einstellungen/benutzer", {"benutzername": "schwarz"}),
@@ -5495,10 +5624,233 @@ def test_erfassungsband(client: TestClient) -> None:
                 .replace("px", ""))
     pruefe(unten >= 20, f"und mindestens 20px Luft darunter (sind {unten}px)")
 
+    # ⚠️ Ein kurzer Akzentstrich davor war ein Anlauf zu viel und ist auf
+    # Timos Wunsch wieder entfallen - die auslaufende Linie trägt die
+    # Gliederung schon.
+    pruefe(".erfasstrenner > span::before" not in stil,
+           "und ohne Akzentstrich davor")
+
     seite_ohne = client.get("/").text.split('<div class="neuheiten"')[0]
     pruefe('<div class="erfasstrenner">' in seite_ohne
            and "Neuer Eintrag" in seite_ohne,
            "im Markup steht sie unverändert an ihrer Stelle")
+
+
+def test_draengt(client: TestClient) -> None:
+    """Die schmale Zeile „was heute draengt" auf der Zeiterfassung."""
+    abschnitt("Zeiterfassung: was heute drängt")
+    heute = dt.date.today()
+    gestern = (heute - dt.timedelta(days=3)).isoformat()
+
+    def seite():
+        return client.get("/").text.split('<div class="neuheiten"')[0]
+
+    with db.db() as con:
+        con.execute("DELETE FROM vorgang WHERE id IN (9500, 9501)")
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, abgabepflicht, "
+                    "monatsstunden, urlaubstage, aktiv, angelegt_am) "
+                    "VALUES ('Drängel Probe',1,160,30,1,'2026-01-01 08:00')")
+        con.execute("UPDATE benutzer SET mitarbeiter='Drängel Probe' "
+                    "WHERE benutzername='pruefer'")
+
+    # ⚠️ Ohne etwas Drängendes gibt es die Zeile GAR NICHT. Eine Zeile,
+    # die an guten Tagen „0 überfällig“ meldet, ist nach einer Woche
+    # Tapete - und fällt dann auch an dem Tag nicht mehr auf, an dem sie
+    # etwas zu sagen hat.
+    pruefe('class="draengt' not in seite(),
+           "ohne drängende Aufgabe steht dort nichts")
+
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO vorgangsart (name, aktiv, angelegt_am) "
+                    "VALUES ('Drängelart',1,'2026-01-01 08:00')")
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, frist, angelegt_am, angelegt_von, zuweis_gemeldet, "
+            "erledigt_gemeldet) VALUES (9500,'Testperson','Drängelart',"
+            "'Längst fällig','Drängel Probe','Offen','Mittel',?,"
+            "'2026-01-01 08:00','pruefer',1,1)", (gestern,))
+    inhalt = seite()
+    pruefe('class="draengt draengt-rot"' in inhalt,
+           "eine überfällige Aufgabe färbt die Zeile rot")
+    pruefe("1 Aufgabe ist überfällig" in inhalt,
+           "und sie sagt im Singular, was los ist")
+    pruefe("/vorgaenge?zustaendig=" in inhalt,
+           "die ganze Zeile führt in die schon gefilterte Liste")
+
+    # Heute fällig allein ist orange, nicht rot.
+    with db.db() as con:
+        con.execute("UPDATE vorgang SET frist=? WHERE id=9500",
+                    (heute.isoformat(),))
+    inhalt = seite()
+    pruefe('class="draengt draengt-orange"' in inhalt,
+           "nur heute fällig heißt orange")
+    pruefe("1 Aufgabe wird heute fällig" in inhalt, "mit eigenem Wortlaut")
+
+    # Beides zusammen: rot gewinnt, das Fällige steht als Zusatz daneben.
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, frist, angelegt_am, angelegt_von, zuweis_gemeldet, "
+            "erledigt_gemeldet) VALUES (9501,'Testperson','Drängelart',"
+            "'Auch fällig','Drängel Probe','Offen','Mittel',?,"
+            "'2026-01-01 08:00','pruefer',1,1)", (gestern,))
+    inhalt = seite()
+    pruefe('draengt-rot' in inhalt and "1 Aufgabe ist überfällig" in inhalt,
+           "überfällig wiegt schwerer als heute fällig")
+    pruefe("draengt-dazu" in inhalt and "heute fällig" in inhalt,
+           "das heute Fällige steht als Zusatz daneben")
+
+    # ⚠️ Eine erledigte Aufgabe drängt nicht mehr.
+    with db.db() as con:
+        con.execute("UPDATE vorgang SET status='Erledigt' "
+                    "WHERE id IN (9500, 9501)")
+    pruefe('class="draengt' not in seite(),
+           "erledigte Aufgaben zählen nicht mit")
+
+    # ⚠️ Und sie hängt am Bereich: ohne ihn liefe der Verweis in ein 403.
+    with db.db() as con:
+        con.execute("UPDATE vorgang SET status='Offen' WHERE id=9500")
+    ohne = _konto(client, "draengelkonto", "draengelpasswort", ["manuelle_eintraege"])
+    with db.db() as con:
+        con.execute("UPDATE benutzer SET mitarbeiter='Drängel Probe' "
+                    "WHERE benutzername='draengelkonto'")
+    pruefe('class="draengt' not in ohne.get("/").text,
+           "ohne den Bereich „Aufgaben“ bleibt die Zeile weg")
+
+    with db.db() as con:
+        con.execute("DELETE FROM vorgang WHERE id IN (9500, 9501)")
+        con.execute("UPDATE benutzer SET mitarbeiter=NULL "
+                    "WHERE benutzername='pruefer'")
+
+
+def test_dateisuche(client: TestClient) -> None:
+    """Suchfeld und Ordnerknopf in der Seitenleiste der Dateien."""
+    abschnitt("Dateien: Suche und Seitenleiste")
+    from . import dateien as d
+
+    wurzel = d.wurzel()
+    os.makedirs(os.path.join(wurzel, "Suchordner", "tiefer"), exist_ok=True)
+    with open(os.path.join(wurzel, "Suchordner", "tiefer",
+                           "Handbuch Aufnahme.pdf"), "wb") as f:
+        f.write(b"%PDF-1.4 Probe")
+
+    seite = client.get("/dateien").text
+    pruefe('action="/dateien/suche"' in seite,
+           "in der Seitenleiste steht ein Suchfeld – wie im Wiki")
+    pruefe('class="wiki-suche"' in seite,
+           "und zwar in derselben Hülle, nicht als zweiter Kasten daneben")
+    pruefe('id="datei-neu"' in seite,
+           "daneben der Knopf für einen neuen Ordner")
+    pruefe('class="wiki-baumkopf"' in seite,
+           "beide sitzen in derselben Kopfzeile wie im Wiki")
+
+    treffer = client.get("/dateien/suche?q=Handbuch").text
+    pruefe("Handbuch Aufnahme.pdf" in treffer, "die Datei wird gefunden")
+    pruefe("1 Treffer" in treffer, "die Zahl steht darüber")
+    pruefe("tiefer" in treffer, "und der Ordner, in dem sie liegt")
+    pruefe("dateitreffer-zeile" in treffer, "als eigene Trefferliste")
+    # ⚠️ Auf der Trefferseite gibt es kein Hochladen: dort ist kein Ordner
+    # geöffnet, „hochladen“ hieße stillschweigend „oberste Ebene“.
+    pruefe('id="hochladeform"' not in treffer,
+           "hochladen gibt es dort nicht")
+
+    pruefe("Suchordner" in client.get("/dateien/suche?q=suchord").text,
+           "auch Ordner sind Treffer, und die Schreibweise ist egal")
+    pruefe("Nichts gefunden" in client.get("/dateien/suche?q=gibtesnicht").text,
+           "ohne Treffer sagt die Seite das")
+    pruefe("mindestens zwei Zeichen" in client.get("/dateien/suche?q=a").text,
+           "ein einzelnes Zeichen sucht gar nicht erst")
+
+    # ⚠️⚠️ Auch die Suche läuft durch den Filter für versteckte Ordner -
+    # sonst stünde ihr Inhalt hier in der Trefferliste, und genau das
+    # soll das Verstecken verhindern.
+    os.makedirs(os.path.join(wurzel, "91_versteckt"), exist_ok=True)
+    with open(os.path.join(wurzel, "91_versteckt", "Handbuch geheim.pdf"),
+              "wb") as f:
+        f.write(b"%PDF-1.4 geheim")
+    client.post("/einstellungen/dateien-geschuetzt",
+                data={"ordner": ["91_versteckt"]}, follow_redirects=False)
+    kollege = _konto(client, "suchkollege", "suchpasswort", ["dateien"])
+    sicht = kollege.get("/dateien/suche?q=Handbuch").text
+    pruefe("Handbuch geheim.pdf" not in sicht,
+           "ein versteckter Ordner taucht in der Trefferliste NICHT auf")
+    pruefe("Handbuch Aufnahme.pdf" in sicht, "die übrigen Treffer bleiben")
+    pruefe("Handbuch geheim.pdf" in client.get(
+        "/dateien/suche?q=Handbuch").text,
+        "ein Administrator findet ihn weiterhin")
+    client.post("/einstellungen/dateien-geschuetzt", data={"ordner": []},
+                follow_redirects=False)
+
+    # ⚠️ Die Route muss VOR /dateien/holen/{pfad:path} stehen - sonst
+    # schluckt der Sammelpfad sie. Dieselbe Falle wie im Wiki.
+    quelltext = open(os.path.join(os.path.dirname(__file__), "dateien.py"),
+                     encoding="utf-8").read()
+    pruefe(quelltext.index('"/dateien/suche"')
+           < quelltext.index('"/dateien/holen/{pfad:path}"'),
+           "und sie steht im Quelltext vor dem Sammelpfad")
+
+
+def test_spruch_je_tag(client: TestClient) -> None:
+    """Ein Spruch je Tag, nicht je Seitenaufruf."""
+    abschnitt("Spruch des Tages")
+    from .main import SPRUCH_DATEI, spruch
+
+    with open(SPRUCH_DATEI, "w", encoding="utf-8") as f:
+        f.write("\n##\n".join(f"Spruch Nummer {i}\n– Quelle {i}"
+                                for i in range(1, 13)))
+    # ⚠️ Zwanzig Aufrufe hintereinander: bei zwölf Sprüchen wäre die
+    # Wahrscheinlichkeit, zufällig zwanzigmal denselben zu ziehen,
+    # verschwindend. Genau das war der Fehler - ein mehrzeiliger Spruch
+    # ist höher als ein einzeiliger, und die Seite sprang bei jedem
+    # Aktualisieren.
+    gezogen = {spruch()["text"] for _ in range(20)}
+    pruefe(len(gezogen) == 1,
+           f"zwanzig Aufrufe ergeben denselben Spruch (waren {len(gezogen)})")
+    pruefe(spruch()["quelle"].startswith("Quelle"),
+           "die Quelle kommt weiterhin getrennt zurück")
+
+    # Und er wechselt tatsächlich, wenn der Tag wechselt.
+    import datetime as _dt
+    from . import main as _main
+    echt = _main.dt.date
+    andere = set()
+    try:
+        for versatz in range(14):
+            tag = _dt.date.today() + _dt.timedelta(days=versatz)
+
+            class _Datum(_dt.date):
+                @classmethod
+                def today(cls):
+                    return tag
+            _main.dt.date = _Datum
+            andere.add(spruch()["text"])
+    finally:
+        _main.dt.date = echt
+    pruefe(len(andere) > 1,
+           f"an anderen Tagen steht ein anderer da ({len(andere)} in 14 Tagen)")
+
+
+def test_quelldatei_weg(client: TestClient) -> None:
+    """Die ungenutzte Tabelle quelldatei ist weg."""
+    abschnitt("Tabelle quelldatei entfernt")
+    with db.db() as con:
+        da = con.execute(
+            "SELECT COUNT(*) c FROM sqlite_master WHERE type='table' "
+            "AND name='quelldatei'").fetchone()["c"]
+    pruefe(da == 0, "die Tabelle gibt es nicht mehr")
+    quelltext = open(os.path.join(os.path.dirname(__file__), "main.py"),
+                     encoding="utf-8").read()
+    pruefe("INSERT OR REPLACE INTO quelldatei" not in quelltext,
+           "und niemand schreibt mehr hinein")
+    # ⚠️ Der Import-Weg muss davon unberührt weiterlaufen - die Tabelle
+    # wurde nur geschrieben, nie gelesen.
+    from .main import verarbeite
+    inhalt = ("Datum;Von;Bis;Klient;Beschreibung\n"
+              "01.03.2026;09:00;10:00;Testperson;Nach dem Wegfall\n")
+    nummer = verarbeite("nachher.csv", inhalt.encode("utf-8"), "Prüfer Person")
+    pruefe(nummer > 0, "ein Import läuft weiterhin durch")
+    pruefe(client.get(f"/vorschau/{nummer}").status_code == 200,
+           "und seine Vorschau lädt")
 
 
 def test_system_aufgeraeumt(client: TestClient) -> None:
@@ -5527,7 +5879,8 @@ def test_system_aufgeraeumt(client: TestClient) -> None:
     pruefe(inhalt.index("<h2>Push-Nachrichten (ntfy)</h2>")
            < inhalt.index("<h2>Darstellung und Texte</h2>"),
            "Push-Nachrichten liegen unter „Benachrichtigungen“")
-    for karte in ("Eigene Logos", "Fußzeile", "Standardtexte"):
+    # ⚠️ „Standardtexte" ist mit 1.37 aus dieser Gruppe entfallen.
+    for karte in ("Eigene Logos", "Fußzeile"):
         pruefe(inhalt.index("<h2>Darstellung und Texte</h2>")
                < inhalt.index(f"<h2>{karte}</h2>")
                < inhalt.index("<h2>Datensicherung</h2>"),
@@ -7555,7 +7908,7 @@ def _durchlauf(client: TestClient) -> None:
         test_csrf(client)
         test_bewilligungsmail(client)
         test_erinnerungsoptionen(client)
-        test_texte_nachziehen(client)
+        test_texte_nur_abweichungen(client)
         test_fusszeile(client)
         test_mehrfachauswahl(client)
         test_wiki_geschuetzter_ordner(client)
@@ -7564,6 +7917,7 @@ def _durchlauf(client: TestClient) -> None:
         test_zeitspanne_meinbereich(client)
         test_spruch_hoehe(client)
         test_urlaub_halbe_tage(client)
+        test_abwesenheit(client)
         test_selbstzahler(client)
         test_zuweisungsmail(client)
         test_zuweisung_altbestand(client)
@@ -7600,6 +7954,10 @@ def _durchlauf(client: TestClient) -> None:
         test_aufgaben_1_32(client)
         test_erfassungsband(client)
         test_system_aufgeraeumt(client)
+        test_draengt(client)
+        test_dateisuche(client)
+        test_spruch_je_tag(client)
+        test_quelldatei_weg(client)
         test_mailprotokoll(client)
         test_module(client)
         test_status_drei(client)

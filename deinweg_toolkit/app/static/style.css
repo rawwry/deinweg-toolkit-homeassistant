@@ -1371,8 +1371,9 @@ input[type="date"] { text-transform: uppercase; }
    versal und in `--leise` - also buchstäblich in derselben Schrift wie
    der Spaltenkopf 12px darunter, und mit einer Linie dazwischen, die
    beide wie ein Paar aussehen ließ. Jetzt: 15px, gemischt, in
-   `--tinte`, dazu ein Akzentstrich davor. Die auslaufende Linie bleibt
-   - sie trägt die Gliederung -, steht aber deutlich unter dem Wort.
+   `--tinte`. ⚠️ Ein kurzer Akzentstrich davor war ein Anlauf zu viel
+   und ist auf Timos Wunsch wieder entfallen - die auslaufende Linie
+   trägt die Gliederung schon. Nicht wieder einbauen.
    ⚠️ Der Abstand nach unten (26px) ist der eigentliche Punkt: darunter
    folgt sofort der Spaltenkopf mit seiner eigenen Trennlinie. Bei 12px
    klebten zwei Linien und zwei Textzeilen aufeinander. */
@@ -1380,15 +1381,6 @@ input[type="date"] { text-transform: uppercase; }
   display: flex; align-items: center; gap: 12px;
   margin: 34px 0 26px; color: var(--tinte);
   font-size: 15px; font-weight: 600; letter-spacing: -0.1px;
-}
-.erfasstrenner > span {
-  display: flex; align-items: center; gap: 9px;
-}
-/* Der kurze Akzentstrich sagt „hier beginnt etwas", ohne ein zweites
-   Schriftbild einzuführen. */
-.erfasstrenner > span::before {
-  content: ""; width: 3px; height: 15px; border-radius: 2px;
-  background: var(--akzent); flex: 0 0 auto;
 }
 .erfasstrenner::after {
   content: ""; flex: 1 1 auto; height: 1px; background: var(--linie);
@@ -1730,6 +1722,57 @@ tr.stillgelegt:hover { opacity: .85; }
    Lücke und macht sie um genau diesen Betrag größer als die untere.
    Auf jeder Seite ohne Zitat ändert sich dadurch nichts. */
 main > .unternavigation:has(+ .spruch) { margin-bottom: 0; }
+/* ⚠️ Dieselbe Regel, wenn die Drängt-Zeile dazwischen steht (seit 1.37):
+   sonst zählte der eigene untere Rand der Reiterleiste zur Lücke dazu und
+   der Abstand oben wäre wieder größer als unten - genau der Fehler, der
+   1.17 zweimal gemessen und einmal falsch ausgeglichen wurde. */
+main > .unternavigation:has(+ .draengt) { margin-bottom: 0; }
+
+/* --- „Was heute drängt" auf der Zeiterfassung (seit 1.37) -------------
+   Eine Zeile, keine Karte: die Seite trägt schon zwei Spalten voller
+   Kästen, ein weiterer oben hätte alles um einen Block nach unten
+   geschoben. Sie ist als Ganzes ein Verweis.
+   ⚠️ Kein eigener Außenabstand - den Takt gibt der flex-gap von `main`,
+   wie bei jedem anderen Kind auch. */
+.draengt {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0; padding: 11px 16px;
+  border: 1px solid var(--linie); border-left: 3px solid var(--leise);
+  border-radius: var(--radius); background: var(--flaeche);
+  color: var(--tinte); text-decoration: none;
+  transition: border-color .14s ease, background .14s ease;
+}
+/* ⚠️ Die Töne sind DIESELBEN wie bei den Aufgabenkarten: rot überfällig,
+   orange fällig. Zwei Stellen, die dasselbe meinen, müssen auch gleich
+   aussehen - sonst lernt man die Ampel zweimal. */
+.draengt-rot    { background: var(--dopp-weich); border-left-color: var(--dopp); }
+.draengt-orange { background: var(--warn-weich); border-left-color: var(--warn); }
+.draengt:hover  { border-color: var(--linie-stark); }
+.draengt-rot:hover    { border-color: var(--dopp); }
+.draengt-orange:hover { border-color: var(--warn); }
+.draengt-zeichen { flex: 0 0 auto; display: flex; }
+.draengt-zeichen svg { width: 19px; height: 19px; }
+.draengt-rot .draengt-zeichen    { color: var(--dopp); }
+.draengt-orange .draengt-zeichen { color: var(--warn); }
+/* min-width: 0, damit der Text kürzt statt die Zeile zu sprengen. */
+.draengt-text { flex: 1 1 auto; min-width: 0; font-size: 13.5px; }
+.draengt-text strong { font-weight: 600; }
+.draengt-dazu { color: var(--leise); }
+.draengt-hin {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; font-weight: 600; color: var(--leise);
+}
+.draengt-hin svg { width: 14px; height: 14px; }
+.draengt:hover .draengt-hin { color: var(--akzent); }
+/* Am Telefon fällt das Wort „Ansehen" weg - der Pfeil sagt dasselbe, und
+   die Zeile soll einzeilig bleiben. Der Zusatz „· 2 werden heute fällig"
+   rutscht dort unter die Hauptaussage. */
+@media (max-width: 560px) {
+  .draengt { gap: 10px; padding: 10px 12px; }
+  .draengt-hin { font-size: 0; gap: 0; }
+  .draengt-hin svg { width: 16px; height: 16px; }
+  .draengt-dazu { display: block; }
+}
 .spruch blockquote {
   margin: 0;
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
@@ -4765,6 +4808,60 @@ a.vgk-wert:hover { text-decoration: underline; }
 .wiki-baumknopf svg { width: 15px; height: 15px; }
 /* Aufgeklappt zeigt das Zeichen nach oben - dann klappt es wieder zu. */
 .wiki-baumknopf[data-stand="auf"] svg { transform: rotate(180deg); }
+
+/* --- Trefferliste der Dateisuche (seit 1.37) --------------------------
+   Bewusst eine Liste und keine Tabelle: sie traegt drei ungleich lange
+   Angaben (Name, Ort, Art/Groesse) und muss am Telefon umbrechen duerfen
+   - dieselbe Lehre wie bei der Aufgabenliste in 1.34. */
+/* --- Freie Tage im Soll (seit 1.37) -----------------------------------
+   Eine gedaempfte Marke, kein Warnton: ein Urlaubstag ist nichts, was
+   auffallen muss - er erklaert nur, warum das Soll niedriger steht. */
+.frei-marke {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  border-radius: 999px; background: var(--flaeche-2);
+  border: 1px solid var(--linie);
+  font-size: 10.5px; font-weight: 600; color: var(--leise);
+  white-space: nowrap; letter-spacing: 0;
+}
+/* In der Monatstabelle steht sie unter der Zahl statt daneben: die
+   Spalte ist schmal, und nebeneinander zoege sie die Tabelle auf. */
+.monatstabelle .frei-marke { display: block; margin: 2px 0 0; }
+
+.suchstand { margin: 0 0 10px; }
+.dateitreffer { list-style: none; margin: 0; padding: 0;
+                display: flex; flex-direction: column; gap: 6px; }
+.dateitreffer-zeile {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 12px; border: 1px solid var(--linie);
+  border-radius: 10px; background: var(--flaeche-2);
+}
+.dateitreffer-zeile:hover { border-color: var(--linie-stark); }
+.dateitreffer-symbol {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--flaeche); color: var(--leise);
+}
+/* Ordner sehen anders aus als Dateien - dieselbe Unterscheidung wie in
+   der Uebersicht, und aus demselben Grund: nicht nur ein anderes Zeichen,
+   sondern ein anderer Ton. */
+.dateitreffer-symbol.ist-ordner { color: var(--akzent); }
+.dateitreffer-symbol svg { width: 17px; height: 17px; }
+/* ⚠️ min-width: 0 - ohne das kann der lange Name die Flexbox sprengen
+   statt zu kuerzen. */
+.dateitreffer-text { flex: 1 1 auto; min-width: 0;
+                     display: flex; flex-direction: column; gap: 1px; }
+.dateitreffer-name {
+  font-weight: 600; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dateitreffer-ort { overflow: hidden; text-overflow: ellipsis;
+                    white-space: nowrap; }
+.dateitreffer-hin { flex: 0 0 auto; }
+/* Am Telefon faellt der Knopf weg - der Ort ist dort ohnehin verlinkt,
+   und eine dritte Spalte draengte den Namen auf zwei Zeichen zusammen. */
+@media (max-width: 560px) {
+  .dateitreffer-hin { display: none; }
+}
 
 .wiki-knoten {
   display: flex; align-items: flex-start; gap: 7px;

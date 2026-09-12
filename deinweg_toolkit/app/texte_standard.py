@@ -276,6 +276,15 @@ TEXTE_STANDARD["einst.abrechenbar"] = (
     "Legt fest, ob Zeiten dieser Person beim Filter „nur abrechenbare Zeiten“ auf den Seiten Datensätze und Auswertung mitgezählt werden. Betrifft nur diesen Filter, nicht die Soll-Rechnung oder sonstige Zahlen.")
 TEXTE_STANDARD["einst.system_lead"] = (
     "Was gerade läuft und wo die Daten liegen – hilfreich, wenn etwas klemmt oder du beim Backup nachsehen willst.")
+TEXTE_STANDARD["einst.hinweistexte_abweichung"] = (
+    "In der Datei <code>strings.txt</code> steht nur, was hier abweicht – "
+    "alles Übrige kommt aus dem Programm und wird mit jedem Update "
+    "mitverbessert. <strong>Achtung:</strong> abweichend sind zweierlei, "
+    "und man sieht ihnen den Unterschied nicht an: deine eigenen "
+    "Formulierungen <em>und</em> alte Fassungen, die vor Version 1.37 in "
+    "der Datei festhingen. Die zweite Sorte bekommt keine Verbesserung "
+    "mehr. Wenn du hier nie etwas bewusst umformuliert hast, setz einmal "
+    "alles zurück – danach bist du immer auf dem neuesten Stand.")
 TEXTE_STANDARD["einst.system_melden"] = (
     "Wie die Anwendung sich von selbst meldet. Welche Anlässe das sind, "
     "steht unter E-Mail-Versand – die Schalter dort gelten für beide Wege.")
@@ -915,6 +924,11 @@ UNGENUTZT = frozenset({
     # mehr. Ersetzt durch vorgaenge.loeschen bzw. einst.erledigtmail_wozu.
     "einst.erledigtmail_lead",
     "vorgaenge.loeschen_hinweis",
+    # seit 1.37: die Karte "Standardtexte" ist entfallen. Der Schluessel
+    # bleibt stehen - wer eine eigene strings.txt hat, hat ihn womoeglich
+    # umformuliert, und ein geloeschter Schluessel waere ein Datenverlust
+    # ohne Gegenwert.
+    "einst.texte_lead",
     "footer.text",          # seit 1.1.2, die Fusszeile kommt aus dem Markup
     "ideen.hinweis_datei",
     "ideen.hinweis_fehler",

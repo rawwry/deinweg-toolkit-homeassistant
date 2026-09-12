@@ -3,6 +3,16 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.37
+
+- Urlaub und Krankmeldung senken das Monatssoll, statt es zu reißen
+- Zeiterfassung: schmale Zeile für überfällige eigene Aufgaben
+- Dateien: Suchfeld und „Neuer Ordner“ in der Seitenleiste
+- ⚠️ `strings.txt` trägt nur noch die eigenen Formulierungen –
+  Textverbesserungen kommen dadurch endlich an; die Karte
+  „Standardtexte“ ist entfallen
+- Spruch je Tag statt je Seitenaufruf, Tabelle `quelldatei` entfernt
+
 ## 1.36.1
 
 - Zeiterfassung: „Neuer Eintrag“ als richtige Überschrift, mit Luft

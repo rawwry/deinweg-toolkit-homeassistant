@@ -2255,21 +2255,14 @@
   </form>
 </section>
 
-<section class="karte">
-  <h2>Standardtexte</h2>
-  <p class="lead">{{ t("einst.texte_lead") }}</p>
-  <div class="knopfreihe">
-    <form class="inline" action="/einstellungen/texte" method="post">
-      <input type="hidden" name="modus" value="fehlende">
-      <button class="knopf haupt" type="submit">Fehlende Texte ergänzen</button>
-    </form>
-    <form class="inline" action="/einstellungen/texte" method="post"
-          onsubmit="return confirm('Alle Texte auf den Auslieferungsstand setzen? Eigene Formulierungen in strings.txt gehen dabei verloren.')">
-      <input type="hidden" name="modus" value="alle">
-      <button class="knopf warn" type="submit">Alle Texte zurücksetzen</button>
-    </form>
-  </div>
-</section>
+{# ⚠️ Die Karte „Standardtexte" ist mit 1.37 ersatzlos entfallen (Timos
+   Wunsch). Ihre beiden Knöpfe („Fehlende Texte ergänzen", „Alle Texte
+   zurücksetzen") waren ein Pflaster auf dem alten Modell, in dem
+   strings.txt ALLE Texte trug und damit jede Verbesserung verschluckte.
+   Seit main.texte_verschlanken() steht dort nur noch, was wirklich anders
+   formuliert wurde – Nachziehen erledigt sich von selbst, und
+   Zurücksetzen kann der Punkt „Hinweistexte" je Text, je Gruppe und über
+   alle Bereiche. Nicht wieder einbauen. #}
 
 {% if ist_admin %}
 <div class="abschnittsband">
@@ -2338,11 +2331,30 @@
   <p>{{ t("einst.hinweistexte_hinweis") }}</p>
 {% endcall %}
 
+{% set geaendert = textgruppen | sum(attribute='geaendert') %}
+{# ⚠️ Seit 1.37 steht in strings.txt nur noch, was abweicht – alles Übrige
+   kommt aus dem Programm und zieht mit jedem Update nach. Was hier als
+   „abweichend“ gezählt wird, ist deshalb zweierlei und von außen nicht zu
+   unterscheiden: eigene Formulierungen UND alte Fassungen, die vor 1.37
+   in der Datei eingefroren sind. Die zweite Sorte bekommt keine
+   Verbesserung mehr – und genau das muss hier dastehen, sonst hält man
+   die Aufräumung des Starts für vollständig. Wegwerfen darf das nur
+   Timo. #}
+{% if geaendert %}
+<section class="karte infokarte">
+  <h2>{{ geaendert }} Text{{ 'e weichen' if geaendert != 1 else ' weicht' }} ab</h2>
+  <p class="lead">{{ t("einst.hinweistexte_abweichung") }}</p>
+  <div class="knopfreihe">
+    <button class="knopf leise" type="submit" form="textgruppe-alle">
+      Alle Texte auf den Auslieferungsstand</button>
+  </div>
+</section>
+{% endif %}
+
 <div class="karte">
   <div class="kopfzeile">
     <h2>{{ textgruppen | sum(attribute='anzahl') }} Texte</h2>
     <p class="klein leise">
-      {% set geaendert = textgruppen | sum(attribute='geaendert') %}
       {{ geaendert }} vom Auslieferungsstand abweichend
     </p>
   </div>
@@ -2412,6 +2424,12 @@
     <input type="hidden" name="gruppe" value="{{ g.schluessel }}">
   </form>
   {% endfor %}
+  {# Ohne „gruppe" setzt die Route alle Bereiche zurück. #}
+  <form id="textgruppe-alle" method="post"
+        action="/einstellungen/hinweistexte/zuruecksetzen"
+        onsubmit="return confirm('Alle Texte auf den Auslieferungsstand setzen? Eigene Formulierungen gehen dabei verloren.')">
+    <input type="hidden" name="gruppe" value="">
+  </form>
 </div>
 {% endif %}
 

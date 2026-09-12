@@ -376,6 +376,76 @@ def uebersicht(request: Request, ordner: str = "", hinweis: str = "",
             "hinweis": hinweis, "fehler": fehler})
 
 
+# ⚠️ Die Suche steht VOR /dateien/holen/{pfad:path} im Quelltext -
+# dieselbe Falle wie im Wiki: ein Sammelpfad schluckt sonst jeden festen
+# Pfad hinter sich. Sie steht bewusst nicht unter /dateien/aktion/…, weil
+# Ordner hier ueber ?ordner=… adressiert werden und nicht ueber den Pfad;
+# eine Kollision ist damit gar nicht moeglich.
+@router.get("/dateien/suche", response_class=HTMLResponse)
+def suche(request: Request, q: str = ""):
+    """Sucht in NAMEN von Dateien und Ordnern, ueber alle Ebenen.
+
+    ⚠️ Bewusst keine Volltextsuche wie im Wiki. Dort liegen Markdown-
+    Dateien, hier PDFs, Bilder und Office-Dateien - deren Inhalt aufzu-
+    machen hiesse, Bibliotheken ins Dockerfile zu holen (Abschnitt 13).
+    Gesucht wird, was man sucht: der Dateiname.
+
+    ⚠️ Auch die Suche laeuft durch sperrfilter() - sonst stuende der
+    Inhalt eines versteckten Ordners in der Trefferliste, und genau das
+    soll das Verstecken verhindern.
+    """
+    wort = (q or "").strip()
+    treffer = []
+    sichtbar = _filter_aus(request)
+    if len(wort) >= 2:
+        nadel = wort.lower()
+        for ordner, datei in _alles(sichtbar=sichtbar):
+            eintrag = ordner or datei
+            if nadel not in eintrag["name"].lower():
+                continue
+            treffer.append(eintrag)
+        # Ordner zuerst, dann alphabetisch - dieselbe Ordnung wie in der
+        # Uebersicht, damit die Trefferliste nicht anders sortiert wirkt.
+        treffer.sort(key=lambda e: (not e["ist_ordner"], e["name"].lower()))
+    return _u["templates"].TemplateResponse(
+        request=request, name="dateien.html", context={
+            "seite": "dateien", "ordner": "", "brotkrumen": [],
+            "unterordner": [], "dateien": [],
+            "baum": baum(sichtbar=sichtbar), "wurzel_hier": False,
+            "ordner_auswahl": ordnerbaum(sichtbar),
+            "endungen": ", ".join(sorted(ARTEN)),
+            "max_mb": _u["MAX_UPLOAD_MB"], "ablage": wurzel(),
+            "suchwort": wort, "treffer": treffer,
+            "hinweis": "", "fehler": ""})
+
+
+def _alles(rel: str = "", tiefe: int = 0, sichtbar=None):
+    """Laeuft den ganzen Baum ab und liefert (ordner, datei) je Eintrag.
+
+    Genau eines von beiden ist gesetzt - dieselbe Bauart wie
+    wiki._alle_seiten(), nur dass hier auch Ordner Treffer sein koennen.
+    Die Tiefe ist gedeckelt: ein Symlink-Ring darf den Server nicht
+    beschaeftigen.
+    """
+    if tiefe > 8:
+        return []
+    unterordner, dateien = inhalt(rel, sichtbar)
+    ergebnis = []
+    for o in unterordner:
+        ergebnis.append((dict(o, ist_ordner=True,
+                              elternteil=rel, elternname=_letzter(rel)), None))
+        ergebnis += _alles(o["pfad"], tiefe + 1, sichtbar)
+    for d in dateien:
+        ergebnis.append((None, dict(d, ist_ordner=False,
+                                    elternteil=rel, elternname=_letzter(rel))))
+    return ergebnis
+
+
+def _letzter(rel: str) -> str:
+    """Der Name des Ordners, in dem ein Treffer liegt - leer heisst Wurzel."""
+    return rel.split("/")[-1] if rel else ""
+
+
 def _gesperrt(request: Request, *pfade) -> bool:
     """Berührt einer dieser Pfade einen versteckten Ordner?
 

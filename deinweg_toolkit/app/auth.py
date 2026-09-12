@@ -248,7 +248,7 @@ ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
                    # E-Mail-Vorlagen
                    "/einstellungen/vorlagen",
                    # System und Sicherung
-                   "/einstellungen/sicherung", "/einstellungen/texte",
+                   "/einstellungen/sicherung",
                    "/einstellungen/fusszeile",
                    # Eigene Logos: sie stehen auf JEDER Seite und auf dem
                    # Anmeldebildschirm - das ist keine Kleinigkeit, die

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
-import hashlib
 import os
 import random
 import re
@@ -43,7 +42,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.36.1"
+VERSION = "1.37"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -110,7 +109,17 @@ templates.env.filters["deutsch"] = deutsch
 from . import texte_standard  # noqa: E402
 from .texte_standard import TEXTE_STANDARD  # noqa: E402
 
-_texte_zwischenspeicher: dict = {"stand": None, "werte": {}}
+# ⚠️⚠️ "geladen" ist NICHT ueberfluessig neben "stand" (seit 1.37).
+# Der Zwischenspeicher stand anfangs auf {"stand": None}, und "None" ist
+# zugleich der Wert, den os.path.getmtime() bei FEHLENDER Datei liefert -
+# der Vergleich "hat sich etwas geaendert?" war damit sofort falsch, die
+# Werte blieben leer, und t() gab fuer JEDEN Schluessel "" zurueck. Die
+# ganze Anwendung stand ohne einen einzigen Erklaertext da.
+# Aufgefallen ist das erst, als strings_anlegen() mit 1.37 entfiel: bis
+# dahin legte der Start immer eine Datei an, der Fall "keine Datei" kam
+# im Betrieb also nie vor. Auf einer frisch aufgesetzten Installation
+# waere er sofort eingetreten. **Den Schalter nicht wieder wegnehmen.**
+_texte_zwischenspeicher: dict = {"stand": None, "werte": {}, "geladen": False}
 
 
 def texte() -> dict:
@@ -120,7 +129,8 @@ def texte() -> dict:
     except OSError:
         stand = None
 
-    if stand != _texte_zwischenspeicher["stand"]:
+    if not _texte_zwischenspeicher["geladen"] \
+            or stand != _texte_zwischenspeicher["stand"]:
         werte = dict(TEXTE_STANDARD)
         if stand is not None:
             # ⚠️ Gelesen wird über texte_standard.datei_lesen() - dieselbe
@@ -128,7 +138,8 @@ def texte() -> dict:
             # Vorher stand hier ein zweiter Parser, der ein anderes Format
             # meinte als der Schreiber; siehe die Warnung dort.
             werte.update(texte_standard.datei_lesen(STRINGS_DATEI))
-        _texte_zwischenspeicher.update({"stand": stand, "werte": werte})
+        _texte_zwischenspeicher.update({"stand": stand, "werte": werte,
+                                        "geladen": True})
     return _texte_zwischenspeicher["werte"]
 
 
@@ -295,29 +306,76 @@ def marke(name: str):
     return Response(content=inhalt, media_type="image/svg+xml", headers=koepfe)
 
 
-def strings_anlegen() -> None:
-    """Schreibt strings.txt mit allen Standardtexten, falls sie fehlt.
+def texte_verschlanken() -> None:
+    """Wirft aus strings.txt alles heraus, was dem Standardtext entspricht.
 
-    ⚠️ Geschrieben wird ueber texte_standard.datei_schreiben() - dieselbe
-    Funktion, die auch der Texteditor der Einstellungen benutzt. Es gibt
-    genau ein Dateiformat, und es steht an genau einer Stelle.
+    ⚠️⚠️ **Das ist die Umkehr des bisherigen Modells (seit 1.37).** Bis
+    1.36.1 schrieb der Start eine VOLLSTAENDIGE strings.txt mit allen gut
+    zweihundert Texten, sobald die Datei fehlte. Und weil die Datei gegen
+    jeden eingebauten Text gewinnt, hatte das eine Folge, die man ihr
+    nicht ansieht: **jede Textverbesserung einer neuen Fassung kam bei
+    einer bestehenden Installation NIE an.** Sie stand im Code, die
+    Oberflaeche zeigte weiter den Wortlaut vom Tag der Erstinstallation,
+    und im Texteditor sah alles "unveraendert" aus. Der Knopf "Fehlende
+    Texte ergaenzen" half nur bei NEUEN Schluesseln, nicht bei
+    geaenderten - er war ein Pflaster auf dem falschen Modell.
+
+    Jetzt gilt: **in strings.txt steht ausschliesslich, was Timo selbst
+    anders formuliert hat.** Alles Uebrige kommt aus TEXTE_STANDARD und
+    zieht mit jedem Update automatisch nach. Damit wird auch die Marke
+    "geaendert" im Editor erst wahr, und "Feld leeren = wieder der
+    eingebaute Text" ist nicht mehr ein Sonderfall, sondern die Regel.
+
+    ⚠️ Das Wegraeumen ist gefahrlos: entfernt wird nur ein Schluessel,
+    dessen Wert **buchstabengleich** dem Standard ist - danach liefert
+    t() denselben Text wie vorher. Ein abweichender Wert bleibt
+    unangetastet, ebenso ein eigener Schluessel, den es im Code gar nicht
+    gibt.
+
+    ⚠️ Laeuft bei jedem Start, nicht nur einmal: nach dem ersten Lauf
+    findet es nichts mehr, und wenn eine kuenftige Fassung einen Text
+    aendert, faellt Timos gleichlautende Kopie beim naechsten Start von
+    selbst weg - und er bekommt die Verbesserung.
     """
-    if os.path.exists(STRINGS_DATEI):
+    if not os.path.exists(STRINGS_DATEI):
         return
     try:
-        texte_standard.datei_schreiben(STRINGS_DATEI, dict(TEXTE_STANDARD))
-        print(f"[start] {STRINGS_DATEI} angelegt", flush=True)
+        vorhanden = texte_standard.datei_lesen(STRINGS_DATEI)
+    except OSError:
+        return
+    schlank = {k: v for k, v in vorhanden.items()
+               if TEXTE_STANDARD.get(k, "").strip() != v.strip()}
+    if len(schlank) == len(vorhanden):
+        return
+    try:
+        texte_standard.datei_schreiben(STRINGS_DATEI, schlank)
+        print(f"[start] strings.txt verschlankt: {len(vorhanden)} Texte -> "
+              f"{len(schlank)} eigene", flush=True)
     except OSError as e:
         print(f"[start] strings.txt nicht schreibbar: {e}", flush=True)
 
 
 def spruch() -> dict:
-    """Zufälliger Block aus quotes.txt, getrennt in Zitat und Quelle.
+    """Der Spruch DES TAGES aus quotes.txt, getrennt in Zitat und Quelle.
 
     Die Blöcke sind durch eine Zeile mit ## voneinander getrennt. Beginnt die
     letzte Zeile eines Blocks mit einem Gedankenstrich, gilt sie als Quelle und
     wird kleiner gesetzt. Fehlt die Datei oder ist sie leer, kommt ein leerer
     Satz zurück und die Zeile auf der Startseite entfällt.
+
+    ⚠️ **Ein Spruch je TAG, nicht je Seitenaufruf** (seit 1.37, Timos
+    Wunsch). Bis dahin wurde bei jedem Seitenaufbau neu gewuerfelt - und
+    weil ein mehrzeiliger Spruch hoeher ist als ein einzeiliger, sprang
+    die ganze Seite darunter bei jedem Aktualisieren. Genau das hat Timo
+    als "springt immer ein kleines Stueck weiter nach oben" gemeldet;
+    1.17.2 hat davon nur den Sonderfall "ohne Quelle" behoben. Nebenbei
+    wird der Spruch damit wieder etwas, das man liest, statt einer
+    Laufschrift.
+
+    ⚠️ Gezogen wird ueber einen eigenen Random mit dem Tagesdatum als
+    Saat - NICHT ueber "Tageszahl modulo Anzahl". Das liefe die Liste der
+    Reihe nach ab, und bei sieben Spruechen waere jeder Wochentag fest
+    vergeben. Der globale random-Zustand bleibt unangetastet.
     """
     leer = {"text": "", "quelle": ""}
     try:
@@ -332,7 +390,10 @@ def spruch() -> dict:
     if not bloecke:
         return leer
 
-    zeilen = random.choice(bloecke).splitlines()
+    # Dieselbe Saat den ganzen Tag - und die Liste selbst geht mit ein,
+    # damit ein neu angelegter Spruch nicht erst morgen erreichbar ist.
+    wuerfel = random.Random(f"{dt.date.today().toordinal()}:{len(bloecke)}")
+    zeilen = wuerfel.choice(bloecke).splitlines()
     quelle = ""
     if len(zeilen) > 1 and zeilen[-1].lstrip().startswith(("–", "—", "-", "~")):
         quelle = zeilen.pop().lstrip("–—-~ ").strip()
@@ -360,11 +421,14 @@ def verarbeite(dateiname: str, inhalt: bytes, mitarbeiter: str = "",
     """Liest eine Datei und legt Import samt Vorschauzeilen an.
 
     Die Originaldatei wird bewusst nicht aufgehoben: die Zeilen stehen
-    anschliessend in der Datenbank, die Dateikopie waere nur Ballast. In
-    "quelldatei" bleibt lediglich ein Vermerk mit Pruefsumme stehen.
+    anschliessend in der Datenbank, die Dateikopie waere nur Ballast.
+
+    ⚠️ Bis 1.36.1 entstand hier zusaetzlich eine Zeile in "quelldatei" -
+    Dateiname, Pruefsumme, Zeitpunkt. Gelesen hat sie nie jemand: die
+    Abfrage hing am Watchfolder und ist mit ihm 0.6.10 entfallen. Die
+    Tabelle ist mit 1.37 weg; was eingelesen wurde, steht in "import".
     """
     zeilen, statistik = lies_datei(dateiname, inhalt, mitarbeiter, erzwingen)
-    quell_hash = hashlib.sha256(inhalt).hexdigest()
 
     with db.db() as con:
         cur = con.execute(
@@ -399,10 +463,6 @@ def verarbeite(dateiname: str, inhalt: bytes, mitarbeiter: str = "",
                  z["abrechenbar"], z["fingerprint"], dublette, z["warnung"]))
         con.execute("UPDATE import SET zeilen_neu=?, zeilen_dubletten=? WHERE id=?",
                     (neu, dubl, import_id))
-        con.execute(
-            "INSERT OR REPLACE INTO quelldatei (hash, dateiname, quelle, "
-            "verarbeitet_am, import_id) VALUES (?,?,?,?,?)",
-            (quell_hash, dateiname, quelle, jetzt(), import_id))
     return import_id
 
 
@@ -582,7 +642,7 @@ async def start() -> None:
         else:
             print("[start]   Passwort:     wie in ADMIN_PASSWORT hinterlegt", flush=True)
         print("[start] " + "=" * 60, flush=True)
-    strings_anlegen()
+    texte_verschlanken()
     _wiki.wiki_anlegen()
     try:
         os.makedirs(FILES_PFAD, exist_ok=True)
@@ -735,7 +795,39 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
             summentag = tag
         else:
             letzte, tagessumme, summentag = [], {"m": 0, "n": 0}, heute
+
+        # --- Was heute draengt (seit 1.37) ---------------------------------
+        # ⚠️ Die Zeiterfassung ist die Seite, die jeder mehrmals am Tag
+        # oeffnet; die Aufgabenseite vielleicht einmal. Eine Frist faellt
+        # deshalb erst dort auf, wo man ohnehin hinsieht - deswegen die
+        # schmale Zeile hier. Sie ZAEHLT nur und verlinkt in die schon
+        # gefilterte Liste; die Aufgaben selbst stehen weiterhin unter
+        # "Aufgaben" und in "Mein Bereich".
+        #
+        # ⚠️ Sie haengt am Bereich "verwaltungsvorgaenge": ohne ihn liefe
+        # der Verweis nur in ein 403, und eine Zahl ueber etwas, das man
+        # nicht sehen darf, ist ohnehin keine Auskunft. Dieselbe
+        # Ueberlegung wie bei den anklickbaren Namen in den Abgaben.
+        #
+        # ⚠️ Gezaehlt werden die EIGENEN Aufgaben, nicht alle: der Balken
+        # soll etwas ausloesen, und das tut nur, was einen selbst
+        # betrifft. Ohne zugeordneten Mitarbeiter gibt es keine eigenen -
+        # dann bleibt die Zeile weg statt eine Null zu zeigen.
+        draengt = None
+        if eigener and auth.hat_zugriff(benutzer, "verwaltungsvorgaenge"):
+            zahlen = con.execute(
+                "SELECT "
+                " SUM(CASE WHEN frist <> '' AND frist < ? THEN 1 ELSE 0 END) ueber,"
+                " SUM(CASE WHEN frist = ? THEN 1 ELSE 0 END) heute "
+                "FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
+                "AND status NOT IN ('Erledigt')",
+                (heute.isoformat(), heute.isoformat(), eigener)).fetchone()
+            ueber, faellig = zahlen["ueber"] or 0, zahlen["heute"] or 0
+            if ueber or faellig:
+                draengt = {"ueberfaellig": ueber, "heute": faellig,
+                           "wer": eigener}
     return templates.TemplateResponse(request=request, name="index.html", context={
+        "draengt": draengt,
         "importe": importe, "summe": summe, "leute": leute,
         "klienten": klienten, "leistungen": leistungen, "letzte": letzte,
         "mitarbeiterliste": mitarbeiterliste, "klientliste": klientliste,

@@ -1360,52 +1360,15 @@ def fusszeile_speichern(fusszeile_recht: str = Form("")):
     return systemseite(hinweis="Fußzeile gespeichert.")
 
 
-@router.post("/einstellungen/texte")
-def texte_nachziehen(modus: str = Form("fehlende")):
-    """Schreibt die Standardtexte in die vorhandene strings.txt.
-
-    ⚠️ Ohne das hier erreicht jede Textänderung, die mit einer neuen
-    Fassung kommt, eine bestehende Installation NIE: strings.txt gewinnt
-    gegen die Standardtexte, und angelegt wird sie nur, wenn sie fehlt.
-    Das ist der stillste Fehler im ganzen System - man sieht ihm nicht an,
-    dass etwas fehlt.
-
-    "fehlende" ergaenzt nur, was noch nicht drinsteht - eigene Formu-
-    lierungen bleiben dabei unangetastet. "alle" setzt auf den
-    Auslieferungsstand zurueck.
-
-    ⚠️⚠️ Gelesen und geschrieben wird seit 1.35 ueber
-    texte_standard.datei_lesen/-schreiben. Vorher stand hier ein eigener
-    Parser fuer das Format "schluessel = wert", waehrend die Datei in
-    Wahrheit Bloecke ("[schluessel]" plus Text darunter) enthaelt: der
-    Knopf fand also nie einen einzigen vorhandenen Schluessel, hielt die
-    Datei fuer leer und schrieb sie im falschen Format neu. Eigene Texte
-    weg, Datei danach unlesbar - ausgerechnet der Knopf, der die eigenen
-    Texte schonen sollte.
-    """
-    pfad = _u["STRINGS_DATEI"]
-    standard = _u["TEXTE_STANDARD"]
-    vorhanden = texte_standard.datei_lesen(pfad)
-
-    if modus == "alle":
-        neu = dict(standard)
-        zahl = len(neu)
-    else:
-        fehlend = {k: v for k, v in standard.items() if k not in vorhanden}
-        neu = {**vorhanden, **fehlend}
-        zahl = len(fehlend)
-
-    if not zahl:
-        return systemseite(hinweis="Es fehlte nichts – alle Texte sind vorhanden.")
-    try:
-        texte_standard.datei_schreiben(pfad, neu)
-    except OSError as e:
-        return systemseite(fehler=f"Konnte {pfad} nicht schreiben: {e}")
-
-    return systemseite(hinweis=(
-        f"{zahl} Texte auf den Auslieferungsstand gesetzt."
-        if modus == "alle" else f"{zahl} fehlende Texte ergänzt."))
-
+# ⚠️ Die Route POST /einstellungen/texte ("Fehlende Texte ergaenzen" /
+# "Alle Texte zuruecksetzen") ist mit 1.37 ersatzlos entfallen (Timos
+# Wunsch). Sie war ein Pflaster auf dem alten Modell: strings.txt trug
+# ALLE Texte und gewann gegen jeden eingebauten, also kam eine
+# Textverbesserung nie an - "Fehlende ergaenzen" half nur bei neuen
+# Schluesseln. Seit main.texte_verschlanken() steht in der Datei nur noch,
+# was wirklich anders formuliert wurde; Nachziehen erledigt sich damit von
+# selbst, und Zuruecksetzen kann der Texteditor je Text, je Gruppe und
+# ueber alle Bereiche. **Nicht wieder einbauen.**
 
 # --- Hinweistexte bearbeiten (seit 1.35) --------------------------------------
 #
@@ -1452,10 +1415,15 @@ async def hinweistexte_speichern(request: Request):
     einzelne Form(...)-Parameter: es sind knapp zweihundert, und ihre
     Namen stehen erst zur Laufzeit fest.
 
-    ⚠️ Ein Feld, das buchstabengleich dem Standardtext entspricht, wird
-    NICHT weggelassen. Sonst verschwaende ein spaeteres Update den Text
-    stillschweigend - genau das Verhalten, das strings.txt eigentlich
-    verhindern soll. Wer zurueck zum Standard will, nimmt den Knopf.
+    ⚠️⚠️ **Ein Feld, das buchstabengleich dem Standardtext entspricht,
+    fliegt seit 1.37 aus der Datei** - genau umgekehrt zu 1.35/1.36. Die
+    alte Regel war "schreib ihn trotzdem, sonst aendert ein Update ihn
+    stillschweigend". Das war im alten Modell folgerichtig, im neuen ist
+    es falsch herum: strings.txt traegt jetzt ausschliesslich die
+    ABWEICHUNGEN (siehe main.texte_verschlanken), und wer den
+    ausgelieferten Wortlaut stehen laesst, sagt damit "der passt mir" -
+    dann ist eine spaetere Verbesserung ein Gewinn und kein Verlust. Wer
+    einen Text wirklich festhalten will, formuliert ihn eben anders.
     """
     formular = await request.form()
     standard = _u["TEXTE_STANDARD"]
@@ -1470,9 +1438,10 @@ async def hinweistexte_speichern(request: Request):
         # Umbrueche zu Leerzeichen: die Datei traegt einen Text je Block,
         # und texte_standard.datei_lesen() faltet ohnehin zusammen.
         wert = " ".join(str(formular[feld]).split())
-        if not wert:
-            # Leer heisst "wieder der eingebaute Text" - so wie ein
-            # geloeschter Schluessel in der Datei.
+        # Leer ODER gleich dem Standard heisst beides dasselbe: "nimm den
+        # eingebauten Text". Der Schluessel gehoert dann nicht in die
+        # Datei - sie traegt nur die Abweichungen.
+        if not wert or wert.strip() == standard[schluessel].strip():
             if schluessel in neu:
                 del neu[schluessel]
                 geaendert += 1
@@ -1500,10 +1469,15 @@ def hinweistexte_zuruecksetzen(gruppe: str = Form("")):
     betroffen = [k for k in standard
                  if not gruppe or k.split(".")[0] == gruppe]
     zahl = 0
+    # ⚠️ Zurueckgesetzt wird durch LOESCHEN des Schluessels, nicht durch
+    # Hineinschreiben des Standardtextes (seit 1.37). Sonst stuende der
+    # Wortlaut von heute fuer immer in der Datei und jede kuenftige
+    # Verbesserung kaeme wieder nicht an - genau der Fehler, den das neue
+    # Modell abstellt.
     for schluessel in betroffen:
-        if werte.get(schluessel, standard[schluessel]) != standard[schluessel]:
+        if schluessel in werte:
             zahl += 1
-        werte[schluessel] = standard[schluessel]
+            del werte[schluessel]
     try:
         texte_standard.datei_schreiben(pfad, werte)
     except OSError as e:

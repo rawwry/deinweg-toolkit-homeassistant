@@ -375,19 +375,12 @@ CREATE INDEX IF NOT EXISTS idx_ereignis_datum    ON fahrzeug_ereignis(datum);
 CREATE INDEX IF NOT EXISTS idx_ereignis_monat    ON fahrzeug_ereignis(monat);
 CREATE INDEX IF NOT EXISTS idx_ereignis_faellig  ON fahrzeug_ereignis(faellig_datum);
 
--- Vermerk zu jeder eingelesenen Quelldatei: Name, Pruefsumme, Zeitpunkt.
--- ACHTUNG: wird nur geschrieben, nirgends gelesen. Bis 0.6.10 verhinderte
--- der Hash die Doppelverarbeitung durch den Watchfolder; mit dem ist die
--- Abfrage entfallen, der Vermerk blieb stehen. Er ist damit ein reines
--- Archiv ohne Oberflaeche - entweder sichtbar machen oder wegwerfen.
-CREATE TABLE IF NOT EXISTS quelldatei (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    hash           TEXT NOT NULL UNIQUE,
-    dateiname      TEXT NOT NULL,
-    quelle         TEXT NOT NULL,
-    verarbeitet_am TEXT NOT NULL,
-    import_id      INTEGER
-);
+-- ⚠️ Die Tabelle "quelldatei" ist mit 1.37 ersatzlos entfallen (Timos
+-- Entscheidung). Sie wurde bei jedem Import geschrieben und NIRGENDS
+-- gelesen: bis 0.6.10 verhinderte ihr Hash die Doppelverarbeitung durch
+-- den Watchfolder, mit dem ist die Abfrage entfallen und der Vermerk
+-- blieb stehen. Was wann eingelesen wurde, steht ohnehin vollstaendig in
+-- "import". Die Migration weiter unten wirft sie weg.
 """
 
 
@@ -671,8 +664,16 @@ def init() -> dict | None:
         # der Name versprach etwas, das der Code nicht einloest.
         for tabelle, spalte in (("person", "notiz"),
                                 ("import", "archivpfad"),
-                                ("quelldatei", "archivpfad"),
-                                ("quelldatei", "fehler"),
                                 ("sitzung", "letzte_aktivitaet")):
             spalte_entfernen(con, tabelle, spalte)
+
+        # --- mit 1.37 weggeraeumt -------------------------------------------
+        # "quelldatei" wurde bei jedem Import geschrieben und nirgends
+        # gelesen (siehe die Notiz am Schema). Ein Vermerk, den niemand je
+        # zu sehen bekommt, ist kein Archiv, sondern Ballast - und er
+        # wuchs mit jedem Import weiter. Was eingelesen wurde, steht in
+        # "import" mit Dateiname, Zeitpunkt, Person und Zeilenzahl.
+        # ⚠️ Bewusst ohne Wenn bei jedem Start: nach dem ersten Lauf gibt
+        # es die Tabelle nicht mehr, der Aufruf ist dann folgenlos.
+        con.execute("DROP TABLE IF EXISTS quelldatei")
     return initialer_admin

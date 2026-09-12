@@ -20,7 +20,46 @@
 
   {# --- Seitenleiste: derselbe Aufbau wie im Wiki --- #}
   <aside class="wiki-seitenleiste karte">
-    <span class="seitenmenue-titel">Ordner</span>
+    {# Suchfeld wie im Wiki – ein Kasten, nicht zwei nebeneinander:
+       getrennte Kästchen waren zwangsläufig verschieden hoch. Die Hülle
+       trägt den Rahmen, Feld und Lupe sitzen randlos darin.
+       ⚠️ Gesucht wird in NAMEN, nicht im Inhalt: hier liegen PDFs, Bilder
+       und Office-Dateien, deren Inhalt aufzumachen hieße, Bibliotheken
+       ins Dockerfile zu holen. Der Platzhalter sagt das auch. #}
+    <form class="wiki-suche" action="/dateien/suche" method="get" role="search">
+      <input type="search" name="q" value="{{ suchwort | default('') }}"
+             autocomplete="off" placeholder="Dateien suchen …"
+             aria-label="Dateien und Ordner nach Namen suchen">
+      <button class="wiki-suchknopf" type="submit" title="Suchen" aria-label="Suchen">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.2" stroke="currentColor" stroke-width="1.7"/>
+          <path d="M15.6 15.6 20 20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </form>
+
+    {# Kopfzeile über dem Baum, dieselbe Bauart wie im Wiki. Der Knopf ist
+       nur mit Skript sinnvoll (er klappt das Formular im Hauptfenster
+       auf) und wird deshalb versteckt ausgeliefert und dort eingeblendet.
+       ⚠️ Das Formular selbst bleibt im Hauptfenster: es legt in dem
+       Ordner an, den man gerade ansieht, und braucht mehr Platz als die
+       Leiste hat – genau wie beim Wiki. #}
+    <div class="wiki-baumkopf">
+      <span>Ordner</span>
+      <span class="wiki-baumwerkzeuge">
+        <button type="button" class="knopf-icon wiki-baumknopf"
+                id="datei-neu" hidden
+                title="Neuen Ordner anlegen" aria-label="Neuen Ordner anlegen">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3.5 7.5c0-1.1.9-2 2-2h3.2l1.8 2h8c1.1 0 2 .9 2 2v8.5c0 1.1-.9 2-2 2H5.5c-1.1 0-2-.9-2-2v-10.5Z"
+                  stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M12 11.5v5M9.5 14h5" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round"/>
+          </svg>
+        </button>
+      </span>
+    </div>
+
     <nav class="wiki-baum" aria-label="Dateistruktur">
       <a class="wiki-knoten wiki-wurzel {{ 'hier' if wurzel_hier }}" href="/dateien"
          data-ziel="" title="Oberste Ebene – zum Verschieben hierher ziehen">
@@ -43,7 +82,7 @@
   <div class="wiki-haupt">
     <article class="karte">
       <div class="kopfzeile">
-        <h1>{{ brotkrumen[-1].name if brotkrumen else "Alle Dateien" }}</h1>
+        <h1>{% if suchwort is defined %}Suche{% else %}{{ brotkrumen[-1].name if brotkrumen else "Alle Dateien" }}{% endif %}</h1>
         <div class="dateikopf-rechts">
           <div class="schalter dateiansicht">
             <span class="dateiliste-text">Liste</span>
@@ -55,7 +94,12 @@
 
       {# Hochladen und Ordner anlegen stehen im Hauptfenster, nicht in der
          Seitenleiste: sie wirken auf den Ordner, den man gerade ansieht,
-         und gehören deshalb dorthin, wo dessen Inhalt steht. #}
+         und gehören deshalb dorthin, wo dessen Inhalt steht. Der Knopf in
+         der Seitenleiste klappt genau dieses Formular auf.
+         ⚠️ Auf der Trefferseite gibt es sie nicht: dort ist kein Ordner
+         geöffnet, und „hochladen“ hieße stillschweigend „in die oberste
+         Ebene“. #}
+      {% if suchwort is not defined %}
       <div class="dateiwerkzeuge">
         <form action="/dateien/hochladen" method="post" enctype="multipart/form-data"
               id="hochladeform" class="inline">
@@ -95,8 +139,60 @@
           <button class="knopf klein haupt" type="submit">Anlegen</button>
         </div>
       </form>
+      {% endif %}
 
-      {% if not unterordner and not dateien %}
+      {% if suchwort is defined %}
+      {# --- Trefferliste ---------------------------------------------------
+         Bewusst EINE flache Liste statt der zwei Abschnitte der Übersicht:
+         beim Suchen will man wissen „wo liegt das“, und dafür zählt der
+         Ordner neben dem Namen mehr als die Trennung Ordner/Datei. #}
+      {% if treffer %}
+      <p class="klein leise suchstand">
+        {{ treffer | length }} Treffer für „{{ suchwort }}“
+      </p>
+      <ul class="dateitreffer">
+        {% for e in treffer %}
+        <li class="dateitreffer-zeile">
+          <span class="dateitreffer-symbol {{ 'ist-ordner' if e.ist_ordner }}">
+            {% if e.ist_ordner %}
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M3.5 7.5c0-1.1.9-2 2-2h3.2l1.8 2h8c1.1 0 2 .9 2 2v8.5c0 1.1-.9 2-2 2H5.5c-1.1 0-2-.9-2-2v-10.5Z"
+                    stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg>
+            {% else %}{{ dateisymbol(e.art) }}{% endif %}
+          </span>
+          <span class="dateitreffer-text">
+            {% if e.ist_ordner %}
+            <a class="dateitreffer-name" href="/dateien?ordner={{ e.pfad | urlencode }}">{{ e.name }}</a>
+            {% elif e.adresse %}
+            <a class="dateitreffer-name" href="{{ e.adresse }}">{{ e.name }}</a>
+            {% else %}
+            <span class="dateitreffer-name">{{ e.name }}</span>
+            {% endif %}
+            <span class="klein leise dateitreffer-ort">
+              in
+              {% if e.elternteil %}
+              <a href="/dateien?ordner={{ e.elternteil | urlencode }}">{{ e.elternname }}</a>
+              {% else %}<a href="/dateien">Alle Dateien</a>{% endif %}
+              {% if e.ist_ordner %}· {{ e.anzahl }} Eintr{{ 'äge' if e.anzahl != 1 else 'ag' }}
+              {% else %}· {{ e.wort }} · {{ e.groesse }}{% endif %}
+            </span>
+          </span>
+          {# Führt in den Ordner, in dem der Treffer liegt - von dort aus
+             steht der ganze gewohnte Werkzeugkasten zur Verfügung. #}
+          <a class="knopf leise klein dateitreffer-hin"
+             href="/dateien?ordner={{ (e.elternteil if not e.ist_ordner else e.pfad) | urlencode }}">
+            Im Ordner zeigen</a>
+        </li>
+        {% endfor %}
+      </ul>
+      {% elif suchwort | length < 2 %}
+      <p class="leer">Gib mindestens zwei Zeichen ein.</p>
+      {% else %}
+      <p class="leer">Nichts gefunden für „{{ suchwort }}“.</p>
+      {% endif %}
+
+      {% elif not unterordner and not dateien %}
       <p class="leer">{{ t("dateien.leer") }}</p>
       {% else %}
 
@@ -245,6 +341,14 @@
       ordnerknopf.setAttribute("aria-expanded", ordnerform.hidden ? "false" : "true");
       if (!ordnerform.hidden) ordnerform.querySelector("input[name=name]").focus();
     });
+    // Derselbe Handgriff aus der Seitenleiste - wie das Zeichen im Wiki.
+    // Ohne Skript bleibt er versteckt; der Knopf im Hauptfenster ist dann
+    // weiterhin die Bedienung.
+    var seitenneu = document.getElementById("datei-neu");
+    if (seitenneu) {
+      seitenneu.hidden = false;
+      seitenneu.addEventListener("click", function () { ordnerknopf.click(); });
+    }
   }
 
   // --- Umbenennen und Schnipsel aufklappen ---------------------------------
