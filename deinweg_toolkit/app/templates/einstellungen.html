@@ -2074,36 +2074,29 @@
     </div>
   </div>
 
-  <h2 style="margin-top: 22px;">Pfade im Container</h2>
-  <dl class="systemliste breit">
-    <dt>Datenbank</dt><dd><code>{{ system.db_pfad }}</code></dd>
-    {% for name, pfad, stand in system.dateien %}
-    <dt>{{ name }}</dt>
-    <dd><code>{{ pfad }}</code>
-      <span class="marke-status {{ 'gut' if stand.startswith('vorhanden (') else 'offen' }}">{{ stand }}</span>
-    </dd>
-    {% endfor %}
-  </dl>
+  {# ⚠️ Die Pfade stehen zugeklappt (seit 1.36.1). Sie sind die längste
+     Liste der Seite und zugleich die, die man am seltensten braucht -
+     offen drückte sie alles Übrige nach unten. Derselbe `.hinweise`-Block
+     wie bei den Erklärungen der anderen Punkte. #}
+  <details class="hinweise systempfade">
+    <summary>Pfade im Container</summary>
+    <p class="klein leise">{{ t("einst.system_pfade") }}</p>
+    <dl class="systemliste breit">
+      <dt>Datenbank</dt><dd><code>{{ system.db_pfad }}</code></dd>
+      {% for name, pfad, stand in system.dateien %}
+      <dt>{{ name }}</dt>
+      <dd><code>{{ pfad }}</code>
+        <span class="marke-status {{ 'gut' if stand.startswith('vorhanden (') else 'offen' }}">{{ stand }}</span>
+      </dd>
+      {% endfor %}
+    </dl>
+  </details>
 </section>
 
-{# Fußzeile und Standardtexte: beides wirkt auf die ganze Anwendung und
-   gehört deshalb hierher, nicht unter „Oberfläche" (das ist je Browser). #}
-<section class="karte">
-  <h2>Fußzeile</h2>
-  <p class="lead">{{ t("einst.fusszeile_lead") }}</p>
-  <form action="/einstellungen/fusszeile" method="post">
-    <label class="feld">
-      <span>Zeile mit den Rechten <span class="leise">– HTML erlaubt</span></span>
-      <input type="text" name="fusszeile_recht" maxlength="300"
-             value="{{ mailkonfig.fusszeile_recht }}"
-             placeholder="© 2026 …">
-    </label>
-    <p class="klein leise felderklaerung">{{ t("einst.fusszeile_hinweis") }}</p>
-    <div class="knopfreihe">
-      <button class="knopf haupt" type="submit">Fußzeile speichern</button>
-    </div>
-  </form>
-</section>
+<div class="abschnittsband">
+  <h2>Benachrichtigungen</h2>
+  <p class="klein leise">{{ t("einst.system_melden") }}</p>
+</div>
 
 {# ⚠️ Push-Nachrichten stehen hier und nicht unter „E-Mail-Versand":
    sie sind kein Mailthema. Welche ANLÄSSE verschickt werden, hängt
@@ -2193,6 +2186,11 @@
   </form>
 </section>
 
+<div class="abschnittsband">
+  <h2>Darstellung und Texte</h2>
+  <p class="klein leise">{{ t("einst.system_aussehen") }}</p>
+</div>
+
 {# ⚠️ Eigene Logos: sie stehen auf jeder Seite und auf dem
    Anmeldebildschirm, deshalb nur für Administratoren (die Route liegt
    in auth.ADMIN_NUR_PFADE). Gespeichert wird in der Datenbank, nicht
@@ -2238,6 +2236,25 @@
   {% endif %}
 </section>
 
+{# Fußzeile, Logos und Standardtexte wirken auf die ganze Anwendung und
+   gehören deshalb hierher, nicht unter „Oberfläche" (das ist je Browser). #}
+<section class="karte">
+  <h2>Fußzeile</h2>
+  <p class="lead">{{ t("einst.fusszeile_lead") }}</p>
+  <form action="/einstellungen/fusszeile" method="post">
+    <label class="feld">
+      <span>Zeile mit den Rechten <span class="leise">– HTML erlaubt</span></span>
+      <input type="text" name="fusszeile_recht" maxlength="300"
+             value="{{ mailkonfig.fusszeile_recht }}"
+             placeholder="© 2026 …">
+    </label>
+    <p class="klein leise felderklaerung">{{ t("einst.fusszeile_hinweis") }}</p>
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Fußzeile speichern</button>
+    </div>
+  </form>
+</section>
+
 <section class="karte">
   <h2>Standardtexte</h2>
   <p class="lead">{{ t("einst.texte_lead") }}</p>
@@ -2255,6 +2272,11 @@
 </section>
 
 {% if ist_admin %}
+<div class="abschnittsband">
+  <h2>Datensicherung</h2>
+  <p class="klein leise">{{ t("einst.system_sicherung") }}</p>
+</div>
+
 <section class="karte">
   <h2>Automatische Sicherung</h2>
   <p class="lead">{{ t("einst.sicherung_automatisch") }}</p>
@@ -2300,6 +2322,7 @@
     </form>
   </div>
 </section>
+
 {% endif %}
 {% endif %}
 

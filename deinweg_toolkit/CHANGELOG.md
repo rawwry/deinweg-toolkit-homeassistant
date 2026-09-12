@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.36.1
+
+- Zeiterfassung: „Neuer Eintrag“ als richtige Überschrift, mit Luft
+  zur Tabelle darunter
+- Einstellungen → System und Sicherung in drei Abschnitte gegliedert,
+  die Pfade stehen zugeklappt
+- Behoben: die Prüfung der Push-Nachrichten schlug vor 8 Uhr morgens
+  fehl
+
 ## 1.36
 
 - Push-Nachrichten über einen eigenen ntfy-Server (System und Sicherung)

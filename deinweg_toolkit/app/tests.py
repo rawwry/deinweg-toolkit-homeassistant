@@ -5474,6 +5474,84 @@ def test_erfassungsband(client: TestClient) -> None:
            and "padding: 22px var(--kartenluft)" in stil,
            "und die Karte selbst benutzt sie auch")
 
+    # --- Die Überschrift „Neuer Eintrag" (seit 1.36.1) ------------------
+    # ⚠️ Sie stand in derselben Schrift wie der Spaltenkopf 12px darunter:
+    # 11,5px, 700, versal, `--leise`. Zwei Zeilen Kleinversalien mit einer
+    # Linie dazwischen sahen aus wie ein Paar, nicht wie Überschrift und
+    # Tabellenkopf - Timos „gedrungen".
+    trenner = stil.split(".erfasstrenner {")[1].split("}")[0]
+    kopf = stil.split(".erfasskopf > span {")[1].split("}")[0]
+    pruefe("font-size: 15px" in trenner,
+           "die Überschrift „Neuer Eintrag“ ist größer als der Spaltenkopf")
+    pruefe("font-size: 11px" in kopf,
+           "der Spaltenkopf bleibt klein – der Unterschied ist der Punkt")
+    pruefe("text-transform" not in trenner and "text-transform: uppercase" in kopf,
+           "und sie ist nicht mehr versal gesetzt wie er")
+    pruefe("var(--tinte)" in trenner and "var(--leise)" in kopf,
+           "sie trägt die Textfarbe, er die gedämpfte")
+    # ⚠️ Der Abstand nach unten ist der eigentliche Punkt: darunter folgt
+    # sofort der Spaltenkopf mit seiner eigenen Trennlinie.
+    unten = int(trenner.split("margin:")[1].split(";")[0].split()[2]
+                .replace("px", ""))
+    pruefe(unten >= 20, f"und mindestens 20px Luft darunter (sind {unten}px)")
+
+    seite_ohne = client.get("/").text.split('<div class="neuheiten"')[0]
+    pruefe('<div class="erfasstrenner">' in seite_ohne
+           and "Neuer Eintrag" in seite_ohne,
+           "im Markup steht sie unverändert an ihrer Stelle")
+
+
+def test_system_aufgeraeumt(client: TestClient) -> None:
+    """System und Sicherung steht in Abschnitten statt als flacher Stapel."""
+    abschnitt("Einstellungen: System und Sicherung")
+    seite = client.get("/einstellungen?bereich=system").text
+    inhalt = seite.split('<div class="neuheiten"')[0]
+
+    # ⚠️ Acht gleich schwere Karten untereinander - Timos „unaufgeräumt".
+    # Jetzt drei Bänder, dieselbe Form wie in Auswertung und Mein Bereich.
+    for titel in ("Benachrichtigungen", "Darstellung und Texte",
+                  "Datensicherung"):
+        pruefe(f'<div class="abschnittsband">\n  <h2>{titel}</h2>' in inhalt,
+               f"der Abschnitt „{titel}“ steht da")
+
+    # Die Reihenfolge: erst der Überblick, dann was sich meldet, dann das
+    # Aussehen, zuletzt die Sicherung - das Heikelste ganz unten.
+    reihe = [inhalt.index("<h1>System und Sicherung</h1>"),
+             inhalt.index("<h2>Benachrichtigungen</h2>"),
+             inhalt.index("<h2>Darstellung und Texte</h2>"),
+             inhalt.index("<h2>Datensicherung</h2>"),
+             inhalt.index("<h2>Sicherung einspielen</h2>")]
+    pruefe(reihe == sorted(reihe), "und zwar in dieser Reihenfolge")
+
+    # Jede Karte liegt unter ihrem Band.
+    pruefe(inhalt.index("<h2>Push-Nachrichten (ntfy)</h2>")
+           < inhalt.index("<h2>Darstellung und Texte</h2>"),
+           "Push-Nachrichten liegen unter „Benachrichtigungen“")
+    for karte in ("Eigene Logos", "Fußzeile", "Standardtexte"):
+        pruefe(inhalt.index("<h2>Darstellung und Texte</h2>")
+               < inhalt.index(f"<h2>{karte}</h2>")
+               < inhalt.index("<h2>Datensicherung</h2>"),
+               f"„{karte}“ liegt unter „Darstellung und Texte“")
+    pruefe(inhalt.index("<h2>Datensicherung</h2>")
+           < inhalt.index("<h2>Automatische Sicherung</h2>"),
+           "die Sicherungskarten liegen unter „Datensicherung“")
+
+    # ⚠️ Die Pfadliste steht zugeklappt - sie ist die längste Liste der
+    # Seite und die, die man am seltensten braucht.
+    pruefe('<details class="hinweise systempfade">' in inhalt
+           and "<summary>Pfade im Container</summary>" in inhalt,
+           "die Pfade stehen zugeklappt")
+    pruefe('style="margin-top: 22px;"' not in inhalt,
+           "und der eingetippte Abstand von Hand ist dabei weggefallen")
+    # Sie sind trotzdem noch da - eine Auskunft darf nicht verschwinden
+    # (Arbeitsregel 4). Der Pfad selbst ist im Test ein Wegwerf-Ordner,
+    # geprüft wird deshalb die Zeile, nicht ihr Inhalt.
+    pfade = inhalt.split('<details class="hinweise systempfade">')[1]
+    pfade = pfade.split("</details>")[0]
+    pruefe("<dt>Datenbank</dt><dd><code>" in pfade
+           and pfade.count("<dt>") >= 2,
+           "der Pfad zur Datenbank steht weiterhin darin, samt Volumes")
+
 
 def test_mailprotokoll(client: TestClient) -> None:
     """Das Versandprotokoll bleibt kurz, ohne die Sperre zu verlieren."""
@@ -6203,6 +6281,13 @@ def test_ntfy(client: TestClient) -> None:
            "die Probenachricht geht hinaus")
 
     # --- Die Anlässe --------------------------------------------------------
+    # ⚠️ Fristen gehen erst ab 8 Uhr morgens heraus (mail.VERSANDSTUNDE).
+    # `pruefe_fristen` liest dafür die ECHTE Uhr - die Prüfung schlug
+    # deshalb zwischen Mitternacht und acht Uhr fehl und war tagsüber
+    # grün. Die Stunde wird hier ausgesetzt; dass sie sonst greift,
+    # prüft `test_versandzeit` mit festen Zeitpunkten.
+    versandstunde = _mail.VERSANDSTUNDE
+    _mail.VERSANDSTUNDE = 0
     with db.db() as con:
         con.execute("DELETE FROM benachrichtigung")
         con.execute("INSERT OR IGNORE INTO vorgangsart (name, aktiv, angelegt_am) "
@@ -6276,6 +6361,7 @@ def test_ntfy(client: TestClient) -> None:
     pruefe(bleibt == 1,
            "die Sperre einer noch offenen Frist bleibt auch als Push-Zeile")
     pruefe(rest < 30, "die belanglosen alten Zeilen sind dabei weggefallen")
+    _mail.VERSANDSTUNDE = versandstunde
 
     # --- Beide Wege aus -> der Durchlauf tut nichts -------------------------
     with db.db() as con:
@@ -7513,6 +7599,7 @@ def _durchlauf(client: TestClient) -> None:
         test_logbaum(client)
         test_aufgaben_1_32(client)
         test_erfassungsband(client)
+        test_system_aufgeraeumt(client)
         test_mailprotokoll(client)
         test_module(client)
         test_status_drei(client)

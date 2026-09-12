@@ -2173,4 +2173,22 @@ CHANGELOG = [
         "Zeilennummer",
         "Prüfung von 1714 auf 1775 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.36.1", "titel": "Zwei Stellen aufgeräumt", "punkte": [
+        "Zeiterfassung: „Neuer Eintrag“ ist jetzt eine richtige "
+        "Überschrift – größer, in der normalen Textfarbe und mit Luft "
+        "zur Tabelle darunter. Vorher stand sie in derselben kleinen "
+        "Versalschrift wie die Spaltentitel direkt darunter und sah "
+        "dadurch gedrungen aus",
+        "Einstellungen → System und Sicherung: die acht Karten stehen "
+        "jetzt in drei Abschnitten – Benachrichtigungen, Darstellung "
+        "und Texte, Datensicherung. Vorher war es ein flacher Stapel "
+        "ohne Ordnung",
+        "Die Pfade im Container stehen dort zugeklappt: die längste "
+        "Liste der Seite und zugleich die, die man am seltensten "
+        "braucht",
+        "Behoben: die Prüfung der Push-Nachrichten schlug zwischen "
+        "Mitternacht und acht Uhr fehl. Fristen gehen erst ab 8 Uhr "
+        "heraus, und sie las dafür die echte Uhr",
+        "Prüfung von 1775 auf 1793 Einzelprüfungen erweitert",
+    ]},
 ]

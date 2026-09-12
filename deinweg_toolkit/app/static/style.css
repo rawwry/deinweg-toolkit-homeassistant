@@ -1365,11 +1365,30 @@ input[type="date"] { text-transform: uppercase; }
 /* ⚠️ Mehr Luft nach oben als nach unten (seit 1.30): der Trenner
    gehört zu dem, was unter ihm kommt, nicht zu dem darüber. Bei
    gleichen Abständen schwamm er zwischen beidem. */
+/* ⚠️ „Neuer Eintrag" ist eine ÜBERSCHRIFT und keine zweite Zeile
+   Spaltentitel (seit 1.36.1, Timos Meldung: „gedrungen … gleiche Farbe
+   und gleiche Schriftgröße"). Bis dahin stand sie in 11,5px, 700,
+   versal und in `--leise` - also buchstäblich in derselben Schrift wie
+   der Spaltenkopf 12px darunter, und mit einer Linie dazwischen, die
+   beide wie ein Paar aussehen ließ. Jetzt: 15px, gemischt, in
+   `--tinte`, dazu ein Akzentstrich davor. Die auslaufende Linie bleibt
+   - sie trägt die Gliederung -, steht aber deutlich unter dem Wort.
+   ⚠️ Der Abstand nach unten (26px) ist der eigentliche Punkt: darunter
+   folgt sofort der Spaltenkopf mit seiner eigenen Trennlinie. Bei 12px
+   klebten zwei Linien und zwei Textzeilen aufeinander. */
 .erfasstrenner {
   display: flex; align-items: center; gap: 12px;
-  margin: 30px 0 12px; color: var(--leise);
-  font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
-  text-transform: uppercase;
+  margin: 34px 0 26px; color: var(--tinte);
+  font-size: 15px; font-weight: 600; letter-spacing: -0.1px;
+}
+.erfasstrenner > span {
+  display: flex; align-items: center; gap: 9px;
+}
+/* Der kurze Akzentstrich sagt „hier beginnt etwas", ohne ein zweites
+   Schriftbild einzuführen. */
+.erfasstrenner > span::before {
+  content: ""; width: 3px; height: 15px; border-radius: 2px;
+  background: var(--akzent); flex: 0 0 auto;
 }
 .erfasstrenner::after {
   content: ""; flex: 1 1 auto; height: 1px; background: var(--linie);
@@ -1967,6 +1986,10 @@ textarea:focus { border-color: var(--akzent); }
 .systemliste dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .systemliste dd code { font-weight: 400; }
 .systemliste dd .marke-status { margin-left: 7px; font-weight: 600; }
+/* Die Pfadliste steht in einem zugeklappten `.hinweise`-Block; der
+   bringt oben seine Linie mit, die Liste darin braucht nur Luft. */
+.systempfade > p { margin: 10px 0 12px; }
+.systempfade > .systemliste { margin-bottom: 4px; }
 
 /* --- Symbolgruppe rechts in der Kopfzeile ---------------------------- */
 

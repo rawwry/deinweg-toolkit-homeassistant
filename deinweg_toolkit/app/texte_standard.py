@@ -276,6 +276,19 @@ TEXTE_STANDARD["einst.abrechenbar"] = (
     "Legt fest, ob Zeiten dieser Person beim Filter „nur abrechenbare Zeiten“ auf den Seiten Datensätze und Auswertung mitgezählt werden. Betrifft nur diesen Filter, nicht die Soll-Rechnung oder sonstige Zahlen.")
 TEXTE_STANDARD["einst.system_lead"] = (
     "Was gerade läuft und wo die Daten liegen – hilfreich, wenn etwas klemmt oder du beim Backup nachsehen willst.")
+TEXTE_STANDARD["einst.system_melden"] = (
+    "Wie die Anwendung sich von selbst meldet. Welche Anlässe das sind, "
+    "steht unter E-Mail-Versand – die Schalter dort gelten für beide Wege.")
+TEXTE_STANDARD["einst.system_aussehen"] = (
+    "Was auf jeder Seite steht: der Schriftzug, die Fußzeile und die "
+    "erklärenden Texte. Gilt für alle Konten, anders als der Punkt "
+    "„Oberfläche“.")
+TEXTE_STANDARD["einst.system_sicherung"] = (
+    "Die wöchentliche Kopie auf dem Gerät und der Weg, eine Sicherung aus "
+    "dem Haus zu holen oder wieder einzuspielen.")
+TEXTE_STANDARD["einst.system_pfade"] = (
+    "Wo die Daten im Container liegen. Interessant, wenn du über die "
+    "Dateifreigabe an sie heran willst oder etwas fehlt.")
 TEXTE_STANDARD["einst.team_lead"] = (
     "Das Team. Wer hier mit Abgabepflicht steht, erscheint auf der Startseite in der Abgabeübersicht – so ist auf einen Blick klar, hinter wessen Liste noch hergelaufen werden muss.")
 TEXTE_STANDARD["einst.team_offen"] = (
