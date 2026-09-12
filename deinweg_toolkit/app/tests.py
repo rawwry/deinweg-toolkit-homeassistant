@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import datetime as dt
+import json
 import re
 import shutil
 import sys
@@ -5463,9 +5464,15 @@ def test_erfassungsband(client: TestClient) -> None:
     fuss = stil.split(".erfass-fuss {")[1].split("}")[0]
     pruefe("var(--flaeche-2)" in fuss and "space-between" in fuss,
            "die Fußleiste ist getönt und schiebt den Knopf nach rechts")
-    pruefe("margin: 20px -24px -22px" in fuss,
-           "sie läuft bis an den Rand der Karte – dieselben 24/22px "
-           "Polsterung wie .karte")
+    # ⚠️ Die seitliche Polsterung steht seit 1.36 als --kartenluft in
+    # :root; Fußleiste UND Erfassungszeilen ziehen damit an dieselbe
+    # Kante, ohne dass irgendwo eine zweite 24 getippt steht.
+    pruefe("var(--kartenluft)" in fuss,
+           "sie läuft bis an den Rand der Karte – über dieselbe Variable "
+           "wie deren Polsterung")
+    pruefe("--kartenluft: 24px" in stil
+           and "padding: 22px var(--kartenluft)" in stil,
+           "und die Karte selbst benutzt sie auch")
 
 
 def test_mailprotokoll(client: TestClient) -> None:
@@ -5932,6 +5939,354 @@ def test_hinweistexte(client: TestClient) -> None:
     pruefe('class="textgruppe"' not in normal.get(
         "/einstellungen?bereich=hinweistexte").text,
         "und sieht die Seite gar nicht erst")
+
+
+def test_versteckte_dateiordner(client: TestClient) -> None:
+    """Versteckte Datei-Ordner: unsichtbar, aber weiterhin herunterladbar."""
+    abschnitt("Versteckte Datei-Ordner")
+    from . import dateien as d
+
+    wurzel = d.wurzel()
+    os.makedirs(os.path.join(wurzel, "90_intern"), exist_ok=True)
+    os.makedirs(os.path.join(wurzel, "99_offen"), exist_ok=True)
+    with open(os.path.join(wurzel, "90_intern", "profil.pdf"), "wb") as f:
+        f.write(b"%PDF-1.4 nur zur Probe")
+    with open(os.path.join(wurzel, "99_offen", "frei.pdf"), "wb") as f:
+        f.write(b"%PDF-1.4 offen")
+
+    # Ohne Markierung ist gar nichts versteckt - das ist der Normalfall
+    # und kostet keine Rechenzeit.
+    pruefe(d.sperrfilter(None) is None,
+           "ohne markierten Ordner greift der Filter überhaupt nicht")
+    pruefe("90_intern" in client.get("/dateien").text,
+           "vorher sieht ihn jeder")
+
+    antwort = client.post("/einstellungen/dateien-geschuetzt",
+                          data={"ordner": "90_intern"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "der Ordner lässt sich verstecken")
+    with db.db() as con:
+        pruefe(auth.geschuetzte_dateiordner(con) == ["90_intern"],
+               "und steht danach in der Liste")
+
+    kollege = _konto(client, "dateikollege", "dateipasswort",
+                     ["dateien", "wiki"])
+    seite = kollege.get("/dateien").text
+    pruefe("90_intern" not in seite,
+           "ein Konto ohne Freigabe sieht ihn nicht mehr")
+    pruefe("99_offen" in seite, "die übrigen Ordner bleiben da")
+    pruefe('value="90_intern"' not in seite,
+           "und er steht auch nicht in der Ordnerauswahl")
+    pruefe(kollege.get("/dateien?ordner=90_intern").status_code == 403,
+           "über die Adresse kommt er nicht hinein")
+
+    # ⚠️⚠️ DER Punkt dieser Funktion: die Dateien darin bleiben
+    # erreichbar. Bilder aus so einem Ordner werden im Wiki eingebunden
+    # und müssen laden, und ein direkter Link auf ein E-Mail-Profil soll
+    # funktionieren, ohne dass jemand den Ordner sehen darf.
+    # Das heißt zugleich: Verstecken, keine Sicherheit.
+    antwort = kollege.get("/dateien/holen/90_intern/profil.pdf")
+    pruefe(antwort.status_code == 200,
+           "die Datei darin lässt sich trotzdem herunterladen")
+    pruefe(antwort.content.startswith(b"%PDF"),
+           "und es ist wirklich die Datei")
+
+    # Verwalten aber nicht: jede Schreibroute prüft Quelle UND Ziel.
+    for pfad, daten, wobei in (
+            ("/dateien/loeschen", {"pfad": "90_intern/profil.pdf"}, "löschen"),
+            ("/dateien/umbenennen", {"pfad": "90_intern/profil.pdf",
+                                     "name": "neu.pdf"}, "umbenennen"),
+            ("/dateien/verschieben", {"pfad": "90_intern/profil.pdf",
+                                      "ziel": ""}, "herausschieben"),
+            ("/dateien/verschieben", {"pfad": "99_offen/frei.pdf",
+                                      "ziel": "90_intern"}, "hineinschieben"),
+            ("/dateien/ordner", {"name": "Neu", "ordner": "90_intern"},
+             "einen Ordner darin anlegen")):
+        antwort = kollege.post(pfad, data=daten, follow_redirects=False)
+        pruefe("fehler" in antwort.headers.get("location", ""),
+               f"ohne Freigabe abgewiesen: {wobei}")
+    pruefe(os.path.isfile(os.path.join(wurzel, "90_intern", "profil.pdf")),
+           "und nichts davon hat etwas angefasst")
+    pruefe(os.path.isfile(os.path.join(wurzel, "99_offen", "frei.pdf")),
+           "auch die offene Datei liegt noch, wo sie lag")
+
+    # Mit Freigabe geht alles wieder.
+    with db.db() as con:
+        bid = con.execute("SELECT id FROM benutzer WHERE benutzername="
+                          "'dateikollege'").fetchone()["id"]
+    client.post(f"/einstellungen/benutzer/{bid}", data={
+        "benutzername": "dateikollege", "rolle": "benutzer", "aktiv": "1",
+        "bereiche": ["dateien", "wiki"], "dateien_ordner": ["90_intern"]})
+    mit = TestClient(app)
+    mit.post("/login", data={"benutzername": "dateikollege",
+                             "passwort": "dateipasswort"},
+             follow_redirects=False)
+    pruefe("90_intern" in mit.get("/dateien").text,
+           "mit Freigabe steht er wieder da")
+    pruefe(mit.get("/dateien?ordner=90_intern").status_code == 200,
+           "und lässt sich öffnen")
+
+    # Administratoren sehen ihn immer - sonst könnte sich die Verwaltung
+    # selbst aussperren.
+    pruefe("90_intern" in client.get("/dateien").text,
+           "ein Administrator sieht ihn ohne Freigabe")
+
+    # Die Pflege sitzt in der Benutzerverwaltung und ist admin-pflichtig.
+    seite = client.get("/einstellungen?bereich=benutzer").text
+    pruefe("/einstellungen/dateien-geschuetzt" in seite,
+           "die Karte steht in der Benutzerverwaltung")
+    pruefe("/einstellungen/dateien-geschuetzt" in auth.ADMIN_NUR_PFADE,
+           "und die Route ist Administratoren vorbehalten")
+    pruefe(kollege.post("/einstellungen/dateien-geschuetzt",
+                        data={"ordner": ""}).status_code == 403,
+           "ein normales Konto darf sie nicht ändern")
+
+    # Nur die erste Ebene, und der Schutz vererbt sich nach unten.
+    client.post("/einstellungen/dateien-geschuetzt",
+                data={"ordner": ["90_intern", "90_intern/tief"]})
+    with db.db() as con:
+        pruefe(auth.geschuetzte_dateiordner(con) == ["90_intern"],
+               "ein gedeckter Unterordner wird beim Speichern aufgeräumt")
+    pruefe(auth.darf_dateiordner(None, "90_intern/tief/bild.png",
+                                 ["90_intern"]) is False,
+           "der Schutz gilt für alles darin")
+    pruefe(auth.darf_dateiordner(None, "90_internes", ["90_intern"]),
+           "ein gleich beginnender Nachbar bleibt unberührt")
+
+    # Aufräumen: der Rest der Prüfung soll den Ordner wieder sehen.
+    client.post("/einstellungen/dateien-geschuetzt", data={"ordner": ""})
+
+
+class _Antwort:
+    """Was urlopen() zurueckgibt - als Kontext, genau wie das Original."""
+
+    def __init__(self, status=200):
+        self.status = status
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _ntfy_abfangen(status=200, fehler=None):
+    """Faengt den Versand ab und merkt sich, was hinausgegangen waere.
+
+    ⚠️ Bewusst kein echter Netzdienst in der Prüfung: sie läuft ohne Netz
+    (CLAUDE.md, Abschnitt 11). Die Steckdose ist urllib.request.urlopen -
+    das ist die eine Stelle, an der ntfy.py nach draußen geht. Dass der
+    Weg über ein echtes HTTP wirklich funktioniert, ist von Hand gegen
+    einen laufenden Empfänger geprüft worden.
+    """
+    from . import ntfy as _n
+    gesendet = []
+
+    def ersatz(anfrage, timeout=None):
+        gesendet.append({
+            "adresse": anfrage.full_url,
+            "kopf": dict(anfrage.header_items()),
+            "koerper": json.loads(anfrage.data.decode("utf-8")),
+        })
+        if fehler:
+            raise fehler
+        return _Antwort(status)
+
+    echt = _n.urllib.request.urlopen
+    _n.urllib.request.urlopen = ersatz
+    return gesendet, (lambda: setattr(_n.urllib.request, "urlopen", echt))
+
+
+def test_ntfy(client: TestClient) -> None:
+    """Push-Nachrichten an einen ntfy-Server."""
+    abschnitt("Push-Nachrichten (ntfy)")
+    from . import ntfy
+    from . import mail as _mail
+
+    # --- Das Modul selbst ---------------------------------------------------
+    pruefe(not ntfy.aktiv({"ntfy_aktiv": "1", "ntfy_server": "https://x"}),
+           "ohne Thema gilt der Weg nicht als eingerichtet")
+    pruefe(not ntfy.aktiv({"ntfy_aktiv": "0", "ntfy_server": "https://x",
+                           "ntfy_thema": "t"}),
+           "und ausgeschaltet erst recht nicht")
+    pruefe(ntfy.serveradresse({"ntfy_server": "ntfy.beispiel.de/"})
+           == "https://ntfy.beispiel.de",
+           "ein fehlendes Schema wird zu https, der Schrägstrich fällt weg")
+    # ⚠️ Der Wert kommt aus einem Formular und wird zu einem Netzaufruf
+    # DES SERVERS - alles außer http und https hat hier nichts zu suchen.
+    for boese in ("file:///etc/passwd", "gopher://x", "ftp://x"):
+        pruefe(ntfy.einrichtung_pruefen(
+            {"ntfy_server": boese, "ntfy_thema": "t"}) != "",
+            f"„{boese}“ wird abgewiesen")
+
+    # --- Versand ------------------------------------------------------------
+    k = {"ntfy_aktiv": "1", "ntfy_server": "http://ntfy.test",
+         "ntfy_thema": "dwt", "ntfy_token": "tk_geheim"}
+    gesendet, zurueck = _ntfy_abfangen()
+    try:
+        erfolg, meldung = ntfy.senden(k, "Frist: Müller", "Ärger im Süden",
+                                      ntfy.PRIO_HOCH, ("warning",))
+    finally:
+        zurueck()
+    pruefe(erfolg, "der Versand meldet Erfolg")
+    pruefe(len(gesendet) == 1 and gesendet[0]["adresse"] == "http://ntfy.test",
+           "gepostet wird auf die Serverwurzel")
+    koerper = gesendet[0]["koerper"]
+    # ⚠️ Als JSON und nicht über HTTP-Köpfe: Köpfe tragen kein UTF-8, und
+    # „Frist: Müller“ käme als Buchstabensalat an oder ließe den Versand
+    # mit einem Kodierungsfehler abbrechen.
+    pruefe(koerper["title"] == "Frist: Müller"
+           and koerper["message"] == "Ärger im Süden",
+           "Umlaute kommen unverändert durch")
+    pruefe(koerper["topic"] == "dwt" and koerper["priority"] == "high"
+           and koerper["tags"] == ["warning"],
+           "Thema, Priorität und Marken stehen im Körper")
+    kopf = {n.lower(): w for n, w in gesendet[0]["kopf"].items()}
+    pruefe(kopf.get("authorization") == "Bearer tk_geheim",
+           "ein Token geht als Bearer hinaus")
+
+    k2 = dict(k); k2.pop("ntfy_token")
+    k2.update({"ntfy_benutzer": "timo", "ntfy_passwort": "pw"})
+    gesendet, zurueck = _ntfy_abfangen()
+    try:
+        ntfy.senden(k2, "x", "y")
+    finally:
+        zurueck()
+    kopf = {n.lower(): w for n, w in gesendet[0]["kopf"].items()}
+    pruefe(kopf.get("authorization", "").startswith("Basic "),
+           "ohne Token gehen Benutzername und Passwort als Basic hinaus")
+
+    # ⚠️ Wirft nie: der Wecker läuft im Hintergrund, ein nicht
+    # erreichbarer Server darf die übrigen Anlässe nicht mitreißen.
+    gesendet, zurueck = _ntfy_abfangen(fehler=OSError("Connection refused"))
+    try:
+        erfolg, meldung = ntfy.senden(k, "x", "y")
+    finally:
+        zurueck()
+    pruefe(not erfolg and "Connection refused" in meldung,
+           "ein toter Server gibt eine Meldung zurück statt zu werfen")
+
+    # --- Einstellungen ------------------------------------------------------
+    seite = client.get("/einstellungen?bereich=system").text
+    pruefe("/einstellungen/ntfy" in seite,
+           "die Karte steht unter „System und Sicherung“")
+    pruefe("/einstellungen/ntfy" in auth.ADMIN_NUR_PFADE,
+           "und die Route ist Administratoren vorbehalten")
+
+    antwort = client.post("/einstellungen/ntfy", follow_redirects=False, data={
+        "ntfy_aktiv": "1", "ntfy_server": "http://ntfy.test",
+        "ntfy_thema": "/dwt-team/", "ntfy_token": "tk_geheim"})
+    pruefe(antwort.status_code == 303, "die Einstellungen lassen sich speichern")
+    k = _mail.konfig_lesen()
+    pruefe(k["ntfy_thema"] == "dwt-team",
+           "Schrägstriche um das Thema werden abgeräumt")
+    pruefe(ntfy.aktiv(k), "danach ist der Weg eingerichtet")
+
+    # ⚠️ Wie beim SMTP-Passwort: das Token steht nie in der Oberfläche,
+    # und ein leeres Feld heißt „unverändert“, nicht „löschen“.
+    pruefe("ntfy_token" in _mail.GEHEIM and "ntfy_passwort" in _mail.GEHEIM,
+           "Token und Passwort gelten als geheim")
+    seite = client.get("/einstellungen?bereich=system").text
+    pruefe("tk_geheim" not in seite, "das Token steht nicht auf der Seite")
+    client.post("/einstellungen/ntfy", data={
+        "ntfy_aktiv": "1", "ntfy_server": "http://ntfy.test",
+        "ntfy_thema": "dwt-team"})
+    pruefe(_mail.konfig_lesen()["ntfy_token"] == "tk_geheim",
+           "ein leeres Tokenfeld überschreibt das hinterlegte nicht")
+
+    # Probenachricht
+    gesendet, zurueck = _ntfy_abfangen()
+    try:
+        antwort = client.post("/einstellungen/ntfy/probe", follow_redirects=False)
+    finally:
+        zurueck()
+    pruefe("hinweis" in antwort.headers.get("location", "") and len(gesendet) == 1,
+           "die Probenachricht geht hinaus")
+
+    # --- Die Anlässe --------------------------------------------------------
+    with db.db() as con:
+        con.execute("DELETE FROM benachrichtigung")
+        con.execute("INSERT OR IGNORE INTO vorgangsart (name, aktiv, angelegt_am) "
+                    "VALUES ('Pushart',1,'2026-01-01 08:00')")
+        con.execute(
+            "INSERT INTO vorgang (id, klient, art, titel, zustaendig, status, "
+            "prioritaet, frist, angelegt_am, angelegt_von, zuweis_gemeldet, "
+            "erledigt_gemeldet) VALUES (9400,'Testperson','Pushart',"
+            "'Überfällige Sache','pruefer','Offen','Mittel','2020-01-01',"
+            "'2020-01-01 08:00','pruefer',1,1)")
+        # Der Mailversand bleibt AUS - genau das ist der Punkt.
+        _mail.konfig_schreiben(con, {"mail_aktiv": "0", "frist_aktiv": "1",
+                                     "abgabe_aktiv": "0",
+                                     "bewilligung_aktiv": "0"})
+
+    gesendet, zurueck = _ntfy_abfangen()
+    try:
+        with db.db() as con:
+            protokoll = _mail.pruefe_fristen(con, _mail.konfig_lesen(con))
+    finally:
+        zurueck()
+    # ⚠️ Die Prüfung legt vorher schon andere überfällige Aufgaben an -
+    # gesucht wird die eigene, nicht „die einzige“.
+    meine = [g for g in gesendet
+             if "Überfällige Sache" in g["koerper"]["title"]]
+    pruefe(len(meine) == 1,
+           "die Frist geht als Push hinaus, obwohl der Mailversand aus ist")
+    pruefe(meine and meine[0]["koerper"]["title"].startswith("Überfällig")
+           and meine[0]["koerper"]["priority"] == "high",
+           "überfällig heißt hohe Priorität")
+    # ⚠️ „Seit 3 Tagen“ und nicht „Seit 3 tagen“ - capitalize() macht den
+    # Rest des Satzes klein.
+    pruefe(meine and "Tagen überfällig" in meine[0]["koerper"]["message"],
+           "der Satz ist richtig geschrieben")
+    pruefe(any("Push" in z for z in protokoll),
+           "und steht im Protokoll – sonst meldete der Lauf „nichts zu tun“")
+
+    # Ein zweiter Lauf schickt nichts mehr: dieselbe Sperre wie bei der Mail.
+    gesendet, zurueck = _ntfy_abfangen()
+    try:
+        with db.db() as con:
+            _mail.pruefe_fristen(con, _mail.konfig_lesen(con))
+    finally:
+        zurueck()
+    pruefe(not gesendet, "ein zweiter Lauf schickt sie nicht noch einmal")
+    with db.db() as con:
+        zeile = con.execute(
+            "SELECT art, empfaenger FROM benachrichtigung "
+            "WHERE bezug = 'vorgang:9400:2020-01-01'").fetchone()
+    pruefe(zeile and zeile["art"] == "ntfy-frist"
+           and zeile["empfaenger"].startswith("ntfy:"),
+           "der Vermerk steht in derselben Tabelle wie die Mailvermerke")
+
+    # ⚠️ protokoll_kuerzen muss die Push-Zeilen nach DENSELBEN Regeln
+    # schonen - fällt der Vermerk einer offenen Frist heraus, käme die
+    # Nachricht ein zweites Mal.
+    with db.db() as con:
+        for i in range(30):
+            con.execute(
+                "INSERT INTO benachrichtigung (art, bezug, empfaenger, "
+                "gesendet_am, erfolg) VALUES ('abgabe',?,?,'2019-01-01 08:00',1)",
+                (f"abgabe:2019-01", f"alt{i}@example.org"))
+        con.execute("UPDATE vorgang SET status='Offen' WHERE id=9400")
+        _mail.protokoll_kuerzen(con)
+        bleibt = con.execute(
+            "SELECT COUNT(*) c FROM benachrichtigung "
+            "WHERE bezug = 'vorgang:9400:2020-01-01'").fetchone()["c"]
+        rest = con.execute(
+            "SELECT COUNT(*) c FROM benachrichtigung "
+            "WHERE empfaenger LIKE 'alt%@example.org'").fetchone()["c"]
+    pruefe(bleibt == 1,
+           "die Sperre einer noch offenen Frist bleibt auch als Push-Zeile")
+    pruefe(rest < 30, "die belanglosen alten Zeilen sind dabei weggefallen")
+
+    # --- Beide Wege aus -> der Durchlauf tut nichts -------------------------
+    with db.db() as con:
+        _mail.konfig_schreiben(con, {"ntfy_aktiv": "0", "mail_aktiv": "0"})
+    meldung = _mail.durchlauf()
+    pruefe(meldung and "ausgeschaltet" in meldung[0],
+           "sind beide Wege aus, meldet der Durchlauf das")
+    with db.db() as con:
+        _mail.konfig_schreiben(con, {"ntfy_aktiv": "0", "mail_aktiv": "0",
+                                     "frist_aktiv": "1", "abgabe_aktiv": "1"})
+        con.execute("DELETE FROM vorgang WHERE id=9400")
 
 
 def test_kosmetik(client: TestClient) -> None:
@@ -6525,9 +6880,12 @@ def test_erfasst_fuer(client: TestClient) -> None:
     # deshalb neben „erfasser" und nicht mehr allein.
     pruefe('<details class="erfasser erfasserwechsel' in seite,
            "bewusst ein <details> - das geht auch ohne Skript")
+    # ⚠️ Seit 1.36 steht dort nur noch der Pfeil, kein Wort.
     pruefe('class="erfasser-zeile"' in seite
-           and '>ändern<' in seite,
-           "Name und „ändern“ stehen in EINER Zeile")
+           and 'class="erfasser-aendern"' in seite,
+           "Name und Aufklapp-Pfeil stehen in EINER Zeile")
+    pruefe('>ändern</span>' not in seite,
+           "das Wort „ändern“ steht nicht mehr daneben")
     pruefe("dein Konto" not in seite.split('<div class="neuheiten"')[0],
            "die Pille „dein Konto“ ist entfallen")
 
@@ -7163,6 +7521,8 @@ def _durchlauf(client: TestClient) -> None:
         test_sprueche_schalter(client)
         test_logos(client)
         test_hinweistexte(client)
+        test_versteckte_dateiordner(client)
+        test_ntfy(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

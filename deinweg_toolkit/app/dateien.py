@@ -36,6 +36,8 @@ from urllib.parse import quote, urlencode
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
+from . import auth
+
 router = APIRouter()
 
 # von setup() gefuellt, damit dieses Modul main.py nicht importieren muss
@@ -210,8 +212,35 @@ def _zaehle(voll: str) -> int:
     return gesamt
 
 
-def inhalt(rel: str) -> tuple[list[dict], list[dict]]:
-    """Ordner und Dateien eines Verzeichnisses, je alphabetisch."""
+def sperrfilter(benutzer):
+    """Eine Funktion "darf ich diesen Ordner sehen?" - oder None.
+
+    None heisst: es ist ueberhaupt nichts geschuetzt, dann muss auch
+    nichts geprueft werden. Das ist der Normalfall und kostet nichts.
+
+    ⚠️⚠️ Der Schutz versteckt hier nur, er sperrt nicht: eine einzelne
+    Datei bleibt ueber /dateien/holen/... fuer jeden erreichbar - im Wiki
+    eingebundene Bilder muessen laden, und ein direkter Link auf ein
+    E-Mail-Profil soll funktionieren. Siehe auth.darf_dateiordner().
+    """
+    geschuetzt = auth.geschuetzte_dateiordner()
+    if not geschuetzt:
+        return None
+    return lambda rel: auth.darf_dateiordner(benutzer, rel, geschuetzt)
+
+
+def _filter_aus(request):
+    """Der Filter zum angemeldeten Konto der laufenden Anfrage."""
+    return sperrfilter(getattr(request.state, "benutzer", None))
+
+
+def inhalt(rel: str, sichtbar=None) -> tuple[list[dict], list[dict]]:
+    """Ordner und Dateien eines Verzeichnisses, je alphabetisch.
+
+    ⚠️ ``sichtbar`` ist die eine Stelle, durch die JEDE Auflistung laeuft
+    (Baum, Ordneransicht, Ordnerauswahl) - eine neue Ansicht ist damit
+    automatisch mit abgedeckt. Dieselbe Bauart wie wiki._eintraege().
+    """
     voll = voller_pfad(rel)
     ordner, dateien = [], []
     try:
@@ -223,6 +252,11 @@ def inhalt(rel: str) -> tuple[list[dict], list[dict]]:
             continue
         kind = os.path.join(voll, name)
         unter = f"{rel}/{name}" if rel else name
+        # ⚠️ Nur ORDNER werden versteckt, nie einzelne Dateien: geschuetzt
+        # wird ein Ordner samt Inhalt, und eine Datei ausserhalb davon
+        # geht das niemanden anders an als vorher.
+        if sichtbar is not None and os.path.isdir(kind) and not sichtbar(unter):
+            continue
         if os.path.isdir(kind):
             try:
                 anzahl = len([n for n in os.listdir(kind) if not _systemkram(n)])
@@ -266,7 +300,7 @@ def inhalt(rel: str) -> tuple[list[dict], list[dict]]:
     return ordner, dateien
 
 
-def baum(rel: str = "", tiefe: int = 0) -> list[dict]:
+def baum(rel: str = "", tiefe: int = 0, sichtbar=None) -> list[dict]:
     """Ordner und Dateien als verschachtelte Liste fuer die Seitenleiste.
 
     Wie im Wiki: die Ordnerstruktur IST die Struktur. Ordner zuerst, dann
@@ -274,23 +308,24 @@ def baum(rel: str = "", tiefe: int = 0) -> list[dict]:
     """
     if tiefe > 8:
         return []
-    unterordner, dateien = inhalt(rel)
+    unterordner, dateien = inhalt(rel, sichtbar)
     knoten = [{"art": "ordner", "name": o["name"], "pfad": o["pfad"],
-               "anzahl": o["anzahl"], "kinder": baum(o["pfad"], tiefe + 1)}
+               "anzahl": o["anzahl"],
+               "kinder": baum(o["pfad"], tiefe + 1, sichtbar)}
               for o in unterordner]
     knoten += [{"art": d["art"], "name": d["name"], "pfad": d["pfad"],
                 "bekannt": d["bekannt"], "kinder": []} for d in dateien]
     return knoten
 
 
-def ordnerbaum() -> list[dict]:
+def ordnerbaum(sichtbar=None) -> list[dict]:
     """Alle Ordner als flache Liste fuer die Auswahlfelder."""
     gefunden = [{"pfad": "", "anzeige": "— oberste Ebene —"}]
 
     def geh(rel: str, tiefe: int) -> None:
         if tiefe > 6:
             return
-        for o in inhalt(rel)[0]:
+        for o in inhalt(rel, sichtbar)[0]:
             gefunden.append({"pfad": o["pfad"],
                              "anzeige": "  " * tiefe + "└ " + o["name"]})
             geh(o["pfad"], tiefe + 1)
@@ -324,14 +359,15 @@ def uebersicht(request: Request, ordner: str = "", hinweis: str = "",
     rel = sicherer_pfad(ordner)
     if rel is None or not os.path.isdir(voller_pfad(rel)):
         rel, fehler = "", fehler or "Diesen Ordner gibt es nicht."
-    unterordner, dateien = inhalt(rel)
+    sichtbar = _filter_aus(request)
+    unterordner, dateien = inhalt(rel, sichtbar)
     return _u["templates"].TemplateResponse(
         request=request, name="dateien.html", context={
             "seite": "dateien", "ordner": rel,
             "brotkrumen": _brotkrumen(rel),
             "unterordner": unterordner, "dateien": dateien,
-            "baum": baum(), "wurzel_hier": rel == "",
-            "ordner_auswahl": ordnerbaum(),
+            "baum": baum(sichtbar=sichtbar), "wurzel_hier": rel == "",
+            "ordner_auswahl": ordnerbaum(sichtbar),
             "endungen": ", ".join(sorted(ARTEN)),
             "max_mb": _u["MAX_UPLOAD_MB"],
             # Damit die Frage "wo liegt das eigentlich" gar nicht erst
@@ -340,9 +376,31 @@ def uebersicht(request: Request, ordner: str = "", hinweis: str = "",
             "hinweis": hinweis, "fehler": fehler})
 
 
+def _gesperrt(request: Request, *pfade) -> bool:
+    """Berührt einer dieser Pfade einen versteckten Ordner?
+
+    ⚠️ Die Middleware prüft nur Adresse und Abfrageparameter - den
+    Formularkörper darf sie nicht lesen (sie würde den Datenstrom
+    leeren). Die Pfadfelder eines abgeschickten Formulars prüft deshalb
+    jede Schreibroute hier selbst, und zwar Quelle UND Ziel: sonst ließe
+    sich eine Datei in einen versteckten Ordner schieben oder aus ihm
+    heraus. Dieselbe Bauart wie wiki._gesperrt().
+    """
+    sichtbar = _filter_aus(request)
+    if sichtbar is None:
+        return False
+    return any(p and not sichtbar(str(p).strip("/")) for p in pfade)
+
+
+def _abgewiesen(zurueck: str = ""):
+    return _zurueck(zurueck, fehler=auth.DATEI_GESPERRT_TEXT)
+
+
 @router.post("/dateien/hochladen")
-async def hochladen(datei: list[UploadFile] = File(...),
+async def hochladen(request: Request, datei: list[UploadFile] = File(...),
                     ordner: str = Form("")):
+    if _gesperrt(request, ordner):
+        return _abgewiesen()
     rel = sicherer_pfad(ordner)
     if rel is None or not os.path.isdir(voller_pfad(rel)):
         return _zurueck("", fehler="Diesen Ordner gibt es nicht.")
@@ -389,7 +447,10 @@ async def hochladen(datei: list[UploadFile] = File(...),
 
 
 @router.post("/dateien/ordner")
-def ordner_anlegen(name: str = Form(""), ordner: str = Form("")):
+def ordner_anlegen(request: Request, name: str = Form(""),
+                   ordner: str = Form("")):
+    if _gesperrt(request, ordner):
+        return _abgewiesen()
     rel = sicherer_pfad(ordner)
     if rel is None:
         return _zurueck("", fehler="Diesen Ordner gibt es nicht.")
@@ -407,7 +468,9 @@ def ordner_anlegen(name: str = Form(""), ordner: str = Form("")):
 
 
 @router.post("/dateien/loeschen")
-def loeschen(pfad: str = Form(""), ordner: str = Form("")):
+def loeschen(request: Request, pfad: str = Form(""), ordner: str = Form("")):
+    if _gesperrt(request, pfad, ordner):
+        return _abgewiesen()
     rel = sicherer_pfad(pfad)
     zurueck = sicherer_pfad(ordner) or ""
     if not rel:
@@ -440,9 +503,11 @@ def loeschen(pfad: str = Form(""), ordner: str = Form("")):
 
 
 @router.post("/dateien/umbenennen")
-def umbenennen(pfad: str = Form(""), name: str = Form(""),
+def umbenennen(request: Request, pfad: str = Form(""), name: str = Form(""),
                ziel_ordner: str = Form(""), ordner: str = Form("")):
     """Umbenennen und Verschieben in einem Schritt - wie im Wiki-Editor."""
+    if _gesperrt(request, pfad, ziel_ordner, ordner):
+        return _abgewiesen()
     rel = sicherer_pfad(pfad)
     zurueck = sicherer_pfad(ordner) or ""
     if not rel or not os.path.exists(voller_pfad(rel)):
@@ -474,13 +539,15 @@ def umbenennen(pfad: str = Form(""), name: str = Form(""),
 
 
 @router.post("/dateien/verschieben")
-def verschieben(pfad: str = Form(""), ziel: str = Form(""),
+def verschieben(request: Request, pfad: str = Form(""), ziel: str = Form(""),
                 ordner: str = Form("")):
     """Wird vom Ziehen im Baum abgeschickt - dasselbe Muster wie im Wiki.
 
     Der Name bleibt, nur der Ordner wechselt. Umbenennen und Verschieben
     in einem Schritt macht dagegen /dateien/umbenennen.
     """
+    if _gesperrt(request, pfad, ziel, ordner):
+        return _abgewiesen()
     rel = sicherer_pfad(pfad)
     zurueck = sicherer_pfad(ordner) or ""
     if not rel or not os.path.exists(voller_pfad(rel)):

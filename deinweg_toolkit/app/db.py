@@ -165,6 +165,10 @@ CREATE TABLE IF NOT EXISTS benutzer (
     -- werden muss - waere leer "alle", bekaeme ihn jedes bestehende
     -- Konto beim Update stillschweigend zu sehen.
     wiki_ordner TEXT,
+    -- Dasselbe fuer die Dateiverwaltung (seit 1.36). ⚠️ Der Schutz
+    -- bedeutet dort nur "nicht sehen": eine einzelne Datei bleibt ueber
+    -- ihren direkten Link fuer jeden erreichbar, siehe auth.
+    dateien_ordner TEXT,
     -- Darf dieses Konto Aufgaben loeschen, die jemand anderes angelegt
     -- hat? Standard 0, wie fremde_loeschen: die eigenen darf jeder.
     aufgaben_loeschen INTEGER NOT NULL DEFAULT 0,
@@ -585,6 +589,9 @@ def init() -> dict | None:
         # wird geschuetzt, weil sein Inhalt nicht jeden angeht; waere
         # leer "alle", saehe ihn nach dem Update sofort das ganze Team.
         spalte_ergaenzen(con, "benutzer", "wiki_ordner", "TEXT")
+        # Freigegebene Ordner der Dateiverwaltung. Dieselbe umgekehrte
+        # Regel wie bei wiki_ordner: leer heisst "keinen".
+        spalte_ergaenzen(con, "benutzer", "dateien_ordner", "TEXT")
         # Welche Version hat dieses Konto zuletzt zur Kenntnis genommen?
         # Leer heisst: noch keine - dann steht beim naechsten Aufruf der
         # Hinweis auf die Neuerungen da.

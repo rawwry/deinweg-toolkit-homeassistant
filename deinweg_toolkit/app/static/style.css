@@ -110,7 +110,8 @@
   --kfz-km:        #8b9198;
 }
 
-:root { --abstand: 18px; --radius: 12px; color-scheme: dark;
+:root { --abstand: 18px; --radius: 12px; --kartenluft: 24px;
+        color-scheme: dark;
         --marke-liste: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1' y='2' width='14' height='2' rx='1'/><rect x='1' y='7' width='10' height='2' rx='1'/><rect x='1' y='12' width='6' height='2' rx='1'/></svg>"); }
 [data-thema="hell"] { color-scheme: light; }
 
@@ -278,11 +279,15 @@ main > * { min-width: 0; }
 .zeitspanne { display: inline-flex; gap: 7px; white-space: nowrap; }
 .zeitspanne .bis { opacity: .72; }
 
+/* ⚠️ Die seitliche Polsterung steht als `--kartenluft` in `:root`: die
+   Fußleiste der Erfassung und deren Zeilen ziehen mit negativem
+   Außenmaß bis an die Kante der Karte, und ein zweiter, fest getippter
+   Wert dort liefe früher oder später auseinander. */
 .karte {
   background: var(--flaeche);
   border: 1px solid var(--linie);
   border-radius: var(--radius);
-  padding: 22px 24px;
+  padding: 22px var(--kartenluft);
   margin: 0;
   overflow-x: auto;
   box-shadow: var(--schatten);
@@ -1300,16 +1305,28 @@ input[type="date"] { text-transform: uppercase; }
 /* „ändern" hängt am rechten Rand und trägt das Dreieck des Aufklappers.
    Es ist absichtlich leise: der Name ist die Auskunft, dies nur der Weg
    zur Ausnahme. */
+/* ⚠️ Nur der Pfeil, kein Wort (seit 1.36). Er sitzt in einem eigenen,
+   quadratischen Feld und wird darin zentriert - `align-self: center`,
+   weil die Zeile selbst auf `baseline` steht und der Pfeil sonst auf der
+   Schriftlinie des Namens hinge. Genau das sah schief aus. */
 .erfasser-aendern {
-  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--leise);
+  margin-left: auto; align-self: center; flex: 0 0 auto;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--leise);
 }
+/* ⚠️ Der sichtbare Teil des gedrehten Quadrats ist seine untere rechte
+   Ecke, sein Schwerpunkt liegt also unterhalb der Feldmitte. Das
+   `translateY` gleicht das aus - und steht VOR dem `rotate`, weil
+   Transformationen von rechts nach links wirken: so verschiebt es im
+   ungedrehten Raum nach oben statt schräg. */
 .erfasser-aendern::after {
-  content: ""; flex: 0 0 auto; width: 6px; height: 6px;
-  border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor;
-  transform: rotate(45deg) translateY(-2px);
+  content: ""; width: 7px; height: 7px;
+  border-right: 1.7px solid currentColor; border-bottom: 1.7px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
 }
-.erfasser[open] .erfasser-aendern::after { transform: rotate(-135deg) translateY(-1px); }
+.erfasser[open] .erfasser-aendern::after { transform: translateY(2px) rotate(-135deg); }
+.erfasser-zeile:hover .erfasser-aendern { background: var(--flaeche); }
 .erfasser-zeile:hover .erfasser-aendern { color: var(--akzent); }
 /* Die Marke steht immer im Markup und wird nur bei einem fremden Namen
    gezeigt - so braucht das Skript sie nicht zu bauen. */
@@ -1419,7 +1436,8 @@ input[type="date"] { text-transform: uppercase; }
    Kartenbreite, links die Zahl der Zeilen, rechts der Knopf - man
    sieht, wo die Eingabe endet. */
 .erfass-fuss {
-  margin: 20px -24px -22px; padding: 13px 24px;
+  margin: 20px calc(var(--kartenluft) * -1) -22px;
+  padding: 13px var(--kartenluft);
   border-top: 1px solid var(--linie);
   border-radius: 0 0 var(--radius) var(--radius);
   background: var(--flaeche-2);
@@ -1472,15 +1490,25 @@ input[type="date"] { text-transform: uppercase; }
    später auseinander, und dann stünde kein Titel mehr über seiner
    Spalte. Wer eine Spalte ändert, ändert sie hier - einmal.
 */
+/* ⚠️ Seit 1.36 OHNE die Spalte für den Entfernen-Knopf am Ende. Grund:
+   das letzte Feld endete 39px vor dem Knopf „Eintrag speichern" und dem
+   Band „Erfasst für", weil dort die 30px des Knopfes plus sein Abstand
+   standen (Timos Wunsch). Der Knopf liegt jetzt über der Nummernspalte
+   links, und die Zeile schließt rechts mit beiden ab.
+   ⚠️ Die Nummernspalte links BLEIBT - sie steht wie die Spaltentitel
+   darüber innerhalb der Karte. Sie zusätzlich in die Polsterung zu
+   hängen war ein Anlauf zu viel: 24px Polsterung reichen für 16px
+   Nummer plus Abstand genau so eben, dass das Zeichen die Kartenkante
+   berührt. */
 .erfassliste, .erfasskopf {
   --erfassraster: 22px 108px minmax(104px, 1.1fr) 76px 76px 58px
-                  minmax(104px, 1fr) minmax(104px, 1.2fr) 30px;
+                  minmax(104px, 1fr) minmax(104px, 1.2fr);
 }
 /* Ohne gepflegte Leistungen fehlt die Spalte - sonst klaffte dort eine
    Lücke, und die Titel stünden um eine Spalte verschoben. */
 .erfassliste.ohne-leistung, .erfasskopf.ohne-leistung {
   --erfassraster: 22px 108px minmax(104px, 1.1fr) 76px 76px 58px
-                  minmax(140px, 1.6fr) 30px;
+                  minmax(140px, 1.6fr);
 }
 /* ⚠️ Ob die Zeile nebeneinander passt, entscheidet die Breite der KARTE
    und nicht die des Fensters. Bis 1.24 stand hier eine Fensterabfrage
@@ -1550,15 +1578,19 @@ input[type="date"] { text-transform: uppercase; }
    und auf einem 1280px-Bildschirm bleiben neben der Seitenspalte nur
    rund 820px übrig. */
 @container erfassung (min-width: 760px) {
+  /* ⚠️ Rechts KEINE Polsterung: das letzte Feld soll genau an derselben
+     Kante enden wie der Knopf „Eintrag speichern" und das Band darüber.
+     Zwei Pixel dort sind schon sichtbar, wenn drei Elemente
+     untereinander stehen. */
   .erfasskopf {
     display: grid; grid-template-columns: var(--erfassraster);
-    gap: 8px; align-items: end; padding: 0 2px 6px;
+    gap: 8px; align-items: end; padding: 0 0 6px 2px;
     border-bottom: 1px solid var(--linie); margin-bottom: 8px;
   }
   .erfasszeile {
     grid-template-columns: var(--erfassraster);
-    gap: 8px; align-items: center; padding: 6px 2px;
-    border: 0; background: none; position: static;
+    gap: 8px; align-items: center; padding: 6px 0 6px 2px;
+    border: 0; background: none; position: relative;
   }
   .erfasszeile:hover { background: var(--flaeche-2); }
   .erfasszeile > .feld,
@@ -1576,7 +1608,19 @@ input[type="date"] { text-transform: uppercase; }
     letter-spacing: normal; text-transform: none;
   }
   .erfasszeile-nr::before { content: none; }
-  .erfasszeile-weg { position: static; }
+  /* ⚠️ Der Entfernen-Knopf hat seit 1.36 keine eigene Spalte mehr - er
+     liegt über der Nummer, und die tritt beim Überfahren zurück. Eine
+     neunte Spalte am Ende hätte die Felder um 38px von der Kante
+     weggeschoben, an der Knopf und Band abschließen. Beides zugleich
+     geht nicht: entweder die Spalte oder die Bündigkeit. */
+  .erfasszeile-weg {
+    position: absolute; left: 2px; top: 50%; transform: translateY(-50%);
+    width: 22px; justify-content: center;
+  }
+  .erfassliste.mehrere .erfasszeile:hover .erfasszeile-nr,
+  .erfassliste.mehrere .erfasszeile:focus-within .erfasszeile-nr {
+    opacity: 0;
+  }
   /* ⚠️ Der Dauer-Kasten ist nur 58px breit; „12:30“ in 17px samt 11px
      Polsterung braucht 60px und lief deshalb sichtbar über seine Kante
      hinaus. Im Raster also kleiner gesetzt - gelesen wird die Zahl aus
@@ -1593,6 +1637,7 @@ input[type="date"] { text-transform: uppercase; }
   /* Ohne Zeiger gibt es kein Überfahren - dort steht er fest da. */
   @media (hover: none) {
     .erfassliste.mehrere .zeile-weg { opacity: 1; pointer-events: auto; }
+    .erfassliste.mehrere .erfasszeile-nr { opacity: 0; }
   }
 }
 
@@ -4268,6 +4313,19 @@ a.vgk-wert:hover { text-decoration: underline; }
 .vls-text {
   margin: 2px 0 0; font-size: 13px; color: var(--tinte-2);
   overflow-wrap: anywhere; white-space: pre-line;
+}
+
+/* Die Geschwisterkarte zu .gefahrenkarte, nur in Blau statt Rot: für
+   etwas, das man bewusst einstellt, aber das nichts zerstört. Rot würde
+   bei den versteckten Datei-Ordnern eine Sicherheit versprechen, die es
+   dort ausdrücklich nicht gibt (die Dateien bleiben abrufbar). */
+.karte.infokarte {
+  border-color: var(--info);
+  background: linear-gradient(var(--info-weich), var(--flaeche) 220px);
+}
+.karte.infokarte > summary .wikischutz-titel { color: var(--info); }
+.bereich-kachel.gewaehlt {
+  border-color: var(--info); background: var(--info-weich);
 }
 
 /* --- Eigene Logos (seit 1.35) -------------------------------------------

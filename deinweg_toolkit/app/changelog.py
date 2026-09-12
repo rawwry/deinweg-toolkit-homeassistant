@@ -2142,4 +2142,35 @@ CHANGELOG = [
         "Datei wird weiterhin gelesen",
         "Prüfung von 1663 auf 1714 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.36", "titel": "Push aufs Handy, versteckte Ordner", "punkte": [
+        "Neu: Push-Nachrichten über einen ntfy-Server. Einzurichten unter "
+        "Einstellungen → System und Sicherung: Server, Thema, wahlweise "
+        "Zugangstoken oder Benutzername und Passwort, dazu ein Knopf für "
+        "eine Probenachricht",
+        "Verschickt werden dieselben fünf Anlässe wie per E-Mail: "
+        "überfällige Fristen, fehlende Monatsabgaben, auslaufende "
+        "Bewilligungen, neu zugewiesene und abgeschlossene Aufgaben. "
+        "Welche davon, steht weiterhin unter E-Mail-Versand – die "
+        "Schalter dort gelten für beide Wege",
+        "Der E-Mail-Versand darf dabei ausgeschaltet bleiben. Push hängt "
+        "nicht an SMTP",
+        "WICHTIG: Ein ntfy-Thema ist zugleich das Kennwort – wer es kennt, "
+        "liest mit. Nimm etwas Langes und Geratenes oder schütze das "
+        "Thema auf deinem Server mit Zugangsdaten",
+        "Dateien: Ordner lassen sich verstecken, wie im Wiki. Wer keine "
+        "Freigabe hat, sieht sie weder im Baum noch in der Übersicht noch "
+        "über die Adresse",
+        "WICHTIG: Die Dateien darin bleiben trotzdem für jeden abrufbar, "
+        "der ihren Link hat – genau dafür sind die Ordner gedacht (Bilder "
+        "fürs Wiki, Dateien zum Herunterladen). Das ist Verstecken, kein "
+        "Schutz: nichts Vertrauliches hineinlegen",
+        "Zeiterfassung: im Band „Erfasst für“ steht rechts nur noch der "
+        "Pfeil statt des Wortes „ändern“ – der saß auf der Schriftlinie "
+        "statt in der Mitte und sah schief aus",
+        "Zeiterfassung: die Eingabezeilen schließen rechts jetzt bündig "
+        "mit „Eintrag speichern“ und dem Band darüber ab. Der "
+        "Entfernen-Knopf hat keine eigene Spalte mehr, er liegt über der "
+        "Zeilennummer",
+        "Prüfung von 1714 auf 1775 Einzelprüfungen erweitert",
+    ]},
 ]

@@ -435,6 +435,42 @@ TEXTE_STANDARD["einst.benutzer_rechte"] = (
     "wegräumen; an die einer Kollegin geht man ohne dieses Recht nicht. "
     "<strong>Wiki bearbeiten</strong>: ohne dieses Recht bleibt das Wiki "
     "vollständig lesbar, lässt sich aber nicht ändern.")
+TEXTE_STANDARD["einst.dateien_versteckt_lead"] = (
+    "Ein Ordner der Dateiverwaltung, den nur ausgewählte Konten sehen. "
+    "Gedacht für Material, das im Weg steht, aber gebraucht wird: "
+    "Bildmaterial, das im Wiki eingebunden ist, oder Dateien zum "
+    "Herunterladen wie E-Mail-Profile für neue Mitarbeitende.")
+TEXTE_STANDARD["einst.dateien_versteckt_warnung"] = (
+    "<strong>Das ist Verstecken, kein Schutz.</strong> Der Ordner "
+    "verschwindet aus Baum und Übersicht, aber jede einzelne Datei darin "
+    "bleibt über ihren direkten Link für alle erreichbar – genau dafür "
+    "sind diese Ordner da. Nichts Vertrauliches hineinlegen. Wer eine "
+    "Datei wirklich sperren will, ist hier falsch.")
+TEXTE_STANDARD["einst.dateien_versteckt_hinweis"] = (
+    "Nur Ordner der obersten Ebene. Der Ordner ist samt allem darin "
+    "versteckt. Wer keinen Haken bekommt, sieht ihn nicht – auch nicht "
+    "im Baum, in der Ordnerauswahl oder über die Adresse. "
+    "Administratoren sehen ihn immer.")
+TEXTE_STANDARD["einst.ntfy_lead"] = (
+    "Push-Nachrichten aufs Handy über einen ntfy-Server – wahlweise den "
+    "öffentlichen unter ntfy.sh oder einen eigenen. Sie gehen zusätzlich "
+    "zur E-Mail heraus, für dieselben Anlässe: überfällige Fristen, "
+    "fehlende Monatsabgaben, auslaufende Bewilligungen, neu zugewiesene "
+    "und abgeschlossene Aufgaben.")
+TEXTE_STANDARD["einst.ntfy_hinweis"] = (
+    "<strong>Welche Anlässe verschickt werden, steht unter "
+    "E-Mail-Versand</strong> – die Schalter dort gelten für beide Wege. "
+    "Der E-Mail-Versand selbst darf dabei ausgeschaltet bleiben; Push "
+    "hängt nicht an ihm. Ein Thema ist frei wählbar und zugleich das "
+    "Kennwort: <strong>wer es kennt, liest mit.</strong> Nimm deshalb "
+    "etwas Langes und Geratenes, oder schütze das Thema auf dem Server "
+    "mit Zugangsdaten. In der App „ntfy“ trägst du denselben Server und "
+    "dasselbe Thema ein.")
+TEXTE_STANDARD["einst.ntfy_zugang"] = (
+    "Nur nötig, wenn der Server das Thema schützt. Ein Zugriffstoken hat "
+    "Vorrang vor Benutzername und Passwort. Beide Felder bleiben aus "
+    "Sicherheitsgründen leer – was hier leer bleibt, wird nicht "
+    "überschrieben.")
 TEXTE_STANDARD["einst.logo_lead"] = (
     "Der Schriftzug in der Kopfzeile, in der Fußzeile und auf dem "
     "Anmeldebildschirm. Zwei Dateien, weil das helle und das dunkle Thema "

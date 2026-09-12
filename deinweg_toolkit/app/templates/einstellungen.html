@@ -1205,6 +1205,48 @@
   {% endif %}
 </details>
 
+{# ⚠️⚠️ Dasselbe für die Dateiverwaltung – mit einem entscheidenden
+   Unterschied, der in der Karte auch dasteht: hier wird ein Ordner nur
+   VERSTECKT, nicht gesperrt. Eine einzelne Datei bleibt über ihren
+   direkten Link für jeden erreichbar, damit im Wiki eingebundene Bilder
+   laden und ein Link auf ein E-Mail-Profil funktioniert. Deshalb die
+   blaue Karte und nicht die rote: Rot verspräche eine Sicherheit, die es
+   hier ausdrücklich nicht gibt. #}
+<details class="karte infokarte wikischutz">
+  <summary>
+    <span class="wikischutz-kopf">
+      <span class="wikischutz-titel">Versteckte Datei-Ordner</span>
+      {% if dateien_geschuetzt %}
+      <span class="marke-status info">{{ dateien_geschuetzt | length }} versteckt</span>
+      {% else %}
+      <span class="klein leise">keiner versteckt</span>
+      {% endif %}
+    </span>
+  </summary>
+  <p class="lead">{{ t("einst.dateien_versteckt_lead") }}</p>
+  <p class="meldung offen-hinweis">{{ t("einst.dateien_versteckt_warnung") }}</p>
+
+  {% if dateien_alle_ordner %}
+  <form action="/einstellungen/dateien-geschuetzt" method="post">
+    <div class="bereichsraster">
+      {% for o in dateien_alle_ordner %}
+      <label class="bereich-kachel {{ 'gewaehlt' if o in dateien_geschuetzt }}">
+        <input type="checkbox" name="ordner" value="{{ o }}"
+               {{ 'checked' if o in dateien_geschuetzt }}>
+        {{ o }}
+      </label>
+      {% endfor %}
+    </div>
+    <p class="klein leise felderklaerung">{{ t("einst.dateien_versteckt_hinweis") }}</p>
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Versteckte Ordner speichern</button>
+    </div>
+  </form>
+  {% else %}
+  <p class="leer">In den Dateien gibt es noch keine Ordner.</p>
+  {% endif %}
+</details>
+
 <section class="karte">
   <div class="kopfzeile">
     <h2>Konten{% if benutzerliste %} · {{ benutzerliste | length }}{% endif %}</h2>
@@ -1531,6 +1573,26 @@
           <label class="bereich-kachel heikel">
             <input type="checkbox" name="wiki_ordner" value="{{ o }}" form="bn-{{ b.id }}"
                    {{ 'checked' if o in frei }}>
+            {{ o }}
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% endif %}
+
+      {# Dieselben Häkchen für die versteckten Datei-Ordner. Auch hier
+         gilt: ohne Haken sieht das Konto den Ordner nicht – die Dateien
+         darin bleiben über ihren direkten Link trotzdem erreichbar. #}
+      {% if dateien_geschuetzt and b.rolle != 'admin' %}
+      {% set frei_d = wiki_ordner_lesen(b.dateien_ordner) %}
+      <fieldset class="feld bereichsfeld">
+        <span>Versteckte Datei-Ordner
+          <span class="leise">– ohne Haken nicht sichtbar</span></span>
+        <div class="bereichsraster">
+          {% for o in dateien_geschuetzt %}
+          <label class="bereich-kachel">
+            <input type="checkbox" name="dateien_ordner" value="{{ o }}"
+                   form="bn-{{ b.id }}" {{ 'checked' if o in frei_d }}>
             {{ o }}
           </label>
           {% endfor %}
@@ -2039,6 +2101,94 @@
     <p class="klein leise felderklaerung">{{ t("einst.fusszeile_hinweis") }}</p>
     <div class="knopfreihe">
       <button class="knopf haupt" type="submit">Fußzeile speichern</button>
+    </div>
+  </form>
+</section>
+
+{# ⚠️ Push-Nachrichten stehen hier und nicht unter „E-Mail-Versand":
+   sie sind kein Mailthema. Welche ANLÄSSE verschickt werden, hängt
+   dagegen an den Schaltern dort – die gelten für beide Wege gemeinsam
+   (siehe mail.push_einmal). Nur für Administratoren: hier steht ein
+   Zugangstoken, und der Weg erreicht jedes Gerät, das das Thema
+   abonniert hat. #}
+<section class="karte">
+  <div class="kopfzeile">
+    <h2>Push-Nachrichten (ntfy)</h2>
+    {% if mailkonfig.ntfy_aktiv == "1" %}
+      {% if ntfy_bereit %}
+      <span class="marke-status gut">eingeschaltet</span>
+      {% else %}
+      <span class="marke-status dopp">unvollständig</span>
+      {% endif %}
+    {% else %}<span class="klein leise">aus</span>{% endif %}
+  </div>
+  <p class="lead">{{ t("einst.ntfy_lead") }}</p>
+  <details class="hinweise">
+    <summary>Worauf zu achten ist</summary>
+    <p>{{ t("einst.ntfy_hinweis") }}</p>
+  </details>
+
+  <form action="/einstellungen/ntfy" method="post">
+    <label class="ankreuz">
+      <input type="checkbox" name="ntfy_aktiv" value="1"
+             {{ 'checked' if mailkonfig.ntfy_aktiv == "1" }}>
+      <span>Push-Nachrichten verschicken</span>
+    </label>
+    <div class="feldreihe zwei">
+      <label class="feld">
+        <span>Server</span>
+        <input type="text" name="ntfy_server" maxlength="200"
+               value="{{ mailkonfig.ntfy_server }}"
+               placeholder="https://ntfy.beispiel.de">
+      </label>
+      <label class="feld">
+        <span>Thema <span class="leise">– frei wählbar</span></span>
+        <input type="text" name="ntfy_thema" maxlength="120"
+               value="{{ mailkonfig.ntfy_thema }}"
+               placeholder="deinweg-xY7q2">
+      </label>
+    </div>
+
+    <fieldset class="feld bereichsfeld">
+      <span>Zugang
+        {% if ntfy_zugang %}<span class="marke-status gut">hinterlegt</span>
+        {% else %}<span class="leise">– keiner hinterlegt</span>{% endif %}</span>
+      <p class="klein leise felderklaerung">{{ t("einst.ntfy_zugang") }}</p>
+      <div class="feldreihe">
+        <label class="feld">
+          <span>Zugriffstoken</span>
+          <input type="password" name="ntfy_token" maxlength="300"
+                 autocomplete="new-password" placeholder="tk_…">
+        </label>
+        <label class="feld">
+          <span>Benutzername</span>
+          <input type="text" name="ntfy_benutzer" maxlength="120"
+                 value="{{ mailkonfig.ntfy_benutzer }}">
+        </label>
+        <label class="feld">
+          <span>Passwort</span>
+          <input type="password" name="ntfy_passwort" maxlength="300"
+                 autocomplete="new-password">
+        </label>
+      </div>
+      {% if ntfy_zugang %}
+      <label class="ankreuz">
+        <input type="checkbox" name="ntfy_zugang_leeren" value="1">
+        <span>Hinterlegten Zugang entfernen</span>
+      </label>
+      {% endif %}
+    </fieldset>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Push-Einstellungen speichern</button>
+    </div>
+  </form>
+
+  {# Der einzige Weg, das Einrichten zu prüfen, ohne auf eine echte
+     Frist zu warten. Eigenes Formular – verschachtelte gibt es nicht. #}
+  <form action="/einstellungen/ntfy/probe" method="post">
+    <div class="knopfreihe">
+      <button class="knopf" type="submit">Probenachricht verschicken</button>
     </div>
   </form>
 </section>

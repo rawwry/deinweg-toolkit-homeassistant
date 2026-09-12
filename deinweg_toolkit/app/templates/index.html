@@ -114,8 +114,14 @@
              gezeigt - so muss das Skript sie nicht bauen und die Seite
              sieht ohne Skript genauso aus. #}
           <span class="erfasser-marke achtung">nicht du</span>
-          <span class="erfasser-aendern"
-                title="Für jemand anderen erfassen">ändern</span>
+          {# ⚠️ Nur der Pfeil, kein Wort (seit 1.36, Timos Wunsch). Das
+             Wort „ändern" stand neben einem Pfeil, der auf der
+             Grundlinie der Zeile saß statt in seiner Mitte - das sah
+             schief aus, und die Auskunft trug es ohnehin nicht: dass ein
+             <summary> aufklappt, sagt der Pfeil. Was dahinter steckt,
+             steht als aria-label an der Zeile und als title hier. #}
+          <span class="erfasser-aendern" aria-hidden="true"
+                title="Für jemand anderen erfassen"></span>
         </summary>
         <div class="erfasser-panel">
           <p class="felderklaerung">{{ t("erfassung.fremd") }}</p>

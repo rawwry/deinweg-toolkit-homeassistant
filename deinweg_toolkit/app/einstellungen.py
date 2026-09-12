@@ -21,7 +21,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
-from . import auth, db, kfz, mail, texte_standard, wiki
+from . import auth, dateien, db, kfz, mail, ntfy, texte_standard, wiki
 from .parser import norm, NICHT_ABRECHENBAR
 
 # Klartextnamen der Textgruppen. Der Schluesselpraefix allein ("vorgaenge",
@@ -283,6 +283,7 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
         # Benutzerverwaltung - einmal zum Pflegen der Liste, einmal fuer
         # die Haekchen je Konto.
         wiki_geschuetzt = auth.geschuetzte_ordner(con)
+        dateien_geschuetzt = auth.geschuetzte_dateiordner(con)
         # ⚠️ Nur Ordner der ERSTEN Ebene stehen zur Wahl (seit 1.22.1,
         # Timos Wunsch). Schutz vererbt sich ohnehin nach unten, ein
         # tiefer Ordner waere also entweder wirkungslos (weil der
@@ -291,6 +292,11 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
         # sein Pfad keinen Schraegstrich enthaelt.
         wiki_alle_ordner = [o["pfad"] for o in wiki.ordnerliste()
                             if "/" not in o["pfad"]]
+        # ⚠️ Dieselbe Regel wie beim Wiki: nur erste Ebene. Der Schutz
+        # vererbt sich nach unten, ein tieferer Eintrag wäre entweder
+        # wirkungslos oder eine Sonderregel, die niemand wiederfindet.
+        dateien_alle_ordner = [o["pfad"] for o in dateien.ordnerbaum()
+                               if o["pfad"] and "/" not in o["pfad"]]
         mailkonfig = mail.konfig_lesen(con)
         # Welche Schriftzüge sind durch eigene ersetzt? Nur die Frage,
         # nicht der Inhalt - eine SVG-Datei gehört nicht ins Markup der
@@ -302,6 +308,10 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
         # Das Passwort verlaesst die Anwendung nicht im Klartext - in der
         # Oberflaeche steht nur, ob eines hinterlegt ist.
         passwort_gesetzt = bool(mailkonfig.get("smtp_passwort"))
+        # Wie beim SMTP-Passwort: in der Oberflaeche steht nur, OB etwas
+        # hinterlegt ist - nie der Wert.
+        ntfy_zugang = bool((mailkonfig.get("ntfy_token") or "").strip()
+                           or (mailkonfig.get("ntfy_passwort") or ""))
         mailkonfig = {k: v for k, v in mailkonfig.items() if k not in mail.GEHEIM}
         letzte_mails = con.execute(
             "SELECT * FROM benachrichtigung ORDER BY gesendet_am DESC, id DESC "
@@ -417,10 +427,14 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "BEREICHE": auth.BEREICHE, "EINST_BEREICHE": auth.EINST_BEREICHE,
             "wiki_geschuetzt": wiki_geschuetzt,
             "wiki_alle_ordner": wiki_alle_ordner,
+            "dateien_geschuetzt": dateien_geschuetzt,
+            "dateien_alle_ordner": dateien_alle_ordner,
             "wiki_ordner_lesen": auth.ordnerliste_lesen,
             "NUR_AUSDRUECKLICH": auth.NUR_AUSDRUECKLICH,
             "eigene_id": request.state.benutzer["id"],
             "mailkonfig": mailkonfig, "passwort_gesetzt": passwort_gesetzt,
+            "ntfy_zugang": ntfy_zugang,
+            "ntfy_bereit": not ntfy.einrichtung_pruefen(mailkonfig),
             "bewilligung_empfaenger":
                 mail.empfaengerliste(mailkonfig.get("bewilligung_empfaenger")),
             "frist_kopie": mail.empfaengerliste(mailkonfig.get("frist_kopie")),
@@ -936,6 +950,23 @@ def wiki_geschuetzt_speichern(ordner: list[str] = Form([])):
     return benutzer_zurueck(hinweis="Geschützte Wiki-Ordner gespeichert.")
 
 
+@router.post("/einstellungen/dateien-geschuetzt")
+def dateien_geschuetzt_speichern(ordner: list[str] = Form([])):
+    """Welche Ordner der Dateiverwaltung sind versteckt?
+
+    ⚠️⚠️ Gleiche Bauart wie beim Wiki, ANDERE Bedeutung: hier wird ein
+    Ordner nur versteckt, nicht gesperrt. Eine einzelne Datei bleibt über
+    ihren direkten Link für jeden erreichbar - genau dafür gibt es die
+    Ordner (Bildmaterial fürs Wiki, E-Mail-Profile zum Herunterladen).
+    Das heißt zugleich: **nichts Vertrauliches dort ablegen.**
+    """
+    liste = auth.ohne_gedeckte([o for o in auth.ordnerliste_lesen(",".join(ordner))
+                                if "/" not in o])
+    with db.db() as con:
+        mail.konfig_schreiben(con, {"dateien_geschuetzt": ",".join(liste)})
+    return benutzer_zurueck(hinweis="Versteckte Datei-Ordner gespeichert.")
+
+
 @router.post("/einstellungen/benutzer")
 def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
                      rolle: str = Form("benutzer"), email: str = Form(""),
@@ -948,7 +979,8 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
                      bewilligungen_sehen: str = Form(""),
                      bereiche: list[str] = Form([]),
                      einst_bereiche: list[str] = Form([]),
-                     wiki_ordner: list[str] = Form([])):
+                     wiki_ordner: list[str] = Form([]),
+                     dateien_ordner: list[str] = Form([])):
     benutzername = benutzername.strip()
     email = email.strip()
     mitarbeiter = mitarbeiter.strip()
@@ -970,8 +1002,9 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
             "berechtigungen, email, mitarbeiter, fremde_loeschen, "
             "fremde_bearbeiten, aufgaben_loeschen, wiki_schreiben, "
             "bewilligungen_sehen, sprueche_sehen, "
-            "einst_bereiche, wiki_ordner, gesehen_version, angelegt_am) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "einst_bereiche, wiki_ordner, dateien_ordner, "
+            "gesehen_version, angelegt_am) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (benutzername, db.passwort_hashen(passwort), rolle,
              auth.berechtigungen_speichern(bereiche), email or None,
              mitarbeiter or None, 1 if fremde_loeschen else 0,
@@ -981,6 +1014,8 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
              auth.einst_bereiche_speichern(einst_bereiche),
              auth.wiki_ordner_speichern(wiki_ordner,
                                         auth.geschuetzte_ordner(con)),
+             auth.wiki_ordner_speichern(dateien_ordner,
+                                        auth.geschuetzte_dateiordner(con)),
              _u["VERSION"], _u["jetzt"]()))
     return benutzer_zurueck(hinweis=f"„{benutzername}“ angelegt.")
 
@@ -998,7 +1033,8 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                        bewilligungen_sehen: str = Form(""),
                        bereiche: list[str] = Form([]),
                        einst_bereiche: list[str] = Form([]),
-                       wiki_ordner: list[str] = Form([])):
+                       wiki_ordner: list[str] = Form([]),
+                       dateien_ordner: list[str] = Form([])):
     benutzername = benutzername.strip()
     email = email.strip()
     mitarbeiter = mitarbeiter.strip()
@@ -1035,7 +1071,9 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                   "berechtigungen": auth.berechtigungen_speichern(bereiche),
                   "einst_bereiche": auth.einst_bereiche_speichern(einst_bereiche),
                   "wiki_ordner": auth.wiki_ordner_speichern(
-                      wiki_ordner, auth.geschuetzte_ordner(con))}
+                      wiki_ordner, auth.geschuetzte_ordner(con)),
+                  "dateien_ordner": auth.wiki_ordner_speichern(
+                      dateien_ordner, auth.geschuetzte_dateiordner(con))}
         if neues_passwort:
             felder["passwort_hash"] = db.passwort_hashen(neues_passwort)
         satzstueck = ", ".join(f"{k}=?" for k in felder)
@@ -1557,6 +1595,66 @@ async def logo_speichern(logo_dunkel: UploadFile = File(None),
     _u["marken_puffer_leeren"]()
     zahl = len(neue) - 1
     return systemseite(hinweis=f"{zahl} Logo{'s' if zahl != 1 else ''} ersetzt.")
+
+
+# --- Push-Nachrichten an einen ntfy-Server (seit 1.36) ------------------------
+#
+# Zweiter Zustellweg neben der E-Mail, fuer dieselben Anlaesse. Er steht
+# unter „System und Sicherung" und nicht bei „E-Mail-Versand": es ist
+# kein Mailthema, und die Anlassschalter drueben gelten fuer beide Wege
+# gemeinsam (siehe mail.push_einmal).
+
+@router.post("/einstellungen/ntfy")
+def ntfy_speichern(ntfy_aktiv: str = Form(""), ntfy_server: str = Form(""),
+                   ntfy_thema: str = Form(""), ntfy_token: str = Form(""),
+                   ntfy_benutzer: str = Form(""), ntfy_passwort: str = Form(""),
+                   ntfy_zugang_leeren: str = Form("")):
+    werte = {
+        "ntfy_aktiv": "1" if ntfy_aktiv else "0",
+        "ntfy_server": ntfy_server.strip(),
+        # Ein Thema ist ein Pfadstueck - fuehrende und schliessende
+        # Schraegstriche waeren beim Zusammensetzen der Adresse im Weg.
+        "ntfy_thema": ntfy_thema.strip().strip("/"),
+        "ntfy_benutzer": ntfy_benutzer.strip(),
+    }
+    # ⚠️ Dieselbe Regel wie beim SMTP-Passwort: ein leeres Feld heisst
+    # „unveraendert", nicht „loeschen". Sonst raeumte jedes Speichern der
+    # uebrigen Angaben den Zugang mit weg, weil das Feld aus
+    # Sicherheitsgruenden nie vorbelegt ist.
+    if ntfy_zugang_leeren:
+        werte["ntfy_token"] = ""
+        werte["ntfy_passwort"] = ""
+    else:
+        if ntfy_token:
+            werte["ntfy_token"] = ntfy_token.strip()
+        if ntfy_passwort:
+            werte["ntfy_passwort"] = ntfy_passwort
+    with db.db() as con:
+        mail.konfig_schreiben(con, werte)
+
+    if werte["ntfy_aktiv"] == "1":
+        problem = ntfy.einrichtung_pruefen(mail.konfig_lesen())
+        if problem:
+            return systemseite(fehler=f"Gespeichert, aber noch nicht "
+                                      f"einsatzbereit: {problem}")
+    return systemseite(hinweis="Push-Einstellungen gespeichert.")
+
+
+@router.post("/einstellungen/ntfy/probe")
+def ntfy_probe():
+    """Verschickt eine Probenachricht - der einzige Weg, das Einrichten
+    zu pruefen, ohne auf eine echte Frist zu warten."""
+    k = mail.konfig_lesen()
+    problem = ntfy.einrichtung_pruefen(k)
+    if problem:
+        return systemseite(fehler=problem)
+    erfolg, meldung = ntfy.senden(
+        k, "Probenachricht", "Die Anbindung an den ntfy-Server steht.",
+        ntfy.PRIO_NORMAL, ("bell",))
+    if erfolg:
+        return systemseite(hinweis=f"Probenachricht an „{ntfy.thema(k)}“ "
+                                   "verschickt.")
+    return systemseite(fehler=f"Der Versand hat nicht geklappt: {meldung}")
 
 
 def systemseite(**werte):

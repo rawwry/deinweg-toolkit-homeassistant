@@ -74,6 +74,7 @@ def setup(templates, sitzung_tage: int) -> None:
     templates.env.globals["zeigt_sprueche"] = zeigt_sprueche
     templates.env.globals["darf_fremde_bearbeiten"] = darf_fremde_bearbeiten
     templates.env.globals["darf_wiki_ordner"] = darf_wiki_ordner
+    templates.env.globals["darf_dateiordner"] = darf_dateiordner
 
 
 # --- Bereiche ----------------------------------------------------------------
@@ -237,6 +238,7 @@ ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
                    # Welche Wiki-Ordner geschuetzt sind, entscheidet
                    # die Verwaltung - nicht wer die Einstellungen darf.
                    "/einstellungen/wiki-geschuetzt",
+                   "/einstellungen/dateien-geschuetzt",
                    # E-Mail-Versand samt SMTP-Zugang und den vier
                    # Erinnerungsanlaessen
                    "/einstellungen/email", "/einstellungen/abgabemail",
@@ -252,6 +254,10 @@ ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
                    # Anmeldebildschirm - das ist keine Kleinigkeit, die
                    # man nebenbei mitgibt.
                    "/einstellungen/logo",
+                   # Push-Nachrichten: dort steht ein Zugangstoken, und
+                   # der Weg erreicht jedes Geraet, das das Thema
+                   # abonniert hat.
+                   "/einstellungen/ntfy",
                    # Der Editor der Hinweistexte. Er schreibt strings.txt,
                    # und die gewinnt gegen jeden eingebauten Text.
                    "/einstellungen/hinweistexte")
@@ -441,8 +447,8 @@ def ohne_gedeckte(liste) -> list[str]:
     return [g for g in liste or [] if not gedeckt_von(g, liste)]
 
 
-def geschuetzte_ordner(con=None) -> list[str]:
-    """Die als geschuetzt gekennzeichneten Wiki-Ordner (relative Pfade).
+def _geschuetzte(schluessel: str, con=None) -> list[str]:
+    """Die als geschuetzt gekennzeichneten Ordner zu einem konfig-Schluessel.
 
     ⚠️ Schon hier ohne die untergeordneten: das ist die eine Stelle, an
     der die Liste herkommt, und damit die richtige, um sie einmal
@@ -451,13 +457,27 @@ def geschuetzte_ordner(con=None) -> list[str]:
     """
     def holen(c):
         zeile = c.execute("SELECT wert FROM konfig WHERE schluessel = ?",
-                          ("wiki_geschuetzt",)).fetchone()
+                          (schluessel,)).fetchone()
         return ohne_gedeckte(ordnerliste_lesen(zeile["wert"] if zeile else ""))
 
     if con is not None:
         return holen(con)
     with db.db() as c:
         return holen(c)
+
+
+def geschuetzte_ordner(con=None) -> list[str]:
+    """Die geschuetzten Wiki-Ordner (relative Pfade)."""
+    return _geschuetzte("wiki_geschuetzt", con)
+
+
+def geschuetzte_dateiordner(con=None) -> list[str]:
+    """Dasselbe fuer die Dateiverwaltung (seit 1.36).
+
+    ⚠️ Der Schutz bedeutet dort etwas ANDERES als im Wiki - siehe
+    darf_dateiordner(). Nur die Liste ist gleich gebaut.
+    """
+    return _geschuetzte("dateien_geschuetzt", con)
 
 
 def ordnerliste_lesen(wert: str | None) -> list[str]:
@@ -497,6 +517,41 @@ def darf_wiki_ordner(benutzer, pfad: str, geschuetzt: list[str] | None = None) -
         erlaubt = ordnerliste_lesen(benutzer["wiki_ordner"])
     except (IndexError, KeyError, TypeError):
         # Sitzung von vor der Migration: dann eben nicht.
+        return False
+    return all(g in erlaubt for g in betroffen)
+
+
+def darf_dateiordner(benutzer, pfad: str,
+                     geschuetzt: list[str] | None = None) -> bool:
+    """Darf dieses Konto diesen Ordner der Dateiverwaltung SEHEN?
+
+    ⚠️⚠️ Gleiche Bauart wie darf_wiki_ordner, aber ausdruecklich eine
+    andere Bedeutung: hier geht es allein ums SEHEN und ums Verwalten -
+    das Ausliefern einer einzelnen Datei (/dateien/holen/...) bleibt fuer
+    jeden erlaubt, auch ohne Freigabe. Genau dafuer gibt es die Ordner:
+    Timo legt dort Bildmaterial ab, bindet es im Wiki ein und stellt
+    E-Mail-Profile zum Herunterladen bereit - das muss jeder oeffnen
+    koennen, es soll nur nicht jedem in der Dateiliste im Weg stehen.
+
+    Daraus folgt: **das ist Verstecken, keine Sicherheit.** Wer den Pfad
+    kennt, kommt an die Datei. Nichts Vertrauliches dort ablegen.
+    """
+    if geschuetzt is None:
+        geschuetzt = geschuetzte_dateiordner()
+    if not geschuetzt:
+        return True
+    pfad = (pfad or "").strip("/")
+    betroffen = [g for g in geschuetzt
+                 if pfad == g or pfad.startswith(g + "/")]
+    if not betroffen:
+        return True
+    if not benutzer:
+        return False
+    if benutzer["rolle"] == "admin":
+        return True
+    try:
+        erlaubt = ordnerliste_lesen(benutzer["dateien_ordner"])
+    except (IndexError, KeyError, TypeError):
         return False
     return all(g in erlaubt for g in betroffen)
 
@@ -550,7 +605,8 @@ def sitzung_benutzer(con, token: str, sitzung_tage: int):
         "b.berechtigungen, b.email, b.mitarbeiter, b.aktiv, "
         "b.fremde_loeschen, b.fremde_bearbeiten, b.wiki_schreiben, "
         "b.bewilligungen_sehen, b.einst_bereiche, b.gesehen_version, "
-        "b.wiki_ordner, b.aufgaben_loeschen, b.sprueche_sehen "
+        "b.wiki_ordner, b.dateien_ordner, b.aufgaben_loeschen, "
+        "b.sprueche_sehen "
         "FROM sitzung s JOIN benutzer b ON b.id = s.benutzer_id "
         "WHERE s.token = ?", (token,)).fetchone()
     if not zeile or not zeile["aktiv"]:
@@ -641,6 +697,49 @@ def _wiki_ordner_pruefen(request: Request, benutzer, pfad: str):
     return None
 
 
+# Felder, in denen die Datei-Routen einen Ordnerpfad entgegennehmen.
+DATEI_PFADFELDER = ("ordner", "pfad", "ziel")
+
+DATEI_GESPERRT_TEXT = ("Dieser Ordner der Dateiverwaltung ist für dein "
+                       "Konto nicht freigegeben.")
+
+
+def _dateiordner_pruefen(request: Request, benutzer, pfad: str):
+    """403, wenn Adresse oder Abfrage einen versteckten Ordner beruehren.
+
+    ⚠️⚠️ ``/dateien/holen/...`` ist ausdruecklich AUSGENOMMEN. Der Schutz
+    hier versteckt einen Ordner in der Oberflaeche, er sperrt nicht seine
+    Dateien: Bilder aus so einem Ordner werden im Wiki eingebunden und
+    muessen fuer jeden laden, und ein direkter Link auf eine Datei (etwa
+    ein E-Mail-Profil fuer neue Mitarbeitende) soll funktionieren, ohne
+    dass jemand den Ordner sehen darf. Das ist Timos ausdrueckliche
+    Anforderung - und es heisst: **Verstecken, keine Sicherheit.** Wer den
+    Pfad kennt, kommt an die Datei.
+
+    ⚠️ Wie beim Wiki wird der Formularkoerper hier NICHT gelesen - in
+    einer BaseHTTPMiddleware leerte ``await request.form()`` den
+    Datenstrom. Die Felder eines abgeschickten Formulars prueft
+    dateien.py selbst.
+    """
+    if pfad.startswith("/dateien/holen/"):
+        return None
+    geschuetzt = geschuetzte_dateiordner()
+    if not geschuetzt:
+        return None
+
+    kandidaten = []
+    for feld in DATEI_PFADFELDER:
+        wert = request.query_params.get(feld)
+        if wert:
+            kandidaten.append(wert)
+
+    for kandidat in kandidaten:
+        sauber = (kandidat or "").replace("\\", "/").strip("/")
+        if sauber and not darf_dateiordner(benutzer, sauber, geschuetzt):
+            return Response(DATEI_GESPERRT_TEXT, status_code=403)
+    return None
+
+
 class SessionAuth(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         pfad = request.url.path
@@ -714,6 +813,13 @@ class SessionAuth(BaseHTTPMiddleware):
         # dass ihr Name je in der Adresse steht.
         if pfad.startswith("/wiki"):
             antwort = _wiki_ordner_pruefen(request, benutzer, pfad)
+            if antwort is not None:
+                return antwort
+
+        # Dasselbe fuer die Dateiverwaltung - mit EINER entscheidenden
+        # Ausnahme, siehe _dateiordner_pruefen().
+        if pfad.startswith("/dateien"):
+            antwort = _dateiordner_pruefen(request, benutzer, pfad)
             if antwort is not None:
                 return antwort
 

@@ -30,6 +30,7 @@ import ssl
 from email.message import EmailMessage
 
 from . import db
+from . import ntfy
 
 # --- Wann am Tag verschickt wird ----------------------------------------------
 
@@ -146,8 +147,13 @@ STANDARD = {
     ),
 }
 
+# ⚠️ Der Push-Weg teilt sich die Tabelle „konfig" mit dem Mailversand -
+# es ist dieselbe Einstellungsablage. Seine Standardwerte kommen deshalb
+# hier mit hinein, statt eine zweite Lesefunktion zu bauen.
+STANDARD.update(ntfy.STANDARD)
+
 # Diese Schluessel werden in der Oberflaeche nie im Klartext zurueckgegeben
-GEHEIM = {"smtp_passwort"}
+GEHEIM = {"smtp_passwort"} | ntfy.GEHEIM
 
 
 def konfig_lesen(con=None) -> dict:
@@ -332,6 +338,46 @@ def vermerken(con, art: str, bezug: str, empfaenger: str,
          1 if erfolg else 0, meldung))
 
 
+# ⚠️ Der Push-Weg benutzt DIESELBE Sperre gegen Doppelversand wie die
+# Mail: eine Zeile in „benachrichtigung". Die Art traegt dafuer die
+# Vorsilbe „ntfy-", der Empfaenger ist das Thema. So kann ein Anlass auf
+# beiden Wegen genau einmal herausgehen, ohne dass sich die beiden
+# gegenseitig sperren - und protokoll_kuerzen() raeumt beide nach
+# denselben Regeln auf (siehe dort).
+def push_einmal(con, k: dict, anlass: str, bezug: str, titel: str,
+                text: str, prioritaet: str = ntfy.PRIO_NORMAL,
+                marken: tuple[str, ...] = (),
+                protokoll: list | None = None) -> bool:
+    """Eine Push-Nachricht, hoechstens einmal je Anlass und Bezug.
+
+    ⚠️ Schreibt ins ``protokoll`` mit. Ohne das meldete ein Durchlauf
+    „nichts zu tun", waehrend er gerade drei Push-Nachrichten verschickt
+    hatte - die Einstellungsseite zeigt genau diese Liste.
+    """
+    if not ntfy.aktiv(k):
+        return False
+    ziel = "ntfy:" + ntfy.thema(k)
+    art = "ntfy-" + anlass
+    if schon_gesendet(con, art, bezug, ziel):
+        return False
+    erfolg, meldung = ntfy.senden(k, titel, text, prioritaet, marken)
+    vermerken(con, art, bezug, ziel, erfolg, meldung)
+    if protokoll is not None:
+        protokoll.append(f"Push „{titel}“: {'ok' if erfolg else meldung}")
+    return erfolg
+
+
+def mail_an(k: dict) -> bool:
+    """Ist der Mailversand eingeschaltet?
+
+    ⚠️ Seit 1.36 muss das an jeder Versandstelle einzeln geprueft werden.
+    Bis dahin stieg durchlauf() ganz oben aus, wenn der Mailversand aus
+    war - mit dem Push-Weg daneben waere damit auch der abgeschaltet
+    gewesen, obwohl er nichts mit SMTP zu tun hat.
+    """
+    return k.get("mail_aktiv") == "1"
+
+
 def adresse_fuer(con, name: str) -> str | None:
     """E-Mail-Adresse des Benutzerkontos, das zu 'name' gehoert.
 
@@ -424,10 +470,11 @@ def pruefe_fristen(con, k: dict) -> list[str]:
             a = adresse_fuer(con, name)
             if a and a not in adressen:
                 adressen.append(a)
-        if not adressen:
+        # ⚠️ Kein "continue" mehr an dieser Stelle: die Push-Nachricht
+        # unten haengt nicht an einer E-Mail-Adresse.
+        if not adressen and mail_an(k):
             protokoll.append(
                 f"Vorgang {v['id']}: kein Login mit E-Mail für „{v['zustaendig']}“")
-            continue
         if ueberfaellig:
             lage = f"seit {tage} Tag{'en' if tage != 1 else ''} überfällig"
         elif tage == 0:
@@ -445,6 +492,21 @@ def pruefe_fristen(con, k: dict) -> list[str]:
         betreff = fuellen(k["vorlage_frist_betreff"], werte)
         text = fuellen(k["vorlage_frist_text"], werte)
 
+        # ⚠️ Der Push geht EINMAL je Frist heraus, nicht einmal je
+        # zustaendiger Person: ntfy verteilt ueber ein Thema, nicht ueber
+        # Adressen - alle, die es abonniert haben, bekommen dieselbe
+        # Nachricht ohnehin. Und er steht VOR der Mailschleife: ohne Login
+        # mit E-Mail steigt die unten aus, der Push soll trotzdem gehen.
+        push_einmal(
+            con, k, "frist", bezug,
+            f"{'Überfällig' if ueberfaellig else 'Frist'}: {v['titel']}",
+            # ⚠️ Nicht capitalize(): das macht den REST klein, aus
+            # „seit 3 Tagen überfällig" wurde „Seit 3 tagen überfällig".
+            f"{v['klient']} · {v['art']}\n{lage[:1].upper() + lage[1:]}"
+            f" (Frist {werte['frist']})\nZuständig: {v['zustaendig']}",
+            ntfy.PRIO_HOCH if ueberfaellig else ntfy.PRIO_NORMAL,
+            ("warning",) if ueberfaellig else ("hourglass",), protokoll)
+
         # Die Zustaendige zuerst, dann alle, die mitlesen sollen. Dieselbe
         # Nachricht, derselbe Bezug - der Sperrvermerk haengt an der
         # Adresse, also bekommt jede Person ihre Mail genau einmal.
@@ -454,6 +516,8 @@ def pruefe_fristen(con, k: dict) -> list[str]:
             if weitere and weitere not in ziele:
                 ziele.append(weitere)
 
+        if not mail_an(k):
+            continue
         for ziel in ziele:
             if schon_gesendet(con, "frist", bezug, ziel):
                 continue
@@ -510,6 +574,18 @@ def pruefe_abgaben(con, k: dict, monat: str | None = None) -> list[str]:
         if vorhanden:
             continue
         bezug = f"abgabe:{monat}"
+        # ⚠️ Der Push traegt den Namen IM Bezug, die Mail nicht: dort
+        # unterscheidet die Empfaengeradresse die Faelle, hier gehen alle
+        # an dasselbe Thema. Ohne den Namen haette die erste Meldung alle
+        # weiteren dieses Monats mitgesperrt - derselbe Fehler, der bei
+        # den Bewilligungen schon einmal drohte.
+        push_einmal(
+            con, k, "abgabe", f"{bezug}:{m['name']}",
+            f"Zeiten fehlen: {m['name']}",
+            f"Für {monatswort(monat)} liegt von {m['name']} noch nichts vor.",
+            ntfy.PRIO_NORMAL, ("calendar",), protokoll)
+        if not mail_an(k):
+            continue
         adresse = adresse_fuer(con, m["name"])
         if not adresse:
             protokoll.append(f"{m['name']}: kein Login mit E-Mail hinterlegt")
@@ -540,7 +616,10 @@ def pruefe_bewilligungen(con, k: dict) -> list[str]:
         return ["Bewilligungen: Rechenfunktion nicht eingehängt"]
 
     namen = empfaengerliste(k.get("bewilligung_empfaenger"))
-    if not namen:
+    # ⚠️ Kein Empfaenger ist nur fuer die MAIL ein Abbruchgrund. Der
+    # Push-Weg kennt keine Empfaenger, er kennt ein Thema - ohne diese
+    # Unterscheidung waere er hier stillschweigend mit ausgeschaltet.
+    if not namen and not ntfy.aktiv(k):
         return ["Bewilligungen: niemand als Empfänger eingetragen"]
 
     try:
@@ -581,6 +660,18 @@ def pruefe_bewilligungen(con, k: dict) -> list[str]:
 
     liste = "\n".join(zeilen)
     protokoll = []
+
+    # ⚠️ Eine Push-Nachricht je Kalenderwoche, nicht je Empfaenger: die
+    # Liste ist fuer alle dieselbe, und das Thema erreicht ohnehin jeden,
+    # der es abonniert hat. Deshalb der Grundbezug OHNE Namen.
+    push_einmal(
+        con, k, "bewilligung", grundbezug,
+        f"Bewilligungen: {len(faelle)} offen",
+        liste.replace("  ", "", 1) if len(faelle) == 1 else liste.strip(),
+        ntfy.PRIO_NORMAL, ("page_facing_up",), protokoll)
+
+    if not mail_an(k):
+        return protokoll
     for name in namen:
         adresse = adresse_fuer(con, name)
         if not adresse:
@@ -661,6 +752,25 @@ def pruefe_zuweisungen(con, k: dict) -> list[str]:
         if neueste > grenze:
             continue
         ids = [a["id"] for a in aufgaben]
+
+        # ⚠️ Der Push haengt hier NICHT an "benachrichtigung", sondern am
+        # selben Vermerk wie die Mail (vorgang.zuweis_gemeldet) - sonst
+        # gaebe es zwei Sperren fuer denselben Anlass, die auseinander
+        # laufen koennen. Folge: abgehakt wird, sobald EIN Weg zugestellt
+        # hat. Sonst bliebe die Aufgabe bei abgeschaltetem Mailversand
+        # fuer immer offen und der Push kaeme bei jedem Durchlauf erneut.
+        mehrere_p = len(aufgaben) != 1
+        push_ok = ntfy.senden(
+            k, f"Neue Aufgabe{'n' if mehrere_p else ''} für {name}",
+            "\n".join(f"• {a['titel']} ({a['klient']})" for a in aufgaben),
+            ntfy.PRIO_NORMAL, ("inbox_tray",))[0] if ntfy.aktiv(k) else False
+
+        if not mail_an(k):
+            if push_ok:
+                abhaken(ids)
+                protokoll.append(f"Zuweisung ({len(ids)}) an ntfy: ok")
+            continue
+
         adresse = adresse_fuer(con, name)
         if not adresse:
             # Kein Login mit E-Mail: nicht ewig wiederholen, sonst bliebe
@@ -691,7 +801,7 @@ def pruefe_zuweisungen(con, k: dict) -> list[str]:
         erfolg, meldung = senden(
             adresse, fuellen(k["vorlage_zuweisung_betreff"], werte),
             fuellen(k["vorlage_zuweisung_text"], werte), k)
-        if erfolg:
+        if erfolg or push_ok:
             abhaken(ids)
         protokoll.append(
             f"Zuweisung ({len(ids)}) an {adresse}: "
@@ -745,6 +855,20 @@ def pruefe_erledigte(con, k: dict) -> list[str]:
                              "keine Nachricht")
             continue
 
+        # ⚠️ Wie bei den Zuweisungen: der Push haengt am selben Vermerk
+        # (erledigt_gemeldet) und nicht an einer eigenen Sperrzeile -
+        # zwei Sperren fuer denselben Anlass liefen auseinander.
+        push_ok = ntfy.senden(
+            k, f"Erledigt: {v['titel']}",
+            f"{v['klient']} · {v['art']}\nAbgeschlossen von {wer}",
+            ntfy.PRIO_LEISE, ("white_check_mark",))[0] if ntfy.aktiv(k) else False
+
+        if not mail_an(k):
+            if push_ok:
+                fertig.append(v["id"])
+                protokoll.append(f"Erledigt {v['id']} an ntfy: ok")
+            continue
+
         adresse = adresse_fuer(con, ersteller)
         if not adresse:
             fertig.append(v["id"])
@@ -764,7 +888,7 @@ def pruefe_erledigte(con, k: dict) -> list[str]:
         erfolg, meldung = senden(
             adresse, fuellen(k["vorlage_erledigt_betreff"], werte),
             fuellen(k["vorlage_erledigt_text"], werte), k)
-        if erfolg:
+        if erfolg or push_ok:
             fertig.append(v["id"])
         protokoll.append(f"Erledigt {v['id']} an {adresse}: "
                          f"{'ok' if erfolg else meldung}")
@@ -806,8 +930,12 @@ def durchlauf(nur_fristen: bool = False, nur_abgaben: bool = False,
     fuer diese Schleife.
     """
     k = konfig_lesen()
-    if k.get("mail_aktiv") != "1":
-        return ["E-Mail-Versand ist ausgeschaltet"]
+    # ⚠️ Seit 1.36 steigt hier NICHT mehr aus, sobald der Mailversand aus
+    # ist: der Push-Weg haengt nicht an SMTP. Jede Versandstelle prueft
+    # ihren Weg selbst (mail_an bzw. ntfy.aktiv). Nur wenn beide aus
+    # sind, gibt es wirklich nichts zu tun.
+    if not mail_an(k) and not ntfy.aktiv(k):
+        return ["E-Mail-Versand und Push-Nachrichten sind ausgeschaltet"]
     einzeln = (nur_fristen or nur_abgaben or nur_bewilligungen
                or nur_zuweisungen or nur_erledigte)
     protokoll = []
@@ -885,6 +1013,16 @@ def protokoll_kuerzen(con, behalten: int = PROTOKOLL_LAENGE) -> int:
         "ORDER BY gesendet_am DESC, id DESC").fetchall()
     for z in zeilen[behalten:]:
         art, bezug = z["art"], z["bezug"] or ""
+        # ⚠️ Die Push-Zeilen tragen dieselben Bezuege, nur mit der
+        # Vorsilbe „ntfy-" in der Art. Sie muessen nach DENSELBEN Regeln
+        # geschont werden - faellt der Vermerk einer noch offenen Frist
+        # heraus, kaeme die Push-Nachricht ein zweites Mal.
+        if art.startswith("ntfy-"):
+            art = art[5:]
+            # Der Abgabe-Bezug traegt im Push zusaetzlich den Namen; fuer
+            # den Altersvergleich unten zaehlt nur der Monat davor.
+            if art == "abgabe":
+                bezug = ":".join(bezug.split(":")[:2])
         if art == "frist" and bezug in lebendig:
             continue
         if art == "abgabe" and bezug >= f"abgabe:{vormonat}":

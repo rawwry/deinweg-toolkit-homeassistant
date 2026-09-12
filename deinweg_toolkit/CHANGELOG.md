@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.36
+
+- Push-Nachrichten über einen eigenen ntfy-Server (System und Sicherung)
+- Versteckte Ordner in der Dateiverwaltung; Dateien darin bleiben über
+  ihren Link abrufbar
+- Zeiterfassung: nur noch der Pfeil im Band „Erfasst für“, Eingabezeilen
+  bündig mit dem Speichern-Knopf
+
 ## 1.35
 
 - Sprüche je Konto abschaltbar
