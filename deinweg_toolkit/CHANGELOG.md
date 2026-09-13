@@ -3,6 +3,17 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.40
+
+- „Hinweistexte“ heißt „Texte und Bezeichnungen“: dort lassen sich jetzt
+  auch die Überschriften der Karten in „Mein Bereich“ und in der
+  Auswertung umbenennen – im jeweiligen Bereich ganz oben, einzeilig und
+  als „Überschrift“ markiert
+- Ein leeres Feld stellt den ausgelieferten Namen wieder her,
+  Platzhalter wie {jahr} bleiben erhalten
+- Mein Bereich: keine Platzhalterstriche mehr in den Tabellen
+- Prüfung von 1958 auf 1988 Einzelprüfungen erweitert
+
 ## 1.39
 
 - Mein Bereich: oben steht der eigene Name statt „Mein Bereich“

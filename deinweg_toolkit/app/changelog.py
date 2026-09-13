@@ -2293,4 +2293,23 @@ CHANGELOG = [
         "Oberflächen übereinander",
         "Prüfung von 1907 auf 1958 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.40", "titel": "Eigene Bezeichnungen", "punkte": [
+        "Der Punkt „Hinweistexte“ heißt jetzt „Texte und Bezeichnungen“ – "
+        "dort stehen neben den Erklärtexten auch die Überschriften der "
+        "Karten",
+        "Umbenennen lässt sich alles, was in „Mein Bereich“ und in der "
+        "Auswertung als Kartentitel steht: „Monat für Monat“, „Eintrag "
+        "für Eintrag“, „Stundenkontingent“, „Monate“, „Bewilligt“ und die "
+        "übrigen",
+        "Die Überschriften stehen im jeweiligen Bereich ganz oben, mit "
+        "der Marke „Überschrift“ und in einem einzeiligen Feld – die "
+        "Erklärtexte darunter wie bisher",
+        "Ein leer gemachtes Feld stellt den ausgelieferten Namen wieder "
+        "her, genau wie bei den Texten. Platzhalter wie {jahr} bleiben "
+        "erhalten",
+        "Mein Bereich: die Platzhalterstriche in den Tabellen sind weg. "
+        "In der Spalte „Frei“ standen bei dreizehn Zeilen fast nur "
+        "Striche – eine leere Zelle liest sich als das, was sie ist",
+        "Prüfung von 1958 auf 1988 Einzelprüfungen erweitert",
+    ]},
 ]

@@ -32,7 +32,7 @@
 
 <section class="karte">
   <div class="kopfzeile">
-    <h2>Überblick</h2>
+    <h2>{{ t("auswertung.titel.ueberblick") }}</h2>
     <p class="boxumfang">
       <strong>{{ zeitraum_wort }}</strong>
       {%- if monate_anzahl > 1 %} · {{ monate_anzahl }} Monate{% endif %}
@@ -156,7 +156,7 @@
    bei einem einzigen stünde hier dasselbe noch einmal. #}
 {% if monatsbloecke and monate_anzahl > 1 %}
 <div class="abschnittsband" id="monate">
-  <h2>Monat für Monat</h2>
+  <h2>{{ t("auswertung.titel.monate") }}</h2>
   <p class="klein leise">{{ t("auswertung.monate_lead") }}</p>
 </div>
 
@@ -233,7 +233,7 @@
 <aside class="spalte">
   {% if je_klient %}
   <div class="karte schmal">
-    <h2>Stundenkontingent</h2>
+    <h2>{{ t("auswertung.titel.kontingent") }}</h2>
     <p class="klein leise" style="margin-top: -8px;">{{ zeitraum_wort }}{% if monate_anzahl > 1 %} · {{ monate_anzahl }} Monate{% endif %}</p>
     {% set mit_soll = je_klient | selectattr("prozent") | list %}
     {% if mit_soll %}
@@ -262,7 +262,7 @@
      war, ein Klick führt zum ausführlichen Block links. Bei fünfzehn
      Blöcken ist das der schnellste Weg zum gesuchten Monat. #}
   <div class="karte schmal">
-    <h2>Monate</h2>
+    <h2>{{ t("auswertung.titel.monatsliste") }}</h2>
     <p class="klein leise" style="margin-top: -8px;">{{ t("auswertung.monatsliste_lead") }}</p>
     <ul class="monatsspur">
       {% for b in monatsbloecke %}
@@ -293,7 +293,7 @@
   {# Woher kommen Kontingent und Satz? Das ist die Frage, die beim Lesen
      der Zahlen als Nächstes kommt. #}
   <div class="karte schmal">
-    <h2>Bewilligt</h2>
+    <h2>{{ t("auswertung.titel.bewilligt") }}</h2>
     <p class="klein leise" style="margin-top: -8px;">{{ t("auswertung.bewilligt_lead") }}</p>
     {% for p in zeitraum_liste %}
     <div class="bewilligung">

@@ -1441,7 +1441,8 @@ def hinweistexte_gruppen(werte: dict) -> list[dict]:
     """Alle Textschluessel, nach Bereich gruppiert und aufbereitet."""
     nach_praefix: dict[str, list] = {}
     for schluessel, standard in _u["TEXTE_STANDARD"].items():
-        praefix = schluessel.split(".")[0]
+        teile = schluessel.split(".")
+        praefix = teile[0]
         jetzt = werte.get(schluessel, standard)
         nach_praefix.setdefault(praefix, []).append({
             "schluessel": schluessel,
@@ -1453,16 +1454,29 @@ def hinweistexte_gruppen(werte: dict) -> list[dict]:
             # gekennzeichnet - sonst sucht man den Text vergeblich auf
             # der Seite.
             "tot": schluessel in texte_standard.UNGENUTZT,
+            # ⚠️ Eine Ueberschrift erkennt man am zweiten Segment
+            # (<bereich>.titel.<name>, seit 1.40). Sie bleibt damit im
+            # Bereich, zu dem sie gehoert - gruppiert wird nach dem
+            # ERSTEN Segment -, steht dort aber oben und bekommt ein
+            # einzeiliges Feld statt eines Textkastens. Ein Kartentitel
+            # ist drei Woerter lang; zwei Zeilen Textfeld dafuer sahen
+            # aus, als gehoerte dort ein Absatz hinein.
+            "ist_titel": teile[1] == "titel" if len(teile) > 2 else False,
         })
     gruppen = []
     for praefix in sorted(nach_praefix, key=lambda x: TEXTGRUPPEN.get(x, x).lower()):
-        eintraege = sorted(nach_praefix[praefix], key=lambda e: e["schluessel"])
+        # Ueberschriften zuerst, dann die Hinweistexte - beide je fuer
+        # sich nach Schluessel. Wer den Namen einer Karte sucht, soll
+        # nicht durch zwanzig Erklaerabsaetze blaettern.
+        eintraege = sorted(nach_praefix[praefix],
+                           key=lambda e: (0 if e["ist_titel"] else 1, e["schluessel"]))
         gruppen.append({
             "schluessel": praefix,
             "titel": TEXTGRUPPEN.get(praefix, praefix),
             "eintraege": eintraege,
             "anzahl": len(eintraege),
             "geaendert": sum(1 for e in eintraege if e["geaendert"]),
+            "titel_anzahl": sum(1 for e in eintraege if e["ist_titel"]),
         })
     return gruppen
 

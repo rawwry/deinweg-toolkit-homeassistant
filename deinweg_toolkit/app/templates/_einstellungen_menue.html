@@ -68,9 +68,13 @@
   <span class="seitenmenue-gruppe">Wartung</span>
   {% if nur_admin %}
   <a href="/einstellungen?bereich=system" class="{{ 'aktiv' if bereich=='system' }}">System und Sicherung</a>
-  {# Der Editor der Hinweistexte schreibt strings.txt, und die gewinnt
-     gegen jeden eingebauten Text - deshalb ebenfalls nur Administratoren. #}
-  <a href="/einstellungen?bereich=hinweistexte" class="{{ 'aktiv' if bereich=='hinweistexte' }}">Hinweistexte</a>
+  {# Der Editor schreibt strings.txt, und die gewinnt gegen jeden
+     eingebauten Text - deshalb ebenfalls nur Administratoren.
+     ⚠️ Der Punkt heißt seit 1.40 „Texte und Bezeichnungen": er trägt
+     nicht mehr nur die Hinweistexte, sondern auch die Überschriften der
+     Karten. **Der Schlüssel `hinweistexte` und die Route bleiben** -
+     sonst liefe jedes Lesezeichen ins Leere. #}
+  <a href="/einstellungen?bereich=hinweistexte" class="{{ 'aktiv' if bereich=='hinweistexte' }}">Texte und Bezeichnungen</a>
   {% endif %}
   {# Eigene Seite, kein Punkt dieser Seite: die Datenpflege bringt ihren
      eigenen zweistufigen Ablauf mit und hängt an einem eigenen Bereich,

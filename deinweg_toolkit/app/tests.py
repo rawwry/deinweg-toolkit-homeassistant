@@ -5792,6 +5792,104 @@ def test_tageszahl(client: TestClient) -> None:
            "und tage() schreibt die Einheit weiterhin mit")
 
 
+def test_eigene_bezeichnungen(client: TestClient) -> None:
+    """Die Überschriften der Karten sind pflegbar - im Texteditor."""
+    abschnitt("Eigene Bezeichnungen")
+    from . import texte_standard
+    from .main import STRINGS_DATEI, texte
+
+    # --- Die Schlüssel ------------------------------------------------------
+    # ⚠️ Das zweite Segment „titel" ist die ganze Mechanik: gruppiert wird
+    # nach dem ERSTEN Segment (die Überschrift landet also im Bereich, zu
+    # dem sie gehört), erkannt wird sie am zweiten.
+    titel = [k for k in texte_standard.TEXTE_STANDARD
+             if k.split(".")[1:2] == ["titel"]]
+    pruefe(len(titel) >= 15, f"es gibt Überschriften-Schlüssel ({len(titel)})")
+    for schluessel in ("mein.titel.monate", "mein.titel.zeiten",
+                       "mein.titel.urlaub", "auswertung.titel.kontingent",
+                       "auswertung.titel.monatsliste"):
+        pruefe(schluessel in texte_standard.TEXTE_STANDARD,
+               f"„{schluessel}“ ist hinterlegt")
+    pruefe(texte_standard.TEXTE_STANDARD["mein.titel.monate"] == "Monat für Monat",
+           "und trägt den ausgelieferten Wortlaut")
+
+    # --- Sie stehen wirklich auf der Seite ----------------------------------
+    seite = client.get("/meinbereich").text
+    for wort in ("Monat für Monat", "Eintrag für Eintrag", "Mein Konto"):
+        pruefe(f"<h2>{wort}</h2>" in seite, f"„{wort}“ steht als Überschrift da")
+    auswertung = client.get("/auswertung").text
+    for wort in ("Überblick", "Stundenkontingent", "Monate", "Bewilligt"):
+        pruefe(f"<h2>{wort}</h2>" in auswertung,
+               f"„{wort}“ steht in der Auswertung")
+
+    # --- Der Editor zeigt sie gesondert -------------------------------------
+    editor = client.get("/einstellungen?bereich=hinweistexte").text
+    pruefe("Texte und Bezeichnungen" in editor,
+           "der Punkt heißt „Texte und Bezeichnungen“")
+    pruefe('name="t_mein.titel.monate"' in editor,
+           "die Überschrift lässt sich dort bearbeiten")
+    # Einzeiliges Feld statt Textkasten - ein Kartentitel ist drei Wörter.
+    feld = editor.split('name="t_mein.titel.monate"')[0][-120:]
+    pruefe('<input type="text"' in feld, "und zwar in einem einzeiligen Feld")
+    pruefe('<span class="marke-status info"' in editor
+           and ">Überschrift</span>" in editor,
+           "sie ist als Überschrift gekennzeichnet")
+    # ⚠️ Innerhalb eines Bereichs stehen die Überschriften oben.
+    block = editor.split('data-gruppe="mein"')[1].split("</details>")[0]
+    pruefe(block.index("t_mein.titel.") < block.index("t_mein.zeiten_lead"),
+           "innerhalb des Bereichs stehen sie vor den Hinweistexten")
+    pruefe("Überschriften ·" in editor,
+           "die Gruppe zählt Überschriften und Texte getrennt")
+
+    # --- Umbenennen wirkt sofort und landet in strings.txt ------------------
+    antwort = client.post("/einstellungen/hinweistexte", data={
+        "t_mein.titel.monate": "Meine Monatsbilanz",
+        "t_mein.titel.urlaub": "Freie Tage {jahr}"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "die Umbenennung lässt sich speichern")
+    seite = client.get("/meinbereich").text
+    pruefe("<h2>Meine Monatsbilanz</h2>" in seite,
+           "der neue Name steht sofort auf der Seite")
+    pruefe("<h2>Monat für Monat</h2>" not in seite,
+           "und der alte nicht mehr")
+    # ⚠️ Platzhalter müssen weiter eingesetzt werden.
+    jahr = dt.date.today().strftime("%Y")
+    pruefe(f"<h2>Freie Tage {jahr}</h2>" in seite,
+           "ein Platzhalter wird auch im neuen Namen ersetzt")
+    # ⚠️ In strings.txt steht nur, was abweicht (seit 1.37).
+    with open(STRINGS_DATEI, encoding="utf-8") as f:
+        datei = f.read()
+    pruefe("[mein.titel.monate]" in datei,
+           "die Abweichung steht in strings.txt")
+    pruefe("[mein.titel.konto]" not in datei,
+           "eine unveränderte Überschrift nicht")
+
+    # --- Und wieder zurück --------------------------------------------------
+    client.post("/einstellungen/hinweistexte", data={
+        "t_mein.titel.monate": "", "t_mein.titel.urlaub": ""},
+        follow_redirects=False)
+    texte.cache_clear() if hasattr(texte, "cache_clear") else None
+    seite = client.get("/meinbereich").text
+    pruefe("<h2>Monat für Monat</h2>" in seite,
+           "ein leeres Feld stellt den eingebauten Namen wieder her")
+
+
+def test_leere_zellen(client: TestClient) -> None:
+    """Keine Platzhalterstriche mehr in den Tabellen von „Mein Bereich“."""
+    abschnitt("Leere Zellen statt Striche")
+    seite = client.get("/meinbereich").text.split('<div class="neuheiten"')[0]
+
+    # ⚠️ Bei dreizehn Zeilen standen in der Spalte „Frei" fast nur
+    # Striche, und ein gefüllter Platzhalter zieht genauso viel
+    # Aufmerksamkeit wie eine Zahl (Timos Wunsch).
+    tabelle = seite.split("monatstabelle")[1].split("</table>")[0]
+    pruefe('<span class="leise">–</span>' not in tabelle,
+           "in „Monat für Monat“ steht kein Strich mehr")
+    pruefe("<td" in tabelle, "die Zellen sind aber weiterhin da")
+    zeiten = seite.split("zeitentabelle")[1].split("</table>")[0]
+    pruefe('"—"' not in zeiten and ">—<" not in zeiten,
+           "in „Eintrag für Eintrag“ ebenso wenig")
+
+
 def test_texte_tot() -> None:
     """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
 
@@ -8363,6 +8461,8 @@ def _durchlauf(client: TestClient) -> None:
         test_meinbereich_umbau(client)
         test_umbau_1_39(client)
         test_tageszahl(client)
+        test_eigene_bezeichnungen(client)
+        test_leere_zellen(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

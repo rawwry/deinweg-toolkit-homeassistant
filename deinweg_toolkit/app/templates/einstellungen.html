@@ -2365,7 +2365,7 @@
    Nur für Administratoren - die Datei gewinnt gegen jeden eingebauten
    Text und wirkt auf alle Konten. #}
 {% if bereich == "hinweistexte" %}
-{% call punktkopf("Hinweistexte", t("einst.hinweistexte_lead")) %}
+{% call punktkopf("Texte und Bezeichnungen", t("einst.texte_bezeichnungen_lead")) %}
   <p>{{ t("einst.hinweistexte_hinweis") }}</p>
 {% endcall %}
 
@@ -2413,17 +2413,30 @@
     <details class="textgruppe" data-gruppe="{{ g.schluessel }}">
       <summary>
         <span class="textgruppe-titel">{{ g.titel }}</span>
-        <span class="klein leise">{{ g.anzahl }} Text{{ 'e' if g.anzahl != 1 }}</span>
+        <span class="klein leise">
+          {%- if g.titel_anzahl %}{{ g.titel_anzahl }} Überschrift{{ 'en' if g.titel_anzahl != 1 }} ·
+          {{ g.anzahl - g.titel_anzahl }} Text{{ 'e' if g.anzahl - g.titel_anzahl != 1 }}
+          {%- else %}{{ g.anzahl }} Text{{ 'e' if g.anzahl != 1 }}{% endif -%}
+        </span>
         {% if g.geaendert %}
         <span class="marke-status info">{{ g.geaendert }} geändert</span>
         {% endif %}
       </summary>
       <div class="textliste">
         {% for e in g.eintraege %}
-        <div class="textzeile{{ ' ist-geaendert' if e.geaendert }}"
+        {# ⚠️ Eine Überschrift bekommt ein einzeiliges Feld (seit 1.40).
+           Ein Kartentitel ist drei Wörter lang; ein zweizeiliger Textkasten
+           dafür sah aus, als gehörte dort ein Absatz hinein. Erkannt wird
+           sie am zweiten Segment des Schlüssels, nicht an einer eigenen
+           Liste - so stimmt es auch für jede, die später dazukommt. #}
+        <div class="textzeile{{ ' ist-geaendert' if e.geaendert }}{{ ' ist-titel' if e.ist_titel }}"
              data-suche="{{ (e.schluessel ~ ' ' ~ e.wert) | lower }}">
           <div class="textkopf">
             <code class="textschluessel">{{ e.schluessel }}</code>
+            {% if e.ist_titel %}
+            <span class="marke-status info"
+                  title="Die Überschrift einer Karte auf dieser Seite">Überschrift</span>
+            {% endif %}
             {% if e.tot %}
             <span class="marke-status" title="Dieser Text wird zurzeit nirgends angezeigt">ohne Abnehmer</span>
             {% endif %}
@@ -2431,8 +2444,13 @@
             <button type="button" class="knopf klein leise textzurueck" hidden>
               zurücksetzen</button>
           </div>
+          {% if e.ist_titel %}
+          <input type="text" name="t_{{ e.schluessel }}" maxlength="80"
+                 value="{{ e.wert }}" data-standard="{{ e.standard }}">
+          {% else %}
           <textarea name="t_{{ e.schluessel }}" rows="2"
                     data-standard="{{ e.standard }}">{{ e.wert }}</textarea>
+          {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -2515,8 +2533,11 @@
     formular.querySelectorAll(".textzurueck").forEach(function (knopf) {
       knopf.hidden = false;
       knopf.addEventListener("click", function () {
+        // ⚠️ Seit 1.40 ist das Feld bei einer Überschrift ein <input>
+        // und sonst ein <textarea> - beide tragen dasselbe
+        // data-standard, gesucht wird deshalb nach dem NAMEN.
         var zeile = knopf.closest(".textzeile"),
-            feld = zeile.querySelector("textarea");
+            feld = zeile.querySelector("textarea, input[type=text]");
         feld.value = feld.dataset.standard || "";
         zeile.classList.remove("ist-geaendert");
         feld.focus();

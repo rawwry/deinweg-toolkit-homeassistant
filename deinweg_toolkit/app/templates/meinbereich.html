@@ -33,7 +33,7 @@
    Kasten schrie über die halbe Seite. #}
 <section class="karte bewilligungskarte">
   <div class="kopfzeile">
-    <h2>Bewilligungen im Blick</h2>
+    <h2>{{ t("mein.titel.bewilligungen") }}</h2>
     {% if bewilligungen %}
     <p class="summe">{{ bewilligungen | length }}
       {{ "Person" if bewilligungen | length == 1 else "Personen" }}</p>
@@ -253,7 +253,7 @@
 {% set hat_bewilligungen = bewilligungen or bewilligungen_grundwert %}
 {% if person or hat_bewilligungen %}
 <div class="abschnittsband">
-  <h2>Was ansteht</h2>
+  <h2>{{ t("mein.titel.ansteht") }}</h2>
   <p class="klein leise">{{ t("mein.ansteht_lead") }}</p>
 </div>
 
@@ -266,7 +266,7 @@
   {% if person %}
   <div class="karte">
     <div class="kopfzeile">
-      <h2>Meine Aufgaben</h2>
+      <h2>{{ t("mein.titel.aufgaben") }}</h2>
       {% if offene_vorgaenge %}
       <p class="summe">{{ offene_vorgaenge }} offen{% if ueberfaellig %}
         <span class="marke-status dopp">{{ ueberfaellig }} überfällig</span>{% endif %}</p>
@@ -478,7 +478,7 @@
 {% if person %}
 
 <div class="abschnittsband">
-  <h2>Meine Arbeitszeit</h2>
+  <h2>{{ t("mein.titel.arbeitszeit") }}</h2>
   <p class="klein leise">{{ t("mein.lead", name=name) }}</p>
 </div>
 
@@ -491,7 +491,7 @@
 <div class="raster buendig">
   <div class="karte verlaufskarte">
     <div class="kopfzeile">
-      <h2>Verlauf</h2>
+      <h2>{{ t("mein.titel.verlauf") }}</h2>
       {% if diagramm %}
       <p class="klein leise">{{ diagramm.balken | length }} Monate{% if diagramm.soll_wert %} · Soll {{ diagramm.soll_wert }}{% endif %}</p>
       {% endif %}
@@ -670,7 +670,7 @@
        sich bezieht - und die Vorjahre als abgesetzter Fuß. #}
     <div class="karte urlaubskarte" id="urlaub">
       <div class="kopfzeile">
-        <h2>Urlaub {{ urlaub.jahr }}</h2>
+        <h2>{{ t("mein.titel.urlaub", jahr=urlaub.jahr) }}</h2>
         {% if urlaub.anspruch %}
         <p class="klein leise">{{ urlaub.anteil }} % genommen</p>
         {% endif %}
@@ -732,7 +732,7 @@
        darüber schon beantwortet hatte, wonach man gesucht hatte. #}
     {% if trend %}
     <div class="karte">
-      <h2>Die letzten {{ trend.monate }} Monate</h2>
+      <h2>{{ t("mein.titel.trend", monate=trend.monate) }}</h2>
       <ul class="trendreihe">
         {% for m in trend.reihe %}
         <li>
@@ -765,7 +765,7 @@
    andere zeigt jede einzelne erfasste Zeit. #}
 <section class="karte" id="monate">
   <div class="kopfzeile">
-    <h2>Monat für Monat</h2>
+    <h2>{{ t("mein.titel.monate") }}</h2>
     <p class="klein leise">{{ monate | length }}
       {{ "Monat" if monate | length == 1 else "Monate" }}</p>
   </div>
@@ -823,12 +823,14 @@
           <span class="frei-marke"
                 title="Volles Soll {{ m.soll_voll | hhmm }}, gesenkt um {{ m.frei | tage }} frei">
             {{ m.frei | tageszahl }}</span>
-          {% else %}<span class="leise">–</span>{% endif %}
+          {# ⚠️ Kein Strich für „nichts", seit 1.40 (Timos Wunsch): bei
+             dreizehn Zeilen standen in dieser Spalte fast nur Striche, und
+             ein gefüllter Platzhalter zieht genauso viel Aufmerksamkeit wie
+             eine Zahl. Eine leere Zelle liest sich als das, was sie ist. #}
+          {% endif %}
         </td>
         <td class="zahlen nowrap">
-          {% if m.laufend %}
-            <span class="leise">–</span>
-          {% else %}
+          {% if not m.laufend %}
             <span class="{{ 'saldo-plus' if m.saldo > 0 else ('saldo-minus' if m.saldo < 0 else '') }}">
               {{ m.saldo | hhmm }}
             </span>
@@ -865,7 +867,7 @@
    den Eintrag, nicht über den Pfad (siehe main.darf_eintrag_bearbeiten). #}
 <section class="karte" id="zeiten">
   <div class="kopfzeile">
-    <h2>Eintrag für Eintrag</h2>
+    <h2>{{ t("mein.titel.zeiten") }}</h2>
     {# ⚠️⚠️ Hier stand bis 1.38 eine Reihe aus bis zu fünfzehn Pillen -
        für jeden Monat eine. Auf einem breiten Bildschirm war das ein
        zweizeiliger Knopfteppich über der Tabelle, der mehr Aufmerksamkeit
@@ -917,7 +919,7 @@
            die Endzeit steht gedämpft neben der Startzeit statt hinter
            einem Bindestrich. Beide Listen zeigen dasselbe, also sollen
            sie auch gleich aussehen. #}
-        <td class="zahlen leise"><span class="zeitspanne">{{ z.start or "—" }}{% if z.ende %} <span class="bis">{{ z.ende }}</span>{% endif %}</span></td>
+        <td class="zahlen leise"><span class="zeitspanne">{{ z.start or "" }}{% if z.ende %} <span class="bis">{{ z.ende }}</span>{% endif %}</span></td>
         <td class="personenspalte">{{ z.klient }}</td>
         <td class="leise klein">{{ z.beschreibung }}</td>
         <td class="zahlen nowrap stark">
@@ -978,7 +980,7 @@
 <section class="karte abmeldekarte">
   <div class="kopfzeile">
     <div>
-      <h2>Mein Konto</h2>
+      <h2>{{ t("mein.titel.konto") }}</h2>
       <p class="klein leise" style="margin: 0;">
         Angemeldet als <span class="stark">{{ benutzer.benutzername }}</span>{% if benutzer.rolle == "admin" %} · Administrator{% endif %}
       </p>

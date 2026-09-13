@@ -516,6 +516,16 @@ TEXTE_STANDARD["einst.hinweistexte_hinweis"] = (
     "die eingesetzte Angabe. Ein leer gemachtes Feld heißt „wieder der "
     "eingebaute Text“. Zeilenumbrüche werden zu Leerzeichen; ein Text ist "
     "immer ein Absatz.")
+# ⚠️ NEUER Schluessel (1.40): der Punkt traegt seitdem nicht mehr nur die
+# Hinweistexte, sondern auch die Ueberschriften der Karten. Der alte
+# Wortlaut ("Alle erklaerenden Texte der Oberflaeche") war damit falsch,
+# und unter demselben Schluessel waere die Berichtigung bei einer
+# bestehenden strings.txt nie angekommen (Abschnitt 8).
+TEXTE_STANDARD["einst.texte_bezeichnungen_lead"] = (
+    "Die Überschriften der Karten und alle erklärenden Texte der "
+    "Oberfläche, nach Bereichen sortiert. Innerhalb eines Bereichs stehen "
+    "die Überschriften oben. Was du hier änderst, steht sofort auf der "
+    "Seite – ohne Neustart.")
 TEXTE_STANDARD["einst.hinweistexte_leer"] = (
     "Ein leeres Feld stellt den eingebauten Text wieder her.")
 TEXTE_STANDARD["einst.sprueche_sehen"] = (
@@ -524,6 +534,39 @@ TEXTE_STANDARD["einst.sprueche_sehen"] = (
     "deshalb auch bei Administratoren. Ohne ihn verschwindet der ganze "
     "Block, es bleibt keine Lücke stehen.")
 TEXTE_STANDARD["einst.benutzer_selbst"] = "das eigene Konto"
+# --- Überschriften der Karten (seit 1.40) ------------------------------------
+#
+# ⚠️⚠️ Das ist eine AUSNAHME von der Konvention weiter unten ("nicht in
+# strings.txt: Feldbeschriftungen, Knopftexte, Tabellenüberschriften") und
+# Timos ausdrücklicher Auftrag: die Karten auf "Auswertung" und in "Mein
+# Bereich" heissen so, wie er sie nennen will. Die Grenze bleibt sonst
+# bestehen - Feldbeschriftungen, Knopftexte und SPALTENüberschriften
+# gehoeren weiterhin nicht hierher.
+#
+# ⚠️ Das zweite Segment "titel" ist kein Zufall: der Texteditor gruppiert
+# nach dem ERSTEN Segment (die Karten landen also im Bereich, zu dem sie
+# gehoeren) und erkennt am zweiten, dass es eine Ueberschrift ist - die
+# steht dann oben in der Gruppe, in einem einzeiligen Feld und mit der
+# Marke "Ueberschrift". Wer eine neue ergaenzt, haelt sich an dieses
+# Schema, dann stimmt beides von selbst.
+TEXTE_STANDARD["mein.titel.ansteht"] = "Was ansteht"
+TEXTE_STANDARD["mein.titel.aufgaben"] = "Meine Aufgaben"
+TEXTE_STANDARD["mein.titel.bewilligungen"] = "Bewilligungen im Blick"
+TEXTE_STANDARD["mein.titel.arbeitszeit"] = "Meine Arbeitszeit"
+TEXTE_STANDARD["mein.titel.verlauf"] = "Verlauf"
+# {jahr} wird durch das laufende Kalenderjahr ersetzt.
+TEXTE_STANDARD["mein.titel.urlaub"] = "Urlaub {jahr}"
+# {monate} ist die Zahl der gezeigten Monate (in aller Regel drei).
+TEXTE_STANDARD["mein.titel.trend"] = "Die letzten {monate} Monate"
+TEXTE_STANDARD["mein.titel.monate"] = "Monat für Monat"
+TEXTE_STANDARD["mein.titel.zeiten"] = "Eintrag für Eintrag"
+TEXTE_STANDARD["mein.titel.konto"] = "Mein Konto"
+TEXTE_STANDARD["auswertung.titel.ueberblick"] = "Überblick"
+TEXTE_STANDARD["auswertung.titel.monate"] = "Monat für Monat"
+TEXTE_STANDARD["auswertung.titel.kontingent"] = "Stundenkontingent"
+TEXTE_STANDARD["auswertung.titel.monatsliste"] = "Monate"
+TEXTE_STANDARD["auswertung.titel.bewilligt"] = "Bewilligt"
+
 TEXTE_STANDARD["mein.konto_lead"] = (
     "Hier änderst du dein eigenes Passwort und die Adresse, an die "
     "Erinnerungen gehen. Alles Weitere an deinem Konto – Rolle, Zugriff "
@@ -963,6 +1006,10 @@ UNGENUTZT = frozenset({
     # umformuliert, und ein geloeschter Schluessel waere ein Datenverlust
     # ohne Gegenwert.
     "einst.texte_lead",
+    # seit 1.40: der Punkt heisst "Texte und Bezeichnungen" und traegt
+    # auch die Ueberschriften - der alte Lead sprach nur von erklaerenden
+    # Texten. Ersetzt durch einst.texte_bezeichnungen_lead.
+    "einst.hinweistexte_lead",
     # seit 1.38: „E-Mail-Versand" und „E-Mail-Vorlagen" sind ein Punkt.
     # Jeder Anlass traegt seinen Wortlaut selbst, ein eigener Hinweis je
     # Vorlage waere neben dem Lead des Anlasses die zweite Erklaerung
