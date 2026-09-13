@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.41
+
+- Auswertung: keine Gedankenstriche mehr in leeren Zellen; ein Schalter
+  unter Einstellungen → Oberfläche holt sie zurück (nur für Konten mit
+  Zugriff auf die Auswertung)
+- Mein Bereich: „Saldo“ und „dieser Monat“ tragen die Einheit „Std“
+- Dateien: `*.mobileconfig` erlaubt, wird als Download ausgeliefert
+- Prüfung von 1988 auf 2014 Einzelprüfungen erweitert
+
 ## 1.40
 
 - „Hinweistexte“ heißt „Texte und Bezeichnungen“: dort lassen sich jetzt

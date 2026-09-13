@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="de" data-thema="dunkel" data-breite="voll" data-wikiliste="kacheln"
-      data-dateiliste="liste" data-aufgabenliste="karten">
+      data-dateiliste="liste" data-aufgabenliste="karten" data-leerzellen="leer">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -44,6 +44,8 @@
       if (d === "kacheln" || d === "liste") document.documentElement.dataset.dateiliste = d;
       var a = localStorage.getItem("toolkit-aufgabenliste");
       if (a === "karten" || a === "liste") document.documentElement.dataset.aufgabenliste = a;
+      var z = localStorage.getItem("toolkit-leerzellen");
+      if (z === "leer" || z === "strich") document.documentElement.dataset.leerzellen = z;
     } catch (e) {}
   })();
 </script>
@@ -249,6 +251,14 @@
     // einer schmalen Spalte zwischen sechs anderen.
     aufbauen("aufgabenliste", "aufgabenliste", "karten", "liste", function (w) {
       return w === "liste" ? "Liste" : "Karten";
+    });
+    // Auswertung: leere Zellen bleiben leer oder tragen einen Strich.
+    // Leer ist der Standard - bei einer Tabelle, in der halbe Spalten
+    // ohne Wert sind, zieht ein gefuellter Platzhalter genauso viel
+    // Aufmerksamkeit wie eine Zahl. Wer die Zellen lieber ausdruecklich
+    // als "hier steht nichts" markiert sieht, schaltet um.
+    aufbauen("leerzellen", "leerzellen", "leer", "strich", function (w) {
+      return w === "strich" ? "Mit Strich" : "Leer";
     });
 
     // ⚠️ Die Kopfzeile wird durchscheinend, sobald gescrollt wird - der

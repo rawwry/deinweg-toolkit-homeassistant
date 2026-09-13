@@ -5890,6 +5890,122 @@ def test_leere_zellen(client: TestClient) -> None:
            "in „Eintrag für Eintrag“ ebenso wenig")
 
 
+def test_leerzellen_schalter(client: TestClient) -> None:
+    """Leere Zellen der Auswertung: leer oder mit Strich."""
+    abschnitt("Leere Zellen in der Auswertung")
+    stil = client.get("/static/style.css").text
+    seite = client.get("/auswertung").text
+
+    # ⚠️ Der Strich steht IMMER im Markup und wird nur ausgeblendet -
+    # dieselbe Technik wie bei Hell/Dunkel und den Listenansichten. Beim
+    # Laden ist dadurch nichts zu sehen, was gleich wieder verschwindet.
+    pruefe('class="platzhalter"' in seite,
+           "die Striche stehen weiterhin im Markup")
+    pruefe('[data-leerzellen="leer"] .platzhalter { display: none; }' in stil,
+           "und werden im Standardzustand ausgeblendet")
+    pruefe('data-leerzellen="leer"' in seite,
+           "„leer“ ist die Voreinstellung am <html>-Element")
+    # Kein nackter Strich mehr in einer Tabellenzelle.
+    tabelle = seite.split("auswertungsblatt")[1].split("</table>")[0]
+    pruefe('<span class="leise">—</span>' not in tabelle,
+           "in den Zellen steht kein ungeschützter Strich mehr")
+
+    # --- Der Schalter hängt am Bereich „auswertung“ ------------------------
+    oberflaeche = client.get("/einstellungen?bereich=oberflaeche").text
+    pruefe('class="leerzellen-knopf"' in oberflaeche
+           or "leerzellen-knopf" in oberflaeche,
+           "der Schalter steht unter Einstellungen → Oberfläche")
+    pruefe('data-wert="strich"' in oberflaeche and 'data-wert="leer"' in oberflaeche,
+           "mit beiden Möglichkeiten nebeneinander")
+
+    client.post("/einstellungen/benutzer", data={
+        "benutzername": "ohneauswertung", "passwort": "ohneauswertungpw",
+        "rolle": "benutzer", "bereiche": ["datensaetze", "einstellungen"]})
+    o = TestClient(app)
+    o.post("/login", data={"benutzername": "ohneauswertung",
+                           "passwort": "ohneauswertungpw"},
+           follow_redirects=False)
+    ohne = o.get("/einstellungen?bereich=oberflaeche").text
+    ohne = ohne.split('<div class="neuheiten"')[0]
+    pruefe("leerzellen-knopf" not in ohne,
+           "ohne den Bereich „Auswertung“ fehlt der Schalter")
+    pruefe("wikiliste-knopf" not in ohne,
+           "die übrigen Ansichtsschalter ebenso – sie hängen am Bereich")
+
+    # ⚠️ „Mein Bereich" folgt dem Schalter NICHT: die Tabellen dort sind
+    # seit 1.40 ohne Strich, und die Seite sieht jeder - auch wer den
+    # Schalter nie zu Gesicht bekommt.
+    mein = client.get("/meinbereich").text.split('<div class="neuheiten"')[0]
+    pruefe("platzhalter" not in mein.split("monatstabelle")[1].split("</table>")[0],
+           "„Mein Bereich“ hängt nicht am Schalter")
+
+
+def test_kennzahl_einheit(client: TestClient) -> None:
+    """Die beiden Stundenkacheln in „Mein Bereich“ tragen ihre Einheit."""
+    abschnitt("Einheit an den Kennzahlen")
+    seite = client.get("/meinbereich").text.split('<div class="neuheiten"')[0]
+    kopf = seite.split('class="karte meinueberblick"')[1].split("</section>")[0]
+    # ⚠️ „-33:00" allein ist zweideutig - es könnte eine Uhrzeit sein.
+    pruefe(kopf.count('<span class="kmass">Std</span>') == 2,
+           "Saldo und laufender Monat tragen „Std“")
+    # ⚠️ Die beiden ERSTEN Kacheln sind gemeint - Saldo und laufender
+    # Monat. Bei der dritten (Urlaub) und vierten (Aufgaben) steht die
+    # Einheit im Wort, dort wäre „Std“ schlicht falsch.
+    kacheln = kopf.split('<a class="kennzahl')[1:]
+    pruefe(len(kacheln) == 4, f"es sind vier Kacheln (sind: {len(kacheln)})")
+    for i in (0, 1):
+        pruefe('class="kmass">Std<' in kacheln[i],
+               f"Kachel {i + 1} trägt ihre Einheit")
+    for i in (2, 3):
+        pruefe('class="kmass">Std<' not in kacheln[i],
+               f"Kachel {i + 1} trägt sie nicht")
+    # Urlaub und Aufgaben tragen ihre Einheit im Text, nicht als Marke.
+    pruefe("Tage" in kopf and "offene Aufgaben" in kopf,
+           "die beiden anderen Kacheln sagen ihre Einheit im Wort")
+
+
+def test_mobileconfig(client: TestClient) -> None:
+    """Apple-Konfigurationsprofile duerfen hochgeladen werden."""
+    abschnitt("Dateien: .mobileconfig")
+    from . import dateien
+
+    pruefe("mobileconfig" in dateien.ARTEN,
+           "die Endung steht in der Liste der erlaubten Arten")
+    art, typ, wort = dateien.ARTEN["mobileconfig"]
+    pruefe(typ == "application/x-apple-aspen-config",
+           "mit dem Inhaltstyp, den Apple dafür vorsieht")
+    # ⚠️ NICHT inline: ein Profil darf Geräteeinstellungen ändern, und
+    # inline ginge der Installationsdialog schon beim Anklicken auf.
+    pruefe(art not in dateien.INLINE,
+           "und geht als Download hinaus, nicht als Dokument im Fenster")
+
+    inhalt = (b'<?xml version="1.0" encoding="UTF-8"?>\n'
+              b'<plist version="1.0"><dict><key>PayloadType</key>'
+              b'<string>Configuration</string></dict></plist>')
+    antwort = client.post(
+        "/dateien/hochladen",
+        files={"datei": ("mailprofil.mobileconfig", inhalt,
+                         "application/x-apple-aspen-config")},
+        data={"ordner": ""}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "die Datei lässt sich hochladen")
+
+    hol = client.get("/dateien/holen/mailprofil.mobileconfig")
+    pruefe(hol.status_code == 200, "und wieder abrufen")
+    pruefe(hol.headers.get("content-type", "").startswith(
+        "application/x-apple-aspen-config"),
+        "der Inhaltstyp kommt aus unserer Liste")
+    pruefe(hol.headers.get("x-content-type-options") == "nosniff",
+           "mit nosniff, wie bei jeder ausgelieferten Datei")
+    pruefe("attachment" in hol.headers.get("content-disposition", ""),
+           "und als Download, nicht inline")
+
+    seite = client.get("/dateien").text
+    pruefe("mailprofil.mobileconfig" in seite, "sie steht in der Übersicht")
+    pruefe("PROFIL" in seite, "mit einem eigenen Kürzel")
+    client.post("/dateien/loeschen", data={"pfad": "mailprofil.mobileconfig"},
+                follow_redirects=False)
+
+
 def test_texte_tot() -> None:
     """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
 
@@ -8463,6 +8579,9 @@ def _durchlauf(client: TestClient) -> None:
         test_tageszahl(client)
         test_eigene_bezeichnungen(client)
         test_leere_zellen(client)
+        test_leerzellen_schalter(client)
+        test_kennzahl_einheit(client)
+        test_mobileconfig(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

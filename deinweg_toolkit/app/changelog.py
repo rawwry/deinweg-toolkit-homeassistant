@@ -2312,4 +2312,20 @@ CHANGELOG = [
         "Striche – eine leere Zelle liest sich als das, was sie ist",
         "Prüfung von 1958 auf 1988 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.41", "titel": "Leere Zellen, Einheiten, Profile",
+     "punkte": [
+        "Auswertung: die Gedankenstriche in leeren Zellen sind weg – Soll, "
+        "Abweichung, Satz und Verdienst stehen nur noch dort, wo wirklich "
+        "etwas steht",
+        "Wer sie lieber sieht, schaltet unter Einstellungen → Oberfläche "
+        "auf „Mit Strich“ um. Der Schalter steht nur da, wo auch die "
+        "Auswertung erlaubt ist, und gilt wie die übrigen Ansichtsschalter "
+        "je Browser",
+        "Mein Bereich: die Kacheln „Saldo“ und „dieser Monat“ tragen jetzt "
+        "„Std“ – eine Zeitangabe wie „-33:00“ war ohne Einheit zweideutig",
+        "Dateien: *.mobileconfig ist erlaubt. Gedacht für die "
+        "E-Mail-Profile neuer Mitarbeitender; die Datei geht ausdrücklich "
+        "als Download hinaus und nicht als Dokument im Browserfenster",
+        "Prüfung von 1988 auf 2014 Einzelprüfungen erweitert",
+    ]},
 ]

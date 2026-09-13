@@ -105,18 +105,18 @@
         {# Keine Marke in der Zelle: sie zwang die Zeile zum Umbruch. Dass
            gestaffelt gerechnet wurde, steht in der Spalte „Satz“ („2
            Sätze“) und als Hinweis unter der Tabelle. #}
-        <td class="zahlen leise">{{ r.soll | hhmm if r.soll else "—" }}</td>
+        <td class="zahlen leise">{% if r.soll %}{{ r.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
         <td class="zahlen">
           {% if r.abweichung is not none %}
             <span class="marke-status {{ 'gut' if r.abweichung >= 0 else 'dopp' }}">{{ '+' if r.abweichung >= 0 }}{{ r.abweichung | hhmm }}</span>
-          {% else %}<span class="leise">—</span>{% endif %}
+          {% else %}<span class="platzhalter">—</span>{% endif %}
         </td>
         <td class="zahlen leise">
           {% if r.satz is not none %}{{ r.satz | zahl }}
           {% elif r.saetze %}{{ r.saetze | length }} Sätze
-          {% else %}<span class="leise">—</span>{% endif %}
+          {% else %}<span class="platzhalter">—</span>{% endif %}
         </td>
-        <td class="zahlen stark betrag">{{ r.betrag | zahl if r.betrag else "—" }}</td>
+        <td class="zahlen stark betrag">{% if r.betrag %}{{ r.betrag | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
@@ -126,7 +126,7 @@
         <td class="stark">Summe</td>
         <td class="zahlen leise">{{ zusammenfassung.n }}</td>
         <td class="zahlen stark">{{ zusammenfassung.ist | hhmm }}</td>
-        <td class="zahlen leise">{{ zusammenfassung.soll | hhmm if zusammenfassung.soll else "—" }}</td>
+        <td class="zahlen leise">{% if zusammenfassung.soll %}{{ zusammenfassung.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
         <td></td>
         <td></td>
         <td class="zahlen stark betrag gross">{{ verdienst_gesamt | zahl }}</td>
@@ -173,7 +173,7 @@
       <span class="mwert">
         <span class="mlabel">bewilligt</span>
         <span class="zahlen leise">
-          {%- if b.soll %}{{ b.soll | hhmm }}<span class="massangabe">Std</span>{% else %}—{% endif -%}
+          {%- if b.soll %}{{ b.soll | hhmm }}<span class="massangabe">Std</span>{% else %}<span class="platzhalter">—</span>{% endif -%}
         </span>
       </span>
       {% if b.abweichung is not none %}
@@ -202,19 +202,19 @@
       {% for z in b.zeilen %}
       <tr class="{{ 'ohne-ist' if not z.m }}">
         <td class="stark">{{ z.klient }}</td>
-        <td class="zahlen leise">{{ z.n or '—' }}</td>
-        <td class="zahlen stark">{{ z.m | hhmm if z.m else '—' }}</td>
+        <td class="zahlen leise">{% if z.n %}{{ z.n }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+        <td class="zahlen stark">{% if z.m %}{{ z.m | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
         {# Ohne Marke: sie brach jede zweite Zeile um. Wo der Grundwert
            gegriffen hat, steht gebündelt in der Seitenspalte unter
            „Bewilligt“ – einmal je Person statt einmal je Zeile. #}
-        <td class="zahlen leise">{{ z.soll | hhmm if z.soll else '—' }}</td>
+        <td class="zahlen leise">{% if z.soll %}{{ z.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
         <td class="zahlen">
           {% if z.abweichung is not none %}
           <span class="marke-status {{ 'gut' if z.abweichung >= 0 else 'dopp' }}">{{ '+' if z.abweichung >= 0 }}{{ z.abweichung | hhmm }}</span>
-          {% else %}<span class="leise">—</span>{% endif %}
+          {% else %}<span class="platzhalter">—</span>{% endif %}
         </td>
-        <td class="zahlen leise">{{ z.satz | zahl if z.satz else '—' }}</td>
-        <td class="zahlen stark betrag">{{ z.betrag | zahl if z.betrag else '—' }}</td>
+        <td class="zahlen leise">{% if z.satz %}{{ z.satz | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+        <td class="zahlen stark betrag">{% if z.betrag %}{{ z.betrag | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

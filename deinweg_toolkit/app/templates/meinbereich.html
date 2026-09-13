@@ -195,14 +195,17 @@
        wegen der man herkommt - deshalb steht er links. #}
     <a class="kennzahl {{ 'hat k-plus' if letzter and letzter.saldo > 0 }}{{ 'hat k-minus' if letzter and letzter.saldo < 0 }}"
        href="#monate">
-      <span class="kzahl">{% if letzter %}{{ letzter.saldo | hhmm }}{% else %}–{% endif %}</span>
+      {# ⚠️ Die Einheit steht seit 1.41 dabei (Timos Wunsch): „-33:00"
+         allein ist zweideutig - es könnte auch eine Uhrzeit sein oder
+         eine Zahl von Tagen. Dieselbe Marke wie in der Auswertung. #}
+      <span class="kzahl">{% if letzter %}{{ letzter.saldo | hhmm }}<span class="kmass">Std</span>{% else %}–{% endif %}</span>
       <span class="klabel">{% if letzter %}Saldo {{ letzter.wort }}{% else %}kein abgeschlossener Monat{% endif %}</span>
     </a>
 
     {# 2. Der laufende Monat. Er zählt nicht in den Saldo (siehe Lead),
        aber er ist der Monat, in dem man gerade steht. #}
     <a class="kennzahl" href="#zeiten">
-      <span class="kzahl">{% if laufend %}{{ laufend.ist | hhmm }}{% else %}–{% endif %}</span>
+      <span class="kzahl">{% if laufend %}{{ laufend.ist | hhmm }}<span class="kmass">Std</span>{% else %}–{% endif %}</span>
       <span class="klabel">
         {%- if laufend and laufend.soll %}
           dieser Monat · von {{ laufend.soll | hhmm }}

@@ -760,6 +760,11 @@ TEXTE_STANDARD["einst.smtp_fehlt"] = (
     "einmal – erst danach kann etwas verschickt werden. Die Angaben "
     "liegen ausschließlich hier in der Datenbank und stehen nirgends im "
     "Programmcode.")
+TEXTE_STANDARD["einst.leerzellen"] = (
+    "In der Auswertung bleiben viele Zellen leer – Soll, Abweichung, "
+    "Satz und Verdienst stehen nur dort, wo etwas bewilligt ist. "
+    "„Leer“ lässt sie leer, „Mit Strich“ setzt einen Gedankenstrich "
+    "hinein. Gilt nur für diesen Browser.")
 TEXTE_STANDARD["einst.aufgabenliste"] = (
     "Karten zeigen Titel, Notiz und Stand untereinander. Die Liste zeigt "
     "mehr Aufgaben auf einmal und stellt die Fristen in einer Spalte "

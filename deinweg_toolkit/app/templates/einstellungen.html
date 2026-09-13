@@ -170,6 +170,7 @@
   {% set darf_wiki = hat_zugriff(request.state.benutzer, "wiki") %}
   {% set darf_dateien = hat_zugriff(request.state.benutzer, "dateien") %}
   {% set darf_aufgaben = hat_zugriff(request.state.benutzer, "verwaltungsvorgaenge") %}
+  {% set darf_auswertung = hat_zugriff(request.state.benutzer, "auswertung") %}
   {% if darf_wiki or darf_dateien or darf_aufgaben %}
   <div class="optionsgruppe">
     <h2 class="unterkopf">Listen oder Kacheln</h2>
@@ -195,6 +196,24 @@
                   ("karten", "Karten"), ("liste", "Liste"),
                   "Zwischen Karten- und Listenansicht der Aufgaben wechseln") }}
       {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ⚠️ Hängt am Bereich „auswertung" - der Schalter regelt ausschließlich
+     die Tabellen dort. Ohne den Bereich stünde er über einer Seite, die
+     das Konto gar nicht sieht (dieselbe Regel wie bei Wiki, Dateien und
+     Aufgaben).
+     ⚠️ Und er gilt ausdrücklich NICHT für „Mein Bereich": die Tabellen
+     dort sind seit 1.40 ohne Strich, und „Mein Bereich" sieht jeder -
+     auch wer den Schalter nie zu Gesicht bekommt. #}
+  {% if darf_auswertung %}
+  <div class="optionsgruppe">
+    <h2 class="unterkopf">Leere Zellen</h2>
+    <div class="optionsliste">
+      {{ wahlpaar("leerzellen", "Auswertung", t("einst.leerzellen"),
+                  ("leer", "Leer"), ("strich", "Mit Strich"),
+                  "Leere Zellen in der Auswertung leer lassen oder mit einem Strich füllen") }}
     </div>
   </div>
   {% endif %}

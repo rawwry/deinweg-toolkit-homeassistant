@@ -2639,6 +2639,10 @@ label.knopf-icon { cursor: pointer; }
 .dateikachel.k-praesentation { --ton: var(--warn); }
 .dateikachel.k-video         { --ton: var(--kfz-reifen); }
 .dateikachel.k-grafik        { --ton: var(--kfz-inspektion); }
+/* Konfigurationsprofil (.mobileconfig) - eine eigene Kategorie, weil
+   es weder Text noch Grafik ist und als Einziges nicht geoeffnet,
+   sondern auf ein Geraet geladen wird. */
+.dateikachel.k-profil        { --ton: var(--info); }
 /* ⚠️ Ordner sehen anders aus als Dateien, nicht nur ein anderes Symbol.
    Vorher unterschieden sich beide nur durch die Zeichnung im Kästchen -
    auf einen Blick war das nicht zu trennen.
@@ -6403,3 +6407,20 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 }
 .listenfussnote p { margin: 0 0 6px; }
 .listenfussnote p:last-child { margin-bottom: 0; }
+
+/* --- Leere Zellen: Strich oder nichts (seit 1.41) ------------------------
+   ⚠️ Die Auswertungstabellen haben Spalten, die bei vielen Zeilen leer
+   bleiben - Soll, Abweichung, Satz und Verdienst stehen nur dort, wo
+   etwas bewilligt ist. Ein Gedankenstrich in jeder dieser Zellen zieht
+   aber genauso viel Aufmerksamkeit wie eine Zahl, und bei zwanzig
+   betreuten Personen besteht die halbe Tabelle daraus (Timos Wunsch).
+   Leer ist deshalb die Voreinstellung; der Strich bleibt eine Möglichkeit
+   für alle, die eine leere Zelle sonst für einen Fehler halten.
+   ⚠️ Der Strich steht IMMER im Markup und wird nur ausgeblendet -
+   dieselbe Technik wie bei Hell/Dunkel und den Listenansichten. Beim
+   Laden ist dadurch nichts zu sehen, was gleich wieder verschwindet.
+   ⚠️ Gilt nur für die Auswertung: die Tabellen in „Mein Bereich" tragen
+   seit 1.40 gar keinen Strich mehr, und der Schalter hängt am Bereich
+   „auswertung" - wer den nicht hat, käme sonst nie an ihn heran. */
+[data-leerzellen="leer"] .platzhalter { display: none; }
+.platzhalter { color: var(--leise); }

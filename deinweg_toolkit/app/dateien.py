@@ -82,6 +82,17 @@ ARTEN: dict[str, tuple[str, str, str]] = {
     "csv":  ("tabelle", "text/csv", "CSV"),
     "txt":  ("text", "text/plain", "TXT"),
     "md":   ("text", "text/plain", "MD"),
+    # ⚠️ Apple-Konfigurationsprofil (seit 1.41, Timos Wunsch): genau
+    # dafuer gibt es die versteckten Ordner - "E-Mail-Profile fuer neue
+    # Mitarbeitende" steht so in der Begruendung von 1.36.
+    # ⚠️ Die Kategorie "profil" steht NICHT in INLINE: ein Profil geht
+    # als Download hinaus, nicht als Dokument im Browserfenster. Wer es
+    # auf dem iPhone antippt, bekommt danach den Installationsdialog des
+    # Systems - aber erst, nachdem er die Datei bewusst geholt hat.
+    # Inline wuerde der Dialog beim blossen Anklicken eines Links
+    # aufgehen, und ein Profil darf Geraeteeinstellungen aendern.
+    "mobileconfig": ("profil", "application/x-apple-aspen-config",
+                     "PROFIL"),
 }
 
 # Was inline ausgeliefert werden darf. Alles andere bekommt
