@@ -67,6 +67,44 @@
 </details>
 {% endmacro %}
 
+{# --- Bausteine für die E-Mail-Anlässe ---------------------------------
+   Seit 1.38 trägt jeder Anlass seinen Wortlaut selbst. Beides in einer
+   Karte und in einem Formular: „Speichern" sichert Schalter UND Text.
+
+   ⚠️ Der Wortlaut steht zugeklappt. Man kommt zum Ein- und Ausschalten
+   viel öfter her als zum Umformulieren – fünf offene Textfelder mit je
+   zehn Zeilen machten aus der Seite genau die unlesbare Wand, die die
+   alte Vorlagenseite war. Bewusst <details> und kein Skript: die Felder
+   stecken darin und schicken ihren Wert auch zugeklappt mit. #}
+{% macro anlasskopf(titel, an) %}
+<div class="anlass-kopf">
+  <h2>{{ titel }}</h2>
+  <span class="anlass-stand {{ 'an' if an else 'aus' }}">{{ "aktiv" if an else "aus" }}</span>
+</div>
+{% endmacro %}
+
+{% macro vorlagenblock(art, platzhalter, zeilen=10) %}
+<details class="vorlagenblock">
+  <summary>
+    <span class="vorlagenblock-titel">Wortlaut der Nachricht</span>
+    <span class="klein leise">Betreff und Text</span>
+  </summary>
+  <div class="vorlagenblock-inhalt">
+    <label class="feld">
+      <span>Betreff</span>
+      <input type="text" name="vorlage_{{ art }}_betreff" required
+             value="{{ mailkonfig['vorlage_' ~ art ~ '_betreff'] }}">
+    </label>
+    <label class="feld">
+      <span>Text</span>
+      <textarea name="vorlage_{{ art }}_text" rows="{{ zeilen }}" required>{{ mailkonfig['vorlage_' ~ art ~ '_text'] }}</textarea>
+    </label>
+    <p class="klein leise">Platzhalter:
+      {% for feld in platzhalter %}<code>{{ feld }}</code> {% endfor %}</p>
+  </div>
+</details>
+{% endmacro %}
+
 {% macro muelleimer(was="Entfernen") %}
 <button class="knopf-icon warn" type="submit" title="{{ was }}" aria-label="{{ was }}">
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1628,10 +1666,35 @@
 
 {% endif %}
 
+{# ⚠️⚠️ Bis 1.37 standen hier ZWEI Punkte: „E-Mail-Versand" und
+   „E-Mail-Vorlagen". Das war die falsche Achse. Wer den Wortlaut einer
+   Erinnerung ändern wollte, schaltete den Anlass auf der einen Seite ein
+   und suchte seinen Text auf der anderen – und keine der beiden Seiten
+   sagte, dass es die andere überhaupt gibt. Vor allem aber war die
+   Vorlagenseite ein einziges Formular mit zehn Feldern hintereinander,
+   in dem nichts mehr zu erkennen war, wozu es gehört.
+
+   Jetzt ein Punkt in drei Abschnitten (dieselbe Gliederung wie „System
+   und Sicherung" seit 1.36.1): erst der Weg hinaus, dann die Anlässe,
+   dann was gelaufen ist. Und jeder Anlass trägt seinen Wortlaut
+   zugeklappt bei sich – ein Anlass ist eine Sache, nicht zwei.
+
+   ⚠️ „bereich=vorlagen" führt weiterhin hierher, siehe
+   einstellungen.einstellungen(). Alte Lesezeichen laufen sonst ins Leere. #}
 {% if bereich == "email" %}
-<section class="karte">
-  <h1>E-Mail-Versand</h1>
+<section class="karte einstellungskopf">
+  <h1>E-Mail</h1>
   <p class="lead">{{ t("einst.email_lead") }}</p>
+</section>
+
+{# --- 1. Der Weg hinaus -------------------------------------------------- #}
+<div class="abschnittsband">
+  <h2>Postausgang</h2>
+  <p class="klein leise">{{ t("einst.email_zugang") }}</p>
+</div>
+
+<section class="karte">
+  <h2>Zugangsdaten</h2>
 
   {# ⚠️ Bis 1.30.1 standen Server, Absender und Kontoname als
      Auslieferungswerte im Quelltext - und der liegt öffentlich auf
@@ -1643,7 +1706,7 @@
   {% endif %}
 
   <form action="/einstellungen/email" method="post">
-    <label class="ankreuz" style="margin-bottom: 18px;">
+    <label class="filter-umschalter" style="margin-bottom: 18px;">
       <input type="checkbox" name="mail_aktiv" value="1"
              {{ 'checked' if mailkonfig.mail_aktiv == '1' }}>
       <span>Automatischen Versand einschalten</span>
@@ -1702,7 +1765,7 @@
 <section class="raster gleich buendig">
   <div class="karte">
     <h2>Testnachricht senden</h2>
-    <p class="klein leise felderklaerung">{{ t("einst.email_test_hinweis") }}</p>
+    <p class="lead">{{ t("einst.email_test_hinweis") }}</p>
     <form action="/einstellungen/email/test" method="post">
       <label class="feld">
         <span>Empfänger <span class="leise">– leer: die eigene Adresse</span></span>
@@ -1716,7 +1779,7 @@
 
   <div class="karte">
     <h2>Sofort prüfen</h2>
-    <p class="klein leise felderklaerung">{{ t("einst.email_pruefen_hinweis") }}</p>
+    <p class="lead">{{ t("einst.email_pruefen_hinweis") }}</p>
     <form action="/einstellungen/email/pruefen" method="post">
       <div class="knopfreihe">
         <button class="knopf" type="submit">Jetzt auf Erinnerungen prüfen</button>
@@ -1725,41 +1788,36 @@
   </div>
 </section>
 
-<section class="karte">
-  <h2>Zuletzt verschickt</h2>
-  <p class="klein leise felderklaerung">{{ t("einst.email_verlauf_hinweis") }}</p>
-  {% if letzte_mails %}
-  <div class="tabellenrolle">
-  <table class="liste dicht">
-    <thead>
-      <tr><th>Zeitpunkt</th><th>Anlass</th><th>Empfänger</th><th>Ergebnis</th></tr>
-    </thead>
-    <tbody>
-      {% for m in letzte_mails %}
-      <tr>
-        <td class="zahlen nowrap">{{ m.gesendet_am }}</td>
-        <td class="leise klein">{{ "Frist überfällig" if m.art == "frist" else "Abgabe fehlt" }}</td>
-        <td>{{ m.empfaenger }}</td>
-        <td>
-          {% if m.erfolg %}<span class="marke-status gut">gesendet</span>
-          {% else %}<span class="marke-status dopp" title="{{ m.meldung }}">Fehler</span>
-            <span class="klein leise">{{ m.meldung | truncate(70) }}</span>{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% else %}
-  <p class="leer">{{ t("einst.email_keine") }}</p>
-  {% endif %}
+{# --- 2. Die Anlässe ----------------------------------------------------- #}
+<div class="abschnittsband">
+  <h2>Anlässe</h2>
+  <p class="klein leise">{{ t("einst.email_anlaesse") }}</p>
+</div>
+
+{# Die Formathilfe steht einmal über allen fünf Anlässen statt fünfmal in
+   jeder aufgeklappten Vorlage. #}
+<section class="karte anlasshilfe">
+  <p class="lead">{{ t("einst.vorlagen_wortlaut") }}</p>
+  <details class="hinweise">
+    <summary>Textformatierung</summary>
+    <div class="hinweise-inhalt">
+      <table class="liste dicht formathilfe">
+        <tbody>
+          <tr><td><code>**fett**</code></td><td><strong>fett</strong></td></tr>
+          <tr><td><code>*kursiv*</code></td><td><em>kursiv</em></td></tr>
+          <tr><td><code># Überschrift</code></td><td>eine Überschrift</td></tr>
+          <tr><td><code>- Punkt</code></td><td>eine Aufzählung</td></tr>
+          <tr><td><code>https://…</code></td><td>wird von selbst verlinkt</td></tr>
+        </tbody>
+      </table>
+      <p class="klein leise">{{ t("einst.vorlagen_format") }}</p>
+    </div>
+  </details>
 </section>
 
-{# Die drei Anlässe stehen untereinander und sind gleich gebaut:
-   Schalter, eine Zahl, gegebenenfalls Empfänger. Wer einen vierten
-   ergänzt, hält sich an dieselbe Form. #}
-<section class="karte">
-  <h2>Erinnerung an die Zeiterfassung</h2>
+{# 1. Zeiterfassung ------------------------------------------------------- #}
+<section class="karte anlasskarte">
+  {{ anlasskopf("Fehlende Zeiterfassung", mailkonfig.abgabe_aktiv == '1') }}
   <p class="lead">{{ t("einst.abgabemail_lead") }}</p>
 
   <form action="/einstellungen/abgabemail" method="post">
@@ -1777,14 +1835,17 @@
     </label>
     <p class="klein leise felderklaerung">{{ t("einst.abgabemail_hinweis") }}</p>
 
+    {{ vorlagenblock("abgabe", ["{name}", "{monat}", "{monat_kurz}"]) }}
+
     <div class="knopfreihe">
       <button class="knopf haupt" type="submit">Speichern</button>
     </div>
   </form>
 </section>
 
-<section class="karte">
-  <h2>Erinnerung an Fristen</h2>
+{# 2. Fristen ------------------------------------------------------------- #}
+<section class="karte anlasskarte">
+  {{ anlasskopf("Überfällige Frist", mailkonfig.frist_aktiv == '1') }}
   <p class="lead">{{ t("einst.fristmail_lead") }}</p>
 
   <form action="/einstellungen/fristmail" method="post">
@@ -1819,17 +1880,21 @@
     </fieldset>
     <p class="klein leise felderklaerung">{{ t("einst.fristmail_hinweis") }}</p>
 
+    {{ vorlagenblock("frist", ["{name}", "{klient}", "{titel}", "{art}",
+                               "{status}", "{frist}", "{tage}",
+                               "{beschreibung}"], 12) }}
+
     <div class="knopfreihe">
       <button class="knopf haupt" type="submit">Speichern</button>
     </div>
   </form>
 </section>
 
-{# Dritter Anlass neben Fristen und Monatsabgaben: auslaufende
-   Bewilligungen. Eine Sammelmail je Woche, nicht eine je Person - es geht
-   um eine Liste, die man einmal durchgeht. #}
-<section class="karte">
-  <h2>Erinnerung an Bewilligungen</h2>
+{# 3. Bewilligungen ------------------------------------------------------- #}
+{# Eine Sammelmail je Woche, nicht eine je Person - es geht um eine Liste,
+   die man einmal durchgeht. #}
+<section class="karte anlasskarte">
+  {{ anlasskopf("Auslaufende Bewilligung", mailkonfig.bewilligung_aktiv == '1') }}
   <p class="lead">{{ t("einst.bewilligungsmail_lead") }}</p>
 
   <form action="/einstellungen/bewilligungsmail" method="post">
@@ -1874,18 +1939,20 @@
     </label>
     <p class="klein leise felderklaerung">{{ t("einst.bewilligungsmail_hinweis") }}</p>
 
+    {{ vorlagenblock("bewilligung", ["{name}", "{anzahl}", "{liste}"]) }}
+
     <div class="knopfreihe">
       <button class="knopf haupt" type="submit">Speichern</button>
     </div>
   </form>
 </section>
 
-{# Vierter Anlass: eine neu zugewiesene Aufgabe. Anders als die drei
-   darueber haengt diese Mail nicht am Kalender, sondern loest beim
-   Anlegen aus - mit einem kurzen Sammelverzug, damit mehrere Aufgaben
-   auf einmal in eine Mail wandern. #}
-<section class="karte">
-  <h2>Erinnerung an neue Aufgaben</h2>
+{# 4. Neue Aufgabe -------------------------------------------------------- #}
+{# Anders als die drei darueber haengt diese Mail nicht am Kalender,
+   sondern loest beim Anlegen aus - mit einem kurzen Sammelverzug, damit
+   mehrere Aufgaben auf einmal in eine Mail wandern. #}
+<section class="karte anlasskarte">
+  {{ anlasskopf("Neue Aufgabe zugewiesen", mailkonfig.zuweisung_aktiv == '1') }}
   <p class="lead">{{ t("einst.zuweisungsmail_lead") }}</p>
 
   <form action="/einstellungen/zuweisungsmail" method="post">
@@ -1903,17 +1970,24 @@
     </label>
     <p class="klein leise felderklaerung">{{ t("einst.zuweisungsmail_hinweis") }}</p>
 
+    {# {mehrzahl} wird zu „n", wenn es mehrere Aufgaben sind, sonst leer;
+       {wurde} zu „wurden"/„wurde". So passt ein Satz für Ein- und
+       Mehrzahl. #}
+    {{ vorlagenblock("zuweisung", ["{name}", "{anzahl}", "{liste}",
+                                   "{mehrzahl}", "{wurde}"]) }}
+
     <div class="knopfreihe">
       <button class="knopf haupt" type="submit">Speichern</button>
     </div>
   </form>
 </section>
 
-{# Fünfter Anlass: eine Aufgabe wurde abgeschlossen. Die Nachricht geht
-   an die Person, die sie angelegt hat - wer verteilt, will wissen, wann
-   es fertig ist. Kein Sammelverzug: es geht um ein einzelnes Ereignis. #}
-<section class="karte">
-  <h2>Meldung über erledigte Aufgaben</h2>
+{# 5. Erledigte Aufgabe --------------------------------------------------- #}
+{# Die Nachricht geht an die Person, die die Aufgabe angelegt hat - wer
+   verteilt, will wissen, wann es fertig ist. Kein Sammelverzug: es geht
+   um ein einzelnes Ereignis. #}
+<section class="karte anlasskarte">
+  {{ anlasskopf("Aufgabe erledigt", mailkonfig.erledigt_aktiv == '1') }}
   <p class="lead">{{ t("einst.erledigtmail_wozu") }}</p>
 
   <form action="/einstellungen/erledigtmail" method="post">
@@ -1924,119 +1998,55 @@
     </label>
     <p class="klein leise felderklaerung">{{ t("einst.erledigtmail_hinweis") }}</p>
 
+    {{ vorlagenblock("erledigt", ["{name}", "{titel}", "{klient}", "{art}",
+                                  "{status}", "{zustaendig}", "{wer}",
+                                  "{erledigt_am}"]) }}
+
     <div class="knopfreihe">
       <button class="knopf haupt" type="submit">Speichern</button>
     </div>
   </form>
 </section>
-{% endif %}
 
-{% if bereich == "vorlagen" %}
-<section class="karte">
-  <h1>E-Mail-Vorlagen</h1>
-  <p class="lead">{{ t("einst.vorlagen_lead") }}</p>
-  {# ⚠️ Seit 1.30 dürfen die Texte Markierungen tragen. Verschickt wird
-     die Nachricht dann zweifach - als Klartext (Markierungen heraus) und
-     als HTML. Die Leiste über jedem Textfeld setzt sie per Skript; ohne
-     Skript tippt man sie einfach selbst, es sind vier Zeichen. #}
-  <details class="hinweise">
-    <summary>Textformatierung</summary>
-    <table class="liste dicht formathilfe">
-      <tbody>
-        <tr><td><code>**fett**</code></td><td><strong>fett</strong></td></tr>
-        <tr><td><code>*kursiv*</code></td><td><em>kursiv</em></td></tr>
-        <tr><td><code># Überschrift</code></td><td>eine Überschrift</td></tr>
-        <tr><td><code>- Punkt</code></td><td>eine Aufzählung</td></tr>
-        <tr><td><code>https://…</code></td><td>wird von selbst verlinkt</td></tr>
-      </tbody>
-    </table>
-    <p class="klein leise">{{ t("einst.vorlagen_format") }}</p>
-  </details>
-</section>
-
-<form action="/einstellungen/vorlagen" method="post">
-<section class="karte">
-  <h2>Überfällige Frist</h2>
-  <p class="klein leise felderklaerung">{{ t("einst.vorlage_frist_hinweis") }}</p>
-  <label class="feld">
-    <span>Betreff</span>
-    <input type="text" name="vorlage_frist_betreff" value="{{ mailkonfig.vorlage_frist_betreff }}" required>
-  </label>
-  <label class="feld">
-    <span>Text</span>
-    <textarea name="vorlage_frist_text" rows="12" required>{{ mailkonfig.vorlage_frist_text }}</textarea>
-  </label>
-  <p class="klein leise">Platzhalter: <code>{name}</code> <code>{klient}</code>
-    <code>{titel}</code> <code>{art}</code> <code>{status}</code>
-    <code>{frist}</code> <code>{tage}</code> <code>{beschreibung}</code></p>
-</section>
+{# --- 3. Was gelaufen ist ------------------------------------------------ #}
+<div class="abschnittsband">
+  <h2>Protokoll</h2>
+  <p class="klein leise">{{ t("einst.email_protokoll") }}</p>
+</div>
 
 <section class="karte">
-  <h2>Fehlende Abgabe zum Monatsanfang</h2>
-  <p class="klein leise felderklaerung">{{ t("einst.vorlage_abgabe_hinweis") }}</p>
-  <label class="feld">
-    <span>Betreff</span>
-    <input type="text" name="vorlage_abgabe_betreff" value="{{ mailkonfig.vorlage_abgabe_betreff }}" required>
-  </label>
-  <label class="feld">
-    <span>Text</span>
-    <textarea name="vorlage_abgabe_text" rows="10" required>{{ mailkonfig.vorlage_abgabe_text }}</textarea>
-  </label>
-  <p class="klein leise">Platzhalter: <code>{name}</code> <code>{monat}</code>
-    <code>{monat_kurz}</code></p>
-
-  <h2 class="unterkopf">Bewilligungen laufen aus</h2>
-  <label class="feld">
-    <span>Betreff</span>
-    <input type="text" name="vorlage_bewilligung_betreff" required
-           value="{{ mailkonfig.vorlage_bewilligung_betreff }}">
-  </label>
-  <label class="feld">
-    <span>Text</span>
-    <textarea name="vorlage_bewilligung_text" rows="10" required>{{ mailkonfig.vorlage_bewilligung_text }}</textarea>
-  </label>
-  <p class="klein leise">Platzhalter: <code>{name}</code> <code>{anzahl}</code>
-    <code>{liste}</code></p>
-
-  <h2 class="unterkopf">Neue Aufgabe zugewiesen</h2>
-  <label class="feld">
-    <span>Betreff</span>
-    <input type="text" name="vorlage_zuweisung_betreff" required
-           value="{{ mailkonfig.vorlage_zuweisung_betreff }}">
-  </label>
-  <label class="feld">
-    <span>Text</span>
-    <textarea name="vorlage_zuweisung_text" rows="10" required>{{ mailkonfig.vorlage_zuweisung_text }}</textarea>
-  </label>
-  {# {mehrzahl} wird zu „n", wenn es mehrere Aufgaben sind, sonst leer;
-     {wurde} zu „wurden"/„wurde". So passt ein Satz für Ein- und
-     Mehrzahl. #}
-  <p class="klein leise">Platzhalter: <code>{name}</code> <code>{anzahl}</code>
-    <code>{liste}</code> <code>{mehrzahl}</code> <code>{wurde}</code></p>
-
-  <h2 class="unterkopf">Aufgabe erledigt</h2>
-  <label class="feld">
-    <span>Betreff</span>
-    <input type="text" name="vorlage_erledigt_betreff" required
-           value="{{ mailkonfig.vorlage_erledigt_betreff }}">
-  </label>
-  <label class="feld">
-    <span>Text</span>
-    <textarea name="vorlage_erledigt_text" rows="10" required>{{ mailkonfig.vorlage_erledigt_text }}</textarea>
-  </label>
-  <p class="klein leise">Platzhalter: <code>{name}</code> <code>{titel}</code>
-    <code>{klient}</code> <code>{art}</code> <code>{status}</code>
-    <code>{zustaendig}</code> <code>{wer}</code> <code>{erledigt_am}</code></p>
-
-  <div class="knopfreihe" style="margin-top: 20px;">
-    <button class="knopf haupt" type="submit">Vorlagen speichern</button>
+  <h2>Zuletzt verschickt</h2>
+  <p class="lead">{{ t("einst.email_verlauf_hinweis") }}</p>
+  {% if letzte_mails %}
+  <div class="tabellenrolle">
+  <table class="liste dicht">
+    <thead>
+      <tr><th>Zeitpunkt</th><th>Anlass</th><th>Empfänger</th><th>Ergebnis</th></tr>
+    </thead>
+    <tbody>
+      {% for m in letzte_mails %}
+      <tr>
+        <td class="zahlen nowrap">{{ m.gesendet_am }}</td>
+        <td class="leise klein">{{ "Frist überfällig" if m.art == "frist" else "Abgabe fehlt" }}</td>
+        <td>{{ m.empfaenger }}</td>
+        <td>
+          {% if m.erfolg %}<span class="marke-status gut">gesendet</span>
+          {% else %}<span class="marke-status dopp" title="{{ m.meldung }}">Fehler</span>
+            <span class="klein leise">{{ m.meldung | truncate(70) }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   </div>
+  {% else %}
+  <p class="leer">{{ t("einst.email_keine") }}</p>
+  {% endif %}
 </section>
-</form>
 
 <section class="karte">
-  <h2>Zurücksetzen</h2>
-  <p class="klein leise felderklaerung">{{ t("einst.vorlagen_zuruecksetzen") }}</p>
+  <h2>Vorlagen zurücksetzen</h2>
+  <p class="lead">{{ t("einst.vorlagen_ruecksetzen_alle") }}</p>
   <form action="/einstellungen/vorlagen/zuruecksetzen" method="post"
         onsubmit="return confirm('Alle Vorlagen auf den Auslieferungsstand zurücksetzen? Deine Änderungen gehen dabei verloren.')">
     <button class="knopf warn" type="submit">Auf Auslieferungsstand zurücksetzen</button>

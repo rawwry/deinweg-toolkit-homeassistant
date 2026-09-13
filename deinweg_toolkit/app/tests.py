@@ -1691,7 +1691,10 @@ def test_meine_zeiten(client: TestClient) -> None:
     pruefe(z.get("/eintraege").status_code == 403,
            "die Übersicht bleibt gesperrt")
     seite = z.get("/meinbereich").text
-    pruefe("Meine Zeiten" in seite, "„Meine Zeiten“ steht trotzdem da")
+    # ⚠️ Die Karte heisst seit 1.38 „Eintrag fuer Eintrag" - der alte Name
+    # sagte nicht, worin sie sich von „Monat fuer Monat" unterscheidet.
+    pruefe("Eintrag für Eintrag" in seite,
+           "„Eintrag für Eintrag“ steht trotzdem da")
     pruefe(f"/meinbereich/eintrag/{eigen}/bearbeiten" in seite,
            "der eigene Eintrag lässt sich von dort aus bearbeiten")
     pruefe(f"/meinbereich/eintrag/{eigen}/loeschen" in seite,
@@ -1746,12 +1749,13 @@ def test_meine_zeiten(client: TestClient) -> None:
 
     # Abmelden steht oben in der ersten Karte, nicht mehr klein unten.
     seite = z.get("/meinbereich").text
-    # Die Kopfkarte ist seit 1.7 die erste Karte der Seite; davor steht
-    # nur noch der Spruch.
-    kopfkarte = seite.split('class="karte meinkopf"')[1].split("</section>")[0]
+    # ⚠️ Die erste Karte ist seit 1.38 „Auf einen Blick" - sie traegt die
+    # vier Kennzahlen UND den Abmelden-Knopf. Vorher war sie ein Balken,
+    # der nur den Namen und den Knopf hielt.
+    kopfkarte = seite.split('class="karte meinueberblick"')[1].split("</section>")[0]
     pruefe('action="/logout"' in kopfkarte,
            "„Abmelden“ steht in der Kopfkarte")
-    pruefe(seite.index("meinkopf") < seite.index("Bewilligungen im Blick")
+    pruefe(seite.index("meinueberblick") < seite.index("Bewilligungen im Blick")
            if "Bewilligungen im Blick" in seite else True,
            "die Kopfkarte steht vor den Bewilligungen")
     pruefe('class="knopf abmelden"' in seite,
@@ -2453,12 +2457,39 @@ def test_meinbereich_aufbau(client: TestClient) -> None:
             "'Hoch','2020-01-01','2026-01-01 08:00','pruefer')")
     seite = client.get("/meinbereich").text
 
-    pruefe('class="spruch"' in seite or "spruch" not in seite,
-           "der Spruch steht oben, sofern einer gepflegt ist")
-    pruefe('class="karte meinkopf"' in seite,
-           "die Kopfkarte ist die schmale Fassung")
-    pruefe(seite.index("meinkopf") < seite.index("Meine Arbeitszeit"),
+    # ⚠️ Bis 1.37 stand hier „'spruch' nicht auf der Seite" als Rückfall -
+    # und das Wort steckt seit 1.38 in „Anspruch" in der Urlaubskarte.
+    # Ein nacktes Teilwort taugt nicht als Prüfung (Abschnitt 11); gefragt
+    # ist der PLATZ des Zitats, nicht sein Vorkommen.
+    if 'class="spruch"' in seite:
+        pruefe(seite.index('class="spruch"')
+               < seite.index('class="karte meinueberblick"'),
+               "der Spruch steht vor der ersten Karte")
+    else:
+        pruefe('<figure' not in seite.split('class="karte"')[0],
+               "ohne gepflegten Spruch steht dort auch keiner")
+    pruefe('class="karte meinueberblick"' in seite,
+           "die erste Karte ist „Auf einen Blick“")
+    pruefe(seite.index("meinueberblick") < seite.index("Meine Arbeitszeit"),
            "sie steht vor den Inhalten")
+
+    # ⚠️ Die vier Zahlen, für die es bis 1.37 drei ganze Karten brauchte.
+    # „Letzter abgeschlossener Monat“ und „Laufender Monat“ gibt es nicht
+    # mehr - jede trug eine 34px-Zahl, eine Überschrift und einen
+    # Erklärabsatz für eine Angabe, die in eine Kachel passt.
+    kopfkarte = seite.split('class="karte meinueberblick"')[1].split("</section>")[0]
+    pruefe('class="kennzahlen"' in kopfkarte,
+           "sie trägt die Kennzahlenreihe")
+    # ⚠️ Mit "<a " davor: „class=\"kennzahlen\"" der Hülle beginnt sonst
+    # genauso und wird mitgezählt.
+    pruefe(kopfkarte.count('<a class="kennzahl') == 4, "und zwar vier Kacheln")
+    for wort in ("Saldo", "dieser Monat", "Urlaub", "offene Aufgaben"):
+        pruefe(wort in kopfkarte, f"darunter „{wort}“")
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+    for weg in ("<h2>Letzter abgeschlossener Monat</h2>",
+                "<h2>Laufender Monat</h2>", "<h2>Monatsübersicht</h2>",
+                "<h2>Meine Zeiten</h2>"):
+        pruefe(weg not in ohne_dialog, f"„{weg}“ gibt es nicht mehr")
 
     baender = re.findall(r'class="abschnittsband"[^>]*>\s*<h2>([^<]+)</h2>', seite)
     pruefe(baender == ["Was ansteht", "Meine Arbeitszeit"],
@@ -2899,8 +2930,10 @@ def test_bewilligungsmail(client: TestClient) -> None:
     pruefe(seite.count('name="bewilligung_empfaenger"') >= 2,
            "die Oberfläche zeigt je Person ein Kästchen")
     # Der Name steht auf der Seite mehrfach (auch bei den Fristen) -
-    # gesucht ist der Kasten im Block „Erinnerung an Bewilligungen".
-    block = seite.split("Erinnerung an Bewilligungen")[1]
+    # gesucht ist der Kasten in der Karte des Anlasses. Sie heisst seit
+    # 1.38 „Auslaufende Bewilligung" und steht mit den vier anderen
+    # Anlaessen auf demselben Punkt „E-Mail".
+    block = seite.split("Auslaufende Bewilligung")[1]
     kasten = block[block.index('value="Zweite Person"'):][:120]
     pruefe("checked" in kasten, "und hakt die gespeicherten an")
 
@@ -2978,7 +3011,8 @@ def test_erinnerungsoptionen(client: TestClient) -> None:
                "abgeschaltet wird auch hier nicht erinnert")
 
     seite = client.get("/einstellungen?bereich=email").text
-    block = seite.split("Erinnerung an Fristen")[1]
+    # Seit 1.38 heisst die Karte des Anlasses „Überfällige Frist".
+    block = seite.split("Überfällige Frist")[1]
     kasten = block[block.index('value="pruefer"'):][:140]
     pruefe("checked" in kasten, "die Oberfläche hakt die Mitlesenden an")
 
@@ -3235,13 +3269,19 @@ def test_meinbereich_hinweise(client: TestClient) -> None:
     seite = client.get("/meinbereich").text
     # Vorbild ist die Karte „Meine Zeiten": Überschrift, Erklärung,
     # dann der Inhalt. Bis 1.17 stand die Erklärung mal oben, mal unten.
-    for karte, marke in (("Laufender Monat", "systemliste"),
-                         ("Verlauf", "diagrammhuelle"),
-                         ("Urlaub", "urlaubsspur"),
-                         ("Monatsübersicht", "monatstabelle"),
-                         ("Meine Zeiten", "zeitentabelle")):
-        pruefe(karte in seite, f"die Karte „{karte}“ steht auf der Seite")
-        teil = seite[seite.index(karte):]
+    # ⚠️ Die Kartennamen haben sich mit 1.38 geändert: „Laufender Monat“
+    # ist eine Kachel in „Auf einen Blick“ geworden, aus
+    # „Monatsübersicht“ und „Meine Zeiten“ wurde das Paar „Monat für
+    # Monat“ / „Eintrag für Eintrag“.
+    for karte, anfang, marke in (
+            ("Auf einen Blick", 'class="karte meinueberblick"', "kennzahlen"),
+            ("Verlauf", "<h2>Verlauf</h2>", "diagrammhuelle"),
+            ("Urlaub", 'class="karte" id="urlaub"', "urlaubsspur"),
+            ("Monat für Monat", "<h2>Monat für Monat</h2>", "monatstabelle"),
+            ("Eintrag für Eintrag", "<h2>Eintrag für Eintrag</h2>",
+             "zeitentabelle")):
+        pruefe(anfang in seite, f"die Karte „{karte}“ steht auf der Seite")
+        teil = seite[seite.index(anfang):]
         lead = teil.find('class="lead"')
         inhalt = teil.find(marke)
         pruefe(0 <= lead < inhalt,
@@ -5401,6 +5441,190 @@ def test_logbaum(client: TestClient) -> None:
 
     with db.db() as con:
         con.execute("DELETE FROM eintrag_log")
+
+
+def test_email_zusammengelegt(client: TestClient) -> None:
+    """Ein Punkt „E-Mail“ statt zweier, jeder Anlass mit seinem Wortlaut."""
+    abschnitt("Einstellungen: E-Mail zusammengelegt")
+    from . import mail
+
+    seite = client.get("/einstellungen?bereich=email").text
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+
+    # --- Das Menü -----------------------------------------------------------
+    menue = ohne_dialog.split('class="seitenmenue"')[1].split("</aside>")[0]
+    pruefe(">E-Mail</a>" in menue, "im Menü steht ein Punkt „E-Mail“")
+    pruefe("E-Mail-Versand" not in menue and "E-Mail-Vorlagen" not in menue,
+           "die beiden alten Punkte sind weg")
+    pruefe("bereich=vorlagen" not in menue,
+           "und der Vorlagen-Punkt auch nicht mehr als Adresse")
+
+    # ⚠️ Ein altes Lesezeichen darf nicht auf „Oberfläche“ fallen - der
+    # Wortlaut steht ja weiterhin da, nur bei seinem Anlass.
+    alt = client.get("/einstellungen?bereich=vorlagen")
+    pruefe(alt.status_code == 200 and "<h1>E-Mail</h1>" in alt.text,
+           "„?bereich=vorlagen“ führt weiterhin auf dieselbe Seite")
+
+    # --- Die drei Abschnitte ------------------------------------------------
+    baender = re.findall(r'class="abschnittsband"[^>]*>\s*<h2>([^<]+)</h2>',
+                         ohne_dialog)
+    pruefe(baender == ["Postausgang", "Anlässe", "Protokoll"],
+           f"die Seite steht in drei Abschnitten (sind: {baender})")
+
+    # --- Jeder Anlass trägt seinen Wortlaut ---------------------------------
+    for art, titel in (("abgabe", "Fehlende Zeiterfassung"),
+                       ("frist", "Überfällige Frist"),
+                       ("bewilligung", "Auslaufende Bewilligung"),
+                       ("zuweisung", "Neue Aufgabe zugewiesen"),
+                       ("erledigt", "Aufgabe erledigt")):
+        pruefe(titel in ohne_dialog, f"der Anlass „{titel}“ hat eine Karte")
+        karte = ohne_dialog.split(titel)[1].split("</section>")[0]
+        pruefe(f'name="vorlage_{art}_betreff"' in karte
+               and f'name="vorlage_{art}_text"' in karte,
+               f"und trägt seinen Wortlaut selbst")
+        pruefe('class="anlass-stand' in karte,
+               "die Karte sagt, ob der Anlass läuft")
+    pruefe(ohne_dialog.count('class="vorlagenblock"') == 5,
+           "fünf Anlässe, fünf zugeklappte Wortlaute")
+    # ⚠️ Zugeklappt: fünf offene Textfelder mit je zehn Zeilen wären
+    # wieder die Wand, die die alte Vorlagenseite war. Die Felder stecken
+    # trotzdem im Formular und werden mitgeschickt.
+    pruefe('<details class="vorlagenblock" open' not in ohne_dialog,
+           "und zwar zugeklappt")
+    # Die Formathilfe steht einmal über allen, nicht fünfmal.
+    pruefe(ohne_dialog.count("**fett**") == 1,
+           "die Formathilfe steht genau einmal über den Anlässen")
+
+    # --- Speichern sichert Schalter UND Wortlaut in einem Zug ---------------
+    antwort = client.post("/einstellungen/erledigtmail", data={
+        "erledigt_aktiv": "1",
+        "vorlage_erledigt_betreff": "Fertig: {titel}",
+        "vorlage_erledigt_text": "Hallo {name}, {titel} ist erledigt."},
+        follow_redirects=False)
+    pruefe(antwort.status_code == 303, "der Anlass lässt sich speichern")
+    pruefe("bereich=email" in antwort.headers.get("location", ""),
+           "und führt auf den einen E-Mail-Punkt zurück")
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+    pruefe(k["erledigt_aktiv"] == "1"
+           and k["vorlage_erledigt_betreff"] == "Fertig: {titel}",
+           "Schalter und Wortlaut stehen beide in der Konfiguration")
+
+    # ⚠️⚠️ Arbeitsregel 11: ein Formular OHNE die Vorlagenfelder darf den
+    # Wortlaut nicht stillschweigend leeren. Genau das käme von einem
+    # alten Lesezeichen oder einem von Hand abgeschickten Formular.
+    # ⚠️ Ein nicht angehaktes Kästchen schickt gar nichts mit - „0" wäre
+    # ein gesetzter Wert und damit eingeschaltet (dieselbe Falle wie bei
+    # `selbstzahler`, Abschnitt 10).
+    client.post("/einstellungen/erledigtmail", data={"leer": "1"},
+                follow_redirects=False)
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+    pruefe(k["erledigt_aktiv"] == "0", "der Schalter lässt sich einzeln kippen")
+    pruefe(k["vorlage_erledigt_betreff"] == "Fertig: {titel}",
+           "ohne dass der Wortlaut dabei verloren geht")
+
+    # Und der Rücksetzer holt den Auslieferungsstand zurück.
+    client.post("/einstellungen/vorlagen/zuruecksetzen", follow_redirects=False)
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+    pruefe(k["vorlage_erledigt_betreff"] == mail.STANDARD["vorlage_erledigt_betreff"],
+           "„Zurücksetzen“ stellt alle fünf Vorlagen wieder her")
+    pruefe(k["erledigt_aktiv"] == "0",
+           "und lässt die Schalter der Anlässe unberührt")
+
+    stil = client.get("/static/style.css").text
+    pruefe(".vorlagenblock[open] > .vorlagenblock-inhalt {" in stil,
+           "der Wortlautblock ist wie der Passwortblock gebaut")
+
+
+def test_meinbereich_umbau(client: TestClient) -> None:
+    """Mein Bereich, Umbau 1.38: kein Leerraum, keine Kartenwüste."""
+    abschnitt("Mein Bereich: Umbau")
+    stil = client.get("/static/style.css").text
+    seite = client.get("/meinbereich").text
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+
+    # --- Der überflüssige Kopfbalken ----------------------------------------
+    pruefe('class="karte meinkopf"' not in ohne_dialog,
+           "der reine Kopfbalken ist weg")
+    pruefe(".karte.meinkopf {" not in stil,
+           "und seine Regel steht auch nicht mehr im Stylesheet")
+    # „Abmelden“ bleibt oben und genau einmal - sonst fehlte er Konten
+    # ohne Mitarbeiterzuordnung ganz (der Grund von 1.2).
+    kopf = ohne_dialog.split('class="karte meinueberblick"')[1].split("</section>")[0]
+    pruefe('action="/logout"' in kopf, "„Abmelden“ steht in der ersten Karte")
+    pruefe(ohne_dialog.count('action="/logout"') == 1, "und genau einmal")
+
+    # --- Kein Loch neben der Aufgabenkarte ----------------------------------
+    # ⚠️ „Bewilligungen im Blick“ hängt an einem Einzelrecht. Ohne das
+    # stand die Aufgabenkarte links in halber Breite und rechts nichts.
+    pruefe(".raster.gleich.allein { grid-template-columns: minmax(0, 1fr); }"
+           in stil, "ein Raster mit einer Karte wird einspaltig")
+    pruefe('class="raster gleich buendig">' in ohne_dialog,
+           "mit Bewilligungen stehen beide Karten nebeneinander")
+
+    client.post("/einstellungen/benutzer", data={
+        "benutzername": "ohneblick", "passwort": "ohneblickpw",
+        "rolle": "benutzer", "mitarbeiter": "pruefer",
+        "bereiche": ["verwaltungsvorgaenge"]})
+    with db.db() as con:
+        con.execute("UPDATE benutzer SET bewilligungen_sehen=0 "
+                    "WHERE benutzername='ohneblick'")
+    o = TestClient(app)
+    o.post("/login", data={"benutzername": "ohneblick",
+                           "passwort": "ohneblickpw"}, follow_redirects=False)
+    ohne = o.get("/meinbereich").text.split('<div class="neuheiten"')[0]
+    pruefe("Bewilligungen im Blick" not in ohne,
+           "ohne das Recht fehlt die Bewilligungskarte")
+    pruefe('class="raster gleich buendig allein"' in ohne,
+           "und die Aufgabenkarte bekommt die volle Breite statt eines Lochs")
+
+    # --- Die lange Bewilligungsliste ----------------------------------------
+    # ⚠️ Bei zwanzig fehlenden Bescheiden wuchs die Karte über die ganze
+    # Seite, während daneben drei Aufgaben standen.
+    with db.db() as con:
+        for i in range(9):
+            con.execute("INSERT OR IGNORE INTO person (name, wochenstunden, "
+                        "stundensatz, abrechenbar, aktiv, angelegt_am) "
+                        "VALUES (?,0,0,1,1,'2026-01-01 08:00')",
+                        (f"Ohne Bescheid {i}",))
+    viele = client.get("/meinbereich").text.split('<div class="neuheiten"')[0]
+    karte = viele.split("Bewilligungen im Blick")[1].split("</section>")[0]
+    offen = karte.split('<details class="bewilligung-rest"')[0]
+    pruefe(offen.count("<li class=") <= 6,
+           "höchstens sechs Fälle stehen offen da")
+    pruefe("weitere anzeigen" in karte,
+           "der Rest steht zugeklappt darunter")
+    with db.db() as con:
+        con.execute("DELETE FROM person WHERE name LIKE 'Ohne Bescheid %'")
+
+    # --- Die beiden Tabellen heißen jetzt verständlich -----------------------
+    # ⚠️ „Monatsübersicht“ und „Meine Zeiten“ sagten beide nichts darüber,
+    # worin sie sich unterscheiden - Timos Meldung: die Mitarbeitenden
+    # wussten teilweise nicht, was sie da sehen.
+    pruefe("<h2>Monat für Monat</h2>" in ohne_dialog
+           and "<h2>Eintrag für Eintrag</h2>" in ohne_dialog,
+           "die beiden Tabellen erklären sich als Paar")
+    pruefe(ohne_dialog.index("<h2>Monat für Monat</h2>")
+           < ohne_dialog.index("<h2>Eintrag für Eintrag</h2>"),
+           "die Summen stehen vor den Einzelheiten")
+
+    # --- Die rechte Spalte trägt zwei Karten --------------------------------
+    # ⚠️ Ohne eigene Hülle landete die zweite wieder in der linken Spalte:
+    # ein Raster verteilt seine Kinder, es stapelt sie nicht.
+    pruefe('class="mein-spalte"' in ohne_dialog,
+           "Urlaub und Trend stehen in einer eigenen Spalte")
+    pruefe(".mein-spalte { display: flex; flex-direction: column;" in stil,
+           "die als Stapel gesetzt ist")
+    spalte = ohne_dialog.split('class="mein-spalte"')[1].split("</div>\n</div>")[0]
+    pruefe("Urlaub" in spalte, "der Urlaub steht darin")
+
+    # --- Der Schein hinter den Kacheln lässt die Karte nicht rollen ----------
+    # ⚠️ `.kennzahlen::before` greift 26px über die Reihe hinaus; die
+    # Karte bekam dadurch 4px Rollhöhe und am Telefon einen Rollbalken.
+    pruefe(".meinueberblick .kennzahlen:last-child { margin-bottom: 6px; }"
+           in stil, "die Kennzahlenreihe hält unten Abstand zur Kartenkante")
 
 
 def test_texte_tot() -> None:
@@ -7968,6 +8192,8 @@ def _durchlauf(client: TestClient) -> None:
         test_hinweistexte(client)
         test_versteckte_dateiordner(client)
         test_ntfy(client)
+        test_email_zusammengelegt(client)
+        test_meinbereich_umbau(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

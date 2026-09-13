@@ -3379,20 +3379,52 @@ body.anmeldeseite {
    Hinweis - orangefarbener Balken statt rotem. */
 .konto.person.bald-ohne-bewilligung { border-left: 3px solid var(--warn); }
 
-/* --- Mein Bereich: Kopfkarte -------------------------------------------- */
-/* Schmal und einzeilig. Vorher stand hier eine volle Karte mit
-   Überschrift, Name und Erklärabsatz und nahm den halben ersten
-   Bildschirm für eine Auskunft, die man einmal liest. */
-.karte.meinkopf {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap; padding-top: 14px; padding-bottom: 14px;
-}
-.meinkopf-name { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.meinkopf-titel {
-  font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--leise);
-}
-.meinkopf-name .stark { font-size: 20px; color: var(--akzent); }
+/* --- Mein Bereich: „Auf einen Blick" ------------------------------------
+   ⚠️ Hier stand bis 1.37 eine Karte, die NUR den Namen und den
+   Abmelden-Knopf trug (`.karte.meinkopf`). Sie war eine Zeile Höhe für
+   eine Auskunft, die schon in der Kopfzeile steht - Timos „überflüssiger
+   Balken". Die Karte gibt es weiterhin, sie trägt jetzt aber die vier
+   Kennzahlen, für die es vorher drei ganze Karten brauchte. Der
+   Abmelden-Knopf bleibt genau dort, wo er seit 1.2 ist: oben, sichtbar,
+   und auch für Konten ohne Mitarbeiterzuordnung erreichbar. */
+.meinueberblick > .kopfzeile { align-items: flex-start; }
+.meinueberblick-kopf h1 { margin: 0; }
+.meinueberblick-kopf p { margin: 3px 0 0; }
+.meinueberblick .lead { margin-top: 12px; }
+.meinueberblick .kennzahlen { margin-top: 4px; }
+/* ⚠️ Der weiche Schein hinter den Kacheln (`.kennzahlen::before`) greift
+   26px über die Reihe hinaus. Steht die Reihe als Letztes in der Karte,
+   reichen deren 22px Polsterung nicht - die Karte bekam dadurch eine
+   Rollhöhe von 4px und zeigte am Telefon einen senkrechten Rollbalken
+   (`.karte` steht auf `overflow-x: auto`, und das macht nach CSS-Regel
+   auch die senkrechte Achse zu einem Scroll-Container). Gemessen: 399
+   gegen 395. */
+.meinueberblick .kennzahlen:last-child { margin-bottom: 6px; }
+.meinueberblick .felderklaerung { margin: 14px 0 0; }
+/* Ein Minus-Saldo in Rot. `k-plus` (grün) gab es schon für die
+   Auswertung; das Gegenstück fehlte, weil dort nie eine Zahl negativ
+   wird. */
+.kennzahl.hat.k-minus { border-color: var(--dopp); background: var(--dopp-weich); }
+.kennzahl.hat.k-minus .kzahl { color: var(--dopp); }
+/* Die Kacheln tragen hier Uhrzeiten und Tagesangaben statt reiner
+   Stückzahlen - „160:00" bei 26px sprengte die schmalste Kachel. */
+.meinueberblick .kzahl { font-size: 22px; }
+
+/* ⚠️ Ein Raster mit einer einzigen Karte ist keine Spalte, sondern ein
+   Loch: „Bewilligungen im Blick" hängt an einem Einzelrecht, und ohne
+   das stand die Aufgabenkarte links in halber Breite und rechts nichts.
+   Die Vorlage setzt `allein`, wenn sie weiß, dass nur eine Karte
+   kommt - bewusst dort und nicht über `:has(> :only-child)`: die
+   Bedingung steht in der Vorlage ohnehin schon, und ein Selektor, der
+   dasselbe noch einmal aus dem Markup errät, läuft irgendwann
+   auseinander. */
+.raster.gleich.allein { grid-template-columns: minmax(0, 1fr); }
+
+/* Die rechte Spalte von „Meine Arbeitszeit" trägt zwei Karten. Ohne
+   eigene Hülle landete die zweite wieder in der linken Spalte - ein
+   Raster verteilt seine Kinder, es stapelt sie nicht. */
+.mein-spalte { display: flex; flex-direction: column; gap: var(--abstand);
+               min-width: 0; }
 
 /* --- Mein Bereich: eigene Aufgaben --------------------------------------- */
 .aufgabenliste { list-style: none; margin: 0; padding: 0;
@@ -5426,16 +5458,6 @@ a.vgk-wert:hover { text-decoration: underline; }
 .knopf.abmelden { display: inline-flex; align-items: center; gap: 8px; }
 .knopf.abmelden svg { width: 16px; height: 16px; }
 .knopf.abmelden:hover { border-color: var(--dopp); color: var(--dopp); }
-/* „Abmelden“ steht oben in der ersten Karte und ist der eine Knopf, den
-   man auf dieser Seite sucht - er darf deshalb größer sein als die
-   übrigen. Der Rahmen trägt schon die Warnfarbe, gefüllt wäre er der
-   auffälligste Knopf der ganzen Anwendung und das wäre zu viel. */
-.knopf.abmelden.gross {
-  font-size: 14px; padding: 11px 20px; font-weight: 600;
-  border-color: var(--dopp); color: var(--dopp);
-}
-.knopf.abmelden.gross svg { width: 18px; height: 18px; }
-.knopf.abmelden.gross:hover { background: var(--dopp-weich); }
 .abmeldeform { flex: 0 0 auto; }
 
 /* Monatswahl über der Liste der eigenen Zeiten. Dieselbe Form wie die
@@ -6123,4 +6145,58 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 .importkarte[open] > summary { margin-bottom: 4px; }
 @media (prefers-reduced-motion: no-preference) {
   .importkarte > summary::after { transition: transform .2s ease; }
+}
+
+/* --- Einstellungen → E-Mail: ein Anlass, eine Karte ----------------------
+   Seit 1.38 stehen Schalter, Optionen UND Wortlaut je Anlass in einer
+   Karte. Vorher lag der Schalter auf der einen und der Text auf der
+   anderen Seite, und keine von beiden sagte, dass es die andere gibt. */
+.anlass-kopf {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+.anlass-kopf h2 { margin: 0; }
+/* Ob ein Anlass läuft, muss man beim Überfliegen sehen können - sonst
+   klappt man fünf Karten auf, um eine Frage zu beantworten, die eine
+   Marke beantwortet. Bewusst nur zwei Zustände und keine Ampel: „aus“
+   ist kein Fehler, sondern eine Entscheidung. */
+.anlass-stand {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; padding: 3px 9px; border-radius: 999px;
+}
+.anlass-stand.an  { background: var(--gut-weich); color: var(--gut); }
+.anlass-stand.aus { background: var(--flaeche-2); color: var(--leise); }
+.anlasshilfe .lead { margin-bottom: 0; }
+.anlasshilfe .hinweise { margin-top: 12px; }
+
+/* Der Wortlaut steht zugeklappt - fünf offene Textfelder mit je zehn
+   Zeilen ergäben wieder die Wand, die die alte Vorlagenseite war.
+   Bewusst <details> und kein Skript: die Felder stecken darin und
+   schicken ihren Wert auch zugeklappt mit. Form wie beim Passwortblock
+   in „Mein Konto“ - zwei verschiedene Aufklapper für dieselbe Sache
+   liefen früher oder später auseinander. */
+.vorlagenblock { margin: 18px 0 4px; }
+.vorlagenblock > summary {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  cursor: pointer; list-style: none;
+  padding: 10px 14px; border: 1px solid var(--linie-stark); border-radius: 10px;
+  background: var(--flaeche-2);
+}
+.vorlagenblock > summary::-webkit-details-marker { display: none; }
+.vorlagenblock-titel { font-size: 13px; font-weight: 600; }
+.vorlagenblock > summary::after {
+  content: ""; margin-left: auto; width: 9px; height: 9px;
+  border-right: 2px solid var(--leise); border-bottom: 2px solid var(--leise);
+  transform: rotate(45deg) translate(-2px, -2px); align-self: center;
+}
+.vorlagenblock[open] > summary::after { transform: rotate(-135deg); }
+.vorlagenblock > summary:hover { border-color: var(--akzent); }
+.vorlagenblock[open] > summary { border-radius: 10px 10px 0 0; border-bottom: 0; }
+.vorlagenblock[open] > .vorlagenblock-inhalt {
+  border: 1px solid var(--linie-stark); border-top: 0; border-radius: 0 0 10px 10px;
+  padding: 14px; margin: 0;
+}
+.vorlagenblock-inhalt > p:last-child { margin-bottom: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .vorlagenblock > summary::after { transition: transform .2s ease; }
 }

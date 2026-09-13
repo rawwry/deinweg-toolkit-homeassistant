@@ -185,6 +185,12 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
                   hinweis: str = "", fehler: str = "",
                   spruch_bearbeiten: int = -1, offen: int = 0):
     ist_admin = request.state.benutzer["rolle"] == "admin"
+    # ⚠️ Seit 1.38 gibt es nur noch EINEN E-Mail-Punkt. Ein altes
+    # Lesezeichen auf "?bereich=vorlagen" darf nicht auf "Oberflaeche"
+    # fallen - der Wortlaut steht dort ja weiterhin, nur bei seinem
+    # Anlass. Deshalb umgebogen statt verworfen.
+    if bereich == "vorlagen":
+        bereich = "email"
     if bereich not in ("oberflaeche", "quotes", "betreute", "mitarbeiter",
                        "vorgangsarten", "leistungen", "kfz", "benutzer",
                        "email", "vorlagen", "system", "hinweistexte"):
@@ -1111,8 +1117,13 @@ def benutzer_loeschen(request: Request, benutzer_id: int):
 # wurde - so kann man Server oder Absender aendern, ohne das Passwort
 # jedes Mal neu eintippen zu muessen.
 
-def email_zurueck(bereich: str = "email", **werte):
-    werte.setdefault("bereich", bereich)
+def email_zurueck(**werte):
+    """Zurueck auf den Punkt "E-Mail".
+
+    ⚠️ Seit 1.38 gibt es nur noch diesen einen Punkt - der frueher
+    mitgegebene Zielbereich ("vorlagen") ist damit entfallen.
+    """
+    werte.setdefault("bereich", "email")
     return RedirectResponse("/einstellungen?" + urlencode(werte), status_code=303)
 
 
@@ -1153,10 +1164,33 @@ def namensliste(werte: list[str]) -> list[str]:
     return namen
 
 
+def vorlage_werte(art: str, betreff: str, text: str) -> dict:
+    """Betreff und Text einer Vorlage, fertig zum Speichern.
+
+    Seit 1.38 schickt jede Anlass-Karte ihren eigenen Wortlaut mit, statt
+    dass alle zehn Felder in einem gemeinsamen Formular auf einer zweiten
+    Seite stehen.
+
+    ⚠️ Ein leeres Feld heisst hier NICHT "leer machen", sondern "war
+    nicht dabei". Die Felder sind im Formular Pflicht, aus der Oberflaeche
+    kann also nichts Leeres kommen; ein von Hand abgeschicktes Formular
+    oder ein alter Aufruf, der nur den Schalter kennt, wuerde sonst beim
+    Umlegen eines Hakens still den ganzen Wortlaut wegraeumen
+    (Arbeitsregel 11).
+    """
+    betreff = betreff.strip()
+    text = text.replace("\r\n", "\n").strip()
+    if not betreff or not text:
+        return {}
+    return {f"vorlage_{art}_betreff": betreff, f"vorlage_{art}_text": text}
+
+
 @router.post("/einstellungen/bewilligungsmail")
 def bewilligungsmail_speichern(bewilligung_aktiv: str = Form(""),
                                bewilligung_tage: str = Form("60"),
-                               bewilligung_empfaenger: list[str] = Form([])):
+                               bewilligung_empfaenger: list[str] = Form([]),
+                               vorlage_bewilligung_betreff: str = Form(""),
+                               vorlage_bewilligung_text: str = Form("")):
     """Mehrere Empfaenger, kommagetrennt gespeichert.
 
     Die Namen kommen als Kaestchenliste herein, also als mehrere Felder
@@ -1172,52 +1206,67 @@ def bewilligungsmail_speichern(bewilligung_aktiv: str = Form(""),
     if bewilligung_aktiv and not namen:
         return email_zurueck(fehler=(
             "Ohne Empfänger kann die Erinnerung nicht verschickt werden."))
+    werte = {
+        "bewilligung_aktiv": "1" if bewilligung_aktiv else "0",
+        "bewilligung_tage": str(tage),
+        "bewilligung_empfaenger": ", ".join(namen),
+    }
+    werte.update(vorlage_werte("bewilligung", vorlage_bewilligung_betreff,
+                               vorlage_bewilligung_text))
     with db.db() as con:
-        mail.konfig_schreiben(con, {
-            "bewilligung_aktiv": "1" if bewilligung_aktiv else "0",
-            "bewilligung_tage": str(tage),
-            "bewilligung_empfaenger": ", ".join(namen),
-        })
+        mail.konfig_schreiben(con, werte)
     return email_zurueck(hinweis="Erinnerung an Bewilligungen gespeichert.")
 
 
 @router.post("/einstellungen/fristmail")
 def fristmail_speichern(frist_aktiv: str = Form(""),
                         frist_vorlauf: str = Form("0"),
-                        frist_kopie: list[str] = Form([])):
+                        frist_kopie: list[str] = Form([]),
+                        vorlage_frist_betreff: str = Form(""),
+                        vorlage_frist_text: str = Form("")):
     """Erinnerungen aus der Aufgabenverwaltung."""
     try:
         vorlauf = max(0, min(365, int(frist_vorlauf or 0)))
     except ValueError:
         return email_zurueck(fehler="Der Vorlauf muss eine Zahl in Tagen sein.")
+    werte = {
+        "frist_aktiv": "1" if frist_aktiv else "0",
+        "frist_vorlauf": str(vorlauf),
+        "frist_kopie": ", ".join(namensliste(frist_kopie)),
+    }
+    werte.update(vorlage_werte("frist", vorlage_frist_betreff,
+                               vorlage_frist_text))
     with db.db() as con:
-        mail.konfig_schreiben(con, {
-            "frist_aktiv": "1" if frist_aktiv else "0",
-            "frist_vorlauf": str(vorlauf),
-            "frist_kopie": ", ".join(namensliste(frist_kopie)),
-        })
+        mail.konfig_schreiben(con, werte)
     return email_zurueck(hinweis="Erinnerung an Fristen gespeichert.")
 
 
 @router.post("/einstellungen/abgabemail")
 def abgabemail_speichern(abgabe_aktiv: str = Form(""),
-                         abgabe_tag: str = Form("1")):
+                         abgabe_tag: str = Form("1"),
+                         vorlage_abgabe_betreff: str = Form(""),
+                         vorlage_abgabe_text: str = Form("")):
     """Erinnerung an die fehlende Monatsabgabe."""
     try:
         tag = max(1, min(28, int(abgabe_tag or 1)))
     except ValueError:
         return email_zurueck(fehler="Der Stichtag muss ein Tag zwischen 1 und 28 sein.")
+    werte = {
+        "abgabe_aktiv": "1" if abgabe_aktiv else "0",
+        "abgabe_tag": str(tag),
+    }
+    werte.update(vorlage_werte("abgabe", vorlage_abgabe_betreff,
+                               vorlage_abgabe_text))
     with db.db() as con:
-        mail.konfig_schreiben(con, {
-            "abgabe_aktiv": "1" if abgabe_aktiv else "0",
-            "abgabe_tag": str(tag),
-        })
+        mail.konfig_schreiben(con, werte)
     return email_zurueck(hinweis="Erinnerung an die Zeiterfassung gespeichert.")
 
 
 @router.post("/einstellungen/zuweisungsmail")
 def zuweisungsmail_speichern(zuweisung_aktiv: str = Form(""),
-                             zuweisung_verzug: str = Form("2")):
+                             zuweisung_verzug: str = Form("2"),
+                             vorlage_zuweisung_betreff: str = Form(""),
+                             vorlage_zuweisung_text: str = Form("")):
     """Mail an die zustaendige Person bei neu zugewiesenen Aufgaben.
 
     Der Verzug sammelt mehrere kurz nacheinander angelegte Aufgaben in
@@ -1228,25 +1277,31 @@ def zuweisungsmail_speichern(zuweisung_aktiv: str = Form(""),
     except ValueError:
         return email_zurueck(fehler=(
             "Der Sammelverzug muss eine Zahl zwischen 0 und 1440 Minuten sein."))
+    werte = {
+        "zuweisung_aktiv": "1" if zuweisung_aktiv else "0",
+        "zuweisung_verzug": str(verzug),
+    }
+    werte.update(vorlage_werte("zuweisung", vorlage_zuweisung_betreff,
+                               vorlage_zuweisung_text))
     with db.db() as con:
-        mail.konfig_schreiben(con, {
-            "zuweisung_aktiv": "1" if zuweisung_aktiv else "0",
-            "zuweisung_verzug": str(verzug),
-        })
+        mail.konfig_schreiben(con, werte)
     return email_zurueck(hinweis="Erinnerung an neue Aufgaben gespeichert.")
 
 
 @router.post("/einstellungen/erledigtmail")
-def erledigtmail_speichern(erledigt_aktiv: str = Form("")):
+def erledigtmail_speichern(erledigt_aktiv: str = Form(""),
+                           vorlage_erledigt_betreff: str = Form(""),
+                           vorlage_erledigt_text: str = Form("")):
     """Mail an die anlegende Person, sobald eine Aufgabe abgeschlossen ist.
 
     Kein Verzug und keine Sammlung: anders als bei den Zuweisungen geht es
     hier um ein einzelnes Ereignis, das sofort interessiert.
     """
+    werte = {"erledigt_aktiv": "1" if erledigt_aktiv else "0"}
+    werte.update(vorlage_werte("erledigt", vorlage_erledigt_betreff,
+                               vorlage_erledigt_text))
     with db.db() as con:
-        mail.konfig_schreiben(con, {
-            "erledigt_aktiv": "1" if erledigt_aktiv else "0",
-        })
+        mail.konfig_schreiben(con, werte)
     return email_zurueck(hinweis="Meldung über erledigte Aufgaben gespeichert.")
 
 
@@ -1273,6 +1328,11 @@ def email_pruefen():
     return email_zurueck(hinweis="Prüfung gelaufen: " + " · ".join(zeilen[:4]))
 
 
+# ⚠️ Diese Route speichert alle fuenf Vorlagen auf einmal. Die Oberflaeche
+# benutzt sie seit 1.38 nicht mehr - dort sichert jede Anlass-Karte ihren
+# eigenen Wortlaut (vorlage_werte). Sie bleibt trotzdem stehen: sie ist der
+# dokumentierte Weg, alles in einem Zug zu setzen, und ihr Pfadpraefix
+# deckt ausserdem "/vorlagen/zuruecksetzen" in ADMIN_NUR_PFADE mit ab.
 @router.post("/einstellungen/vorlagen")
 def vorlagen_speichern(vorlage_frist_betreff: str = Form(""),
                        vorlage_frist_text: str = Form(""),
@@ -1301,11 +1361,11 @@ def vorlagen_speichern(vorlage_frist_betreff: str = Form(""),
     }
     leer = [k for k, v in werte.items() if not v]
     if leer:
-        return email_zurueck("vorlagen", fehler=(
+        return email_zurueck(fehler=(
             "Betreff und Text dürfen nicht leer sein."))
     with db.db() as con:
         mail.konfig_schreiben(con, werte)
-    return email_zurueck("vorlagen", hinweis="Vorlagen gespeichert.")
+    return email_zurueck(hinweis="Vorlagen gespeichert.")
 
 
 @router.post("/einstellungen/vorlagen/zuruecksetzen")
@@ -1313,8 +1373,8 @@ def vorlagen_zuruecksetzen():
     with db.db() as con:
         mail.konfig_schreiben(con, {
             k: v for k, v in mail.STANDARD.items() if k.startswith("vorlage_")})
-    return email_zurueck("vorlagen", hinweis="Vorlagen auf den Auslieferungsstand "
-                                             "zurückgesetzt.")
+    return email_zurueck(hinweis="Vorlagen auf den Auslieferungsstand "
+                                  "zurückgesetzt.")
 
 
 # --- Datenbank sichern und zurückspielen --------------------------------------

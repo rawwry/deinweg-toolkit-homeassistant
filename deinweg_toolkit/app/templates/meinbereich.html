@@ -3,6 +3,29 @@
 {% block titel %} – Mein Bereich{% endblock %}
 {% block inhalt %}
 
+{# ⚠️⚠️ Umgebaut mit 1.38. Vier Dinge waren an der alten Fassung falsch,
+   und alle vier hat Timo gemeldet:
+
+   1. Ganz oben stand ein Balken „MEIN BEREICH · Name" mit dem
+      Abmelden-Knopf. Er trug keine einzige Auskunft, die nicht schon in
+      der Kopfzeile stand, und nahm die erste Bildschirmzeile weg.
+   2. „Meine Aufgaben" und „Bewilligungen im Blick" standen in einem
+      zweispaltigen Raster. Wer das Recht auf die Bewilligungen nicht hat
+      (das ist gewollt), sah links eine Karte und rechts ein Loch. Und
+      umgekehrt konnte die Bewilligungsliste bei zwanzig offenen Fällen
+      den halben Bildschirm füllen.
+   3. Vier große Kästen für vier Zahlen: „Letzter abgeschlossener Monat",
+      „Laufender Monat", „Urlaub", dazu die Trendreihe. Jede Zahl in
+      34px, jede mit eigener Überschrift und eigenem Erklärabsatz.
+   4. „Meine Zeiten" und „Monatsübersicht" - zwei Tabellen, deren Namen
+      nicht sagten, worin sie sich unterscheiden. Die Mitarbeitenden
+      wussten teilweise nicht, was sie da sehen.
+
+   Die Antwort ist dieselbe Gliederung wie überall sonst im Programm:
+   eine Kennzahlenreihe oben, darunter Abschnittsbänder. Die beiden
+   Tabellen heißen jetzt „Monat für Monat" und „Eintrag für Eintrag" -
+   als Paar erklären sie sich gegenseitig. #}
+
 {% macro bewilligungskarte() %}
 {% if bewilligungen or bewilligungen_grundwert %}
 {# Kein farbiger Rahmen mehr um die ganze Karte - der Balken links an
@@ -18,41 +41,26 @@
   </div>
   {% if bewilligungen %}
   <p class="lead">{{ t("mein.bewilligungen_lead") }}</p>
+  {# ⚠️ Höchstens sechs offen. Die Liste kommt nach Dringlichkeit herein
+     (bewilligungen_pruefen), die sechs obersten sind also die, um die es
+     geht. Bei zwanzig fehlenden Bescheiden wuchs die Karte sonst über
+     die ganze Seite und schob alles Übrige aus dem Bild - und daneben
+     stand die Aufgabenkarte mit drei Zeilen. #}
   <ul class="bewilligungsliste">
-    {% for b in bewilligungen %}
-    <li class="bw-{{ b.art }}">
-      <span class="bw-name">{{ b.name }}</span>
-      <span class="bw-lage">
-        {% if b.art == "abgelaufen" %}
-          <span class="marke-status dopp">abgelaufen</span>
-          {% if b.seit %}<span class="leise">seit {{ b.seit | deutsch }}</span>{% endif %}
-        {% elif b.art == "leer" %}
-          <span class="marke-status dopp">nichts hinterlegt</span>
-        {% elif b.art == "laeuft_aus" %}
-          <span class="marke-status offen">läuft aus</span>
-          <span class="leise">am {{ b.bis | deutsch }} · noch
-            {{ b.tage }} {{ "Tag" if b.tage == 1 else "Tage" }}</span>
-        {% elif b.art == "kuenftig" %}
-          <span class="marke-status offen">gilt erst ab {{ b.ab | deutsch }}</span>
-        {% else %}
-          <span class="marke-status weg">kein Zeitraum</span>
-          <span class="leise">es gilt der Grundwert</span>
-        {% endif %}
-      </span>
-      {% if hat_zugriff(request.state.benutzer, "einstellungen")
-            and hat_einst_zugriff(request.state.benutzer, "betreute") %}
-      <a class="knopf-icon bw-pflegen" title="Zeiträume pflegen" aria-label="Zeiträume pflegen"
-         href="/einstellungen?bereich=betreute&offen={{ b.id }}#person-{{ b.id }}">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
-                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        </svg>
-      </a>
-      {% endif %}
-    </li>
+    {% for b in bewilligungen[:6] %}
+    {{ bewilligungszeile(b) }}
     {% endfor %}
   </ul>
+  {% if bewilligungen | length > 6 %}
+  <details class="bewilligung-rest">
+    <summary>{{ bewilligungen | length - 6 }} weitere anzeigen</summary>
+    <ul class="bewilligungsliste">
+      {% for b in bewilligungen[6:] %}
+      {{ bewilligungszeile(b) }}
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
   {% else %}
   <p class="klein leise">{{ t("mein.bewilligungen_gut") }}</p>
   {% endif %}
@@ -71,27 +79,52 @@
     </summary>
     <ul class="bewilligungsliste">
       {% for b in bewilligungen_grundwert %}
-      <li class="bw-grundwert">
-        <span class="bw-name">{{ b.name }}</span>
-        <span class="bw-lage"><span class="marke-status weg">Grundwert ohne Wirkung</span></span>
-        {% if hat_zugriff(request.state.benutzer, "einstellungen")
-              and hat_einst_zugriff(request.state.benutzer, "betreute") %}
-        <a class="knopf-icon bw-pflegen" title="Zeiträume pflegen" aria-label="Zeiträume pflegen"
-           href="/einstellungen?bereich=betreute&offen={{ b.id }}#person-{{ b.id }}">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
-                  stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          </svg>
-        </a>
-        {% endif %}
-      </li>
+      {{ bewilligungszeile(b) }}
       {% endfor %}
     </ul>
   </details>
   {% endif %}
 </section>
 {% endif %}
+{% endmacro %}
+
+{# Eine Zeile der Bewilligungsliste. Sie stand bis 1.37 dreimal fast
+   gleich im Markup - einmal für die offenen Fälle und einmal für die
+   Grundwerte, samt vollständig wiederholtem Stift-Symbol. #}
+{% macro bewilligungszeile(b) %}
+<li class="bw-{{ b.art }}">
+  <span class="bw-name">{{ b.name }}</span>
+  <span class="bw-lage">
+    {% if b.art == "abgelaufen" %}
+      <span class="marke-status dopp">abgelaufen</span>
+      {% if b.seit %}<span class="leise">seit {{ b.seit | deutsch }}</span>{% endif %}
+    {% elif b.art == "leer" %}
+      <span class="marke-status dopp">nichts hinterlegt</span>
+    {% elif b.art == "laeuft_aus" %}
+      <span class="marke-status offen">läuft aus</span>
+      <span class="leise">am {{ b.bis | deutsch }} · noch
+        {{ b.tage }} {{ "Tag" if b.tage == 1 else "Tage" }}</span>
+    {% elif b.art == "kuenftig" %}
+      <span class="marke-status offen">gilt erst ab {{ b.ab | deutsch }}</span>
+    {% elif b.art == "grundwert" %}
+      <span class="marke-status weg">Grundwert ohne Wirkung</span>
+    {% else %}
+      <span class="marke-status weg">kein Zeitraum</span>
+      <span class="leise">es gilt der Grundwert</span>
+    {% endif %}
+  </span>
+  {% if hat_zugriff(request.state.benutzer, "einstellungen")
+        and hat_einst_zugriff(request.state.benutzer, "betreute") %}
+  <a class="knopf-icon bw-pflegen" title="Zeiträume pflegen" aria-label="Zeiträume pflegen"
+     href="/einstellungen?bereich=betreute&offen={{ b.id }}#person-{{ b.id }}">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+            stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </svg>
+  </a>
+  {% endif %}
+</li>
 {% endmacro %}
 
 
@@ -112,52 +145,118 @@
 </figure>
 {% endif %}
 
-{# Die Kopfkarte ist bewusst schmal: Name, Abmelden, fertig. Sie hatte
-   früher eine eigene Überschriftenzeile samt Erklärabsatz und nahm damit
-   den halben ersten Bildschirm für eine Auskunft, die man einmal liest. #}
-<section class="karte meinkopf">
-  <div class="meinkopf-name">
-    <span class="meinkopf-titel">Mein Bereich</span>
-    <span class="stark">{{ name if person else benutzer.benutzername }}</span>
-  </div>
-  <form action="/logout" method="post" class="abmeldeform">
-    <button type="submit" class="knopf abmelden">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h12"
-              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Abmelden
-    </button>
-  </form>
-</section>
-
-{% if not person %}
-<section class="karte">
-  <p class="lead" style="margin-bottom: 0;">{{ t("mein.keine_zuordnung") }}</p>
-</section>
-{% endif %}
-
 {% if person %}
-
 {% if verwaist %}
 <p class="meldung offen-hinweis">{{ t("mein.verwaist", name=name) }}</p>
 {% endif %}
 {% if not soll_std %}
 <p class="meldung offen-hinweis">{{ t("mein.kein_soll") }}</p>
 {% endif %}
+{% endif %}
+
+{# --- Auf einen Blick -----------------------------------------------------
+   ⚠️ Die vier Zahlen, für die es bis 1.37 drei ganze Karten mit je einer
+   34px-Zahl, einer Überschrift und einem Erklärabsatz brauchte. Hier
+   ersetzen sie den früheren Kopfbalken: die Karte trägt jetzt selbst
+   etwas, statt nur Namen und Abmelden-Knopf zu halten.
+
+   ⚠️ „Abmelden" steht deshalb weiterhin ganz oben und genau einmal auf
+   der Seite. Das war seit 1.2 so und hat einen Grund: unten bei „Mein
+   Konto" fehlte er für Konten ohne Mitarbeiterzuordnung ganz. #}
+<section class="karte meinueberblick">
+  <div class="kopfzeile">
+    <div class="meinueberblick-kopf">
+      <h1>Mein Bereich</h1>
+      <p class="klein leise">
+        {{ name if person else benutzer.benutzername }}{% if benutzer.rolle == "admin" %} · Administrator{% endif %}
+      </p>
+    </div>
+    <form action="/logout" method="post" class="abmeldeform">
+      <button type="submit" class="knopf abmelden">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h12"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Abmelden
+      </button>
+    </form>
+  </div>
+
+  {% if person %}
+  <p class="lead">{{ t("mein.laufend_hinweis") }}</p>
+  <div class="kennzahlen">
+    {# 1. Der Saldo des letzten abgeschlossenen Monats. Er ist die Zahl,
+       wegen der man herkommt - deshalb steht er links. #}
+    <a class="kennzahl {{ 'hat k-plus' if letzter and letzter.saldo > 0 }}{{ 'hat k-minus' if letzter and letzter.saldo < 0 }}"
+       href="#monate">
+      <span class="kzahl">{% if letzter %}{{ letzter.saldo | hhmm }}{% else %}–{% endif %}</span>
+      <span class="klabel">{% if letzter %}Saldo {{ letzter.wort }}{% else %}kein abgeschlossener Monat{% endif %}</span>
+    </a>
+
+    {# 2. Der laufende Monat. Er zählt nicht in den Saldo (siehe Lead),
+       aber er ist der Monat, in dem man gerade steht. #}
+    <a class="kennzahl" href="#zeiten">
+      <span class="kzahl">{% if laufend %}{{ laufend.ist | hhmm }}{% else %}–{% endif %}</span>
+      <span class="klabel">
+        {%- if laufend and laufend.soll %}
+          dieser Monat · von {{ laufend.soll | hhmm }}
+          {%- if laufend.ist < laufend.soll %}, noch {{ (laufend.soll - laufend.ist) | hhmm }}{% endif -%}
+        {%- elif laufend %}dieser Monat · {{ laufend.n }} Einheiten
+        {%- else %}dieser Monat{% endif -%}
+      </span>
+    </a>
+
+    {# 3. Urlaub. #}
+    {# ⚠️ Der Filter `tage` schreibt die Einheit gleich mit („12 Tage");
+       `zahl` wäre hier falsch, der setzt zwei Nachkommastellen wie bei
+       einem Geldbetrag. Die Beschriftung sagt deshalb „Urlaub", nicht
+       „Urlaubstage" - sonst stünde das Wort zweimal in einer Kachel. #}
+    <a class="kennzahl {{ 'hat k-minus' if urlaub.ueberzogen }}" href="#urlaub">
+      <span class="kzahl">{{ (urlaub.rest if urlaub.anspruch else urlaub.genommen) | tage }}</span>
+      <span class="klabel">
+        {%- if urlaub.anspruch %}Urlaub übrig · Anspruch {{ urlaub.anspruch | tage }}
+        {%- else %}Urlaub {{ urlaub.jahr }} genommen{% endif -%}
+      </span>
+    </a>
+
+    {# 4. Die eigenen Aufgaben - rot, sobald etwas überfällig ist. #}
+    <a class="kennzahl {{ 'hat k-ueberfaellig' if ueberfaellig }}"
+       href="/vorgaenge?zustaendig={{ name | urlencode }}">
+      <span class="kzahl">{{ offene_vorgaenge }}</span>
+      <span class="klabel">
+        {%- if ueberfaellig %}offene Aufgaben · {{ ueberfaellig }} überfällig
+        {%- else %}offene Aufgaben{% endif -%}
+      </span>
+    </a>
+  </div>
+
+  {% if not letzter %}
+  <p class="klein leise felderklaerung">{{ t("mein.kein_abgeschlossener") }}</p>
+  {% endif %}
+  {% if not laufend %}
+  <p class="klein leise felderklaerung">{{ t("mein.kein_laufender") }}</p>
+  {% endif %}
+  {% else %}
+  <p class="lead">{{ t("mein.keine_zuordnung") }}</p>
+  {% endif %}
+</section>
 
 {# --- Was ansteht --------------------------------------------------------
    Steht vor der Arbeitszeit: was heute zu tun ist, wiegt schwerer als
-   die Zahlen des letzten Monats. Zwei Themen, die zusammengehören -
-   beides muss ich auf dem Schirm haben, beides führt zu einer
-   Handlung. #}
-{% if person or bewilligungen or bewilligungen_grundwert %}
+   die Zahlen des letzten Monats. #}
+{% set hat_bewilligungen = bewilligungen or bewilligungen_grundwert %}
+{% if person or hat_bewilligungen %}
 <div class="abschnittsband">
   <h2>Was ansteht</h2>
   <p class="klein leise">{{ t("mein.ansteht_lead") }}</p>
 </div>
 
-<section class="raster gleich buendig">
+{# ⚠️ Nur zwei Spalten, wenn es auch zwei Karten gibt. Das Recht auf die
+   Bewilligungen hat nicht jeder (bewilligungen_sehen, Abschnitt 6) - und
+   ohne sie stand die Aufgabenkarte links in halber Breite und rechts ein
+   leeres Feld. Ein Raster mit einer Karte ist keine Spalte, sondern ein
+   Loch. #}
+<section class="raster gleich buendig{{ '' if person and hat_bewilligungen else ' allein' }}">
   {% if person %}
   <div class="karte">
     <div class="kopfzeile">
@@ -200,7 +299,7 @@
        CSS-Animation, kein Bild und kein Skript, die Anwendung lädt
        bewusst nichts nach (Abschnitt 13). Die ganze Bewegung hängt an
        prefers-reduced-motion; wer sie abgestellt hat, sieht ein
-       stillhängendes Faultier. #}
+       stillhängendes Tier. #}
     <div class="nichtsoffen">
       {# Pixelraster wie beim Vorbild: alles sitzt auf einem 4px-Gitter,
          nichts ist rund, nichts hat einen Verlauf. shape-rendering:
@@ -370,96 +469,31 @@
 </section>
 {% endif %}
 
+{% if person %}
+
 <div class="abschnittsband">
   <h2>Meine Arbeitszeit</h2>
   <p class="klein leise">{{ t("mein.lead", name=name) }}</p>
 </div>
 
-{% if soll_std %}
-<section class="raster gleich buendig">
-  <div class="karte">
-    <h2>Letzter abgeschlossener Monat</h2>
-    {% if letzter %}
-    <p class="zahl {{ 'saldo-plus' if letzter.saldo > 0 else ('saldo-minus' if letzter.saldo < 0 else '') }}">
-      {{ letzter.saldo | gesamtstunden }}
-    </p>
-    <p class="zahl-label">
-      {% if letzter.saldo > 0 %}über dem Soll
-      {% elif letzter.saldo < 0 %}unter dem Soll
-      {% else %}punktgenau{% endif %}
-      · {{ letzter.wort }}
-    </p>
-    <dl class="systemliste">
-      <dt>Erfasst</dt><dd>{{ letzter.ist | gesamtstunden }}</dd>
-      <dt>Soll</dt><dd>{{ letzter.soll | gesamtstunden }}
-        {% if letzter.frei %}
-        <span class="frei-marke" title="Volles Soll {{ letzter.soll_voll | gesamtstunden }}">−{{ letzter.frei | tage }} frei</span>
-        {% endif %}</dd>
-      {% if letzter.frei %}
-      <dt>Volles Soll</dt><dd class="leise">{{ letzter.soll_voll | gesamtstunden }}</dd>
-      {% endif %}
-    </dl>
-
-    {% if trend %}
-    <h3 class="unterkopf klein">Die letzten {{ trend.monate }} Monate</h3>
-    <ul class="trendreihe">
-      {% for m in trend.reihe %}
-      <li>
-        <span class="trendmonat">{{ m.wort }}</span>
-        <span class="{{ 'saldo-plus' if m.saldo > 0 else ('saldo-minus' if m.saldo < 0 else 'leise') }}">
-          {{ m.saldo | hhmm }}
-        </span>
-      </li>
-      {% endfor %}
-    </ul>
-    <p class="klein leise felderklaerung">
-      Im Schnitt {{ trend.schnitt | gesamtstunden }} pro Monat –
-      {% if trend.saldo > 0 %}also regelmäßig über dem Soll.
-      {% elif trend.saldo < 0 %}also regelmäßig unter dem Soll.
-      {% else %}genau auf dem Soll.{% endif %}
-    </p>
-    {% endif %}
-    {% else %}
-    <p class="leer">{{ t("mein.kein_abgeschlossener") }}</p>
-    {% endif %}
-  </div>
-
-  <div class="karte">
-    <h2>Laufender Monat</h2>
-    {% if laufend %}
-    <p class="lead">{{ t("mein.laufend_hinweis") }}</p>
-    <p class="zahl">{{ laufend.ist | gesamtstunden }}</p>
-    <p class="zahl-label">von {{ laufend.soll | gesamtstunden }}
-      {%- if laufend.frei %} <span class="frei-marke" title="Volles Soll {{ laufend.soll_voll | gesamtstunden }}">−{{ laufend.frei | tage }} frei</span>{% endif %}
-      · {{ laufend.wort }}</p>
-    <dl class="systemliste">
-      <dt>Noch offen</dt>
-      <dd>
-        {% if laufend.ist >= laufend.soll %}
-          <span class="marke-status gut">Soll erreicht</span>
-        {% else %}
-          {{ (laufend.soll - laufend.ist) | gesamtstunden }}
-        {% endif %}
-      </dd>
-      <dt>Einheiten</dt><dd>{{ laufend.n }}</dd>
-    </dl>
-    {% else %}
-    <p class="leer">{{ t("mein.kein_laufender") }}</p>
-    {% endif %}
-  </div>
-</section>
-{% endif %}
-
-<section class="raster gleich buendig">
-  {% if diagramm %}
+{# ⚠️ Kein „raster gleich" mehr, sondern das schmalere „raster" (Inhalt
+   plus 340px-Spalte): das Diagramm braucht Breite, Urlaub und Trend sind
+   zwei kurze Zahlen. Nebeneinander in gleicher Breite war das Diagramm
+   gestaucht und die Urlaubskarte halb leer.
+   Die rechte Spalte trägt zwei Karten und ist deshalb ein eigener
+   Stapel - ein drittes Kind des Rasters landete sonst wieder links. #}
+<div class="raster buendig">
   <div class="karte">
     <div class="kopfzeile">
       <h2>Verlauf</h2>
+      {% if diagramm %}
       <p class="klein leise">{{ diagramm.balken | length }} Monate{% if diagramm.soll_wert %} · Soll {{ diagramm.soll_wert }}{% endif %}</p>
+      {% endif %}
     </div>
 
     <p class="lead">{{ t("mein.diagramm_hinweis") }}</p>
 
+    {% if diagramm %}
     <div class="diagrammhuelle">
       {# Handgebautes SVG, serverseitig gerechnet - keine
          Diagrammbibliothek und kein Skript (Abschnitt 13). Auch die
@@ -570,63 +604,100 @@
       <span><i class="strich solllinie"></i> Soll</span>
       {% if diagramm.linie %}<span><i class="strich saldolinie"></i> Saldoverlauf</span>{% endif %}
     </div>
+    {% else %}
+    <p class="leer">{{ t("mein.keine_zeiten", name=name) }}</p>
+    {% endif %}
   </div>
-  {% endif %}
 
-  <div class="karte">
-    <div class="kopfzeile">
-      <h2>Urlaub {{ urlaub.jahr }}</h2>
+  <div class="mein-spalte">
+    <div class="karte" id="urlaub">
+      <div class="kopfzeile">
+        <h2>Urlaub {{ urlaub.jahr }}</h2>
+        {% if urlaub.anspruch %}
+        <p class="klein leise">{{ urlaub.anteil }} % genommen</p>
+        {% endif %}
+      </div>
+
+      <p class="lead">{{ t("mein.urlaub_hinweis") }}</p>
+
       {% if urlaub.anspruch %}
-      <p class="klein leise">{{ urlaub.anteil }} % genommen</p>
+      <div class="urlaubsspur" role="img"
+           aria-label="{{ urlaub.genommen }} von {{ urlaub.anspruch }} Urlaubstagen genommen">
+        <span class="urlaubsfuellung {{ 'voll' if urlaub.ueberzogen }}"
+              style="width: {{ urlaub.anteil }}%;"></span>
+      </div>
+      <dl class="systemliste">
+        <dt>Genommen</dt><dd>{{ urlaub.genommen | tage }}</dd>
+        <dt>Übrig</dt>
+        <dd class="{{ 'saldo-minus' if urlaub.ueberzogen }}">{{ urlaub.rest | tage }}</dd>
+        <dt>Anspruch</dt><dd class="leise">{{ urlaub.anspruch | tage }}</dd>
+      </dl>
+      {% if urlaub.ueberzogen %}
+      <p class="klein saldo-minus" style="margin: 10px 0 0;">
+        {{ (urlaub.genommen - urlaub.anspruch) | tage }} über dem Anspruch.
+      </p>
+      {% endif %}
+      {% else %}
+      <dl class="systemliste">
+        <dt>Genommen {{ urlaub.jahr }}</dt><dd>{{ urlaub.genommen | tage }}</dd>
+      </dl>
+      <p class="klein leise felderklaerung">{{ t("mein.kein_urlaubsanspruch") }}</p>
+      {% endif %}
+
+      {% if urlaub.vorjahre %}
+      <dl class="systemliste">
+        {% for j, tg in urlaub.vorjahre %}
+        <dt>{{ j }}</dt><dd>{{ tg | tage }}</dd>
+        {% endfor %}
+      </dl>
       {% endif %}
     </div>
 
-    <p class="lead">{{ t("mein.urlaub_hinweis") }}</p>
-
-    {% if urlaub.anspruch %}
-    <p class="zahl {{ 'saldo-minus' if urlaub.ueberzogen }}">
-      {{ urlaub.rest | tage }}<span class="einheit weit">übrig</span>
-    </p>
-    <p class="zahl-label">
-      {{ urlaub.genommen | tage }} von {{ urlaub.anspruch | tage }} genommen
-    </p>
-
-    <div class="urlaubsspur" role="img"
-         aria-label="{{ urlaub.genommen }} von {{ urlaub.anspruch }} Urlaubstagen genommen">
-      <span class="urlaubsfuellung {{ 'voll' if urlaub.ueberzogen }}"
-            style="width: {{ urlaub.anteil }}%;"></span>
+    {# Der Dreimonatstrend. Er stand bis 1.37 unten in der Karte „Letzter
+       abgeschlossener Monat" - dort las ihn niemand, weil die große Zahl
+       darüber schon beantwortet hatte, wonach man gesucht hatte. #}
+    {% if trend %}
+    <div class="karte">
+      <h2>Die letzten {{ trend.monate }} Monate</h2>
+      <ul class="trendreihe">
+        {% for m in trend.reihe %}
+        <li>
+          <span class="trendmonat">{{ m.wort }}</span>
+          <span class="{{ 'saldo-plus' if m.saldo > 0 else ('saldo-minus' if m.saldo < 0 else 'leise') }}">
+            {{ m.saldo | hhmm }}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+      {# ⚠️ Ausnahme von „Erklärung über dem Inhalt": das ist keine
+         Erklärung, sondern ein Ergebnis aus den Zahlen darüber. Über der
+         Liste stünde es sinnlos da (Abschnitt 8). #}
+      <p class="klein leise felderklaerung">
+        Im Schnitt {{ trend.schnitt | gesamtstunden }} pro Monat –
+        {% if trend.saldo > 0 %}also regelmäßig über dem Soll.
+        {% elif trend.saldo < 0 %}also regelmäßig unter dem Soll.
+        {% else %}genau auf dem Soll.{% endif %}
+      </p>
     </div>
-
-    {% if urlaub.ueberzogen %}
-    <p class="klein saldo-minus" style="margin-top: 10px;">
-      {{ (urlaub.genommen - urlaub.anspruch) | tage }} über dem Anspruch.
-    </p>
-    {% endif %}
-    {% else %}
-    <p class="zahl">{{ urlaub.genommen | tage }}</p>
-    <p class="zahl-label">in {{ urlaub.jahr }} genommen</p>
-    <p class="klein leise felderklaerung">{{ t("mein.kein_urlaubsanspruch") }}</p>
-    {% endif %}
-
-    {% if urlaub.vorjahre %}
-    <dl class="systemliste">
-      {% for j, t in urlaub.vorjahre %}
-      <dt>{{ j }}</dt><dd>{{ t | tage }}</dd>
-      {% endfor %}
-    </dl>
     {% endif %}
   </div>
-</section>
+</div>
 
-<section class="karte">
+{# --- Die beiden Tabellen ------------------------------------------------
+   ⚠️ Sie hießen „Monatsübersicht" und „Meine Zeiten". Beide Namen sagten
+   dasselbe, nämlich nichts: Mitarbeitende wussten teilweise nicht, was
+   sie da vor sich haben. Als Paar erklären sich „Monat für Monat" und
+   „Eintrag für Eintrag" dagegen von selbst - die eine summiert, die
+   andere zeigt jede einzelne erfasste Zeit. #}
+<section class="karte" id="monate">
   <div class="kopfzeile">
-    <h2>Monatsübersicht</h2>
+    <h2>Monat für Monat</h2>
     {% if not alle and monate | length >= 13 %}
     <a class="knopf klein leise" href="/meinbereich?alle=1">alle Monate anzeigen</a>
     {% endif %}
   </div>
 
-  <p class="lead">{{ t("mein.tabelle_hinweis") }}</p>
+  <p class="lead">{{ t("mein.monatstabelle_hinweis") }}</p>
 
   {% if monate %}
   <div class="tabellenrolle">
@@ -682,12 +753,6 @@
   {% endif %}
 </section>
 
-{% endif %}
-
-{# Nur wenn das Konto einem Mitarbeiter zugeordnet ist - ohne diese
-   Zuordnung lässt sich gar nicht sagen, welche Zeiten die eigenen sind.
-   Die Karte oben sagt das in dem Fall auch. #}
-{% if person %}
 {# Die eigenen Zeiten - immer, unabhängig von jeder Bereichsberechtigung.
    Wer den Bereich „Übersicht (Datensätze)“ nicht hat, kommt hier trotzdem
    an seine eigenen Einträge und kann sie richtigstellen. Bearbeiten und
@@ -695,7 +760,7 @@
    den Eintrag, nicht über den Pfad (siehe main.darf_eintrag_bearbeiten). #}
 <section class="karte" id="zeiten">
   <div class="kopfzeile">
-    <h2>Meine Zeiten</h2>
+    <h2>Eintrag für Eintrag</h2>
     <p class="summe">{{ eigene_zeiten | length }} Einträge · {{ zeiten_summe | hhmm }}</p>
   </div>
   <p class="lead">{{ t("mein.zeiten_lead") }}</p>
@@ -769,8 +834,12 @@
   <p class="leer">{{ t("mein.zeiten_leer") }}</p>
   {% endif %}
 </section>
+
 {% endif %}
 
+{# „Mein Konto" steht am Ende: man ändert sein Passwort einmal im Jahr.
+   Die Karte gibt es auch ohne Mitarbeiterzuordnung - es ist das Konto,
+   nicht die Person im Team. #}
 <section class="karte abmeldekarte">
   <div class="kopfzeile">
     <div>

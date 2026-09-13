@@ -2227,4 +2227,35 @@ CHANGELOG = [
         "wieder weg",
         "Prüfung von 1793 auf 1850 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.38", "titel": "E-Mail an einem Ort, Mein Bereich neu",
+     "punkte": [
+        "Einstellungen: „E-Mail-Versand“ und „E-Mail-Vorlagen“ sind ein "
+        "Punkt „E-Mail“ geworden, in drei Abschnitten – Postausgang, "
+        "Anlässe, Protokoll",
+        "Jeder der fünf Anlässe hat jetzt eine eigene Karte mit Schalter, "
+        "Einstellungen UND Wortlaut. Der Text steht zugeklappt darunter, "
+        "„Speichern“ sichert beides zusammen",
+        "Jede Karte sagt oben, ob der Anlass gerade läuft",
+        "Mein Bereich komplett neu aufgebaut. Der Balken ganz oben mit "
+        "Namen und Abmelden-Knopf ist weg; die erste Karte trägt jetzt "
+        "vier Kennzahlen: Saldo des letzten Monats, laufender Monat, "
+        "Urlaub, offene Aufgaben",
+        "Damit sind die großen Kästen „Letzter abgeschlossener Monat“ "
+        "und „Laufender Monat“ entfallen – es bleibt nichts weg, es "
+        "steht nur kompakter da",
+        "Steht die Karte „Bewilligungen im Blick“ nicht zu (etwa weil "
+        "das Recht fehlt), bekommt die Aufgabenkarte die volle Breite "
+        "statt eines leeren Feldes daneben",
+        "Die Bewilligungsliste zeigt höchstens sechs Fälle, der Rest "
+        "steht zugeklappt darunter – vorher konnte sie die halbe Seite "
+        "füllen",
+        "„Monatsübersicht“ heißt „Monat für Monat“, „Meine Zeiten“ "
+        "heißt „Eintrag für Eintrag“. Als Paar sagen die beiden Namen, "
+        "worin sie sich unterscheiden",
+        "Urlaub und Dreimonatstrend stehen als schmale Spalte neben dem "
+        "Verlaufsdiagramm",
+        "Der Hinweis über der Monatstabelle war seit 1.37 falsch: er "
+        "behauptete, Urlaub und Krankheit blieben unberücksichtigt",
+        "Prüfung von 1850 auf 1907 Einzelprüfungen erweitert",
+    ]},
 ]

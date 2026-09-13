@@ -54,8 +54,10 @@
   {% if nur_admin %}
   <span class="seitenmenue-gruppe">Konten und E-Mail</span>
   <a href="/einstellungen?bereich=benutzer" class="{{ 'aktiv' if bereich=='benutzer' }}">Benutzerverwaltung</a>
-  <a href="/einstellungen?bereich=email" class="{{ 'aktiv' if bereich=='email' }}">E-Mail-Versand</a>
-  <a href="/einstellungen?bereich=vorlagen" class="{{ 'aktiv' if bereich=='vorlagen' }}">E-Mail-Vorlagen</a>
+  {# ⚠️ Ein Punkt statt zweier (seit 1.38). Zugang, Anlässe und Wortlaut
+     gehören zusammen; „bereich=vorlagen" führt weiterhin hierher, damit
+     alte Lesezeichen nicht ins Leere laufen. #}
+  <a href="/einstellungen?bereich=email" class="{{ 'aktiv' if bereich=='email' }}">E-Mail</a>
   {% endif %}
 
   {# „System und Sicherung" hängt seit 1.21 ebenfalls an der Rolle: dort

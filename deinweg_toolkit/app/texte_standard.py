@@ -603,6 +603,12 @@ TEXTE_STANDARD["mein.tabelle_hinweis"] = (
     "Monate ohne erfasste Zeiten erscheinen mit dem vollen Soll im Minus – "
     "das ist Absicht, damit vergessene Abgaben auffallen. Urlaub, Krankheit "
     "oder Feiertage berücksichtigt die Rechnung nicht.")
+TEXTE_STANDARD["mein.monatstabelle_hinweis"] = (
+    "Ein Monat je Zeile, vom neuesten abwärts. Monate ohne erfasste "
+    "Zeiten stehen mit dem vollen Soll im Minus – das ist Absicht, damit "
+    "eine vergessene Abgabe auffällt. Urlaub und Krankmeldungen senken "
+    "das Soll und sind dann als „frei“ vermerkt; Feiertage nicht, es "
+    "wird auch an ihnen gearbeitet.")
 TEXTE_STANDARD["mein.keine_zeiten"] = (
     "Für {name} sind bisher keine Zeiten erfasst.")
 TEXTE_STANDARD["einst.benutzer_mitarbeiter_hinweis"] = (
@@ -626,6 +632,34 @@ TEXTE_STANDARD["einst.email_verlauf_hinweis"] = (
     "Jede Erinnerung wird nur einmal verschickt. Wird eine Frist verschoben, "
     "kann zu diesem Vorgang erneut erinnert werden.")
 TEXTE_STANDARD["einst.email_keine"] = "Bisher wurde keine Nachricht verschickt."
+
+# --- Die drei Abschnitte des Punktes „E-Mail" --------------------------------
+#
+# ⚠️ Bis 1.37 waren Versand und Vorlagen zwei getrennte Punkte im Menue.
+# Das war die falsche Achse: wer den Wortlaut einer Erinnerung aendern
+# wollte, schaltete den Anlass auf der einen Seite ein und suchte seinen
+# Text auf der anderen - und keine der beiden Seiten sagte, dass es die
+# andere ueberhaupt gibt. Seit 1.38 ein Punkt in drei Abschnitten, und
+# jeder Anlass traegt seinen Wortlaut gleich mit.
+TEXTE_STANDARD["einst.email_zugang"] = (
+    "Über welchen Server die Nachrichten hinausgehen und unter welcher "
+    "Adresse sie beim Empfänger ankommen. Ohne diese Angaben bleibt jeder "
+    "Anlass darunter wirkungslos.")
+TEXTE_STANDARD["einst.email_anlaesse"] = (
+    "Wann das Toolkit von sich aus eine Nachricht schickt. Jeder Anlass "
+    "lässt sich einzeln ein- und ausschalten und trägt seinen Wortlaut "
+    "gleich mit – aufklappen, ändern, speichern.")
+TEXTE_STANDARD["einst.email_protokoll"] = (
+    "Was tatsächlich hinausgegangen ist – und der Weg zurück zum "
+    "Auslieferungsstand, falls ein Wortlaut misslungen ist.")
+TEXTE_STANDARD["einst.vorlagen_wortlaut"] = (
+    "Der Wortlaut steht bei seinem Anlass: aufklappen, Betreff und Text "
+    "ändern, mit dem Anlass zusammen speichern. Die Platzhalter in "
+    "geschweiften Klammern werden beim Versand durch die echten Werte "
+    "ersetzt – am besten stehen lassen.")
+TEXTE_STANDARD["einst.vorlagen_ruecksetzen_alle"] = (
+    "Stellt alle fünf Vorlagen wieder so her, wie sie ausgeliefert "
+    "wurden. Die Schalter der Anlässe bleiben dabei unberührt.")
 TEXTE_STANDARD["einst.vorlagen_lead"] = (
     "Wortlaut der beiden automatischen Nachrichten. Die Platzhalter in "
     "geschweiften Klammern werden beim Versand durch die echten Werte "
@@ -929,6 +963,21 @@ UNGENUTZT = frozenset({
     # umformuliert, und ein geloeschter Schluessel waere ein Datenverlust
     # ohne Gegenwert.
     "einst.texte_lead",
+    # seit 1.38: „E-Mail-Versand" und „E-Mail-Vorlagen" sind ein Punkt.
+    # Jeder Anlass traegt seinen Wortlaut selbst, ein eigener Hinweis je
+    # Vorlage waere neben dem Lead des Anlasses die zweite Erklaerung
+    # derselben Sache. Die beiden Lead-Texte nennen ausserdem "beide"
+    # Nachrichten - es sind fuenf. Ersetzt durch einst.vorlagen_wortlaut
+    # bzw. einst.vorlagen_ruecksetzen_alle.
+    "einst.vorlagen_lead",
+    "einst.vorlagen_zuruecksetzen",
+    "einst.vorlage_frist_hinweis",
+    "einst.vorlage_abgabe_hinweis",
+    # seit 1.38: der Text behauptete, Urlaub und Krankheit blieben
+    # unberuecksichtigt - seit 1.37 senken beide das Soll. Ein
+    # berichtigter Wortlaut unter demselben Schluessel waere bei einer
+    # bestehenden strings.txt nie angekommen (Abschnitt 8).
+    "mein.tabelle_hinweis",
     "footer.text",          # seit 1.1.2, die Fusszeile kommt aus dem Markup
     "ideen.hinweis_datei",
     "ideen.hinweis_fehler",

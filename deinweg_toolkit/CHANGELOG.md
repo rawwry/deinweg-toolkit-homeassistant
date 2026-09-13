@@ -3,6 +3,18 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.38
+
+- Einstellungen: „E-Mail-Versand“ und „E-Mail-Vorlagen“ sind ein Punkt
+  „E-Mail“ – Postausgang, Anlässe, Protokoll. Jeder Anlass trägt seinen
+  Wortlaut zugeklappt bei sich, „Speichern“ sichert beides zusammen
+- Mein Bereich neu aufgebaut: vier Kennzahlen statt vier großer Kästen,
+  kein Kopfbalken mehr, kein leeres Feld neben der Aufgabenkarte, die
+  Bewilligungsliste gedeckelt
+- „Monatsübersicht“ / „Meine Zeiten“ heißen jetzt „Monat für Monat“ /
+  „Eintrag für Eintrag“
+- Prüfung von 1850 auf 1907 Einzelprüfungen erweitert
+
 ## 1.37
 
 - Urlaub und Krankmeldung senken das Monatssoll, statt es zu reißen
