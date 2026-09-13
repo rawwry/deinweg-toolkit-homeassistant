@@ -113,14 +113,28 @@ def gesamtstunden(minuten) -> str:
 
 
 
+def tageszahl(wert) -> str:
+    """Die blosse Tageszahl: 2.0 wird zu '2', 2.5 zu '2,5'.
+
+    Fuer Spalten, deren Kopf die Einheit schon traegt - dieselbe
+    Ueberlegung wie bei zahl() gegenueber euro(). ⚠️ NICHT zahl()
+    benutzen: der schreibt zwei Nachkommastellen wie bei einem
+    Geldbetrag ("2,00").
+    """
+    try:
+        z = float(wert or 0)
+    except (TypeError, ValueError):
+        return str(wert)
+    return f"{z:.1f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
 def tage(wert) -> str:
     """2.0 wird zu '2 Tage', 1.0 zu '1 Tag', 2.5 bleibt '2,5 Tage'."""
     try:
-        zahl = float(wert or 0)
+        z = float(wert or 0)
     except (TypeError, ValueError):
         return str(wert)
-    text = f"{zahl:.1f}".rstrip("0").rstrip(".").replace(".", ",")
-    return f"{text} {'Tag' if abs(zahl) == 1 else 'Tage'}"
+    return f"{tageszahl(z)} {'Tag' if abs(z) == 1 else 'Tage'}"
 
 
 def monat_verschieben(monat: str, schritte: int) -> str:

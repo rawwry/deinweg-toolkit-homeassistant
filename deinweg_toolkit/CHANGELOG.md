@@ -3,6 +3,26 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.39
+
+- Mein Bereich: oben steht der eigene Name statt „Mein Bereich“
+- Urlaubskarte neu gebaut – Zahl groß, Balken darunter, Erklärung
+  zugeklappt, Vorjahre als abgesetzter Fuß
+- Das Verlaufsdiagramm ist deutlich flacher; daneben stehen jetzt
+  Schnitt, Saldo und die Spanne der gezeigten Monate
+- „Monat für Monat“: eigene Spalte für die freien Tage (keine
+  zweizeiligen Monate mehr), nur die letzten sechs offen, und darüber
+  steht, was ein freier Tag wert ist
+- „Eintrag für Eintrag“: ein Auswahlfeld statt fünfzehn Monatspillen,
+  breitere Dauerspalte
+- Aufgabenliste: die Frist lief bei überfälligen Aufgaben in die
+  Nachbarspalte; „Priorität“ heißt dort „Prio“
+- Einstellungen: Abstände bei den Push-Nachrichten und den eigenen
+  Logos, die beiden Push-Knöpfe nebeneinander
+- Betreute Personen: die Zeile steht in zwei Lagen, und aufgeklappt
+  liegt kein Farbschimmer mehr unter den Eingabefeldern
+- Prüfung von 1907 auf 1958 Einzelprüfungen erweitert
+
 ## 1.38
 
 - Einstellungen: „E-Mail-Versand“ und „E-Mail-Vorlagen“ sind ein Punkt

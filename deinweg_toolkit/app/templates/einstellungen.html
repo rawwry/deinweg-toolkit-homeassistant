@@ -391,49 +391,69 @@
                   {{ 'ohne-bewilligung' if p.aktiv and stand.art in ('abgelaufen', 'kuenftig', 'leer', 'laeuft_aus', 'grundwert') }}
                   {{ ('p-' ~ stand.art) if p.aktiv and stand.art }}"
            id="person-{{ p.id }}" {{ 'open' if offen == p.id }}>
-    <summary class="konto-kopf">
+    {# ⚠️⚠️ Zwei Zeilen statt einer (seit 1.39, Timos Wunsch). Vorher
+       stand alles in einer Flexzeile nebeneinander: Name, Statusmarke,
+       Wochenstunden, Satz, Zahl der Zeiträume und die erfassten Stunden -
+       sechs Angaben ohne jede Gliederung, und bei einem langen Namen
+       brach die Zeile an einer beliebigen Stelle um.
+       Jetzt oben der Name und der Stand (die Frage, mit der man herkommt),
+       darunter die drei Zahlen mit Beschriftung. #}
+    <summary class="konto-kopf personenkopf">
       <span class="konto-name">
         <span class="stark">{{ p.name }}</span>
         {% if not p.aktiv %}<span class="marke-status weg">stillgelegt</span>{% endif %}
         {% if not p.abrechenbar %}<span class="marke-status offen">nicht abrechenbar</span>{% endif %}
       </span>
-      <span class="konto-daten">
+      <span class="pz-stand">
         {# Was gilt heute? Das ist die Frage, mit der man herkommt - und
            eine ausgelaufene Bewilligung muss dabei sofort auffallen. #}
         {% if stand.art == "selbstzahler" %}
           <span class="marke-status info">Selbstzahler</span>
-          <span class="leise">{{ p.stundensatz | euro }} je Stunde</span>
         {% elif stand.art == "laufend" %}
           <span class="marke-status gut">gültig</span>
-          {{ gilt_heute.wochenstunden | stunden }} Std/Woche · {{ gilt_heute.stundensatz | euro }}
           {% if stand.nachfolge %}
-          <span class="leise">· Folgebescheid ab {{ stand.nachfolge.von | deutsch }}</span>
+          <span class="leise klein">Folgebescheid ab {{ stand.nachfolge.von | deutsch }}</span>
           {% endif %}
         {# ⚠️ Dieser Zweig hat bis 1.12.1 gefehlt. „läuft aus“ fiel damit
            in den else-Zweig und stand als „keine Bewilligung hinterlegt“
            da - bei einer Person mit zwei gepflegten Zeiträumen. #}
         {% elif stand.art == "laeuft_aus" %}
-          <span class="marke-status offen">läuft aus am {{ stand.bis | deutsch }}</span>
-          {% if gilt_heute %}{{ gilt_heute.wochenstunden | stunden }} Std/Woche · {{ gilt_heute.stundensatz | euro }}{% endif %}
+          <span class="marke-status offen">läuft aus</span>
+          <span class="leise klein">am {{ stand.bis | deutsch }}</span>
         {% elif stand.art == "abgelaufen" %}
           <span class="marke-status dopp">Bewilligung ausgelaufen</span>
-          {% if stand.seit %}<span class="leise">seit {{ stand.seit | deutsch }}</span>{% endif %}
+          {% if stand.seit %}<span class="leise klein">seit {{ stand.seit | deutsch }}</span>{% endif %}
         {% elif stand.art == "kuenftig" %}
-          <span class="marke-status offen">gilt erst ab {{ stand.ab | deutsch }}</span>
+          <span class="marke-status offen">gilt erst ab</span>
+          <span class="leise klein">{{ stand.ab | deutsch }}</span>
         {# ⚠️ Seit 1.20 ist das keine gültige Lage mehr, sondern eine
            Altlast: der Grundwert rechnet nicht mehr mit. Die Zeile sagt
            das ausdrücklich, im Block darunter steht die Umzugshilfe. #}
         {% elif stand.art == "grundwert" %}
           <span class="marke-status dopp">kein Bescheid</span>
-          <span class="leise">alter Grundwert, zählt nicht mehr</span>
+          <span class="leise klein">alter Grundwert, zählt nicht mehr</span>
         {% else %}
           <span class="marke-status dopp">keine Bewilligung hinterlegt</span>
         {% endif %}
       </span>
-      <span class="konto-rechte">
-        {% if liste %}{{ liste | length }} Zeitraum{{ '' if liste | length == 1 else 'e' }}
-        {% else %}<span class="leise">ohne Zeiträume</span>{% endif %}
-        · {{ p.minuten | hhmm }} erfasst
+      <span class="pz-fakten">
+        <span class="pz-fakt">
+          <i>Es gilt</i>
+          {% if stand.art == "selbstzahler" %}
+          <b>{{ p.stundensatz | euro }} je Stunde</b>
+          {% elif gilt_heute %}
+          <b>{{ gilt_heute.wochenstunden | stunden }} Std/Woche · {{ gilt_heute.stundensatz | euro }}</b>
+          {% else %}<b class="leise">kein Kontingent</b>{% endif %}
+        </span>
+        <span class="pz-fakt">
+          <i>Zeiträume</i>
+          {% if liste %}<b>{{ liste | length }}</b>
+          {% else %}<b class="leise">keine</b>{% endif %}
+        </span>
+        <span class="pz-fakt">
+          <i>Erfasst</i>
+          <b>{{ p.minuten | hhmm }} Std</b>
+        </span>
       </span>
       <span class="konto-pfeil" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none">
@@ -696,8 +716,13 @@
   </details>
   {% endfor %}
   </div>
-  <p class="klein leise" style="margin-bottom: 8px;">{{ t("einst.abrechenbar") }}</p>
-  <p class="klein leise" style="margin-bottom: 0;">{{ t("einst.stillgelegt") }}</p>
+  {# Die beiden Sätze erklären die Schalter im aufgeklappten Block. Als
+     nackte Absätze unter der Liste sahen sie aus, als gehörten sie zur
+     letzten Person. #}
+  <div class="listenfussnote">
+    <p class="klein leise">{{ t("einst.abrechenbar") }}</p>
+    <p class="klein leise">{{ t("einst.stillgelegt") }}</p>
+  </div>
   {% else %}
   <p class="leer">{{ t("einst.keine_person") }}</p>
   {% endif %}
@@ -2128,10 +2153,10 @@
   <p class="lead">{{ t("einst.ntfy_lead") }}</p>
   <details class="hinweise">
     <summary>Worauf zu achten ist</summary>
-    <p>{{ t("einst.ntfy_hinweis") }}</p>
+    <div class="hinweise-inhalt"><p>{{ t("einst.ntfy_hinweis") }}</p></div>
   </details>
 
-  <form action="/einstellungen/ntfy" method="post">
+  <form id="ntfyform" action="/einstellungen/ntfy" method="post">
     <label class="ankreuz">
       <input type="checkbox" name="ntfy_aktiv" value="1"
              {{ 'checked' if mailkonfig.ntfy_aktiv == "1" }}>
@@ -2182,18 +2207,21 @@
       {% endif %}
     </fieldset>
 
-    <div class="knopfreihe">
-      <button class="knopf haupt" type="submit">Push-Einstellungen speichern</button>
-    </div>
   </form>
 
-  {# Der einzige Weg, das Einrichten zu prüfen, ohne auf eine echte
-     Frist zu warten. Eigenes Formular – verschachtelte gibt es nicht. #}
-  <form action="/einstellungen/ntfy/probe" method="post">
-    <div class="knopfreihe">
+  {# ⚠️ Die beiden Knöpfe standen bis 1.38 in zwei eigenen Formularen
+     untereinander, jeder in seiner eigenen Knopfreihe und ohne Abstand
+     dazwischen - zwei gleich aussehende Knöpfe, die aneinanderklebten.
+     Jetzt EINE Reihe: „Speichern" gehört über `form=` weiterhin zum
+     Formular darüber (dieselbe Technik wie bei der manuellen Erfassung),
+     die Probenachricht bringt ihr eigenes kleines Formular mit -
+     verschachtelte Formulare gibt es in HTML nicht. #}
+  <div class="knopfreihe">
+    <button class="knopf haupt" type="submit" form="ntfyform">Push-Einstellungen speichern</button>
+    <form action="/einstellungen/ntfy/probe" method="post">
       <button class="knopf" type="submit">Probenachricht verschicken</button>
-    </div>
-  </form>
+    </form>
+  </div>
 </section>
 
 <div class="abschnittsband">
@@ -2211,7 +2239,7 @@
   <p class="lead">{{ t("einst.logo_lead") }}</p>
   <details class="hinweise">
     <summary>Worauf zu achten ist</summary>
-    <p>{{ t("einst.logo_hinweis") }}</p>
+    <div class="hinweise-inhalt"><p>{{ t("einst.logo_hinweis") }}</p></div>
   </details>
   <form action="/einstellungen/logo" method="post" enctype="multipart/form-data">
     <div class="feldreihe zwei">

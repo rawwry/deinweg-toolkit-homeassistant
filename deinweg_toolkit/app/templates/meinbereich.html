@@ -165,10 +165,16 @@
    Konto" fehlte er für Konten ohne Mitarbeiterzuordnung ganz. #}
 <section class="karte meinueberblick">
   <div class="kopfzeile">
+    {# ⚠️ Die Überschrift ist seit 1.39 der eigene Name, nicht mehr „Mein
+       Bereich". Der Seitenname stand doppelt da - einmal als h1 und eine
+       Zeile darunter noch einmal der Name, dem er gehört. Wo man ist,
+       sagt die Kopfzeile; hier interessiert, WESSEN Zahlen das sind. #}
     <div class="meinueberblick-kopf">
-      <h1>Mein Bereich</h1>
+      <h1>{{ name if person else benutzer.benutzername }}</h1>
       <p class="klein leise">
-        {{ name if person else benutzer.benutzername }}{% if benutzer.rolle == "admin" %} · Administrator{% endif %}
+        {%- if benutzer.rolle == "admin" %}Administrator{% else %}Mitarbeiterkonto{% endif -%}
+        {%- if person and benutzer.benutzername | lower != name | lower %}
+        · angemeldet als {{ benutzer.benutzername }}{% endif -%}
       </p>
     </div>
     <form action="/logout" method="post" class="abmeldeform">
@@ -483,7 +489,7 @@
    Die rechte Spalte trägt zwei Karten und ist deshalb ein eigener
    Stapel - ein drittes Kind des Rasters landete sonst wieder links. #}
 <div class="raster buendig">
-  <div class="karte">
+  <div class="karte verlaufskarte">
     <div class="kopfzeile">
       <h2>Verlauf</h2>
       {% if diagramm %}
@@ -494,6 +500,12 @@
     <p class="lead">{{ t("mein.diagramm_hinweis") }}</p>
 
     {% if diagramm %}
+    {# ⚠️ Bild und Zahlen stehen seit 1.39 nebeneinander. Das Bild war
+       vorher 965px breit und dadurch 462px hoch - für zwölf Balken.
+       Jetzt trägt es ein flacheres Seitenverhältnis (meinbereich.py) und
+       gibt rechts Platz an die vier Auskünfte ab, nach denen man beim
+       Betrachten einer Zeitreihe als Nächstes sucht. #}
+    <div class="verlaufsflaeche">
     <div class="diagrammhuelle">
       {# Handgebautes SVG, serverseitig gerechnet - keine
          Diagrammbibliothek und kein Skript (Abschnitt 13). Auch die
@@ -596,6 +608,45 @@
       })();
     </script>
 
+    {% if verlauf_zahlen %}
+    <dl class="verlaufszahlen">
+      <div>
+        <dt>Schnitt je Monat</dt>
+        <dd class="vz-gross">{{ verlauf_zahlen.schnitt | hhmm }}</dd>
+        <dd class="klein leise">über {{ verlauf_zahlen.monate }}
+          {{ "Monat" if verlauf_zahlen.monate == 1 else "Monate" }}</dd>
+      </div>
+      <div>
+        <dt>Saldo im Bild</dt>
+        <dd class="vz-gross {{ 'saldo-plus' if verlauf_zahlen.summe > 0 else ('saldo-minus' if verlauf_zahlen.summe < 0 else '') }}">
+          {{ verlauf_zahlen.summe | hhmm }}</dd>
+        <dd class="klein leise">Summe der Abweichungen</dd>
+      </div>
+      {% if verlauf_zahlen.spanne %}
+      {# ⚠️ Bester und schwächster Monat stehen in EINEM Kasten. Als zwei
+         waren es vier Kästen neben einem Bild von 243px Höhe - die
+         Spalte wurde damit länger als das, was sie erklären soll.
+         ⚠️ Die Farbe folgt dem Vorzeichen, nicht der Beschriftung: in
+         einem Jahr, in dem jeder Monat im Minus lag, ist auch der beste
+         negativ, und grün wäre dort schlicht falsch. #}
+      <div>
+        <dt>Spanne</dt>
+        <dd class="vz-spanne">
+          <span class="leise">{{ verlauf_zahlen.bester.wort }}</span>
+          <b class="{{ 'saldo-plus' if verlauf_zahlen.bester.saldo > 0 else ('saldo-minus' if verlauf_zahlen.bester.saldo < 0 else '') }}">
+            {{ verlauf_zahlen.bester.saldo | hhmm }}</b>
+        </dd>
+        <dd class="vz-spanne">
+          <span class="leise">{{ verlauf_zahlen.schwaechster.wort }}</span>
+          <b class="{{ 'saldo-plus' if verlauf_zahlen.schwaechster.saldo > 0 else ('saldo-minus' if verlauf_zahlen.schwaechster.saldo < 0 else '') }}">
+            {{ verlauf_zahlen.schwaechster.saldo | hhmm }}</b>
+        </dd>
+      </div>
+      {% endif %}
+    </dl>
+    {% endif %}
+    </div>
+
     <div class="legende">
       <span><i class="punkt balken-gut"></i> Soll erreicht</span>
       <span><i class="punkt balken-ueber"></i> darüber</span>
@@ -610,7 +661,14 @@
   </div>
 
   <div class="mein-spalte">
-    <div class="karte" id="urlaub">
+    {# ⚠️⚠️ Die Urlaubskarte, neu gebaut mit 1.39 (Timos Auftrag). Sie
+       stand vorher als Stapel aus vier gleich schweren Blöcken da:
+       Erklärabsatz, große Zahl, Balken, Definitionsliste, Vorjahre - und
+       der längste davon war die Erklärung, die man einmal liest.
+       Jetzt die übliche Reihenfolge einer Kennzahlenkarte: die eine
+       Zahl groß, darunter der Balken, darunter in einem Satz, worauf sie
+       sich bezieht - und die Vorjahre als abgesetzter Fuß. #}
+    <div class="karte urlaubskarte" id="urlaub">
       <div class="kopfzeile">
         <h2>Urlaub {{ urlaub.jahr }}</h2>
         {% if urlaub.anspruch %}
@@ -618,38 +676,54 @@
         {% endif %}
       </div>
 
-      <p class="lead">{{ t("mein.urlaub_hinweis") }}</p>
-
       {% if urlaub.anspruch %}
+      <p class="urlaub-hero {{ 'saldo-minus' if urlaub.ueberzogen }}">
+        {{ urlaub.rest | tage }}<span class="urlaub-hero-wort">übrig</span>
+      </p>
       <div class="urlaubsspur" role="img"
            aria-label="{{ urlaub.genommen }} von {{ urlaub.anspruch }} Urlaubstagen genommen">
         <span class="urlaubsfuellung {{ 'voll' if urlaub.ueberzogen }}"
               style="width: {{ urlaub.anteil }}%;"></span>
       </div>
-      <dl class="systemliste">
-        <dt>Genommen</dt><dd>{{ urlaub.genommen | tage }}</dd>
-        <dt>Übrig</dt>
-        <dd class="{{ 'saldo-minus' if urlaub.ueberzogen }}">{{ urlaub.rest | tage }}</dd>
-        <dt>Anspruch</dt><dd class="leise">{{ urlaub.anspruch | tage }}</dd>
-      </dl>
-      {% if urlaub.ueberzogen %}
-      <p class="klein saldo-minus" style="margin: 10px 0 0;">
-        {{ (urlaub.genommen - urlaub.anspruch) | tage }} über dem Anspruch.
+      <p class="urlaub-spurwort">
+        {{ urlaub.genommen | tageszahl }} von {{ urlaub.anspruch | tageszahl }} Tagen genommen
+        {%- if urlaub.ueberzogen %} ·
+        <span class="saldo-minus">{{ (urlaub.genommen - urlaub.anspruch) | tage }}
+          über dem Anspruch</span>{% endif %}
       </p>
-      {% endif %}
       {% else %}
-      <dl class="systemliste">
-        <dt>Genommen {{ urlaub.jahr }}</dt><dd>{{ urlaub.genommen | tage }}</dd>
-      </dl>
-      <p class="klein leise felderklaerung">{{ t("mein.kein_urlaubsanspruch") }}</p>
+      <p class="urlaub-hero">
+        {{ urlaub.genommen | tage }}<span class="urlaub-hero-wort">genommen</span>
+      </p>
+      <p class="urlaub-spurwort">{{ t("mein.kein_urlaubsanspruch") }}</p>
       {% endif %}
 
+      {# ⚠️ Der Erklärtext steht zugeklappt statt als Absatz über der
+         Zahl. Er ist vier Zeilen lang, beschreibt eine Regel, die sich
+         nie ändert, und stand damit dauerhaft über der einen Angabe,
+         wegen der man herkommt. Bewusst <details> und kein Skript -
+         dieselbe Form wie die Hinweise in den Einstellungen. #}
+      <details class="hinweise urlaub-hinweis">
+        <summary>Wie wird gezählt?</summary>
+        <div class="hinweise-inhalt">
+          <p class="klein leise">{{ t("mein.urlaub_hinweis") }}</p>
+          {% if tagessoll %}
+          <p class="klein leise">Ein freier Tag senkt das Monatssoll um
+            {{ tagessoll | hhmm }} – dein Monatssoll geteilt durch
+            {{ arbeitstage_monat | zahl }} Arbeitstage. Eine Krankmeldung
+            zählt dabei wie ein freier Tag, aber nicht als Urlaubstag.</p>
+          {% endif %}
+        </div>
+      </details>
+
       {% if urlaub.vorjahre %}
-      <dl class="systemliste">
+      {# Die Vorjahre sind Archiv, nicht Kennzahl - sie stehen als
+         abgesetzter Fuß unter einer feinen Linie. #}
+      <div class="urlaub-fuss">
         {% for j, tg in urlaub.vorjahre %}
-        <dt>{{ j }}</dt><dd>{{ tg | tage }}</dd>
+        <span><b>{{ j }}</b> {{ tg | tage }}</span>
         {% endfor %}
-      </dl>
+      </div>
       {% endif %}
     </div>
 
@@ -692,14 +766,32 @@
 <section class="karte" id="monate">
   <div class="kopfzeile">
     <h2>Monat für Monat</h2>
-    {% if not alle and monate | length >= 13 %}
-    <a class="knopf klein leise" href="/meinbereich?alle=1">alle Monate anzeigen</a>
-    {% endif %}
+    <p class="klein leise">{{ monate | length }}
+      {{ "Monat" if monate | length == 1 else "Monate" }}</p>
   </div>
 
   <p class="lead">{{ t("mein.monatstabelle_hinweis") }}</p>
+  {# ⚠️ Was ein freier Tag wert ist, stand bis 1.38 nirgends - man sah
+     nur ein Soll, das um einen krummen Betrag gefallen war, und musste
+     es glauben. Das ist eine Zahlenzusammenfassung und gehört deshalb
+     ins Markup, nicht nach strings.txt (Abschnitt 8). #}
+  {% if tagessoll %}
+  <p class="klein leise felderklaerung">
+    Ein freier Tag senkt das Soll um {{ tagessoll | hhmm }} –
+    dein Monatssoll ({{ (soll_std * 60) | round | int | hhmm }}) geteilt durch
+    {{ arbeitstage_monat | zahl }} Arbeitstage im Monatsmittel.
+  </p>
+  {% endif %}
 
   {% if monate %}
+  {# ⚠️ Nur die letzten sechs Monate stehen offen da, der Rest klappt auf.
+     Bei dreizehn Zeilen war die Tabelle länger als alles andere auf der
+     Seite zusammen, und gesucht wird fast immer der letzte oder
+     vorletzte Monat.
+     Bewusst ein Kästchen ohne Namen mit einem <label> als Knopf -
+     dieselbe Technik wie die Mehrfachauswahl in der Übersicht: sie
+     funktioniert ohne Skript und ist kein Zustand, den man verlinkt. #}
+  <input type="checkbox" id="alle-monate" class="monatsschalter">
   <div class="tabellenrolle">
   <table class="liste dicht monatstabelle">
     <thead>
@@ -708,29 +800,30 @@
          aus. #}
       <tr><th>Monat</th><th>Erfasst <span class="massangabe">Std</span></th>
           {% if soll_std %}<th>Soll <span class="massangabe">Std</span></th>
+          {# ⚠️ Eigene Spalte seit 1.39. Die Marke stand vorher unter der
+             Soll-Zahl und machte genau die Monate zweizeilig, in denen
+             jemand frei hatte - die Zeilen waren dadurch verschieden
+             hoch, und die Tabelle sah aus, als sei sie kaputt. #}
+          <th>Frei <span class="massangabe">Tage</span></th>
           <th>Saldo <span class="massangabe">Std</span></th>{% endif %}
           <th>Einheiten <span class="massangabe">Anzahl</span></th></tr>
     </thead>
     <tbody>
       {% for m in monate %}
-      <tr class="{{ 'zeile-laufend' if m.laufend }}">
+      <tr class="{{ 'zeile-laufend' if m.laufend }}{{ ' monat-spaet' if loop.index0 >= 6 }}">
         <td class="stark nowrap">
           {{ m.wort }}
           {% if m.laufend %}<span class="marke-status offen">läuft</span>{% endif %}
         </td>
         <td class="zahlen nowrap stark">{{ m.ist | hhmm }}</td>
         {% if soll_std %}
-        {# ⚠️ Ein Soll, das ohne Erklärung von 160:00 auf 123:00 fällt,
-           sieht wie ein Fehler aus. Deshalb steht der volle Wert
-           durchgestrichen daneben und die Zahl der freien Tage darunter. #}
-        <td class="zahlen leise nowrap">
-          {{ m.soll | hhmm }}
+        <td class="zahlen leise nowrap">{{ m.soll | hhmm }}</td>
+        <td class="zahlen nowrap">
           {% if m.frei %}
-          {# ⚠️ Der Filter `tage` und nicht `zahl`: der schreibt zwei
-             Nachkommastellen wie bei einem Geldbetrag („2,00 Tage“). #}
-          <span class="frei-marke" title="Volles Soll {{ m.soll_voll | hhmm }}, gesenkt um {{ m.frei | tage }}">
-            −{{ m.frei | tage }} frei</span>
-          {% endif %}
+          <span class="frei-marke"
+                title="Volles Soll {{ m.soll_voll | hhmm }}, gesenkt um {{ m.frei | tage }} frei">
+            {{ m.frei | tageszahl }}</span>
+          {% else %}<span class="leise">–</span>{% endif %}
         </td>
         <td class="zahlen nowrap">
           {% if m.laufend %}
@@ -748,6 +841,18 @@
     </tbody>
   </table>
   </div>
+
+  {% if monate | length > 6 %}
+  <div class="monatsmehr">
+    <label for="alle-monate" class="knopf leise klein">
+      <span class="nur-zu">Alle {{ monate | length }} Monate anzeigen</span>
+      <span class="nur-auf">Nur die letzten sechs Monate</span>
+    </label>
+    {% if not alle and monate | length >= 13 %}
+    <a class="knopf leise klein" href="/meinbereich?alle=1#monate">Noch weiter zurück</a>
+    {% endif %}
+  </div>
+  {% endif %}
   {% else %}
   <p class="leer">{{ t("mein.keine_zeiten", name=name) }}</p>
   {% endif %}
@@ -761,20 +866,38 @@
 <section class="karte" id="zeiten">
   <div class="kopfzeile">
     <h2>Eintrag für Eintrag</h2>
-    <p class="summe">{{ eigene_zeiten | length }} Einträge · {{ zeiten_summe | hhmm }}</p>
+    {# ⚠️⚠️ Hier stand bis 1.38 eine Reihe aus bis zu fünfzehn Pillen -
+       für jeden Monat eine. Auf einem breiten Bildschirm war das ein
+       zweizeiliger Knopfteppich über der Tabelle, der mehr Aufmerksamkeit
+       zog als die Daten darunter, und mit jedem weiteren Monat wuchs er.
+       Jetzt EIN Auswahlfeld, das sich per Skript selbst abschickt -
+       dieselbe Bauart wie die Fahrzeugwahl im Fuhrpark. Ohne Skript
+       bleibt der Knopf „Anzeigen" daneben stehen und tut dasselbe. #}
+    {% if zeitmonate %}
+    {# ⚠️ Die Sprungmarke steht in der Adresse des Formulars: ein
+         GET-Formular ersetzt nur den Abfrageteil, der Anker bleibt.
+         Ohne ihn landet man nach dem Wechsel wieder ganz oben. #}
+    <form class="zeitmonatswahl" method="get" action="/meinbereich#zeiten">
+      <label class="feld">
+        <span class="visuell-versteckt">Monat</span>
+        <select name="zeiten" id="zeitmonatwahl">
+          {% for m in zeitmonate %}
+          <option value="{{ m }}" {{ 'selected' if zeiten_monat == m }}>{{ monat_wort(m) }}</option>
+          {% endfor %}
+          <option value="alle" {{ 'selected' if zeiten_monat == 'alle' }}>alle Monate</option>
+        </select>
+      </label>
+      <button class="knopf klein leise zeitmonatsknopf" type="submit">Anzeigen</button>
+    </form>
+    {% endif %}
   </div>
   <p class="lead">{{ t("mein.zeiten_lead") }}</p>
-
-  {% if zeitmonate %}
-  <div class="zeitmonate">
-    {% for m in zeitmonate[:14] %}
-    <a class="pille {{ 'aktiv' if zeiten_monat == m }}"
-       href="/meinbereich?zeiten={{ m }}#zeiten">{{ monat_wort(m) }}</a>
-    {% endfor %}
-    <a class="pille {{ 'aktiv' if zeiten_monat == 'alle' }}"
-       href="/meinbereich?zeiten=alle#zeiten">alle</a>
-  </div>
-  {% endif %}
+  <p class="klein leise felderklaerung zeitensumme">
+    {{ eigene_zeiten | length }}
+    {{ "Eintrag" if eigene_zeiten | length == 1 else "Einträge" }} ·
+    zusammen {{ zeiten_summe | hhmm }} Std
+    {%- if zeiten_monat != "alle" %} in {{ monat_wort(zeiten_monat) }}{% endif %}
+  </p>
 
   {% if eigene_zeiten %}
   {% if zeiten_gekappt %}
@@ -833,6 +956,18 @@
   {% else %}
   <p class="leer">{{ t("mein.zeiten_leer") }}</p>
   {% endif %}
+
+  {# Dieselbe Zeile wie bei der Fahrzeugwahl im Fuhrpark: das Auswahlfeld
+     schickt sich selbst ab, der Knopf daneben verschwindet. Ohne Skript
+     bleibt beides stehen und die Seite funktioniert unverändert. #}
+  <script>
+    (function () {
+      var wahl = document.getElementById("zeitmonatwahl");
+      if (!wahl || !wahl.form) return;
+      wahl.form.classList.add("mit-skript");
+      wahl.addEventListener("change", function () { wahl.form.submit(); });
+    })();
+  </script>
 </section>
 
 {% endif %}

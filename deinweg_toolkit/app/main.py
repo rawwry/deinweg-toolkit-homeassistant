@@ -37,12 +37,12 @@ from .rechnen import (  # noqa: F401
     BEWILLIGUNG_HANDLUNG, auswahllisten, bereichsfilter,
     bewilligungen_pruefen, bewilligungslage, deutsch, euro, gesamtstunden,
     jetzt, klientenauswahl, mitarbeiter_zu_benutzer, mitarbeiterauswahl,
-    monat_verschieben, monat_wort, stunden, tage, zahl)
+    monat_verschieben, monat_wort, stunden, tage, tageszahl, zahl)
 
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.38"
+VERSION = "1.39"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -412,6 +412,10 @@ templates.env.filters["zahl"] = zahl
 templates.env.filters["stunden"] = stunden
 templates.env.filters["gesamtstunden"] = gesamtstunden
 templates.env.filters["tage"] = tage
+# ⚠️ Die blosse Tageszahl fuer Spalten, deren Kopf die Einheit schon
+# traegt. NICHT zahl() dafuer nehmen - der schreibt zwei
+# Nachkommastellen wie bei einem Geldbetrag.
+templates.env.filters["tageszahl"] = tageszahl
 
 
 # --- Kern: Datei einlesen ---------------------------------------------------

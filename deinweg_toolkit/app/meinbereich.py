@@ -28,7 +28,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from . import auth
 from . import db
 from .parser import hhmm
-from .rechnen import (ABWESEND_SQL, MONATSNAMEN, abwesenheitstage,
+from .rechnen import (ABWESEND_SQL, ARBEITSTAGE_MONAT, MONATSNAMEN,
+                      abwesenheitstage,
                       bewilligungen_pruefen, mitarbeiter_zu_benutzer,
                       monat_wort, soll_mit_abwesenheit, urlaubstage_zaehlen)
 
@@ -252,7 +253,26 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
     letzte = list(reversed(monate[:12]))  # chronologisch, aelteste links
     diagramm = None
     if letzte:
-        breite, hoehe = 460, 220
+        # ⚠️⚠️ Das Seitenverhaeltnis ist der ganze Punkt (seit 1.39).
+        # Bis 1.38 stand hier 460x220 - also 2,09:1. Das SVG waechst auf
+        # die volle Kartenbreite, und bei 965px Breite wurde es dadurch
+        # **462px hoch**: ein Zwoelf-Monats-Balkendiagramm, das mehr
+        # Platz einnahm als die Tabelle darunter, und dessen Achsenschrift
+        # (9,5 Einheiten x Faktor 2,1) bei 20px ankam. Timos Wort dafuer:
+        # "albern".
+        # Jetzt 640x215, also 2,98:1 - zusammen mit der Zahlenspalte
+        # daneben (siehe verlauf_zahlen) rund 265px hoch statt 462.
+        # ⚠️ Das Verhaeltnis ist ein Kompromiss und keine freie Wahl: das
+        # SVG hat EIN viewBox fuer alle Bildschirme. Noch flacher sah am
+        # Schreibtisch besser aus, liess am Telefon aber nur noch rund
+        # 60px Balkenflaeche uebrig - dort ist das Bild nur 289px breit.
+        # ⚠️ Wer diese Zahlen anfasst, muss die Schriftgroessen im
+        # Stylesheet mitziehen: sie stehen in Einheiten des viewBox und
+        # werden mit der Karte mitskaliert. Bei 640 Einheiten auf rund
+        # 786px liegt der Faktor bei 1,23 - eine Einheit ist also etwa
+        # ein Pixel. Vorher war er 2,1, und 9,5 Einheiten Achsenschrift
+        # kamen als 20px an.
+        breite, hoehe = 640, 215
         # ⚠️ Die oberen 26px sind das Band fuer die Wertmarke und gehoeren
         # NICHT zur Zeichenflaeche. Bis 1.17 hing die Marke 7px ueber
         # ihrem Balken - und weil sie mit "12:30 · +2:15" gut dreimal so
@@ -264,6 +284,14 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
         # und die Saldolinie auch nicht.
         marke_band = 26
         oben, unten, links, rechts = marke_band, 34, 12, 12
+        # Halbe Breite der Wertmarke in Einheiten des viewBox. Sie
+        # entscheidet nur darueber, ob sich die Marke am Rand an die Kante
+        # haengt statt sich zu zentrieren. ⚠️ Bis 1.38 stand hier 58 - bei
+        # einem Faktor von 2,1 war das die halbe Breite von
+        # "12:30 · +2:15". Mit dem flacheren Bild ist eine Einheit rund
+        # ein Pixel, und 58 haette die Marken an den Raendern grundlos
+        # angeheftet.
+        marke_halb = 40
         flaeche = hoehe - oben - unten
         grundlinie = oben + flaeche
         spalte = (breite - links - rechts) / max(len(letzte), 1)
@@ -325,12 +353,14 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                 # ⚠️ Die Hoehe ist fest: sie steht im Band ueber der
                 # Zeichenflaeche, nicht ueber ihrem Balken. Siehe oben.
                 "label_y": marke_band - 9,
-                "label_x": round(links if x + b / 2 - 58 < links else
-                                 breite - rechts if x + b / 2 + 58 > breite - rechts
-                                 else x + b / 2, 1),
-                "label_anker": ("start" if x + b / 2 - 58 < links else
-                                "end" if x + b / 2 + 58 > breite - rechts
-                                else "middle"),
+                "label_x": round(
+                    links if x + b / 2 - marke_halb < links else
+                    breite - rechts if x + b / 2 + marke_halb > breite - rechts
+                    else x + b / 2, 1),
+                "label_anker": (
+                    "start" if x + b / 2 - marke_halb < links else
+                    "end" if x + b / 2 + marke_halb > breite - rechts
+                    else "middle"),
                 "takt": round(i * 0.055, 3),
                 "kurz": MONATSNAMEN.get(m["monat"][5:7], "")[:3],
                 "jahr": m["monat"][:4],
@@ -382,6 +412,29 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "mittellinie": round(oben + flaeche / 2, 1),
         }
 
+    # --- Die Zahlen neben dem Diagramm --------------------------------------
+    # ⚠️ Sie sind die Gegenleistung dafuer, dass das Bild seit 1.39
+    # deutlich flacher ist (siehe oben): der Platz, der rechts davon frei
+    # wird, traegt jetzt die vier Auskuenfte, nach denen man beim
+    # Betrachten einer Zeitreihe als Naechstes sucht. Gerechnet wird ueber
+    # GENAU die Monate, die im Bild stehen - alles andere waere eine
+    # zweite Wahrheit neben derselben Grafik.
+    verlauf_zahlen = None
+    gezeigt = [m for m in letzte if not m["laufend"] and m["soll"]]
+    if gezeigt:
+        bester = max(gezeigt, key=lambda m: m["saldo"])
+        schwaechster = min(gezeigt, key=lambda m: m["saldo"])
+        verlauf_zahlen = {
+            "monate": len(gezeigt),
+            "schnitt": int(round(sum(m["ist"] for m in gezeigt) / len(gezeigt))),
+            "summe": sum(m["saldo"] for m in gezeigt),
+            "bester": bester,
+            "schwaechster": schwaechster,
+            # Bei einem einzigen Monat waeren "bester" und "schwaechster"
+            # derselbe - dann steht die Gegenueberstellung nicht da.
+            "spanne": len(gezeigt) > 1,
+        }
+
     # --- Urlaub -------------------------------------------------------------
     jahr = dt.date.today().strftime("%Y")
     anspruch = float(person["urlaubstage"] or 0)
@@ -405,6 +458,15 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "laufend": laufend, "alle": bool(alle), "benutzer": benutzer,
             "hinweis": hinweis, "fehler": fehler, "passwort_offen": bool(pw),
             "diagramm": diagramm, "urlaub": urlaub,
+            "verlauf_zahlen": verlauf_zahlen,
+            # ⚠️ Was ein freier Tag wert ist, stand bisher nirgends auf
+            # der Seite - man sah nur ein Soll, das um einen krummen
+            # Betrag gefallen war. Die Zahl ist dieselbe, mit der
+            # soll_mit_abwesenheit() rechnet: Monatssoll durch die
+            # Pauschale von 21,65 Arbeitstagen.
+            "tagessoll": (int(round(soll_std * 60 / ARBEITSTAGE_MONAT))
+                          if soll_std else 0),
+            "arbeitstage_monat": ARBEITSTAGE_MONAT,
             "letzter": letzter, "trend": trend,
             "offene_vorgaenge": offene_vorgaenge, "ueberfaellig": ueberfaellig,
             "eigene_aufgaben": eigene_aufgaben, "spruch": _spruch(benutzer),

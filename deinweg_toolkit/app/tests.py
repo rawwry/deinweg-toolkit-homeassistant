@@ -3276,7 +3276,6 @@ def test_meinbereich_hinweise(client: TestClient) -> None:
     for karte, anfang, marke in (
             ("Auf einen Blick", 'class="karte meinueberblick"', "kennzahlen"),
             ("Verlauf", "<h2>Verlauf</h2>", "diagrammhuelle"),
-            ("Urlaub", 'class="karte" id="urlaub"', "urlaubsspur"),
             ("Monat für Monat", "<h2>Monat für Monat</h2>", "monatstabelle"),
             ("Eintrag für Eintrag", "<h2>Eintrag für Eintrag</h2>",
              "zeitentabelle")):
@@ -3286,6 +3285,23 @@ def test_meinbereich_hinweise(client: TestClient) -> None:
         inhalt = teil.find(marke)
         pruefe(0 <= lead < inhalt,
                f"„{karte}“: die Erklärung steht über dem Inhalt")
+
+    # ⚠️ Die Urlaubskarte ist seit 1.39 die Ausnahme: ihr Erklärtext ist
+    # vier Zeilen lang, beschreibt eine Regel, die sich nie ändert, und
+    # stand damit dauerhaft über der einen Zahl, wegen der man herkommt.
+    # Er steht jetzt zugeklappt UNTER den Zahlen - das ist kein
+    # Rückschritt gegenüber 1.17.1, sondern dieselbe Form wie die
+    # Hinweise in den Einstellungen.
+    urlaub = seite[seite.index('class="karte urlaubskarte"'):]
+    urlaub = urlaub[:urlaub.index("</div>\n  </div>")] if "</div>\n  </div>" in urlaub else urlaub[:4000]
+    pruefe('class="urlaub-hero' in urlaub, "„Urlaub“: die Zahl steht groß oben")
+    pruefe(urlaub.index("urlaub-hero") < urlaub.index("urlaubsspur")
+           < urlaub.index("urlaub-spurwort"),
+           "darunter der Balken, darunter der Bezug")
+    pruefe("urlaub-hinweis" in urlaub and "Wie wird gezählt?" in urlaub,
+           "die Erklärung steht zugeklappt da")
+    pruefe('<details class="hinweise urlaub-hinweis" open' not in urlaub,
+           "und zwar wirklich zugeklappt")
 
     pruefe("mein.laufend_hinweis" not in seite, "Textschlüssel bleiben ersetzt")
 
@@ -3837,8 +3853,10 @@ def test_bewilligung_nachfolge(client: TestClient) -> None:
                      (heute_echt + dt.timedelta(days=20)).isoformat(), 4, 70))
     seite = client.get("/einstellungen?bereich=betreute").text
     zeile = seite.split("Auslaufperson")[1][:600]
-    pruefe("läuft aus am" in zeile,
-           "die Einstellungen sagen „läuft aus“")
+    # ⚠️ Seit 1.39 steht die Zeile in zwei Lagen: die Marke sagt „läuft
+    # aus", das Datum steht gedämpft daneben statt im selben Wort.
+    pruefe("läuft aus" in zeile and "am " in zeile,
+           "die Einstellungen sagen „läuft aus“ samt Datum")
     pruefe("keine Bewilligung hinterlegt" not in zeile,
            "und nicht mehr fälschlich „keine Bewilligung hinterlegt“")
 
@@ -5627,6 +5645,153 @@ def test_meinbereich_umbau(client: TestClient) -> None:
            in stil, "die Kennzahlenreihe hält unten Abstand zur Kartenkante")
 
 
+def test_umbau_1_39(client: TestClient) -> None:
+    """Was Timo an 1.38 gestört hat - und wie es jetzt aussieht."""
+    abschnitt("Umbau 1.39")
+    stil = client.get("/static/style.css").text
+    seite = client.get("/meinbereich").text
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+
+    # --- 1. Die Überschrift ist der eigene Name -----------------------------
+    # ⚠️ „Mein Bereich" als h1 und eine Zeile darunter der Name, dem er
+    # gehört - der Seitenname stand damit doppelt da. Wo man ist, sagt die
+    # Kopfzeile.
+    kopf = ohne_dialog.split('class="karte meinueberblick"')[1].split("</section>")[0]
+    pruefe("<h1>Mein Bereich</h1>" not in kopf,
+           "die Überschrift heißt nicht mehr „Mein Bereich“")
+    pruefe("<h1>pruefer</h1>" in kopf, "sondern trägt den eigenen Namen")
+    pruefe("Administrator" in kopf, "die Rolle steht darunter")
+
+    # --- 2. Die Urlaubskarte ------------------------------------------------
+    urlaub = ohne_dialog.split('class="karte urlaubskarte"')[1].split("</section>")[0]
+    pruefe(urlaub.index("urlaub-hero") < urlaub.index("urlaubsspur")
+           < urlaub.index("urlaub-spurwort") < urlaub.index("urlaub-hinweis"),
+           "Zahl, Balken, Bezug, dann der zugeklappte Hinweis")
+    pruefe(".urlaub-hero {" in stil and "font-size: 30px" in
+           stil.split(".urlaub-hero {")[1].split("}")[0],
+           "die Zahl steht groß da")
+    # ⚠️ Die Vorjahre sind Archiv, nicht Kennzahl - feine Linie darüber.
+    pruefe("border-top: 1px solid var(--linie-stark);" in
+           stil.split(".urlaub-fuss {")[1].split("}")[0],
+           "die Vorjahre stehen unter einer feinen Linie")
+
+    # --- 3. Das Diagramm ist flacher und gibt Platz an Zahlen ab ------------
+    # ⚠️ Es war 965px breit und dadurch 462px hoch - für zwölf Balken.
+    kasten = re.search(r'class="stundendiagramm" viewBox="0 0 ([\d.]+) ([\d.]+)"',
+                       ohne_dialog)
+    pruefe(kasten is not None, "das Diagramm trägt einen viewBox")
+    breite, hoehe = float(kasten.group(1)), float(kasten.group(2))
+    pruefe(breite / hoehe > 2.7,
+           f"und ist deutlich flacher als vorher ({breite:.0f}×{hoehe:.0f})")
+    pruefe('class="verlaufszahlen"' in ohne_dialog,
+           "neben dem Bild stehen die Zahlen zur Zeitreihe")
+    for wort in ("Schnitt je Monat", "Saldo im Bild", "Spanne"):
+        pruefe(wort in ohne_dialog, f"darunter „{wort}“")
+    # ⚠️ Der Container ist die KARTE, nicht die Fläche selbst - eine
+    # Container-Abfrage darf das Element nicht umlegen, das sie aufspannt.
+    pruefe(".karte.verlaufskarte { container-type: inline-size;" in stil,
+           "die Container-Abfrage hängt an der Karte")
+    pruefe("@container verlauf (min-width: 620px)" in stil,
+           "und legt die Zahlen erst ab einer Mindestbreite daneben")
+
+    # --- 4. Monat für Monat: eigene Spalte, nur sechs offen -----------------
+    tabelle = ohne_dialog.split('<h2>Monat für Monat</h2>')[1].split("</section>")[0]
+    pruefe("<th>Frei <span" in tabelle,
+           "die freien Tage haben eine eigene Spalte")
+    pruefe('.monatstabelle .frei-marke { display: inline-block' in stil,
+           "und die Marke steht nicht mehr als Block unter der Soll-Zahl")
+    pruefe(tabelle.count("monat-spaet") >= 1,
+           "die Zeilen ab dem siebten sind gekennzeichnet")
+    pruefe(".monatsschalter:not(:checked) ~ .tabellenrolle .monat-spaet "
+           "{ display: none; }" in stil,
+           "und stehen zugeklappt")
+    pruefe("Alle" in tabelle and "Monate anzeigen" in tabelle,
+           "ein Knopf holt sie hervor")
+    # ⚠️ Was ein freier Tag wert ist, stand bis 1.38 nirgends.
+    pruefe("Ein freier Tag senkt das Soll um" in tabelle
+           and "Arbeitstage im Monatsmittel" in tabelle,
+           "über der Tabelle steht, was ein freier Tag wert ist")
+
+    # --- 5. Eintrag für Eintrag: ein Feld statt fünfzehn Pillen -------------
+    zeiten = ohne_dialog.split('<h2>Eintrag für Eintrag</h2>')[1]
+    pruefe('class="zeitmonate"' not in ohne_dialog,
+           "die Pillenreihe über der Liste ist weg")
+    pruefe('id="zeitmonatwahl"' in zeiten, "an ihrer Stelle steht ein Auswahlfeld")
+    # ⚠️ Ohne Skript muss der Knopf daneben dasselbe tun.
+    pruefe("zeitmonatsknopf" in zeiten, "mit einem Knopf für den Fall ohne Skript")
+    pruefe(".zeitmonatswahl.mit-skript .zeitmonatsknopf { display: none; }" in stil,
+           "den das Skript wegnimmt")
+    # ⚠️ Ein GET-Formular ersetzt nur den Abfrageteil - der Anker bleibt.
+    pruefe('action="/meinbereich#zeiten"' in zeiten,
+           "die Sprungmarke steht in der Adresse des Formulars")
+    antwort = client.get("/meinbereich?zeiten=alle")
+    pruefe(antwort.status_code == 200 and "Eintrag für Eintrag" in antwort.text,
+           "und „alle Monate“ lädt weiterhin")
+    pruefe(".zeitentabelle th.dauerspalte { width: 128px; }" in stil,
+           "die Dauerspalte hat mehr Platz")
+
+    # --- 6. Aufgabenliste: kein Überlaufen mehr ----------------------------
+    # ⚠️ „20.08.2026 überfällig" misst 150px, die Spalte war 112px breit -
+    # der Text lief sichtbar in die Spalte „Zuständig" hinein.
+    raster = stil.split("--vz-raster:")[1].split(";")[0]
+    pruefe("160px" in raster, "die Fristspalte ist breit genug")
+    liste = client.get("/vorgaenge").text
+    kopfzeile = liste.split('class="vz-kopf"')[1].split("</div>")[0]
+    pruefe("<span>Prio</span>" in kopfzeile and "Priorität" not in kopfzeile,
+           "und die Spalte heißt in der Liste „Prio“")
+    pruefe(">Priorität<" in liste.split('class="vz-kopf"')[0],
+           "im Anlegeformular bleibt sie ausgeschrieben")
+
+    # --- 7. Einstellungen → System -----------------------------------------
+    system = client.get("/einstellungen?bereich=system").text
+    ntfy = system.split("Push-Nachrichten (ntfy)")[1].split("</section>")[0]
+    knopfreihe = ntfy.split('class="knopfreihe"')[-1]
+    pruefe("Push-Einstellungen speichern" in knopfreihe
+           and "Probenachricht verschicken" in knopfreihe,
+           "die beiden Push-Knöpfe stehen in einer Reihe")
+    pruefe('form="ntfyform"' in ntfy,
+           "„Speichern“ gehört weiterhin zum Formular darüber")
+    # ⚠️ `.hinweise` ist als LETZTES Element einer Kopfkarte entworfen.
+    pruefe(".hinweise:not(:last-child) { margin-bottom: 20px; }" in stil,
+           "unter „Worauf zu achten ist“ ist Luft, wo etwas folgt")
+    pruefe(".ankreuz + .feldreihe, .ankreuz + .feld, .ankreuz + fieldset "
+           "{ margin-top: 18px; }" in stil,
+           "und zwischen Schalter und Feldreihe ebenso")
+
+    # --- 8. Einstellungen → Betreute Personen ------------------------------
+    betreute = client.get("/einstellungen?bereich=betreute").text
+    pruefe('class="konto-kopf personenkopf"' in betreute,
+           "die Personenzeile hat ihre eigene Form")
+    pruefe('grid-template-areas:\n    "name   stand  pfeil"\n'
+           '    "fakten fakten pfeil";' in stil,
+           "sie steht in zwei Lagen")
+    pruefe('class="pz-fakt"' in betreute,
+           "die Zahlen tragen eine Beschriftung")
+    for wort in ("Es gilt", "Zeiträume", "Erfasst"):
+        pruefe(f"<i>{wort}</i>" in betreute, f"darunter „{wort}“")
+    # ⚠️ Der Schimmer gehört der Zeile, nicht dem aufgeklappten Block.
+    pruefe('.konto.person[class*="p-"] > .konto-inhalt '
+           "{ background: var(--flaeche-2); }" in stil,
+           "aufgeklappt liegt kein Farbschimmer unter den Eingabefeldern")
+
+
+def test_tageszahl(client: TestClient) -> None:
+    """Die blosse Tageszahl fuer Spalten mit Einheit im Kopf."""
+    abschnitt("Filter „tageszahl“")
+    from .rechnen import tage, tageszahl
+    for wert, erwartet in ((2, "2"), (1, "1"), (2.5, "2,5"), (0.5, "0,5"),
+                           (0, "0"), (None, "0")):
+        pruefe(tageszahl(wert) == erwartet,
+               f"{wert} wird zu „{erwartet}“ (ist: „{tageszahl(wert)}“)")
+    # ⚠️ NICHT zahl() dafuer nehmen - der schreibt zwei Nachkommastellen
+    # wie bei einem Geldbetrag.
+    from .rechnen import zahl
+    pruefe(zahl(2) == "2,00" and tageszahl(2) == "2",
+           "zahl() bleibt bei zwei Nachkommastellen, tageszahl() nicht")
+    pruefe(tage(2) == "2 Tage" and tage(1) == "1 Tag",
+           "und tage() schreibt die Einheit weiterhin mit")
+
+
 def test_texte_tot() -> None:
     """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
 
@@ -6357,7 +6522,9 @@ def test_listenansicht(client: TestClient) -> None:
     grund = stil.split("\n.vz {")[1].split("}")[0]
     pruefe("grid-template-areas" in grund and '"titel  aktionen"' in grund,
            "gestapelt ist der Ausgangszustand")
-    pruefe("@container aufgabenliste (min-width: 980px)" in stil,
+    # ⚠️ Die Schwelle ist aus den Spaltenbreiten gerechnet und mit der
+    # breiteren Fristspalte von 1.39 von 980 auf 1020 gewandert.
+    pruefe("@container aufgabenliste (min-width: 1020px)" in stil,
            "die einzeilige Fassung steht in einer Container-Abfrage")
 
     # Kopfzeile und Bänder greifen auf DIESELBE Rastervariable zu.
@@ -8194,6 +8361,8 @@ def _durchlauf(client: TestClient) -> None:
         test_ntfy(client)
         test_email_zusammengelegt(client)
         test_meinbereich_umbau(client)
+        test_umbau_1_39(client)
+        test_tageszahl(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

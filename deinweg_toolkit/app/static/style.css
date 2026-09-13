@@ -3370,6 +3370,15 @@ body.anmeldeseite {
    sichtbar bleiben. Deshalb tönt der Schimmer nur die Zeile, nicht den
    Kopf - der Kopf ist durchsichtig und zeigt die Tönung dahinter. */
 .konto.person[class*="p-"] .konto-kopf:hover { background: var(--flaeche); }
+/* ⚠️⚠️ Der Schimmer gehört der ZEILE, nicht dem aufgeklappten Block.
+   Er liegt auf dem ganzen <details>, und aufgeklappt stand damit ein
+   roter oder grüner Grund unter Eingabefeldern, Auswahllisten und den
+   beiden Karten von „Wer zahlt?" - die bringen alle ihre eigene neutrale
+   Fläche mit. Im dunklen Thema sah das aus, als lägen zwei Oberflächen
+   übereinander (Timos Meldung). Der Inhalt bekommt deshalb wieder den
+   Grund, den auch eine Zeile ohne Tönung hat; die Farbe bleibt am Kopf
+   und am Balken links, wo sie beim Überfliegen gebraucht wird. */
+.konto.person[class*="p-"] > .konto-inhalt { background: var(--flaeche-2); }
 .konto.person .konto-daten {
   display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
@@ -3863,7 +3872,7 @@ fieldset.feld > span {
    und war kaum zu lesen. Der Strich in der Kartenfarbe darunter bleibt
    trotzdem: er hebt sie noch von den Rasterlinien ab. */
 .stundendiagramm .wertmarke {
-  fill: var(--tinte); font-size: 9px; font-weight: 600;
+  fill: var(--tinte); font-size: 10px; font-weight: 600;
   font-variant-numeric: tabular-nums;
   opacity: 0; transition: opacity .15s ease;
   /* Der Strich in der Kartenfarbe liegt UNTER der Schrift und hebt sie
@@ -3882,9 +3891,15 @@ fieldset.feld > span {
   .stundendiagramm .wertmarke { display: none; }
 }
 @media (max-width: 620px) {
-  /* Das Bild schrumpft auf dem Telefon auf rund 0,72 seiner
-     Zeichenbreite - 9,5px kaemen dort als knapp 7px an. */
-  .stundendiagramm .achsentext { font-size: 14px; }
+  /* ⚠️ Die Schriftgrößen im SVG stehen in Einheiten des viewBox und
+     werden mit dem Bild skaliert. Auf dem Telefon ist das Bild rund
+     289px breit, der viewBox 640 Einheiten - eine Einheit kommt also als
+     knapp ein halber Pixel an. 9,5 Einheiten wären 4,3px.
+     ⚠️ Bis 1.38 stand hier 14: das passte zum alten viewBox von 460
+     Einheiten (Faktor 0,72) und wäre jetzt zu klein. Wer das
+     Seitenverhältnis in meinbereich.py anfasst, muss diese Zahl
+     mitziehen. */
+  .stundendiagramm .achsentext { font-size: 22px; }
   .stundendiagramm .nebenmonat { display: none; }
 }
 
@@ -4152,7 +4167,17 @@ fieldset.feld > span {
      und jedem Band gelesen. Zwei getrennte Angaben liefen früher oder
      später auseinander, und dann stünde kein Titel mehr über seiner
      Spalte (dieselbe Lehre wie bei --erfassraster). */
-  --vz-raster: minmax(0, 1fr) minmax(0, 140px) 150px minmax(0, 112px)
+  /* ⚠️ Die Fristspalte stand bis 1.38 auf 112px - und „20.08.2026
+     überfällig" misst einzeilig 150px - gemessen, nicht geschätzt, und
+     „überfällig" ist das längste Wort, das dort stehen kann. Der Text
+     lief deshalb sichtbar in die Nachbarspalte „Zuständig" hinein, und
+     zwar genau bei den überfälligen Aufgaben, also denen, auf die es
+     ankommt. Jetzt 160px - zehn Pixel Luft, weil dieselbe Schrift auf
+     einem anderen Rechner ein paar Pixel breiter läuft (dieselbe Lehre
+     wie bei der Auswertung). „Status" gibt 10px davon ab. Wer hier
+     etwas ändert, muss die Schwelle der Container-Abfrage weiter unten
+     mitziehen - sie ist aus diesen Breiten gerechnet. */
+  --vz-raster: minmax(0, 1fr) minmax(0, 140px) 140px minmax(0, 160px)
                minmax(0, 128px) 58px 66px;
   display: flex; flex-direction: column;
   /* Timos Wunsch: zwischen den Zeilen Luft. Etwas dichter als bei den
@@ -4280,14 +4305,15 @@ fieldset.feld > span {
   .vz-wer { justify-self: start; }
 }
 
-/* Ab hier steht alles in EINER Zeile. 980px ist gerechnet, nicht
-   geraten: die sechs festen Spalten brauchen 650px, die Abstände 72px,
-   die Polsterung samt Kante 30px - macht 752px. Bleiben bei 980px rund
-   228px für den Titel, und damit bleibt er einzeilig.
+/* Ab hier steht alles in EINER Zeile. 1020px ist gerechnet, nicht
+   geraten: die sechs festen Spalten brauchen 692px, die Abstände 72px,
+   die Polsterung samt Kante 30px - macht 794px. Bleiben bei 1020px rund
+   226px für den Titel, und damit bleibt er einzeilig.
    ⚠️ Bei 880px waren es nur 128px: die Titel brachen um, die Bänder
    wurden 62 bis 94px hoch und die Liste sah ausgefranst aus. Wer eine
-   Spalte verbreitert, muss diese Zahl mitziehen. */
-@container aufgabenliste (min-width: 980px) {
+   Spalte verbreitert, muss diese Zahl mitziehen - mit der Fristspalte
+   von 1.39 ist sie von 980 auf 1020 gewandert. */
+@container aufgabenliste (min-width: 1020px) {
   .vz-kopf {
     display: grid; grid-template-columns: var(--vz-raster);
     /* ⚠️ Links 16px statt 13px: das Band darunter trägt zusätzlich seine
@@ -4857,7 +4883,11 @@ a.vgk-wert:hover { text-decoration: underline; }
 }
 /* In der Monatstabelle steht sie unter der Zahl statt daneben: die
    Spalte ist schmal, und nebeneinander zoege sie die Tabelle auf. */
-.monatstabelle .frei-marke { display: block; margin: 2px 0 0; }
+/* ⚠️ Seit 1.39 steht die Marke in einer EIGENEN Spalte „Frei" und
+   nicht mehr unter der Soll-Zahl. Als Block darunter machte sie genau
+   die Monate zweizeilig, in denen jemand frei hatte - die Zeilen waren
+   dadurch verschieden hoch. Nicht zurückbauen. */
+.monatstabelle .frei-marke { display: inline-block; margin: 0; }
 
 .suchstand { margin: 0 0 10px; }
 .dateitreffer { list-style: none; margin: 0; padding: 0;
@@ -5489,7 +5519,9 @@ a.vgk-wert:hover { text-decoration: underline; }
 .zeitentabelle th:last-child { width: 78px; }
 /* Dauer und Balken darunter brauchen mehr als die Zahl selbst - sonst
    drückt der Balken die Zeit in die nächste Zeile. */
-.zeitentabelle th.dauerspalte { width: 84px; }
+/* ⚠️ Seit 1.39 breiter: in dieser Spalte stehen Zahl UND Balken, und
+   bei 84px drängte sich beides. */
+.zeitentabelle th.dauerspalte { width: 128px; }
 .tabellenrolle .liste.zeitentabelle td,
 .tabellenrolle .liste.zeitentabelle th { white-space: normal; }
 .tabellenrolle .liste.zeitentabelle td.nowrap,
@@ -6053,6 +6085,16 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 .hinweise > summary:hover { color: var(--akzent); }
 .hinweise-inhalt { padding-top: 8px; }
 .hinweise-inhalt p:last-child { margin-bottom: 0; }
+/* ⚠️ `.hinweise` ist als LETZTES Element einer Kopfkarte entworfen und
+   bringt deshalb keinen unteren Rand mit. Wo etwas dahinter steht - das
+   Formular bei den Push-Nachrichten, bei den eigenen Logos - klebte der
+   Aufklapper am ersten Feld darunter, zugeklappt wie aufgeklappt. */
+.hinweise:not(:last-child) { margin-bottom: 20px; }
+/* Ein Ankreuzfeld unmittelbar über einer Feldreihe braucht Luft, sonst
+   klebt der Schalter an der ersten Beschriftung darunter. Bis 1.38 stand
+   dafür an einzelnen Stellen ein `style="margin-bottom: 18px"` im
+   Markup - und an den übrigen gar nichts. */
+.ankreuz + .feldreihe, .ankreuz + .feld, .ankreuz + fieldset { margin-top: 18px; }
 
 /* Das Anlegeformular steht zugeklappt über der Liste. Man kommt zum
    Nachsehen und Ändern viel öfter her als zum Anlegen - ein dauerhaft
@@ -6200,3 +6242,164 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 @media (prefers-reduced-motion: no-preference) {
   .vorlagenblock > summary::after { transition: transform .2s ease; }
 }
+
+/* --- Mein Bereich, Umbau 1.39 -------------------------------------------- */
+
+/* Verlauf: Bild und Zahlen nebeneinander.
+   ⚠️ Das Diagramm war bis 1.38 so breit wie seine Karte (965px) und
+   dadurch 462px hoch - für zwölf Balken. Es trägt seitdem ein flacheres
+   Seitenverhältnis (meinbereich.py) und gibt rechts Platz an die Zahlen
+   ab, nach denen man beim Betrachten einer Zeitreihe als Nächstes sucht.
+   Container-Abfrage und nicht Fensterbreite: daneben steht eine
+   340px-Spalte, und im Modus „begrenzte Breite" bleibt weniger übrig -
+   dieselbe Lehre wie bei der manuellen Erfassung. Gestapelt ist der
+   Ausgangszustand. */
+/* ⚠️ Der Container ist die KARTE, nicht die Fläche selbst: eine
+   Container-Abfrage darf das Element, das sie aufspannt, nicht selbst
+   umlegen - das wäre zirkulär, und die Regel greift schlicht nicht. Das
+   war der erste Anlauf und kostete eine Messung. */
+.karte.verlaufskarte { container-type: inline-size; container-name: verlauf; }
+.verlaufsflaeche { display: grid; gap: 14px; min-width: 0; }
+@container verlauf (min-width: 620px) {
+  .verlaufsflaeche { grid-template-columns: minmax(0, 1fr) 168px; align-items: start; }
+}
+.verlaufszahlen { margin: 0; display: grid; gap: 12px; align-content: start; }
+.verlaufszahlen > div {
+  padding: 9px 12px; border-radius: 10px; background: var(--flaeche-2);
+  border: 1px solid var(--linie);
+}
+.verlaufszahlen dt {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--leise); margin: 0 0 3px;
+}
+.verlaufszahlen dd { margin: 0; font-size: 13px; }
+.verlaufszahlen .vz-gross {
+  font-size: 19px; font-weight: 700; line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+/* Am Telefon stehen die vier nebeneinander statt untereinander - vier
+   volle Kästen unter einem flachen Bild wären dort die längere Karte. */
+@media (max-width: 620px) {
+  .verlaufszahlen { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .verlaufszahlen .vz-gross { font-size: 16px; }
+}
+
+/* Urlaub: eine Kennzahlenkarte, kein Stapel aus vier gleich schweren
+   Blöcken. Die eine Zahl groß, darunter der Balken, darunter der Bezug,
+   die Vorjahre als abgesetzter Fuß. */
+.urlaub-hero {
+  margin: 2px 0 12px; font-size: 30px; font-weight: 700; line-height: 1.05;
+  letter-spacing: -.5px; color: var(--akzent);
+  font-variant-numeric: tabular-nums;
+}
+.urlaub-hero.saldo-minus { color: var(--dopp); }
+.urlaub-hero-wort {
+  display: inline-block; margin-left: 8px; font-size: 15px; font-weight: 500;
+  letter-spacing: 0; color: var(--leise);
+}
+.urlaubskarte .urlaubsspur { margin-bottom: 8px; }
+.urlaub-spurwort { margin: 0; font-size: 12.5px; color: var(--leise); }
+/* Der Erklärtext steht zugeklappt. `.hinweise` ist dieselbe Form wie in
+   den Einstellungen - zwei Aufklapper für dieselbe Sache liefen früher
+   oder später auseinander. */
+.urlaub-hinweis { margin-top: 14px; }
+/* ⚠️ Die Vorjahre sind Archiv, nicht Kennzahl: feine Linie darüber,
+   gedämpft, und sie dürfen umbrechen. */
+.urlaub-fuss {
+  display: flex; flex-wrap: wrap; gap: 6px 18px;
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--linie-stark);
+  font-size: 12px; color: var(--leise);
+}
+.urlaub-fuss b { color: var(--tinte); font-weight: 600; margin-right: 4px; }
+
+/* Monat für Monat: nur die letzten sechs offen, der Rest klappt auf.
+   ⚠️ Bewusst ein Kästchen ohne Namen mit einem <label> als Knopf -
+   dieselbe Technik wie die Mehrfachauswahl in der Übersicht. Sie
+   funktioniert ohne Skript, und eine aufgeklappte Tabelle ist ein
+   Handgriff, kein Zustand, den man verlinkt. */
+.monatsschalter {
+  position: absolute; width: 1px; height: 1px;
+  opacity: 0; pointer-events: none;
+}
+.monatsschalter:not(:checked) ~ .tabellenrolle .monat-spaet { display: none; }
+.monatsschalter:not(:checked) ~ .monatsmehr .nur-auf { display: none; }
+.monatsschalter:checked ~ .monatsmehr .nur-zu { display: none; }
+.monatsmehr { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.monatsmehr label { cursor: pointer; }
+/* Das Kästchen ist unsichtbar, aber per Tastatur erreichbar - der
+   Fokusrahmen muss deshalb am Knopf sichtbar werden. */
+.monatsschalter:focus-visible ~ .monatsmehr label {
+  outline: 2px solid var(--akzent); outline-offset: 2px;
+}
+
+/* Eintrag für Eintrag: ein Auswahlfeld statt fünfzehn Pillen. */
+.zeitmonatswahl { display: flex; align-items: flex-end; gap: 8px; }
+.zeitmonatswahl .feld { margin: 0; }
+.zeitmonatswahl select { min-width: 168px; }
+/* Ohne Skript bleibt der Knopf stehen und tut dasselbe. */
+.zeitmonatswahl.mit-skript .zeitmonatsknopf { display: none; }
+.zeitensumme { margin: -4px 0 14px; }
+/* Bester und schwächster Monat in einem Kasten, je Zeile Monat und Wert. */
+.verlaufszahlen .vz-spanne {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12.5px; line-height: 1.6;
+}
+.verlaufszahlen .vz-spanne b { font-variant-numeric: tabular-nums; }
+
+/* --- Betreute Personen: die Zeile in zwei Lagen (seit 1.39) --------------
+   ⚠️ Vorher stand alles in einer Flexzeile: Name, Statusmarke,
+   Wochenstunden, Satz, Zahl der Zeiträume, erfasste Stunden - sechs
+   Angaben ohne Gliederung, und bei einem langen Namen brach die Zeile an
+   einer beliebigen Stelle um. Jetzt oben Name und Stand, darunter die
+   drei Zahlen mit Beschriftung. Der Pfeil steht über beide Lagen. */
+.personenkopf {
+  display: grid; column-gap: 14px; row-gap: 9px; align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto 18px;
+  grid-template-areas:
+    "name   stand  pfeil"
+    "fakten fakten pfeil";
+}
+.personenkopf .konto-name { grid-area: name; min-width: 0; flex-wrap: wrap; }
+.personenkopf .pz-stand {
+  grid-area: stand; display: inline-flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; justify-content: flex-end;
+}
+.personenkopf .pz-stand .marke-status { padding: 3px 9px; font-size: 11px; }
+.personenkopf .konto-pfeil { grid-area: pfeil; align-self: center; }
+/* Die drei Zahlen: Beschriftung klein darüber, Wert darunter. Feste
+   Mindestbreiten, damit sie über die Zeilen hinweg untereinander
+   stehen - sonst wandert „Erfasst" je nach Satzlänge hin und her. */
+.pz-fakten {
+  grid-area: fakten; display: flex; flex-wrap: wrap; gap: 6px 26px;
+}
+.pz-fakt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pz-fakt i {
+  font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--leise);
+}
+.pz-fakt b { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pz-fakt b.leise { font-weight: 500; }
+.pz-fakt:nth-child(1) { min-width: 190px; }
+.pz-fakt:nth-child(2) { min-width: 74px; }
+@media (max-width: 700px) {
+  .personenkopf {
+    grid-template-columns: minmax(0, 1fr) 18px;
+    grid-template-areas:
+      "name   pfeil"
+      "stand  pfeil"
+      "fakten fakten";
+  }
+  .personenkopf .pz-stand { justify-content: flex-start; }
+  .pz-fakt:nth-child(1) { min-width: 100%; }
+}
+
+/* Die beiden Fußnoten unter der Personenliste erklären die zwei Schalter
+   im aufgeklappten Block. Als nackte Absätze hingen sie unter der Liste,
+   als gehörten sie zur letzten Person. */
+.listenfussnote {
+  margin: 16px 0 0; padding-top: 12px;
+  border-top: 1px solid var(--linie);
+}
+.listenfussnote p { margin: 0 0 6px; }
+.listenfussnote p:last-child { margin-bottom: 0; }

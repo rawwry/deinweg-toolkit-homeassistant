@@ -2258,4 +2258,39 @@ CHANGELOG = [
         "behauptete, Urlaub und Krankheit blieben unberücksichtigt",
         "Prüfung von 1850 auf 1907 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.39", "titel": "Aufgeräumt, wo es drückte", "punkte": [
+        "Mein Bereich: oben steht jetzt dein Name statt „Mein Bereich“ – "
+        "wo du bist, sagt die Kopfzeile",
+        "Die Urlaubskarte neu gebaut: die Zahl groß oben, darunter der "
+        "Balken, darunter der Bezug. Die Erklärung steht zugeklappt, die "
+        "Vorjahre als abgesetzter Fuß",
+        "Das Verlaufsdiagramm war 462px hoch für zwölf Balken. Es ist "
+        "jetzt flacher, und der frei gewordene Platz daneben trägt vier "
+        "Zahlen: Schnitt je Monat, Saldo im Bild, bester und schwächster "
+        "Monat",
+        "Monat für Monat: die freien Tage stehen in einer eigenen Spalte. "
+        "Vorher wurden genau die Monate zweizeilig, in denen jemand frei "
+        "hatte – die Zeilen waren dadurch verschieden hoch",
+        "Und es stehen nur noch die letzten sechs Monate offen da, der "
+        "Rest klappt auf",
+        "Neu darüber: was ein freier Tag wert ist. Das Soll fiel bisher "
+        "um einen krummen Betrag, ohne dass irgendwo stand, wie er "
+        "zustande kommt",
+        "Eintrag für Eintrag: ein Auswahlfeld statt fünfzehn Monatspillen, "
+        "und die Spalte „Dauer“ hat mehr Platz",
+        "Aufgaben in der Listenansicht: bei einer überfälligen Aufgabe lief "
+        "„20.08.2026 überfällig“ in die Nachbarspalte hinein. Die "
+        "Fristspalte ist breiter, „Priorität“ heißt dort „Prio“",
+        "Einstellungen → System: die beiden Knöpfe bei den "
+        "Push-Nachrichten stehen nebeneinander statt aneinandergeklebt, "
+        "und unter „Worauf zu achten ist“ ist wieder Luft – auch bei den "
+        "eigenen Logos",
+        "Einstellungen → Betreute Personen: die Zeile steht in zwei Lagen "
+        "– oben Name und Stand, darunter Kontingent, Zeiträume und "
+        "erfasste Stunden mit Beschriftung",
+        "Aufgeklappt liegt der farbige Schimmer nicht mehr unter den "
+        "Eingabefeldern – im dunklen Thema sah das aus, als lägen zwei "
+        "Oberflächen übereinander",
+        "Prüfung von 1907 auf 1958 Einzelprüfungen erweitert",
+    ]},
 ]

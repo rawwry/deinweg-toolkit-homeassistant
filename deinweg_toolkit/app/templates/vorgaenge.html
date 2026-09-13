@@ -374,7 +374,10 @@
          selbst (versteckt), Vorleseprogramme brauchen den Kopf nicht. #}
       <div class="vz-kopf" aria-hidden="true">
         <span>Aufgabe</span><span>Betreute Person</span><span>Status</span>
-        <span>Frist</span><span>Zuständig</span><span>Priorität</span><span></span>
+        {# ⚠️ „Prio" statt „Priorität" (Timos Wunsch, 1.39): die Spalte ist
+           66px breit und trug damit den längsten Titel der Liste über
+           dem kürzesten Inhalt. #}
+        <span>Frist</span><span>Zuständig</span><span>Prio</span><span></span>
       </div>
       {% for z in liste %}
       <article class="vz vz-{{ z.lage }}{{ ' vz-zu' if z.v.status in V_ABGESCHLOSSEN }}">
