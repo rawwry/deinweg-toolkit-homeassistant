@@ -238,9 +238,18 @@
 
           <label class="feld f-datum">
             <span class="feldtitel">Datum</span>
+            {# ⚠️ Das Feld steht seit 1.42 mit dem heutigen Tag vorbelegt da
+               (main.startseite). `data-vorgabe` traegt denselben Wert und
+               sagt dem Skript, dass er noch unberuehrt ist - solange das
+               so ist, markiert ein Klick den ganzen Inhalt, und ein
+               anderer Tag kostet genau so viel wie vorher das leere
+               Feld: vier Ziffern. Ohne das muesste man den vorbelegten
+               Tag erst wegraeumen, und die Vorbelegung waere im
+               Ausnahmefall laestiger als hilfreich. #}
             <input type="text" name="datum" value="{{ datum }}" required form="erfassung"
                    inputmode="numeric" placeholder="TT.MM.JJJJ" maxlength="10"
                    class="datumfeld" autocomplete="off" aria-label="Datum"
+                   data-vorgabe="{{ datum }}"
                    {{ 'autofocus' if mitarbeiter }}>
           </label>
 
@@ -907,6 +916,19 @@
         else if (feld.value !== z && /^\d*$/.test(feld.value) === false) feld.value = z;
       });
       feld.addEventListener("blur", function () { datumFuellen(feld); });
+      // ⚠️ Solange das Feld noch den vorbelegten Tag traegt, markiert ein
+      // Klick den ganzen Inhalt - wer einen anderen Tag meint, tippt
+      // einfach los. Sobald der Wert abweicht, greift es nicht mehr:
+      // dann hat jemand bewusst etwas hineingeschrieben, und eine
+      // Markierung waere nur im Weg. Der Aufschub um einen Takt ist fuer
+      // iOS - dort setzt der Browser die Einfuegemarke nach dem
+      // focus-Ereignis noch einmal selbst.
+      feld.addEventListener("focus", function () {
+        if (!feld.dataset.vorgabe || feld.value !== feld.dataset.vorgabe) return;
+        setTimeout(function () {
+          if (feld.value === feld.dataset.vorgabe) feld.select();
+        }, 0);
+      });
     }
 
     function datumFuellen(feld) {
@@ -1027,6 +1049,10 @@
             b = neue.querySelector("[name='" + name + "']");
         if (a && b) { b.value = a.value; }
       });
+      // Ein uebernommener Tag ist genauso ein Vorschlag wie der
+      // vorbelegte - also verhaelt er sich auch so (Klick markiert ihn).
+      var dneu = neue.querySelector(".datumfeld");
+      if (dneu) dneu.dataset.vorgabe = dneu.value;
       var ende  = vorige.querySelectorAll(".zeitfeld")[1],
           start = neue.querySelectorAll(".zeitfeld")[0];
       if (ende && start && ende.value) { start.value = ende.value; }

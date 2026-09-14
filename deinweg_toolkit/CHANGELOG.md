@@ -3,6 +3,16 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.42
+
+- Aufgaben (Listenansicht): mehrere Zuständige stehen untereinander statt
+  hintereinander mit „…“. Auf der Karte und am Telefon bleibt es beim
+  Nebeneinander – dort ist Platz
+- Zeiterfassung: das Datumsfeld ist mit dem heutigen Tag vorbelegt. Ein
+  Klick markiert den Vorschlag ganz, ein anderer Tag kostet also weiterhin
+  nur vier Ziffern
+- Prüfung von 2014 auf 2035 Einzelprüfungen erweitert
+
 ## 1.41
 
 - Auswertung: keine Gedankenstriche mehr in leeren Zellen; ein Schalter

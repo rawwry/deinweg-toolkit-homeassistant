@@ -421,12 +421,36 @@
             <path d="M5 20c0-3.4 3.2-5.5 7-5.5s7 2.1 7 5.5"
                   stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
           </svg>
-          {# ⚠️ Der Name steht in einem eigenen Element, nicht als nackter
+          {# ⚠️ Jeder Name steht in einem eigenen Element, nicht als nackter
              Text: `text-overflow: ellipsis` greift nur auf einem
              Kasten, und der Kasten hier ist eine Flexbox mit dem Symbol
              daneben. Ohne diese Hülle lief „Timo Vorwald, Anna
-             Beispiel" in der Zeilenansicht in die Spalte „Priorität". #}
-          <span class="vz-wer-name">{{ z.v.zustaendig or "niemand" }}</span>
+             Beispiel" in der Zeilenansicht in die Spalte „Priorität".
+
+             ⚠️⚠️ In der EINZEILIGEN Ansicht stehen mehrere Namen
+             untereinander (seit 1.42, Timos Wunsch). Die Spalte ist
+             128px breit; nebeneinander gesetzt wurde aus „Anna
+             Beispiel, Timo Vorwald" ein „Anna Beispiel, Ti…", und
+             damit stand dort ein halber Name. Untereinander passen
+             beide ganz hinein, und das Band wird davon nicht höher:
+             zwei Zeilen zu 17px bleiben unter der Höhe des Titelblocks
+             daneben.
+
+             ⚠️ Gestapelt und in der mittleren Stufe bleiben sie
+             ausdrücklich NEBENEINANDER - dort hat die Zeile die volle
+             Bandbreite, „Anna Beispiel, Timo Vorwald" passt hinein, und
+             jeder zusätzliche Umbruch kostete je Band rund 19px. Genau
+             darum steht die Priorität seit 1.34 neben dem Status.
+             Deshalb steckt das Komma auch im Stylesheet (::after) und
+             nicht im Markup: es gehört zur Zeilenfassung, nicht zum
+             Namen. #}
+          <span class="vz-wer-namen">
+            {% for n in z.v.zustaendig | namen %}
+            <span class="vz-wer-name">{{ n }}</span>
+            {% else %}
+            <span class="vz-wer-name">niemand</span>
+            {% endfor %}
+          </span>
         </span>
 
         <span class="vz-prio">

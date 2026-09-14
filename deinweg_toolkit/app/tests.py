@@ -6006,6 +6006,130 @@ def test_mobileconfig(client: TestClient) -> None:
                 follow_redirects=False)
 
 
+def test_zustaendige_gestapelt(client: TestClient) -> None:
+    """Mehrere Zuständige stehen in der Zeilenansicht untereinander."""
+    abschnitt("Aufgaben: Zuständige untereinander")
+    stil = client.get("/static/style.css").text
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO vorgangsart (name, aktiv, angelegt_am) "
+                    "VALUES ('Prüfart',1,'2026-01-01 08:00')")
+    client.post("/vorgaenge", data={
+        "klient": "Testperson", "art": "Prüfart",
+        "titel": "Zwei Namen untereinander",
+        "zustaendig": ["Anna Stapel", "Bruno Stapel"],
+        "status": "Offen", "prioritaet": "Mittel"}, follow_redirects=False)
+
+    seite = client.get("/vorgaenge?zustand=alle").text
+    # ⚠️ Nicht die ganze Liste, sondern genau dieses Band: die Seite trägt
+    # auch die Kartenansicht, und dort stehen die Namen weiterhin
+    # nebeneinander.
+    baender = seite.split('<div class="vorgangsliste">')[1].split('<article class="vz ')
+    treffer = [b for b in baender if "Zwei Namen untereinander" in b]
+    pruefe(len(treffer) == 1, "die Aufgabe steht als Band in der Liste")
+    band = treffer[0] if treffer else ""
+
+    # --- ein Element je Name -----------------------------------------------
+    # ⚠️ Vorher stand die ganze Liste als EIN Text in einer Hülle; in der
+    # 128px breiten Spalte blieb davon „pruefer, Zwei Zust…" übrig, also
+    # ein halber Name. Jetzt trägt jeder Name sein eigenes Element.
+    pruefe(band.count('class="vz-wer-name"') == 2,
+           "jeder Zuständige steht in einem eigenen Element")
+    pruefe(">Anna Stapel<" in band and ">Bruno Stapel<" in band,
+           "und trägt genau einen Namen")
+    pruefe('<span class="vz-wer-namen">' in band,
+           "die gemeinsame Hülle ist das Flex-Element")
+
+    # --- das Komma gehört ins Stylesheet, nicht ins Markup -----------------
+    # Es ist Teil der nebeneinander gesetzten Fassung; in der Zeilenansicht
+    # fällt es weg. Stünde es im Markup, stünde es überall.
+    pruefe("Anna Stapel, Bruno Stapel" not in band,
+           "das Komma steht nicht im Markup")
+    pruefe('.vz-wer-name:not(:last-child)::after { content: ","; }' in stil,
+           "nebeneinander setzt es das Stylesheet")
+
+    # --- untereinander NUR in der einzeiligen Ansicht -----------------------
+    # ⚠️ Gestapelt und in der mittleren Stufe hat die Zeile die volle
+    # Bandbreite - dort kostete jeder zusätzliche Umbruch rund 19px je
+    # Band, und genau dafür steht die Priorität seit 1.34 neben dem Status.
+    einzeilig = stil.split("@container aufgabenliste (min-width: 1020px)")[1]
+    pruefe(".vz-wer-name { display: block;" in einzeilig,
+           "untereinander stehen sie erst in der einzeiligen Ansicht")
+    pruefe(".vz-wer-name:not(:last-child)::after { content: none; }" in einzeilig,
+           "und ohne Komma dazwischen")
+    davor = stil.split("@container aufgabenliste (min-width: 1020px)")[0]
+    pruefe(".vz-wer-name { display: block;" not in davor,
+           "in den schmalen Stufen bleiben sie nebeneinander")
+
+    # --- gekürzt wird weiterhin, jetzt je Name ------------------------------
+    pruefe(".vz-wer-name" in einzeilig and "text-overflow: ellipsis" in einzeilig,
+           "ein einzelner zu langer Name wird weiterhin gekürzt")
+    # ⚠️ Das Zeichen sitzt an der ERSTEN Zeile. Mittig stand es bei zwei
+    # Namen zwischen ihnen und sah aus, als gehörte es zu einem davon.
+    pruefe(".vz-wer { align-items: flex-start; }" in einzeilig,
+           "das Zeichen steht an der ersten Zeile, nicht mitten im Stapel")
+
+    # ⚠️ Die Kartenansicht steht im Markup VOR der Liste und bleibt
+    # unberührt - dort hat der Name die ganze Kartenbreite.
+    karten = seite.split('<div class="vorgangskarten">')[1] \
+        .split('<div class="vorgangstabelle">')[0]
+    pruefe("Anna Stapel, Bruno Stapel" in karten,
+           "auf der Karte stehen die Namen weiterhin nebeneinander")
+
+
+def test_datum_vorbelegt(client: TestClient) -> None:
+    """Die manuelle Erfassung steht mit dem heutigen Tag da."""
+    abschnitt("Zeiterfassung: Datum vorbelegt")
+    heute = dt.date.today().strftime("%d.%m.%Y")
+    seite = client.get("/").text
+    feld = seite.split('name="datum"')[1].split(">")[0]
+
+    # ⚠️ Dieselbe Überlegung wie beim eigenen Namen in 1.25: ein
+    # Pflichtfeld, dessen Antwort fast immer dieselbe ist, war nur ein
+    # Handgriff mehr - am Telefon vier Anschläge auf der Zifferntastatur.
+    pruefe(f'value="{heute}"' in feld,
+           "das Datumsfeld trägt den heutigen Tag")
+    # ⚠️ Vom Server, nicht aus der Browser-Uhr: der Monat, in den ein
+    # Eintrag fällt, soll derselbe sein, den auch der Wecker meint.
+    pruefe("new Date()" not in feld,
+           "und zwar vom Server, nicht aus der Uhr des Browsers")
+    pruefe(f'data-vorgabe="{heute}"' in feld,
+           "das Feld merkt sich, dass der Wert nur ein Vorschlag ist")
+
+    # ⚠️ Ein mitgegebener Tag gewinnt. „datum" kommt nach dem Speichern
+    # und nach einem Fehler zurück; spränge es dort auf heute, verlöre man
+    # mitten im Stapel den Tag, an dem man gerade erfasst.
+    feld2 = client.get("/?datum=01.02.2026").text \
+        .split('name="datum"')[1].split(">")[0]
+    pruefe('value="01.02.2026"' in feld2,
+           "ein mitgegebener Tag gewinnt gegen die Vorbelegung")
+    pruefe('data-vorgabe="01.02.2026"' in feld2,
+           "und gilt dann selbst als Vorschlag")
+
+    # --- überschreiben kostet nichts ---------------------------------------
+    # ⚠️ Das ist die Bedingung, unter der die Vorbelegung überhaupt
+    # vertretbar ist: solange der Wert unberührt ist, markiert ein Klick
+    # ihn ganz - ein anderer Tag kostet damit genau so viel wie vorher das
+    # leere Feld, nämlich vier Ziffern.
+    pruefe("feld.dataset.vorgabe" in seite and "feld.select()" in seite,
+           "ein Klick markiert den unberührten Vorschlag ganz")
+    pruefe("dneu.dataset.vorgabe = dneu.value" in seite,
+           "ein übernommener Tag verhält sich in der nächsten Zeile genauso")
+
+    # Gespeichert wird weiterhin, was im Feld steht - die Vorbelegung ist
+    # ein Vorschlag im Formular, keine Annahme im Server.
+    antwort = client.post("/erfassung", data={
+        "mitarbeiter": "Prüfer Person", "datum": ["03.03.2026"],
+        "klient": ["Testperson"], "start": ["09:00"], "ende": ["10:00"],
+        "leistung": [""], "beschreibung": ["Datumsprobe"]},
+        follow_redirects=False)
+    pruefe(antwort.status_code == 303, "ein Eintrag lässt sich speichern")
+    with db.db() as con:
+        z = con.execute("SELECT datum FROM eintrag WHERE beschreibung=?",
+                        ("Datumsprobe",)).fetchone()
+    pruefe(z is not None and z["datum"] == "2026-03-03",
+           "und trägt den getippten Tag, nicht den heutigen")
+
+
 def test_texte_tot() -> None:
     """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
 
@@ -8582,6 +8706,8 @@ def _durchlauf(client: TestClient) -> None:
         test_leerzellen_schalter(client)
         test_kennzahl_einheit(client)
         test_mobileconfig(client)
+        test_zustaendige_gestapelt(client)
+        test_datum_vorbelegt(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

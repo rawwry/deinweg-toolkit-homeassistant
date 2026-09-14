@@ -42,7 +42,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.41"
+VERSION = "1.42"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -746,6 +746,21 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
     if not re.fullmatch(r"\d{4}-\d{2}", monat or ""):
         monat = heute.strftime("%Y-%m")
     mitarbeiter = mitarbeiter.strip()
+    # ⚠️ Das Datum ist mit dem heutigen Tag vorbelegt (seit 1.42, Timos
+    # Wunsch). Dieselbe Ueberlegung wie beim eigenen Namen in 1.25: ein
+    # Pflichtfeld, dessen Antwort fast immer dieselbe ist, war nur ein
+    # Handgriff mehr - und am Telefon, wo die Zeiten an Ort und Stelle
+    # entstehen, sind das vier Anschlaege auf einer Zifferntastatur.
+    #
+    # ⚠️ Nur wenn nichts mitgegeben wurde. "datum" kommt nach dem
+    # Speichern und nach einem Fehler zurueck (siehe erfassung_speichern)
+    # und traegt dann den zuletzt erfassten Tag - der gewinnt, sonst
+    # spraenge die Erfassung mitten im Stapel auf heute zurueck.
+    #
+    # ⚠️ Vom SERVER, nicht aus der Browser-Uhr: der Container rechnet
+    # ueber tzdata in lokaler Zeit, und der Monat, in den ein Eintrag
+    # faellt, soll derselbe sein, den auch Wecker und Auswertung meinen.
+    datum = datum.strip() or heute.strftime("%d.%m.%Y")
     with db.db() as con:
         # Nur noch die Importe, die auf eine Pruefung warten. Die frueher
         # hier gezeigte Liste aller vergangenen Importe ist entfallen - die

@@ -2328,4 +2328,24 @@ CHANGELOG = [
         "als Download hinaus und nicht als Dokument im Browserfenster",
         "Prüfung von 1988 auf 2014 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.42", "titel": "Zwei Handgriffe weniger",
+     "punkte": [
+        "Aufgaben, Listenansicht: mehrere Zuständige stehen untereinander "
+        "statt hintereinander. In der 128px schmalen Spalte blieb von "
+        "„Anna Beispiel, Timo Vorwald“ ein „Anna Beispiel, Ti…“ übrig – "
+        "also ein halber Name",
+        "Untereinander passen beide ganz hinein, und das Band wird davon "
+        "nicht höher. Auf der Karte und am Telefon, wo die Zeile die volle "
+        "Breite hat, stehen sie weiterhin nebeneinander",
+        "Zeiterfassung: das Datum steht mit dem heutigen Tag da. Wer "
+        "unterwegs am Telefon erfasst, tippt ihn nicht mehr – und das ist "
+        "der Normalfall",
+        "Ein anderer Tag kostet trotzdem nichts: solange der vorbelegte "
+        "Wert unberührt ist, markiert ein Klick ihn ganz, man tippt "
+        "einfach die vier Ziffern darüber",
+        "Der Tag kommt vom Server, nicht aus der Uhr des Browsers – der "
+        "Monat, in den ein Eintrag fällt, soll derselbe sein, den auch "
+        "Wecker und Auswertung meinen",
+        "Prüfung von 2014 auf 2035 Einzelprüfungen erweitert",
+    ]},
 ]

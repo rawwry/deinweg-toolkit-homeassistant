@@ -4271,7 +4271,15 @@ fieldset.feld > span {
   font-size: 12.5px; color: var(--leise); min-width: 0;
 }
 .vz-wer svg { width: 13px; height: 13px; flex: 0 0 auto; opacity: .8; }
-.vz-wer-name { min-width: 0; }
+/* ⚠️ Die Huelle ist das Flex-Element, nicht der einzelne Name - seit
+   1.42 koennen es mehrere sein. Ohne `min-width: 0` sprengt ein langer
+   Name die Spalte, statt gekuerzt zu werden. */
+.vz-wer-namen { min-width: 0; }
+/* ⚠️ Das Komma steht hier und nicht im Markup: es gehoert zur
+   nebeneinander gesetzten Fassung, nicht zum Namen. In der einzeiligen
+   Ansicht unten faellt es deshalb einfach weg. Das Leerzeichen dahinter
+   kommt aus dem Zeilenumbruch zwischen den beiden Elementen. */
+.vz-wer-name:not(:last-child)::after { content: ","; }
 /* Die Beschriftung im gestapelten Zustand. Sie steht immer im Markup und
    wird in der Zeile ausgeblendet - dort trägt der Kopf sie. */
 .vz-marke { font-size: 11px; color: var(--leise); margin-right: 6px; }
@@ -4347,6 +4355,22 @@ fieldset.feld > span {
   .vz-wer-name, .vz-person, .vz-art {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  /* ⚠️ Hier - und nur hier - stehen mehrere Zustaendige untereinander.
+     Die Spalte ist 128px breit, nebeneinander blieb von „Anna Beispiel,
+     Timo Vorwald" ein „Anna Beispiel, Ti…" uebrig. Zwei Zeilen zu 17px
+     bleiben unter der Hoehe des Titelblocks daneben, das Band waechst
+     davon also nicht. Die Kuerzung bleibt trotzdem stehen: sie greift
+     jetzt je Name, fuer den einen, der allein schon zu lang ist. */
+  .vz-wer-name { display: block; line-height: 1.35; }
+  .vz-wer-name:not(:last-child)::after { content: none; }
+  /* ⚠️ Das Zeichen gehoert an die ERSTE Zeile, nicht in die Mitte des
+     Stapels: mittig sass es bei zwei Namen zwischen ihnen und bei drei
+     neben dem zweiten - es sah aus, als gehoerte es zu genau diesem
+     einen. Die 2px sind (17px Zeile - 13px Zeichen) / 2, also genau das,
+     was `align-items: center` bei einem einzelnen Namen ohnehin tut;
+     dort aendert sich dadurch nichts. */
+  .vz-wer { align-items: flex-start; }
+  .vz-wer svg { margin-top: 2px; }
   .vz-aktionen { justify-content: flex-end; }
 }
 
