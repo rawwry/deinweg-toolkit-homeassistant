@@ -3,6 +3,17 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.44
+
+- Tagesprotokoll als eigene Karte unter der Erfassung, Überschrift
+  „Bereits von dir erfasst“; die Spalte „Dauer“ ist entfallen, die
+  Zeitspanne trägt die Akzentfarbe
+- Am Telefon: betreute Person neben der Zeit, lange Leistungen mit „…“
+  gekürzt statt umgebrochen
+- Neu: eigenes Favicon und eigenes App-Symbol (Einstellungen → System und
+  Sicherung → Branding), PNG bzw. ICO, in der Datenbank gespeichert
+- Prüfung von 2060 auf 2093 Einzelprüfungen erweitert
+
 ## 1.43
 
 - Manuelle Zeiterfassung: ein Tagesprotokoll über den Eingabezeilen – was

@@ -42,7 +42,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.43"
+VERSION = "1.44"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -239,7 +239,7 @@ MARKEN = {
 # Wird beim Start und nach jedem Tausch neu gefuellt. Ohne den Puffer
 # fragte jeder Seitenaufbau die Datenbank nach dem Zeitstempel - nur um
 # ihn an eine Bildadresse zu haengen.
-_marken_puffer: dict = {"stand": "", "geladen": False}
+_marken_puffer: dict = {"stand": "", "geladen": False, "symbole": frozenset()}
 
 
 def markenstand() -> str:
@@ -262,12 +262,40 @@ def markenstand() -> str:
             _marken_puffer["stand"] = re.sub(r"\D", "", roh)
         except Exception:
             _marken_puffer["stand"] = ""
+        # Welche eigenen Symbole liegen vor? Nur die Namen - die Bilder
+        # selbst holt erst die Auslieferung.
+        try:
+            with db.db() as con:
+                _marken_puffer["symbole"] = frozenset(
+                    r["name"] for r in con.execute("SELECT name FROM symbol"))
+        except Exception:
+            _marken_puffer["symbole"] = frozenset()
         _marken_puffer["geladen"] = True
     return _marken_puffer["stand"] or VERSION
 
 
+def eigene_symbolnamen() -> frozenset:
+    """Welche Favicons/App-Symbole durch eigene ersetzt sind.
+
+    ⚠️⚠️ Der Name ist mit Bedacht sperrig. Als `eigene_symbole` wurde die
+    Funktion auf der Einstellungsseite von der gleichnamigen
+    KONTEXTVARIABLEN verdeckt (dort ein Dict) - base.html rief sie auf
+    und bekam "'dict' object is not callable". Eine Kontextvariable
+    ueberschreibt eine Jinja-Global lautlos; wer eine neue Global
+    anlegt, gibt ihr einen Namen, den keine Seite als Kontext benutzt.
+
+    ⚠️ Die Vorlage braucht das, um die ausgelieferten <link>-Zeilen
+    wegzulassen. Liesse sie sie stehen, suchte der Browser sich aus den
+    Groessenangaben (16, 32, 192, 512) weiter eines davon aus - und der
+    Tausch saehe aus, als haette er nicht gewirkt.
+    """
+    markenstand()          # fuellt den Puffer, falls noetig
+    return _marken_puffer["symbole"]
+
+
 def marken_puffer_leeren() -> None:
-    _marken_puffer.update({"stand": "", "geladen": False})
+    _marken_puffer.update({"stand": "", "geladen": False,
+                           "symbole": frozenset()})
 
 
 @app.get("/marke/{name}.svg")
@@ -304,6 +332,65 @@ def marke(name: str):
     except OSError:
         raise HTTPException(404, "Marke nicht gefunden")
     return Response(content=inhalt, media_type="image/svg+xml", headers=koepfe)
+
+
+# --- Eigene Favicons und App-Symbole (seit 1.44) ------------------------------
+#
+# Dieselbe Ueberlegung wie bei den Logos, nur fuer Rasterbilder: der
+# Browser-Tab und das Zeichen auf dem iOS-Homescreen lassen sich unter
+# Einstellungen -> System und Sicherung -> Branding austauschen.
+#
+# ⚠️ Gespeichert in der Tabelle "symbol" (BLOB), NICHT in "konfig" -
+# die Begruendung steht im Schema in db.py: konfig_lesen() holt bei jedem
+# Seitenaufbau die ganze Tabelle.
+
+SYMBOLE = {
+    "favicon": ("symbol_favicon", "Favicon", "Das Zeichen im Browser-Tab"),
+    "apple-touch-icon": ("symbol_touch", "App-Symbol",
+                         "Der Homescreen des iPhones, wenn jemand die "
+                         "Seite dort ablegt"),
+}
+
+# Was ausgeliefert wird, wenn kein eigenes hinterlegt ist.
+SYMBOL_STANDARD = {
+    "favicon": ("favicon-32x32.png", "image/png"),
+    "apple-touch-icon": ("apple-touch-icon.png", "image/png"),
+}
+
+
+@app.get("/symbol/{name}")
+def symbol(name: str):
+    """Liefert Favicon bzw. App-Symbol aus - eigenes, sonst das
+    ausgelieferte aus app/static/.
+
+    ⚠️ Ohne Anmeldung erreichbar (auth.SessionAuth): der Browser holt das
+    Favicon auch auf dem Anmeldebildschirm, und zwar bevor es eine
+    Sitzung gibt.
+    """
+    if name not in SYMBOLE:
+        raise HTTPException(404, "Unbekanntes Symbol")
+    koepfe = {
+        "Cache-Control": "public, max-age=86400",
+        # ⚠️ Der Inhaltstyp kommt aus unserer eigenen Pruefung, nie aus
+        # dem Upload - dieselbe Regel wie in dateien.holen().
+        "X-Content-Type-Options": "nosniff",
+    }
+    try:
+        with db.db() as con:
+            zeile = con.execute(
+                "SELECT art, daten FROM symbol WHERE name=?", (name,)).fetchone()
+    except Exception:
+        zeile = None
+    if zeile and zeile["daten"]:
+        return Response(content=bytes(zeile["daten"]),
+                        media_type=zeile["art"], headers=koepfe)
+    datei, art = SYMBOL_STANDARD[name]
+    try:
+        with open(os.path.join(BASIS, "static", datei), "rb") as f:
+            inhalt = f.read()
+    except OSError:
+        raise HTTPException(404, "Symbol nicht gefunden")
+    return Response(content=inhalt, media_type=art, headers=koepfe)
 
 
 def texte_verschlanken() -> None:
@@ -407,6 +494,9 @@ def spruch() -> dict:
 templates.env.globals["monat_wort"] = monat_wort
 # Der Anhang an den Logo-Adressen, siehe markenstand().
 templates.env.globals["markenstand"] = markenstand
+# Welche Symbole eigene sind - base.html laesst die ausgelieferten
+# <link>-Zeilen dann weg.
+templates.env.globals["eigene_symbolnamen"] = eigene_symbolnamen
 templates.env.filters["euro"] = euro
 templates.env.filters["zahl"] = zahl
 templates.env.filters["stunden"] = stunden
@@ -1775,6 +1865,7 @@ _einstellungen.setup(templates, {
     # Damit der Logo-Tausch den Puffer für ?v= leeren kann.
     "marken_puffer_leeren": marken_puffer_leeren,
     "MARKEN": MARKEN,
+    "SYMBOLE": SYMBOLE,
 })
 app.include_router(_einstellungen.router)
 

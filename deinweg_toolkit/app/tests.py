@@ -6174,20 +6174,25 @@ def test_tagesprotokoll(client: TestClient) -> None:
     # Prüfung also am Dialog abschneiden.
     ohne_dialog = seite.split('<div class="neuheiten-schatten"')[0]
 
-    # --- Der Platz: im Formular, zwischen Band und "Neuer Eintrag" ---------
-    pruefe('class="tagesprotokoll"' in seite,
-           "das Tagesprotokoll steht auf der Zeiterfassung")
-    pruefe(seite.index('class="erfasser erfasserwechsel')
-           < seite.index('class="tagesprotokoll"')
-           < seite.index('class="erfasstrenner"'),
-           "und zwar zwischen „Erfasst für“ und „Neuer Eintrag“")
-    # Es liegt IM Erfassungsformular, nicht in einer eigenen Karte darunter.
-    karte = seite.split("Manuelle Zeiterfassung")[1].split("</section>")[0]
-    pruefe('class="tagesprotokoll"' in karte,
-           "es liegt in der Karte der manuellen Erfassung")
+    # --- Der Platz: eigene Karte UNTER der Erfassung (seit 1.44) -----------
+    # ⚠️ In 1.43 lag es im Formular über den Eingabezeilen. Timos Wunsch
+    # war „lieber unterhalb des neuen Eintrags"; bewusst nicht innerhalb
+    # der Karte unter die Zeilen, dort läge es zwischen der Eingabe und
+    # dem Knopf „Eintrag speichern".
+    pruefe('class="karte protokollkarte"' in seite,
+           "das Tagesprotokoll ist eine eigene Karte")
+    pruefe(seite.index('class="erfasstrenner"')
+           < seite.index('class="karte protokollkarte"')
+           < seite.index("importkarte"),
+           "sie steht unter der Erfassung und über dem Zeitlisten-Import")
+    pruefe(seite.index("erfassen-knopf")
+           < seite.index('class="karte protokollkarte"'),
+           "„Eintrag speichern“ bleibt direkt unter den Eingabezeilen")
+    pruefe("Bereits von dir erfasst" in seite,
+           "die Überschrift heißt „Bereits von dir erfasst“")
 
     # --- Nur dieser Tag, und alles von ihm --------------------------------
-    block = seite.split('class="tagesprotokoll"')[1].split("</div>\n      </div>")[0]
+    block = seite.split('class="karte protokollkarte"')[1].split("</section>")[0]
     for text in ("Fruehbesuch", "Mittagsbesuch", "Spaetbesuch"):
         pruefe(text in block, f"„{text}“ steht im Protokoll")
     pruefe("Zeile vom Vortag" not in block,
@@ -6208,8 +6213,22 @@ def test_tagesprotokoll(client: TestClient) -> None:
     pruefe("ohne Zeit" in block,
            "und sagt bei ihr ausdrücklich „ohne Zeit“ statt einer Lücke")
 
+    # --- Die Spalte „Dauer" ist entfallen, das Pink sitzt an der Zeit ------
+    # ⚠️ Timos Wunsch: „die pinke Stundenangabe kann raus, mir gefällt
+    # aber das Pink – bau das einfach bei den Uhrzeiten rein." Wie lang
+    # der Termin war, steht ohnehin in der Spanne; die gewonnene Breite
+    # bekommt die Leistung.
+    pruefe("tp-dauer" not in block and "tp-dauer" not in stil,
+           "die eigene Spalte „Dauer“ gibt es nicht mehr")
+    zeitregel = stil.split(".tp-zeit {")[1].split("}")[0]
+    pruefe("var(--akzent)" in zeitregel,
+           "dafür trägt die Zeitspanne die Akzentfarbe")
+    # Eine fehlende Angabe ist kein Wert - sie bekommt das Pink nicht.
+    pruefe("var(--leise)" in stil.split(".tp-ohnezeit {")[1].split("}")[0],
+           "„ohne Zeit“ bleibt gedämpft und nimmt die Akzentfarbe nicht an")
+
     # --- Der Kopf nennt den Tag und die Summe ------------------------------
-    kopf = block.split('class="tp-liste"')[0]
+    kopf = block.split('class="tagesprotokoll"')[0]
     pruefe("14.04.2026" in kopf,
            "der Kopf nennt den Tag – nicht stur „heute“")
     pruefe("4 Einträge" in kopf and "04:00 Std" in kopf,
@@ -6228,7 +6247,7 @@ def test_tagesprotokoll(client: TestClient) -> None:
 
     # --- Ein Tag ohne Zeiten sagt es ---------------------------------------
     leer = client.get("/?mitarbeiter=pruefer&datum=15.04.2026").text
-    leerblock = leer.split('class="tagesprotokoll"')[1]
+    leerblock = leer.split('class="karte protokollkarte"')[1].split("</section>")[0]
     pruefe('class="tp-leer"' in leerblock and 'class="tp-liste"' not in leerblock,
            "ein Tag ohne Zeiten zeigt den leeren Zustand statt einer Liste")
     pruefe("15.04.2026" in leerblock,
@@ -6247,15 +6266,22 @@ def test_tagesprotokoll(client: TestClient) -> None:
     drin = stil.split("@container protokoll")[1]
     # ⚠️ Gestapelt ist der Ausgangszustand - ein Browser ohne
     # Container-Abfragen bleibt damit bei den Blöcken statt bei nichts.
-    pruefe('"person person person"' in vor,
+    pruefe('"zeit person aktionen"' in vor and '"text text   text"' in vor,
            "gestapelt ist der Ausgangszustand")
-    pruefe('"zeit dauer person text aktionen"' in drin
-           and '"zeit dauer person text aktionen"' not in vor,
+    # ⚠️ Timos Wunsch: der Name steht gestapelt NEBEN der Zeitspanne und
+    # nicht in einer eigenen Zeile - das spart je Eintrag eine Zeile.
+    pruefe('"person person person"' not in vor,
+           "die betreute Person steht dabei neben der Zeit, nicht darunter")
+    pruefe('"zeit person text aktionen"' in drin
+           and '"zeit person text aktionen"' not in vor,
            "die einzeilige Fassung steht ausschließlich in der Abfrage")
-    # ⚠️ `.karte h2` steht auf uppercase - ohne Gegenregel schrie die
-    # Überschrift lauter als „Neuer Eintrag“ darunter.
-    pruefe("text-transform: none" in stil.split(".tp-titel {")[1].split("}")[0],
-           "die Überschrift steht in gemischter Schrift wie „Neuer Eintrag“")
+    # ⚠️⚠️ Gekürzt wird in JEDER Breite, auch am Telefon (Timos Wunsch):
+    # das Protokoll dient der Orientierung während einer laufenden
+    # Erfassung, eine lange Leistungsbeschreibung darf die Zeile nicht
+    # auf drei aufziehen. Die Regel steht deshalb AUSSERHALB der Abfrage.
+    pruefe("text-overflow: ellipsis" in vor.split(".tp-person, .tp-text {")[1]
+           .split("}")[0],
+           "gekürzt wird in jeder Breite, nicht erst in der Zeilenansicht")
     # ⚠️ Dieselbe Regel wie auf den Aufgabenkarten - aber per Tastatur und
     # ohne Zeiger müssen die Knöpfe erreichbar bleiben.
     pruefe(".tp-zeile:hover .tp-aktionen" in stil
@@ -6263,6 +6289,135 @@ def test_tagesprotokoll(client: TestClient) -> None:
            "die Knöpfe erscheinen beim Überfahren und beim Antabben")
     pruefe("@media (hover: none) { .tp-aktionen { opacity: 1; } }" in stil,
            "und stehen ohne Zeiger fest da")
+
+
+def test_branding(client: TestClient) -> None:
+    """Eigenes Favicon und App-Symbol (seit 1.44)."""
+    abschnitt("Einstellungen: Favicon und App-Symbol")
+    # Eine echte PNG-Datei aus dem Programmordner - so muss die Prüfung
+    # keine erfinden, und es ist genau die Sorte Datei, die Timo hochlädt.
+    with open(os.path.join(os.path.dirname(__file__), "static",
+                           "favicon-32x32.png"), "rb") as f:
+        png = f.read()
+
+    # --- Ohne eigenes Symbol kommt das ausgelieferte ----------------------
+    for name in ("favicon", "apple-touch-icon"):
+        antwort = client.get(f"/symbol/{name}")
+        pruefe(antwort.status_code == 200
+               and antwort.headers.get("content-type") == "image/png",
+               f"/symbol/{name} liefert das ausgelieferte Bild")
+        # ⚠️ Der Inhaltstyp kommt aus unserer Liste, nie aus dem Upload -
+        # dieselbe Regel wie in dateien.holen().
+        pruefe(antwort.headers.get("x-content-type-options") == "nosniff",
+               f"/symbol/{name} trägt nosniff")
+    pruefe(client.get("/symbol/gibtsnicht").status_code == 404,
+           "ein unbekannter Name antwortet mit 404")
+
+    # ⚠️ Ohne Anmeldung erreichbar: der Browser holt das Favicon schon auf
+    # dem Anmeldebildschirm, also bevor es eine Sitzung gibt.
+    with TestClient(app) as fremd:
+        pruefe(fremd.get("/symbol/favicon").status_code == 200,
+               "und ohne Anmeldung – sonst fehlte es auf der Anmeldeseite")
+
+    # In der Kopfzeile stehen dann die ausgelieferten Zeilen.
+    kopf = client.get("/").text.split("</head>")[0]
+    pruefe("/static/favicon-32x32.png" in kopf
+           and "/symbol/favicon" not in kopf,
+           "die Kopfzeile nennt die ausgelieferten Symbole")
+
+    # --- Ein eigenes Favicon ----------------------------------------------
+    vorher = client.get("/einstellungen?bereich=system").text
+    antwort = client.post("/einstellungen/symbol", follow_redirects=False,
+                          files={"symbol_favicon": ("eigen.png", png, "image/png")})
+    pruefe(antwort.status_code == 303
+           and "fehler" not in antwort.headers.get("location", ""),
+           "ein eigenes Favicon lässt sich hochladen")
+    # Die Maße stehen in der Rückmeldung - ein zu kleines Favicon sieht
+    # man sonst erst im Tab.
+    pruefe("32%C3%9732" in antwort.headers.get("location", "")
+           or "32×32" in antwort.headers.get("location", ""),
+           "die Rückmeldung nennt die Maße")
+    geholt = client.get("/symbol/favicon")
+    pruefe(geholt.content == png, "und wird danach genau so ausgeliefert")
+
+    # ⚠️⚠️ Die Bilddaten liegen in einer EIGENEN Tabelle, nicht in
+    # „konfig": mail.konfig_lesen() holt die ganze Tabelle, und zwar über
+    # fusstext() bei JEDEM Seitenaufbau. Ein PNG dort hätte bei jedem
+    # Klick mehrere hundert Kilobyte mitgeschleppt.
+    with db.db() as con:
+        inkonfig = con.execute(
+            "SELECT COUNT(*) c FROM konfig WHERE schluessel LIKE 'symbol%'"
+        ).fetchone()["c"]
+        insymbol = con.execute(
+            "SELECT COUNT(*) c FROM symbol").fetchone()["c"]
+    pruefe(insymbol == 1 and inkonfig == 0,
+           "gespeichert in der Tabelle „symbol“, nicht in „konfig“")
+
+    # ⚠️ Jetzt müssen die ausgelieferten <link>-Zeilen weg. Blieben sie
+    # stehen, suchte sich der Browser aus den Größenangaben weiter eine
+    # davon aus, und der Tausch sähe aus, als hätte er nicht gewirkt.
+    kopf = client.get("/").text.split("</head>")[0]
+    pruefe("/symbol/favicon" in kopf, "die Kopfzeile nennt jetzt das eigene")
+    pruefe("/static/favicon-32x32.png" not in kopf
+           and "/static/icon-192.png" not in kopf,
+           "und die ausgelieferten Größen stehen nicht mehr daneben")
+    # Das App-Symbol ist unberührt geblieben.
+    pruefe("/static/apple-touch-icon.png" in kopf,
+           "wer nur eines austauscht, behält für das andere das ausgelieferte")
+    # ⚠️ Der Anhang ?v= hängt am Stand der Grafiken, NICHT an der
+    # Programmversion - die ändert sich beim Tausch ja gerade nicht.
+    from .main import VERSION
+    pruefe(f"/symbol/favicon?v={VERSION}" not in kopf,
+           "der Anhang ist der Stand der Grafiken, nicht die Programmversion")
+
+    # --- Abgewiesen wird, was kein Bild ist -------------------------------
+    for feld, name, inhalt, wobei in (
+            ("symbol_favicon", "kein.png", b"nur Text", "gar kein Bild"),
+            ("symbol_touch", "zeichen.ico",
+             b"\x00\x00\x01\x00\x01\x00\x20\x20",
+             "ICO als App-Symbol – iOS kann das nicht")):
+        antwort = client.post("/einstellungen/symbol", follow_redirects=False,
+                              files={feld: (name, inhalt, "image/png")})
+        pruefe("fehler" in antwort.headers.get("location", ""),
+               f"abgewiesen: {wobei}")
+    riesig = png + b"\x00" * (600 * 1024)
+    antwort = client.post("/einstellungen/symbol", follow_redirects=False,
+                          files={"symbol_favicon": ("gross.png", riesig, "image/png")})
+    pruefe("fehler" in antwort.headers.get("location", ""),
+           "abgewiesen: zu groß")
+    pruefe(client.get("/symbol/favicon").content == png,
+           "keine der abgewiesenen Dateien hat etwas überschrieben")
+
+    # --- Ein ICO als Favicon geht --------------------------------------
+    ico = b"\x00\x00\x01\x00\x01\x00\x20\x20\x00\x00\x01\x00\x20\x00"
+    antwort = client.post("/einstellungen/symbol", follow_redirects=False,
+                          files={"symbol_favicon": ("zeichen.ico", ico,
+                                                    "image/x-icon")})
+    pruefe(antwort.status_code == 303
+           and "fehler" not in antwort.headers.get("location", ""),
+           "als Favicon ist ICO erlaubt")
+    pruefe(client.get("/symbol/favicon").headers.get("content-type")
+           == "image/x-icon",
+           "und wird mit dem passenden Inhaltstyp ausgeliefert")
+
+    # --- Zurücksetzen ------------------------------------------------------
+    antwort = client.post("/einstellungen/symbol", follow_redirects=False,
+                          data={"zuruecksetzen": "1"})
+    pruefe(antwort.status_code == 303, "zurücksetzen läuft durch")
+    kopf = client.get("/").text.split("</head>")[0]
+    pruefe("/symbol/favicon" not in kopf
+           and "/static/favicon-32x32.png" in kopf,
+           "danach stehen wieder die ausgelieferten Symbole in der Kopfzeile")
+
+    # --- Platz und Recht ---------------------------------------------------
+    seite = client.get("/einstellungen?bereich=system").text
+    pruefe("/einstellungen/symbol" in seite,
+           "die Karte steht unter „System und Sicherung“")
+    pruefe(seite.index("<h2>Branding</h2>")
+           < seite.index("<h2>Favicon und App-Symbol</h2>"),
+           "und zwar im Abschnitt „Branding“")
+    pruefe("/einstellungen/symbol" in auth.ADMIN_NUR_PFADE,
+           "die Route ist Administratoren vorbehalten")
 
 
 def test_texte_tot() -> None:
@@ -6723,8 +6878,10 @@ def test_system_aufgeraeumt(client: TestClient) -> None:
 
     # ⚠️ Acht gleich schwere Karten untereinander - Timos „unaufgeräumt".
     # Jetzt drei Bänder, dieselbe Form wie in Auswertung und Mein Bereich.
-    for titel in ("Benachrichtigungen", "Darstellung und Texte",
-                  "Datensicherung"):
+    # ⚠️ „Darstellung und Texte" heißt seit 1.44 „Branding": die Texte
+    # stehen dort seit 1.37 nicht mehr, Favicon und App-Symbol seitdem
+    # schon.
+    for titel in ("Benachrichtigungen", "Branding", "Datensicherung"):
         pruefe(f'<div class="abschnittsband">\n  <h2>{titel}</h2>' in inhalt,
                f"der Abschnitt „{titel}“ steht da")
 
@@ -6732,21 +6889,21 @@ def test_system_aufgeraeumt(client: TestClient) -> None:
     # Aussehen, zuletzt die Sicherung - das Heikelste ganz unten.
     reihe = [inhalt.index("<h1>System und Sicherung</h1>"),
              inhalt.index("<h2>Benachrichtigungen</h2>"),
-             inhalt.index("<h2>Darstellung und Texte</h2>"),
+             inhalt.index("<h2>Branding</h2>"),
              inhalt.index("<h2>Datensicherung</h2>"),
              inhalt.index("<h2>Sicherung einspielen</h2>")]
     pruefe(reihe == sorted(reihe), "und zwar in dieser Reihenfolge")
 
     # Jede Karte liegt unter ihrem Band.
     pruefe(inhalt.index("<h2>Push-Nachrichten (ntfy)</h2>")
-           < inhalt.index("<h2>Darstellung und Texte</h2>"),
+           < inhalt.index("<h2>Branding</h2>"),
            "Push-Nachrichten liegen unter „Benachrichtigungen“")
     # ⚠️ „Standardtexte" ist mit 1.37 aus dieser Gruppe entfallen.
-    for karte in ("Eigene Logos", "Fußzeile"):
-        pruefe(inhalt.index("<h2>Darstellung und Texte</h2>")
+    for karte in ("Eigene Logos", "Favicon und App-Symbol", "Fußzeile"):
+        pruefe(inhalt.index("<h2>Branding</h2>")
                < inhalt.index(f"<h2>{karte}</h2>")
                < inhalt.index("<h2>Datensicherung</h2>"),
-               f"„{karte}“ liegt unter „Darstellung und Texte“")
+               f"„{karte}“ liegt unter „Branding“")
     pruefe(inhalt.index("<h2>Datensicherung</h2>")
            < inhalt.index("<h2>Automatische Sicherung</h2>"),
            "die Sicherungskarten liegen unter „Datensicherung“")
@@ -8844,6 +9001,7 @@ def _durchlauf(client: TestClient) -> None:
         test_zustaendige_gestapelt(client)
         test_datum_vorbelegt(client)
         test_tagesprotokoll(client)
+        test_branding(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

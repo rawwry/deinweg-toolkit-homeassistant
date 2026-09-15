@@ -2243,9 +2243,13 @@
   </div>
 </section>
 
+{# ⚠️ Der Abschnitt hieß bis 1.43 „Darstellung und Texte" – die Texte
+   stehen dort seit 1.37 gar nicht mehr (der Punkt „Standardtexte" ist mit
+   dem neuen strings.txt-Modell entfallen), dafür seit 1.44 Favicon und
+   App-Symbol. „Branding" ist Timos Wort dafür. #}
 <div class="abschnittsband">
-  <h2>Darstellung und Texte</h2>
-  <p class="klein leise">{{ t("einst.system_aussehen") }}</p>
+  <h2>Branding</h2>
+  <p class="klein leise">{{ t("einst.system_branding") }}</p>
 </div>
 
 {# ⚠️ Eigene Logos: sie stehen auf jeder Seite und auf dem
@@ -2293,8 +2297,57 @@
   {% endif %}
 </section>
 
-{# Fußzeile, Logos und Standardtexte wirken auf die ganze Anwendung und
-   gehören deshalb hierher, nicht unter „Oberfläche" (das ist je Browser). #}
+{# ⚠️ Favicon und App-Symbol (seit 1.44): dieselbe Überlegung wie bei den
+   Logos und deshalb dieselbe Bauart. Sie liegen in der Datenbank (Tabelle
+   `symbol`, als BLOB) – der Programmordner liegt im Add-on-Abbild und
+   wäre beim nächsten Update überschrieben.
+   ⚠️ Eigene Tabelle und NICHT `konfig`: mail.konfig_lesen() holt die
+   ganze Tabelle, und zwar über fusstext() bei jedem Seitenaufbau. Ein
+   PNG dort hätte bei jedem Klick mehrere hundert Kilobyte mitgeschleppt. #}
+<section class="karte">
+  <h2>Favicon und App-Symbol</h2>
+  <p class="lead">{{ t("einst.symbol_lead") }}</p>
+  <details class="hinweise">
+    <summary>Worauf zu achten ist</summary>
+    <div class="hinweise-inhalt"><p>{{ t("einst.symbol_hinweis") }}</p></div>
+  </details>
+  <form action="/einstellungen/symbol" method="post" enctype="multipart/form-data">
+    <div class="feldreihe zwei">
+      {% for name, angabe in SYMBOLE.items() %}
+      <label class="feld">
+        <span>{{ angabe[1] }}
+          {% if eigene_symbole.get(name) %}
+          <span class="marke-status gut">eigenes</span>
+          {% else %}<span class="leise">– ausgeliefert</span>{% endif %}</span>
+        <input type="file" name="{{ angabe[0] }}"
+               accept="{{ 'image/png,image/x-icon,.png,.ico' if name == 'favicon' else 'image/png,.png' }}">
+        <span class="klein leise">{{ angabe[2] }}</span>
+        {# Zeigt, was gerade gilt. Der Anhang ist der Stand der Grafiken,
+           sonst hinge der Browser nach einem Tausch am alten Bild – bei
+           einem Favicon besonders hartnäckig. #}
+        <span class="symbolvorschau">
+          <img src="/symbol/{{ name }}?v={{ markenstand() }}" alt="{{ angabe[1] }}">
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Symbole übernehmen</button>
+    </div>
+  </form>
+  {% if eigene_symbole %}
+  <form action="/einstellungen/symbol" method="post" enctype="multipart/form-data"
+        onsubmit="return confirm('Wieder die ausgelieferten Symbole verwenden? Die hochgeladenen Dateien werden dabei entfernt.')">
+    <input type="hidden" name="zuruecksetzen" value="1">
+    <div class="knopfreihe">
+      <button class="knopf leise" type="submit">Wieder die ausgelieferten verwenden</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
+{# Fußzeile, Logos und Symbole wirken auf die ganze Anwendung und gehören
+   deshalb hierher, nicht unter „Oberfläche" (das ist je Browser). #}
 <section class="karte">
   <h2>Fußzeile</h2>
   <p class="lead">{{ t("einst.fusszeile_lead") }}</p>

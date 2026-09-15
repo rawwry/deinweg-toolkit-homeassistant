@@ -128,7 +128,7 @@ TEXTE_STANDARD["import.einleitung"] = (
 TEXTE_STANDARD["erfassung.leer"] = (
     "Noch nichts von Hand erfasst für {mitarbeiter}.")
 # Das Tagesprotokoll ueber den Eingabezeilen (seit 1.43).
-TEXTE_STANDARD["erfassung.titel.protokoll"] = "Schon erfasst"
+TEXTE_STANDARD["erfassung.titel.protokoll"] = "Bereits von dir erfasst"
 TEXTE_STANDARD["erfassung.protokoll_leer"] = (
     "Für diesen Tag ist noch nichts erfasst.")
 TEXTE_STANDARD["datensaetze.leer"] = (
@@ -292,6 +292,28 @@ TEXTE_STANDARD["einst.hinweistexte_abweichung"] = (
 TEXTE_STANDARD["einst.system_melden"] = (
     "Wie die Anwendung sich von selbst meldet. Welche Anlässe das sind, "
     "steht unter E-Mail-Versand – die Schalter dort gelten für beide Wege.")
+# ⚠️ Neuer Schluessel (seit 1.44): der Abschnitt heisst jetzt "Branding"
+# und traegt zusaetzlich Favicon und App-Symbol. Der alte Wortlaut
+# (einst.system_aussehen) nannte "die erklaerenden Texte", die dort seit
+# 1.37 gar nicht mehr stehen - unter demselben Schluessel waere die
+# Berichtigung bei einer bestehenden strings.txt nie angekommen.
+TEXTE_STANDARD["einst.system_branding"] = (
+    "Woran man die Anwendung erkennt: der Schriftzug auf jeder Seite, das "
+    "Zeichen im Browser-Tab, das Symbol auf dem Homescreen und die "
+    "Fußzeile. Gilt für alle Konten, anders als der Punkt „Oberfläche“.")
+TEXTE_STANDARD["einst.symbol_lead"] = (
+    "Das kleine Zeichen im Browser-Tab und das Symbol, das auf dem "
+    "Homescreen erscheint, wenn jemand die Seite dort ablegt. Wer nur "
+    "eines austauscht, behält für das andere das ausgelieferte.")
+TEXTE_STANDARD["einst.symbol_hinweis"] = (
+    "PNG, höchstens 512 KB – für das Favicon geht auch ICO. Erkannt wird "
+    "die Datei an ihrem Inhalt, nicht an der Endung. <strong>Beide "
+    "sollten quadratisch sein</strong>; fürs Favicon reichen 32×32 oder "
+    "64×64, fürs App-Symbol sind 180×180 die Größe, die das iPhone "
+    "erwartet. <strong>Durchsichtige Flächen legt iOS schwarz "
+    "hinterlegt</strong> – gib dem App-Symbol lieber einen eigenen "
+    "Hintergrund. Die Dateien liegen in der Datenbank und überstehen "
+    "damit jedes Update; sie sind auch in der Sicherung mit drin.")
 TEXTE_STANDARD["einst.system_aussehen"] = (
     "Was auf jeder Seite steht: der Schriftzug, die Fußzeile und die "
     "erklärenden Texte. Gilt für alle Konten, anders als der Punkt "
@@ -998,6 +1020,11 @@ TEXTE_STANDARD["footer.text"] = (
 # wird ein Schluessel wieder gebraucht oder faellt ein neuer weg, schlaegt
 # sie an. Ohne das verrottete diese Notiz binnen zweier Versionen.
 UNGENUTZT = frozenset({
+    # seit 1.44: der Abschnitt heisst "Branding" und traegt auch Favicon
+    # und App-Symbol; der alte Wortlaut nannte die erklaerenden Texte,
+    # die dort seit 1.37 nicht mehr stehen. Ersetzt durch
+    # einst.system_branding.
+    "einst.system_aussehen",
     # seit 1.43: die Tabelle "Zuletzt von Hand erfasst" ist durch das
     # Tagesprotokoll im Erfassungsformular ersetzt. Ihr Leer-Zustand galt
     # einer Person ("Noch nichts erfasst fuer {mitarbeiter}"), der neue

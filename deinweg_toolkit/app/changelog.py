@@ -2370,4 +2370,28 @@ CHANGELOG = [
         "Kartenüberschrift – über genau den Zeilen, die sie zusammenzählt",
         "Prüfung von 2035 auf 2060 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.44", "titel": "Protokoll und Branding", "punkte": [
+        "Das Tagesprotokoll steht jetzt als eigene Karte UNTER der "
+        "Erfassung statt über den Eingabezeilen – „Eintrag speichern“ "
+        "bleibt damit direkt unter dem, was man gerade getippt hat",
+        "Es heißt „Bereits von dir erfasst“",
+        "Die Spalte „Dauer“ ist entfallen; dafür trägt die Zeitspanne "
+        "selbst die Akzentfarbe. Wie lang ein Termin war, steht ohnehin "
+        "in der Spanne – und die Leistung bekommt die frei gewordene "
+        "Breite",
+        "Am Telefon steht die betreute Person neben der Zeitspanne statt "
+        "in einer eigenen Zeile, und lange Leistungsbeschreibungen enden "
+        "mit „…“ statt die Zeile umzubrechen. Das Protokoll dient der "
+        "Orientierung während der Erfassung, nicht dem Nachlesen",
+        "Neu unter Einstellungen → System und Sicherung: eigenes Favicon "
+        "und eigenes App-Symbol für den Homescreen. PNG (fürs Favicon "
+        "auch ICO), höchstens 512 KB – erkannt an den ersten Bytes, nicht "
+        "an der Dateiendung",
+        "Der Abschnitt heißt deshalb jetzt „Branding“ und fasst "
+        "Schriftzüge, Symbole und Fußzeile zusammen",
+        "Die Bilder liegen wie die Logos in der Datenbank und überstehen "
+        "damit jedes Update – aber in einer eigenen Tabelle, damit sie "
+        "nicht bei jedem Seitenaufbau mitgelesen werden",
+        "Prüfung von 2060 auf 2093 Einzelprüfungen erweitert",
+    ]},
 ]

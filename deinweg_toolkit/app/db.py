@@ -204,6 +204,27 @@ CREATE TABLE IF NOT EXISTS konfig (
     geaendert_am TEXT
 );
 
+-- Eigene Favicons und App-Symbole (seit 1.44).
+--
+-- ⚠️⚠️ EIGENE TABELLE und nicht "konfig" wie bei den Schriftzuegen, und
+-- das aus einem handfesten Grund: mail.konfig_lesen() holt "SELECT
+-- schluessel, wert FROM konfig" - ALLES - und laeuft ueber fusstext() bei
+-- JEDEM Seitenaufbau. Ein PNG dort haette bei jedem Klick mehrere hundert
+-- Kilobyte durch die Abfrage geschleppt, auf einem Raspberry Pi. Hier
+-- liegen die Bilder als BLOB und werden nur gelesen, wenn sie wirklich
+-- ausgeliefert werden.
+--
+-- ⚠️ Wie bei den Logos: in der DATENBANK, nicht als Datei neben
+-- app/static/. Der Programmcode liegt im Add-on-Abbild (COPY app
+-- /opt/deinweg/app) - eine dort abgelegte Datei waere beim naechsten
+-- Update spurlos weg, und zwar ohne Fehlermeldung.
+CREATE TABLE IF NOT EXISTS symbol (
+    name         TEXT PRIMARY KEY,
+    art          TEXT NOT NULL,
+    daten        BLOB NOT NULL,
+    geaendert_am TEXT NOT NULL
+);
+
 -- Merkliste bereits verschickter Benachrichtigungen. Verhindert, dass bei
 -- jedem Durchlauf des Weckers erneut dieselbe Mail rausgeht.
 CREATE TABLE IF NOT EXISTS benachrichtigung (

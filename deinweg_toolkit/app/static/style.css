@@ -1359,79 +1359,73 @@ input[type="date"] { text-transform: uppercase; }
   color: var(--akzent); text-decoration: underline;
 }
 
-/* --- Tagesprotokoll im Erfassungsformular (seit 1.43) ----------------
-   Was fuer diesen Tag schon erfasst ist, zwischen dem Band "Erfasst
-   fuer" und "Neuer Eintrag". Bis 1.42 stand dieselbe Auskunft als
-   Tabelle "Zuletzt von Hand erfasst" unter BEIDEN Spalten am
-   Seitenende - ungefiltert nach Tag und nach Eingabereihenfolge
-   sortiert. Sie ist ersatzlos entfallen.
+/* --- Tagesprotokoll (seit 1.43, eigene Karte seit 1.44) ---------------
+   Was fuer diesen Tag schon erfasst ist - eine eigene Karte unter der
+   manuellen Erfassung. Bis 1.42 stand dieselbe Auskunft als Tabelle
+   "Zuletzt von Hand erfasst" unter BEIDEN Spalten am Seitenende,
+   ungefiltert nach Tag und nach Eingabereihenfolge sortiert; in 1.43 lag
+   sie im Formular ueber den Eingabezeilen.
 
    ⚠️ Der Container ist .tagesprotokoll, umgelegt wird .tp-zeile darin.
    Eine Container-Abfrage darf das Element, das sie aufspannt, nicht
    selbst umlegen - das ist zirkulaer und greift schlicht nicht (die
-   Lehre aus 1.39). */
-/* ⚠️ Derselbe Abstand nach oben wie bei `.erfasstrenner` (34px): beide
-   sind Abschnitte derselben Karte und bekommen gleich viel Luft ueber
-   ihrer Ueberschrift. Ohne ihn klebte "Schon erfasst" direkt an der
-   Unterkante des Bandes "Erfasst fuer" - gemessen 0px. */
-.tagesprotokoll {
-  container-type: inline-size; container-name: protokoll;
-  margin-top: 34px;
-}
+   Lehre aus 1.39). Die KARTE taugt dafuer nicht: sie traegt
+   `overflow-x: auto`, und die Huelle liegt ohnehin schon da. */
+.tagesprotokoll { container-type: inline-size; container-name: protokoll; }
 
-.tp-kopf {
-  display: flex; align-items: baseline; justify-content: space-between;
-  flex-wrap: wrap; gap: 2px 12px; margin-bottom: 9px;
-}
-/* Dieselbe Groesse wie .erfasstrenner darunter - beide sind
-   Zwischenueberschriften derselben Karte und duerfen sich nicht
-   gegenseitig ueberbieten. */
-.tp-titel {
-  margin: 0; font-size: 15px; font-weight: 600; color: var(--tinte);
-  letter-spacing: -0.1px;
-  /* ⚠️ `.karte h2` steht auf `text-transform: uppercase` - die
-     Ueberschrift kam sonst als "SCHON ERFASST" heraus und schrie
-     lauter als "Neuer Eintrag" 200px darunter, das in gemischter
-     Schrift steht. Beide sind Zwischenueberschriften derselben Karte. */
-  text-transform: none;
-}
+/* Die Ueberschrift ist ein gewoehnliches <h2> im Hausstil (versal, leise)
+   wie "BESTAND" und "ABGABEN" daneben - die Karte soll sich in die Spalte
+   einfuegen, nicht aus ihr herausstechen. Rechts daneben der Stand. */
+.protokollkarte .kopfzeile { margin-bottom: 10px; }
 .tp-stand {
   font-size: 12.5px; color: var(--leise); font-variant-numeric: tabular-nums;
 }
 
-.tp-liste {
-  list-style: none; margin: 0; padding: 0;
-  border: 1px solid var(--linie); border-radius: 10px;
-  background: var(--flaeche-2); overflow: hidden;
-}
+/* ⚠️ Kein eigener Rahmen um die Liste. Sie steht in einer Karte, und ein
+   Kasten im Kasten ist eine Kante zu viel - die Zeilen trennt eine
+   Haarlinie, den Zeiger fuehrt die Toenung beim Ueberfahren. */
+.tp-liste { list-style: none; margin: 0; padding: 0; }
 /* ⚠️ Gestapelt ist der AUSGANGSZUSTAND, die Zeile kommt ueber die
    Container-Abfrage dazu - wie bei .erfasszeile und der Aufgabenliste.
    Ein Browser ohne Container-Abfragen bleibt damit bei den Bloecken:
-   unschoen, aber vollstaendig lesbar. Nicht umdrehen. */
+   unschoen, aber vollstaendig lesbar. Nicht umdrehen.
+   ⚠️ Gestapelt steht die betreute Person NEBEN der Zeitspanne und nicht
+   in einer eigenen Zeile (Timos Wunsch) - das spart je Eintrag eine
+   Zeile, und am Telefon zaehlt jede. */
 .tp-zeile {
-  display: grid; align-items: center; gap: 2px 10px;
+  display: grid; align-items: center; gap: 1px 10px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-areas:
-    "zeit   dauer  aktionen"
-    "person person person"
-    "text   text   text";
-  padding: 7px 12px; font-size: 13px; line-height: 1.45;
+    "zeit person aktionen"
+    "text text   text";
+  padding: 7px 10px; margin: 0 -10px; border-radius: 8px;
+  font-size: 13px; line-height: 1.45;
 }
-/* ⚠️ Kleinere Knoepfe als sonst (26 statt 30px). Sie geben die
-   Zeilenhoehe vor - mit den normalen 30px war eine Zeile 45px hoch, und
-   bei acht Eintraegen stand damit ein 360px hoher Block ueber dem
-   Formular. Jetzt sind es 38px je Zeile. */
-.tp-aktionen .knopf-icon { width: 26px; height: 26px; border-radius: 7px; }
-.tp-aktionen .knopf-icon svg { width: 15px; height: 15px; }
-.tp-aktionen .knopf-icon + form.inline { margin-left: 4px; }
 .tp-zeile + .tp-zeile { border-top: 1px solid var(--linie); }
-.tp-zeit   { grid-area: zeit; font-weight: 600; white-space: nowrap; }
-.tp-bis    { color: var(--leise); font-weight: 400; margin: 0 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .tp-zeile { transition: background-color .12s ease; }
+}
+.tp-zeile:hover { background: var(--flaeche-2); }
+
+/* ⚠️ Die Zeitspanne traegt die Akzentfarbe (Timos Wunsch: "die pinke
+   Stundenangabe kann raus, mir gefaellt aber das Pink - bau das einfach
+   bei den Uhrzeiten rein"). Die eigene Spalte "Dauer" ist damit
+   entfallen; wie lang der Termin war, steht in der Spanne. */
+.tp-zeit { grid-area: zeit; color: var(--akzent); font-weight: 600;
+           white-space: nowrap; }
+.tp-bis  { opacity: .55; margin: 0 3px; }
+/* Eine fehlende Angabe ist kein Wert - sie bekommt die Akzentfarbe nicht. */
 .tp-ohnezeit { color: var(--leise); font-weight: 400; }
-.tp-dauer  { grid-area: dauer; justify-self: start; color: var(--akzent);
-             font-weight: 600; white-space: nowrap; }
-.tp-person { grid-area: person; min-width: 0; }
+.tp-person { grid-area: person; min-width: 0; color: var(--tinte); }
 .tp-text   { grid-area: text; color: var(--leise); min-width: 0; }
+/* ⚠️⚠️ Gekuerzt wird in JEDER Breite, auch am Telefon (Timos Wunsch).
+   Das Protokoll dient der Orientierung waehrend einer laufenden
+   Erfassung; eine lange Leistungsbeschreibung, die eine Zeile auf drei
+   aufzieht, macht genau das kaputt, wofuer es da ist. Lieber ein "…". */
+.tp-person, .tp-text {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* ⚠️ Dieselbe Regel wie auf den Aufgabenkarten (.vk-aktionen): erst
    beim Ueberfahren. Sonst zieht das Rot des Muelleimers auf zehn Zeilen
    mehr Aufmerksamkeit als die Zeiten, um die es geht. Per Tastatur und
@@ -1448,27 +1442,29 @@ input[type="date"] { text-transform: uppercase; }
 @media (prefers-reduced-motion: no-preference) {
   .tp-aktionen { transition: opacity .13s ease; }
 }
+/* ⚠️ Kleinere Knoepfe als sonst (26 statt 30px). Sie geben die
+   Zeilenhoehe vor - mit den normalen 30px war eine Zeile 45px hoch, und
+   bei acht Eintraegen stand damit ein 360px hoher Block da. */
+.tp-aktionen .knopf-icon { width: 26px; height: 26px; border-radius: 7px; }
+.tp-aktionen .knopf-icon svg { width: 15px; height: 15px; }
+.tp-aktionen .knopf-icon + form.inline { margin-left: 4px; }
 
-/* ⚠️ Kein Kasten um den leeren Zustand. Ein gestrichelter Rahmen unter
-   der Ueberschrift war bei "Weitere Zeile" schon einmal zu viel
-   (1.25 -> 1.25.1); eine ruhige Zeile sagt dasselbe. */
+/* ⚠️ Kein Kasten um den leeren Zustand. Ein gestrichelter Rahmen war bei
+   "Weitere Zeile" schon einmal zu viel (1.25 -> 1.25.1); eine ruhige
+   Zeile sagt dasselbe. */
 .tp-leer { margin: 0; font-size: 13px; color: var(--leise); }
 
-/* Ab hier steht eine Zeile nebeneinander. Gerechnet: Zeit 100px
-   ("09:00 - 10:30" misst bei 13px rund 84px), Dauer 48px, Aktionen 68px
-   (zwei 30px-Knoepfe plus 6px Abstand), vier Abstaende zu 10px - macht
-   256px. Bei 560px bleiben rund 300px fuer Person und Leistung. */
+/* Ab hier steht eine Zeile nebeneinander. Gerechnet: Zeit 108px
+   ("09:00 - 10:30" misst bei 13px rund 84px, "ohne Zeit" rund 52px),
+   Aktionen 68px (zwei 30px-Knoepfe plus 6px Abstand), drei Abstaende zu
+   10px - macht 206px. Bei 560px bleiben rund 354px fuer Person und
+   Leistung; die Leistung bekommt davon das meiste, sie ist der laengste
+   Text. */
 @container protokoll (min-width: 560px) {
   .tp-zeile {
-    grid-template-columns: 100px 48px minmax(0, 1fr) minmax(0, 1.3fr) auto;
-    grid-template-areas: "zeit dauer person text aktionen";
-    gap: 10px; padding: 7px 12px;
-  }
-  /* ⚠️ In der Zeile wird gekuerzt statt umgebrochen: eine lange
-     Leistungsbeschreibung zoege sonst genau die Zeile auf zwei Zeilen,
-     deren Zweck es ist, den Tag auf einen Blick zu zeigen. */
-  .tp-person, .tp-text {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    grid-template-columns: 108px minmax(0, 1fr) minmax(0, 1.7fr) auto;
+    grid-template-areas: "zeit person text aktionen";
+    gap: 10px; padding: 6px 10px;
   }
 }
 
@@ -4605,6 +4601,29 @@ a.vgk-wert:hover { text-decoration: underline; }
 .logovorschau img { max-height: 46px; width: auto; }
 .logovorschau.auf-dunkel { background: #1b1520; }
 .logovorschau.auf-hell   { background: #f7f5f8; }
+
+/* Vorschau fuer Favicon und App-Symbol (seit 1.44). Wie die Logovorschau,
+   nur klein und quadratisch - ein Favicon sieht man im Tab bei 16px, und
+   gross gezogen taeuscht es eine Schaerfe vor, die es dort nicht hat.
+   ⚠️ Karierter Grund: die meisten Symbole sind durchsichtig, und auf der
+   dunklen Kartenflaeche saehe man von einem dunklen Zeichen nichts. Das
+   Muster ist ein Farbverlauf, kein Bild - nachzuladen gibt es nichts. */
+.symbolvorschau {
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 8px; padding: 14px; border-radius: 10px;
+  border: 1px solid var(--linie);
+  background-color: #f7f5f8;
+  background-image:
+    linear-gradient(45deg, #e4e0e8 25%, transparent 25%, transparent 75%, #e4e0e8 75%),
+    linear-gradient(45deg, #e4e0e8 25%, transparent 25%, transparent 75%, #e4e0e8 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 8px 8px;
+}
+.symbolvorschau img {
+  width: 48px; height: 48px; object-fit: contain;
+  /* Ein Favicon ist selten quadratisch beschnitten - lieber ein wenig
+     Luft als ein angeschnittenes Zeichen. */
+}
 
 /* --- Hinweistexte (seit 1.35) -------------------------------------------
    Knapp zweihundert Texte. Jede Gruppe ein zugeklapptes <details>, sonst

@@ -10,13 +10,34 @@
 <link rel="manifest" href="/static/manifest.json?v={{ VERSION }}">
 {# Die Versionsnummer haengt auch an den Symbolen: Browser merken sich ein
    einmal geladenes Favicon sonst hartnaeckig, und auf dem iPhone bleibt
-   das alte Symbol auf dem Startbildschirm stehen. #}
+   das alte Symbol auf dem Startbildschirm stehen.
+
+   ⚠️ Liegt ein EIGENES Symbol vor (seit 1.44, Einstellungen -> System und
+   Sicherung -> Branding), kommt es aus /symbol/ statt aus /static/ - und
+   die ausgelieferten Zeilen fallen dann weg. Blieben sie stehen, suchte
+   sich der Browser aus den Groessenangaben (16, 32, 192, 512) weiter
+   eines davon aus, und der Tausch saehe aus, als haette er nicht
+   gewirkt.
+
+   ⚠️ Der Anhang ist dort `markenstand()` und NICHT die Programmversion:
+   die aendert sich beim Tausch eines Symbols ja gerade nicht. Genau
+   diese Falle ist beim Grafiktausch in 1.27 schon einmal
+   zugeschnappt. #}
+{% set symbole = eigene_symbolnamen() %}
+{% if "favicon" in symbole %}
+<link rel="icon" href="/symbol/favicon?v={{ markenstand() }}">
+{% else %}
 <link rel="icon" type="image/x-icon" href="/static/favicon.ico?v={{ VERSION }}">
 <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png?v={{ VERSION }}">
 <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png?v={{ VERSION }}">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png?v={{ VERSION }}">
 <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png?v={{ VERSION }}">
+{% endif %}
+{% if "apple-touch-icon" in symbole %}
+<link rel="apple-touch-icon" sizes="180x180" href="/symbol/apple-touch-icon?v={{ markenstand() }}">
+{% else %}
 <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v={{ VERSION }}">
+{% endif %}
 <meta name="apple-mobile-web-app-title" content="Dein Weg">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">

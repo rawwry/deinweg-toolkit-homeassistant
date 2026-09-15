@@ -311,6 +311,11 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             r["schluessel"]: True for r in con.execute(
                 "SELECT schluessel FROM konfig WHERE schluessel IN "
                 "('logo_dunkel','logo_hell') AND TRIM(COALESCE(wert,'')) <> ''")}
+        # Dasselbe für Favicon und App-Symbol - auch hier nur die Frage,
+        # nie die Bilddaten. Sie liegen in einer eigenen Tabelle, damit
+        # konfig_lesen() sie nicht bei jedem Seitenaufbau mitschleppt.
+        eigene_symbole = {r["name"]: True
+                          for r in con.execute("SELECT name FROM symbol")}
         # Das Passwort verlaesst die Anwendung nicht im Klartext - in der
         # Oberflaeche steht nur, ob eines hinterlegt ist.
         passwort_gesetzt = bool(mailkonfig.get("smtp_passwort"))
@@ -455,7 +460,8 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
                 texte_standard.datei_lesen(_u["STRINGS_DATEI"]))
                 if bereich == "hinweistexte" else []),
             "eigene_logos": eigene_logos,
-            "MARKEN": _u["MARKEN"],
+            "eigene_symbole": eigene_symbole,
+            "MARKEN": _u["MARKEN"], "SYMBOLE": _u["SYMBOLE"],
             "bereich": bereich, "hinweis": hinweis, "fehler": fehler,
             "seite": "einstellungen"})
 
@@ -1643,6 +1649,111 @@ async def logo_speichern(logo_dunkel: UploadFile = File(None),
     _u["marken_puffer_leeren"]()
     zahl = len(neue) - 1
     return systemseite(hinweis=f"{zahl} Logo{'s' if zahl != 1 else ''} ersetzt.")
+
+
+# --- Eigenes Favicon und App-Symbol (seit 1.44) -------------------------------
+#
+# ⚠️ Nur PNG und ICO. Eine Sperrliste waere die falsche Richtung (man
+# vergisst immer eine) - dieselbe Regel wie bei dateien.ARTEN. SVG ist
+# hier bewusst NICHT dabei: es waere ein eigenes Dokument und braeuchte
+# denselben Sandbox-Kopf und dieselbe Skriptpruefung wie die Logos, fuer
+# einen Gewinn, den niemand verlangt hat.
+#
+# ⚠️ Erkannt wird an den ersten Bytes, nicht an der Dateiendung. Eine
+# Endung sagt nur, wie die Datei heisst.
+SYMBOL_MAX = 512 * 1024
+_PNG_KOPF = b"\x89PNG\r\n\x1a\n"
+_ICO_KOPF = b"\x00\x00\x01\x00"
+
+
+def symbol_pruefen(rohdaten: bytes, ico_erlaubt: bool) -> tuple:
+    """Gibt (art, breite, hoehe, "") zurueck - oder ("", 0, 0, Meldung)."""
+    if not rohdaten:
+        return "", 0, 0, "Die Datei ist leer."
+    if len(rohdaten) > SYMBOL_MAX:
+        return "", 0, 0, (f"Die Datei ist größer als {SYMBOL_MAX // 1024} KB. "
+                          "Ein Symbol ist ein paar Hundert Pixel groß – "
+                          "vermutlich ist es ein Foto.")
+    if rohdaten.startswith(_PNG_KOPF):
+        # Breite und Hoehe stehen im IHDR-Block, direkt hinter der
+        # Signatur: 4 Byte Laenge, 4 Byte "IHDR", dann zweimal 4 Byte.
+        try:
+            breite = int.from_bytes(rohdaten[16:20], "big")
+            hoehe = int.from_bytes(rohdaten[20:24], "big")
+        except Exception:
+            breite = hoehe = 0
+        return "image/png", breite, hoehe, ""
+    if rohdaten.startswith(_ICO_KOPF):
+        if not ico_erlaubt:
+            return "", 0, 0, ("Für das App-Symbol braucht iOS eine "
+                              "PNG-Datei – ICO kann es nicht.")
+        # Im ICO-Verzeichnis stehen Breite und Hoehe als je ein Byte;
+        # 0 bedeutet 256.
+        breite = rohdaten[6] or 256 if len(rohdaten) > 7 else 0
+        hoehe = rohdaten[7] or 256 if len(rohdaten) > 7 else 0
+        return "image/x-icon", breite, hoehe, ""
+    if ico_erlaubt:
+        return "", 0, 0, ("Darin steckt weder ein PNG noch ein ICO. Erkannt "
+                          "wird eine Datei an ihrem Inhalt, nicht an ihrer "
+                          "Endung – umbenennen genügt also nicht.")
+    return "", 0, 0, ("Darin steckt kein PNG. Für das App-Symbol braucht "
+                      "iOS eine PNG-Datei.")
+
+
+@router.post("/einstellungen/symbol")
+async def symbol_speichern(symbol_favicon: UploadFile = File(None),
+                           symbol_touch: UploadFile = File(None),
+                           zuruecksetzen: str = Form("")):
+    """Nimmt eigenes Favicon und App-Symbol entgegen."""
+    jetzt = _u["jetzt"]()
+    if zuruecksetzen:
+        with db.db() as con:
+            con.execute("DELETE FROM symbol")
+            # ⚠️ Derselbe Stand wie bei den Logos: an ihm hängt das ?v=
+            # in base.html. Ohne ihn zeigte der Browser weiter das alte
+            # Symbol - Favicons merkt er sich besonders hartnäckig.
+            mail.konfig_schreiben(con, {"logo_stand": jetzt})
+        _u["marken_puffer_leeren"]()
+        return systemseite(
+            hinweis="Die ausgelieferten Symbole gelten wieder.")
+
+    # Formularfeld -> Name unter /symbol/<name>
+    felder = {"symbol_favicon": ("favicon", symbol_favicon, True),
+              "symbol_touch": ("apple-touch-icon", symbol_touch, False)}
+    neue: list[tuple] = []
+    for name, datei, ico_erlaubt in felder.values():
+        if datei is None or not (datei.filename or "").strip():
+            continue
+        rohdaten = await datei.read()
+        art, breite, hoehe, problem = symbol_pruefen(rohdaten, ico_erlaubt)
+        if problem:
+            return systemseite(fehler=f"„{datei.filename}“: {problem}")
+        neue.append((name, art, breite, hoehe, rohdaten))
+
+    if not neue:
+        return systemseite(fehler="Es war keine Datei dabei.")
+
+    masse = []
+    with db.db() as con:
+        for name, art, breite, hoehe, rohdaten in neue:
+            con.execute(
+                "INSERT INTO symbol (name, art, daten, geaendert_am) "
+                "VALUES (?,?,?,?) ON CONFLICT(name) DO UPDATE SET "
+                "art=excluded.art, daten=excluded.daten, "
+                "geaendert_am=excluded.geaendert_am",
+                (name, art, rohdaten, jetzt))
+            if breite and hoehe:
+                masse.append(f"{breite}×{hoehe}")
+        mail.konfig_schreiben(con, {"logo_stand": jetzt})
+    _u["marken_puffer_leeren"]()
+    zahl = len(neue)
+    # ⚠️ Die Maße stehen in der Meldung, weil man sie sonst nirgends
+    # sieht: ein zu kleines Favicon wird im Tab unscharf, und ein nicht
+    # quadratisches App-Symbol zieht iOS in die Breite.
+    hinweis = f"{zahl} Symbol{'e' if zahl != 1 else ''} ersetzt"
+    if masse:
+        hinweis += " (" + ", ".join(masse) + ")"
+    return systemseite(hinweis=hinweis + ".")
 
 
 # --- Push-Nachrichten an einen ntfy-Server (seit 1.36) ------------------------

@@ -254,6 +254,10 @@ ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
                    # Anmeldebildschirm - das ist keine Kleinigkeit, die
                    # man nebenbei mitgibt.
                    "/einstellungen/logo",
+                   # Favicon und App-Symbol: dieselbe Ueberlegung wie bei
+                   # den Logos - sie stehen im Browser-Tab und auf dem
+                   # Homescreen, das ist keine Kleinigkeit nebenbei.
+                   "/einstellungen/symbol",
                    # Push-Nachrichten: dort steht ein Zugangstoken, und
                    # der Weg erreicht jedes Geraet, das das Thema
                    # abonniert hat.
@@ -757,8 +761,11 @@ class SessionAuth(BaseHTTPMiddleware):
         # Schriftzug, und er kommt seit 1.35 nicht mehr aus /static/,
         # sondern aus der Datenbank. Ohne diese Ausnahme bliebe die
         # Anmeldeseite ohne Logo.
+        # ⚠️ /symbol/ gehoert seit 1.44 dazu, und zwar aus demselben
+        # Grund wie /marke/: der Browser holt das Favicon schon auf dem
+        # Anmeldebildschirm - also bevor es eine Sitzung gibt.
         if (pfad in OEFFENTLICHE_PFADE or pfad.startswith("/static/")
-                or pfad.startswith("/marke/")):
+                or pfad.startswith("/marke/") or pfad.startswith("/symbol/")):
             return await call_next(request)
 
         token = request.cookies.get(COOKIE_NAME, "")

@@ -189,101 +189,6 @@
       <p class="meldung offen-hinweis">{{ t("erfassung.keine_personen") }}</p>
       {% endif %}
 
-      {# --- Das Tagesprotokoll (seit 1.43, Timos Auftrag) --------------
-         Erfasst wird nicht immer gleich nach dem Termin, sondern oft
-         abends für den ganzen Tag oder in mehreren Anläufen. Dann war
-         von dieser Seite aus nicht mehr zu sehen, was schon drin ist und
-         was noch fehlt - der einzige Weg war die Übersicht, dort
-         nachsehen, sich die Zeiten merken und zurückwechseln.
-
-         ⚠️ Der Platz ist bewusst ZWISCHEN dem Band „Erfasst für" und
-         „Neuer Eintrag" (Timos Entscheidung): das ist die Lesereihenfolge
-         beim Erfassen - für wen, was schon da ist, was neu dazukommt.
-         Und weil das Speichern über die Sprungmarke `#erfassen`
-         zurückkehrt, sieht man den eben gespeicherten Eintrag hier
-         einrücken. Das ist die Rückmeldung, die vorher fehlte.
-
-         ⚠️ Es zeigt den Tag, der im Formular steht (`summentag` aus
-         `main.startseite`), nicht stur „heute" - wer abends den Vortag
-         nachträgt, sieht den Vortag. Der Kopf nennt den Tag deshalb
-         ausdrücklich; ohne diese Angabe wäre nie sicher, welcher Tag da
-         aufgelistet ist.
-
-         ⚠️ Ausdrücklich OHNE Lückenrechnung (Timos Entscheidung): das
-         Protokoll listet, was da ist, und rechnet niemandem vor, wo im
-         Tag nichts eingetragen wurde. Auch keine vorbelegte Anfangszeit
-         aus der letzten Endzeit - die Zeiten stehen da, abgetippt wird
-         von Hand. #}
-      {% if mitarbeiter %}
-      <div class="tagesprotokoll">
-        <div class="tp-kopf">
-          <h2 class="tp-titel">{{ t("erfassung.titel.protokoll") }}</h2>
-          {# Eine Zahlenzusammenfassung, kein Erklärtext - sie gehört
-             deshalb ins Markup und nicht nach strings.txt (Abschnitt 8). #}
-          <span class="tp-stand">{{ 'heute' if ist_heute else summentag.isoformat() | deutsch
-            }}{% if tagessumme.n %} · {{ tagessumme.n }} Eintr{{ 'ag' if tagessumme.n == 1 else 'äge'
-            }} · {{ tagessumme.m | hhmm }} Std{% endif %}</span>
-        </div>
-        {% if tagesliste %}
-        <ol class="tp-liste">
-          {% for z in tagesliste %}
-          <li class="tp-zeile">
-            {# ⚠️ Eine Zeit kann fehlen: aus einem Listenimport kommen
-               Zeilen, die nur eine Dauer tragen. Dann steht das hier
-               statt einer leeren Spalte - sonst sähe die Zeile kaputt
-               aus. #}
-            <span class="tp-zeit zahlen">
-              {%- if z.start %}{{ z.start }}{% if z.ende %}<span class="tp-bis">–</span>{{ z.ende }}{% endif %}
-              {%- else %}<span class="tp-ohnezeit">ohne Zeit</span>{% endif -%}
-            </span>
-            <span class="tp-dauer zahlen">{{ z.dauer_min | hhmm }}</span>
-            <span class="tp-person">{{ z.klient }}</span>
-            <span class="tp-text">{{ z.beschreibung }}</span>
-            {# ⚠️ Dieselben beiden Knöpfe wie in der Tabelle, die dieses
-               Protokoll ersetzt - ohne sie wäre das Richtigstellen von
-               dieser Seite aus verloren gegangen. Sie erscheinen erst
-               beim Überfahren der Zeile: dieselbe Regel wie auf den
-               Aufgabenkarten, sonst zieht das Rot des Mülleimers auf
-               zehn Zeilen mehr Aufmerksamkeit als die Zeiten selbst. #}
-            <span class="tp-aktionen">
-              <a class="knopf-icon" href="/eintraege/{{ z.id }}/bearbeiten?zurueck={{ ('/?mitarbeiter=' ~ mitarbeiter ~ '&datum=' ~ datum) | urlencode }}"
-                 title="Bearbeiten" aria-label="Eintrag bearbeiten">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
-                        stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                </svg>
-              </a>
-              {# ⚠️ Ein eigenes Formular, und es steht bewusst NICHT im
-                 Erfassungsformular: verschachtelte Formulare gibt es in
-                 HTML nicht. Das Erfassungsformular liegt leer außerhalb
-                 des Rasters, die Felder hängen über form="erfassung"
-                 daran - dieses hier ist davon unberührt. #}
-              <form class="inline" action="/eintraege/{{ z.id }}/loeschen" method="post"
-                    onsubmit="return confirm('Diesen Eintrag löschen?')">
-                <input type="hidden" name="zurueck" value="/?mitarbeiter={{ mitarbeiter | urlencode }}&datum={{ datum | urlencode }}">
-                <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Eintrag löschen">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
-                          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                  </svg>
-                </button>
-              </form>
-            </span>
-          </li>
-          {% endfor %}
-        </ol>
-        {% else %}
-        {# ⚠️ Der leere Zustand bleibt stehen und sagt es ausdrücklich.
-           Verschwände der Block, wäre „für heute ist nichts erfasst"
-           nicht mehr von „das Protokoll ist kaputt" zu unterscheiden -
-           und genau diese Auskunft ist der Zweck der ganzen Liste. #}
-        <p class="tp-leer">{{ t("erfassung.protokoll_leer") }}</p>
-        {% endif %}
-      </div>
-      {% endif %}
-
       <div class="erfasstrenner">
         <span>Neuer Eintrag</span>
       </div>
@@ -458,6 +363,109 @@
       </div>
 
     </div>
+    {% endif %}
+
+
+    {# --- Das Tagesprotokoll (seit 1.43, Timos Auftrag; Platz seit 1.44) ---
+       Erfasst wird nicht immer gleich nach dem Termin, sondern oft abends
+       für den ganzen Tag oder in mehreren Anläufen. Dann war von dieser
+       Seite aus nicht mehr zu sehen, was schon drin ist und was noch
+       fehlt – der einzige Weg war die Übersicht, dort nachsehen, sich die
+       Zeiten merken und zurückwechseln.
+
+       ⚠️ Es steht seit 1.44 als EIGENE KARTE unter der Erfassung (Timos
+       Wunsch: „lieber unterhalb des neuen Eintrags"). In 1.43 lag es noch
+       im Formular über den Eingabezeilen. Bewusst nicht innerhalb der
+       Karte unter die Zeilen gesetzt: dort läge es zwischen der Eingabe
+       und der Fußleiste mit „Eintrag speichern", und man müsste an einem
+       vollen Tag erst an zehn Zeilen vorbeirollen, um zu speichern.
+
+       ⚠️ Es zeigt den Tag, der im Formular steht (`summentag` aus
+       `main.startseite`), nicht stur „heute" – wer abends den Vortag
+       nachträgt, sieht den Vortag. Der Kopf nennt den Tag deshalb
+       ausdrücklich; ohne die Angabe wäre nie sicher, welcher Tag da
+       aufgelistet ist.
+
+       ⚠️ Ausdrücklich OHNE Lückenrechnung und ohne vorbelegte
+       Anfangszeit (Timos Entscheidungen): das Protokoll listet, was da
+       ist, und rechnet niemandem vor, wo im Tag nichts eingetragen wurde.
+       Nicht ungefragt ergänzen. #}
+    {% if darf_erfassen and mitarbeiter %}
+    <section class="karte protokollkarte">
+      <div class="kopfzeile">
+        <h2>{{ t("erfassung.titel.protokoll") }}</h2>
+        {# Eine Zahlenzusammenfassung, kein Erklärtext – sie gehört
+           deshalb ins Markup und nicht nach strings.txt (Abschnitt 8). #}
+        <span class="tp-stand">{{ 'heute' if ist_heute else summentag.isoformat() | deutsch
+          }}{% if tagessumme.n %} · {{ tagessumme.n }} Eintr{{ 'ag' if tagessumme.n == 1 else 'äge'
+          }} · {{ tagessumme.m | hhmm }} Std{% endif %}</span>
+      </div>
+      {# ⚠️ Diese Hülle spannt die Container-Abfrage auf, umgelegt wird
+         `.tp-zeile` DARIN. Eine Container-Abfrage darf das Element, das
+         sie aufspannt, nicht selbst umlegen (die Lehre aus 1.39). #}
+      <div class="tagesprotokoll">
+        {% if tagesliste %}
+        <ol class="tp-liste">
+        {% for z in tagesliste %}
+        <li class="tp-zeile">
+          {# ⚠️ Die Zeitspanne trägt seit 1.44 die Akzentfarbe, und die
+             eigene Spalte „Dauer" ist dafür entfallen (Timos Wunsch).
+             Wie lang der Termin war, steht ohnehin in der Spanne; die
+             gewonnene Breite bekommt die Leistung.
+             ⚠️ Eine Zeit kann fehlen: aus einem Listenimport kommen
+             Zeilen, die nur eine Dauer tragen. Dann steht das hier statt
+             einer leeren Spalte – und ausdrücklich NICHT in der
+             Akzentfarbe, eine fehlende Angabe ist kein Wert. #}
+          <span class="tp-zeit zahlen">
+            {%- if z.start %}{{ z.start }}{% if z.ende %}<span class="tp-bis">–</span>{{ z.ende }}{% endif %}
+            {%- else %}<span class="tp-ohnezeit">ohne Zeit</span>{% endif -%}
+          </span>
+          <span class="tp-person">{{ z.klient }}</span>
+          <span class="tp-text">{{ z.beschreibung }}</span>
+          {# ⚠️ Dieselben beiden Knöpfe wie in der Tabelle, die dieses
+             Protokoll ersetzt - ohne sie wäre das Richtigstellen von
+             dieser Seite aus verloren gegangen. Sie erscheinen erst
+             beim Überfahren der Zeile: dieselbe Regel wie auf den
+             Aufgabenkarten, sonst zieht das Rot des Mülleimers auf
+             zehn Zeilen mehr Aufmerksamkeit als die Zeiten selbst. #}
+          <span class="tp-aktionen">
+            <a class="knopf-icon" href="/eintraege/{{ z.id }}/bearbeiten?zurueck={{ ('/?mitarbeiter=' ~ mitarbeiter ~ '&datum=' ~ datum) | urlencode }}"
+               title="Bearbeiten" aria-label="Eintrag bearbeiten">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </a>
+            {# ⚠️ Ein eigenes Formular, und es steht bewusst NICHT im
+               Erfassungsformular: verschachtelte Formulare gibt es in
+               HTML nicht. Das Erfassungsformular liegt leer außerhalb
+               des Rasters, die Felder hängen über form="erfassung"
+               daran - dieses hier ist davon unberührt. #}
+            <form class="inline" action="/eintraege/{{ z.id }}/loeschen" method="post"
+                  onsubmit="return confirm('Diesen Eintrag löschen?')">
+              <input type="hidden" name="zurueck" value="/?mitarbeiter={{ mitarbeiter | urlencode }}&datum={{ datum | urlencode }}">
+              <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Eintrag löschen">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                        stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </form>
+          </span>
+        </li>
+        {% endfor %}
+        </ol>
+        {% else %}
+        {# ⚠️ Der leere Zustand bleibt stehen und sagt es ausdrücklich.
+           Verschwände die Karte, wäre „für heute ist nichts erfasst" nicht
+           mehr von „das Protokoll ist kaputt" zu unterscheiden – und genau
+           diese Auskunft ist der Zweck der ganzen Liste. #}
+        <p class="tp-leer">{{ t("erfassung.protokoll_leer") }}</p>
+        {% endif %}
+      </div>
+    </section>
     {% endif %}
 
     {% if darf_import %}
