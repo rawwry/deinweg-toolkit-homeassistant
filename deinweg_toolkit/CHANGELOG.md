@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.43
+
+- Manuelle Zeiterfassung: ein Tagesprotokoll über den Eingabezeilen – was
+  für diesen Tag schon erfasst ist, nach Uhrzeit sortiert, mit Bearbeiten
+  und Löschen. Der Wechsel in die Übersicht entfällt
+- Es folgt dem Datum im Formular und zählt importierte Zeiten mit
+- Die Tabelle „Zuletzt von Hand erfasst“ am Seitenende ist ersetzt
+- Prüfung von 2035 auf 2060 Einzelprüfungen erweitert
+
 ## 1.42
 
 - Aufgaben (Listenansicht): mehrere Zuständige stehen untereinander statt

@@ -127,6 +127,10 @@ TEXTE_STANDARD["import.einleitung"] = (
     "ignorieren.")
 TEXTE_STANDARD["erfassung.leer"] = (
     "Noch nichts von Hand erfasst für {mitarbeiter}.")
+# Das Tagesprotokoll ueber den Eingabezeilen (seit 1.43).
+TEXTE_STANDARD["erfassung.titel.protokoll"] = "Schon erfasst"
+TEXTE_STANDARD["erfassung.protokoll_leer"] = (
+    "Für diesen Tag ist noch nichts erfasst.")
 TEXTE_STANDARD["datensaetze.leer"] = (
     "Keine Einträge für diesen Filter.")
 TEXTE_STANDARD["auswertung.soll_erklaerung"] = (
@@ -994,6 +998,12 @@ TEXTE_STANDARD["footer.text"] = (
 # wird ein Schluessel wieder gebraucht oder faellt ein neuer weg, schlaegt
 # sie an. Ohne das verrottete diese Notiz binnen zweier Versionen.
 UNGENUTZT = frozenset({
+    # seit 1.43: die Tabelle "Zuletzt von Hand erfasst" ist durch das
+    # Tagesprotokoll im Erfassungsformular ersetzt. Ihr Leer-Zustand galt
+    # einer Person ("Noch nichts erfasst fuer {mitarbeiter}"), der neue
+    # gilt einem TAG - das ist eine andere Aussage und deshalb ein neuer
+    # Schluessel (erfassung.protokoll_leer).
+    "erfassung.leer",
     "dateien.ablage",       # seit 1.1.2, Hinweise aus der Seitenleiste raus
     "dateien.erlaubt",      # dito
     "dateien.lead",         # dito

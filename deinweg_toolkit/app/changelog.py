@@ -2348,4 +2348,26 @@ CHANGELOG = [
         "Wecker und Auswertung meinen",
         "Prüfung von 2014 auf 2035 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.43", "titel": "Der Tag im Blick", "punkte": [
+        "Manuelle Zeiterfassung: über den Eingabezeilen steht jetzt, was "
+        "für diesen Tag schon erfasst ist – mit Uhrzeit, Dauer, betreuter "
+        "Person und Leistung. Wer abends nachträgt oder in mehreren "
+        "Anläufen erfasst, muss dafür nicht mehr in die Übersicht wechseln",
+        "Sortiert nach Anfangszeit, nicht nach Eingabereihenfolge: damit "
+        "steht auch die Endzeit des letzten Termins da, an der der nächste "
+        "ansetzt",
+        "Es zeigt den Tag, der im Formular steht – wer den Vortag "
+        "nachträgt, sieht den Vortag. Nach dem Speichern rückt der neue "
+        "Eintrag sichtbar ein",
+        "Importierte Zeiten stehen mit darin. Sie auszublenden zeigte ein "
+        "halbes Tagesbild, und genau daraufhin trägt man dieselbe Zeit ein "
+        "zweites Mal ein",
+        "Bearbeiten und Löschen wie bisher, direkt an der Zeile",
+        "Die Tabelle „Zuletzt von Hand erfasst“ am Seitenende ist damit "
+        "entfallen – sie zeigte die letzten zwölf Zeiten unabhängig vom "
+        "Tag und stand unter beiden Spalten ganz unten",
+        "Die Tagessumme steht jetzt im Kopf des Protokolls statt in der "
+        "Kartenüberschrift – über genau den Zeilen, die sie zusammenzählt",
+        "Prüfung von 2035 auf 2060 Einzelprüfungen erweitert",
+    ]},
 ]

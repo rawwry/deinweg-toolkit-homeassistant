@@ -6130,6 +6130,141 @@ def test_datum_vorbelegt(client: TestClient) -> None:
            "und trägt den getippten Tag, nicht den heutigen")
 
 
+def test_tagesprotokoll(client: TestClient) -> None:
+    """Das Tagesprotokoll im Erfassungsformular (seit 1.43)."""
+    abschnitt("Zeiterfassung: das Tagesprotokoll")
+    stil = client.get("/static/style.css").text
+
+    # Ein Tag mit vier Zeiten, absichtlich NICHT in zeitlicher Reihenfolge
+    # angelegt - genau das ist der Punkt: die alte Tabelle sortierte nach
+    # Eingabereihenfolge und beantwortete "wann endete der Vortermin" nie.
+    # ⚠️ Bewusst Tage, die sonst keine Prüfung anfasst: der 07.04. trägt
+    # schon eine Zeile aus der Import-Prüfung, der 09.04. eine aus dem
+    # Logbuch. Ein „leerer" Tag, den jemand anders gefüllt hat, ist keine
+    # Prüfung, sondern ein Zufall.
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO import (dateiname, mitarbeiter, "
+                    "hochgeladen_am, status, zeilen_gesamt, zeilen_neu, "
+                    "zeilen_dubletten) VALUES ('protokoll.xlsx','pruefer',"
+                    "'2026-04-14 07:00','uebernommen',1,1,0)")
+        imp = con.execute("SELECT id FROM import WHERE "
+                          "dateiname='protokoll.xlsx'").fetchone()["id"]
+        for start, ende, text, fp, iid in (
+                ("14:00", "15:30", "Spaetbesuch", "tp3", None),
+                ("09:00", "10:15", "Fruehbesuch", "tp1", None),
+                ("11:00", "12:00", "Mittagsbesuch", "tp2", None),
+                (None, None, "Zeile aus der Liste", "tp4", imp)):
+            con.execute(
+                "INSERT OR IGNORE INTO eintrag (import_id, mitarbeiter, datum, "
+                "monat, start, ende, klient, beschreibung, dauer_min, "
+                "abrechenbar, fingerprint, angelegt_am) VALUES "
+                "(?,'pruefer','2026-04-14','2026-04',?,?,'Testperson',?,60,1,?,"
+                "'2026-04-14 20:00')", (iid, start, ende, text, fp))
+        # Der Nachbartag darf im Protokoll nicht auftauchen.
+        con.execute(
+            "INSERT OR IGNORE INTO eintrag (mitarbeiter, datum, monat, start, "
+            "ende, klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2026-04-13','2026-04','08:00',"
+            "'09:00','Testperson','Zeile vom Vortag',60,1,'tp9',"
+            "'2026-04-13 08:00')")
+
+    seite = client.get("/?mitarbeiter=pruefer&datum=14.04.2026").text
+    # ⚠️ Der Hinweis auf Neuerungen zitiert den Changelog, und der spricht
+    # in 1.43 von genau diesen Dingen. Vor jeder "steht nicht mehr da"-
+    # Prüfung also am Dialog abschneiden.
+    ohne_dialog = seite.split('<div class="neuheiten-schatten"')[0]
+
+    # --- Der Platz: im Formular, zwischen Band und "Neuer Eintrag" ---------
+    pruefe('class="tagesprotokoll"' in seite,
+           "das Tagesprotokoll steht auf der Zeiterfassung")
+    pruefe(seite.index('class="erfasser erfasserwechsel')
+           < seite.index('class="tagesprotokoll"')
+           < seite.index('class="erfasstrenner"'),
+           "und zwar zwischen „Erfasst für“ und „Neuer Eintrag“")
+    # Es liegt IM Erfassungsformular, nicht in einer eigenen Karte darunter.
+    karte = seite.split("Manuelle Zeiterfassung")[1].split("</section>")[0]
+    pruefe('class="tagesprotokoll"' in karte,
+           "es liegt in der Karte der manuellen Erfassung")
+
+    # --- Nur dieser Tag, und alles von ihm --------------------------------
+    block = seite.split('class="tagesprotokoll"')[1].split("</div>\n      </div>")[0]
+    for text in ("Fruehbesuch", "Mittagsbesuch", "Spaetbesuch"):
+        pruefe(text in block, f"„{text}“ steht im Protokoll")
+    pruefe("Zeile vom Vortag" not in block,
+           "eine Zeile vom Nachbartag steht nicht darin")
+    # ⚠️ Kein Filter auf import_id: eine importierte Zeit ist genauso
+    # erfasst. Sie auszublenden zeigte ein halbes Tagesbild - und genau
+    # daraufhin trägt jemand dieselbe Zeit ein zweites Mal ein.
+    pruefe("Zeile aus der Liste" in block,
+           "eine importierte Zeit steht ebenfalls darin")
+
+    # --- Sortiert nach Uhrzeit, nicht nach Eingabereihenfolge -------------
+    reihe = [t for t in ("Fruehbesuch", "Mittagsbesuch", "Spaetbesuch",
+                         "Zeile aus der Liste") if t in block]
+    pruefe(sorted(reihe, key=block.index) == ["Fruehbesuch", "Mittagsbesuch",
+                                              "Spaetbesuch",
+                                              "Zeile aus der Liste"],
+           "sortiert nach Anfangszeit – die Zeile ohne Uhrzeit hängt hinten an")
+    pruefe("ohne Zeit" in block,
+           "und sagt bei ihr ausdrücklich „ohne Zeit“ statt einer Lücke")
+
+    # --- Der Kopf nennt den Tag und die Summe ------------------------------
+    kopf = block.split('class="tp-liste"')[0]
+    pruefe("14.04.2026" in kopf,
+           "der Kopf nennt den Tag – nicht stur „heute“")
+    pruefe("4 Einträge" in kopf and "04:00 Std" in kopf,
+           "dazu Anzahl und Summe des Tages")
+    # ⚠️ Dieselbe Zahl stand bis 1.42 zusätzlich in der Kartenüberschrift.
+    pruefe(ohne_dialog.count("04:00 Std") == 1,
+           "und genau einmal auf der Seite, nicht zusätzlich im Kartenkopf")
+
+    # --- Bearbeiten und Löschen bleiben erreichbar -------------------------
+    # ⚠️ Ohne sie wäre mit der alten Tabelle eine Funktion verschwunden
+    # (Arbeitsregel 4) – das Richtigstellen von dieser Seite aus.
+    pruefe("/bearbeiten?zurueck=" in block and "/loeschen" in block,
+           "jede Zeile lässt sich bearbeiten und löschen")
+    pruefe("datum%3D14.04.2026" in block or "datum=14.04.2026" in block,
+           "und führt danach auf denselben Tag zurück")
+
+    # --- Ein Tag ohne Zeiten sagt es ---------------------------------------
+    leer = client.get("/?mitarbeiter=pruefer&datum=15.04.2026").text
+    leerblock = leer.split('class="tagesprotokoll"')[1]
+    pruefe('class="tp-leer"' in leerblock and 'class="tp-liste"' not in leerblock,
+           "ein Tag ohne Zeiten zeigt den leeren Zustand statt einer Liste")
+    pruefe("15.04.2026" in leerblock,
+           "und nennt trotzdem, um welchen Tag es geht")
+
+    # --- Die alte Tabelle ist weg ------------------------------------------
+    pruefe("Zuletzt von Hand erfasst" not in ohne_dialog,
+           "die Tabelle „Zuletzt von Hand erfasst“ ist ersetzt")
+
+    # --- Stylesheet ---------------------------------------------------------
+    pruefe("container-name: protokoll" in stil,
+           "die Hülle spannt die Container-Abfrage auf")
+    pruefe("@container protokoll (min-width: 560px)" in stil,
+           "die Zeile kommt über eine Container-Abfrage dazu")
+    vor = stil.split("@container protokoll")[0]
+    drin = stil.split("@container protokoll")[1]
+    # ⚠️ Gestapelt ist der Ausgangszustand - ein Browser ohne
+    # Container-Abfragen bleibt damit bei den Blöcken statt bei nichts.
+    pruefe('"person person person"' in vor,
+           "gestapelt ist der Ausgangszustand")
+    pruefe('"zeit dauer person text aktionen"' in drin
+           and '"zeit dauer person text aktionen"' not in vor,
+           "die einzeilige Fassung steht ausschließlich in der Abfrage")
+    # ⚠️ `.karte h2` steht auf uppercase - ohne Gegenregel schrie die
+    # Überschrift lauter als „Neuer Eintrag“ darunter.
+    pruefe("text-transform: none" in stil.split(".tp-titel {")[1].split("}")[0],
+           "die Überschrift steht in gemischter Schrift wie „Neuer Eintrag“")
+    # ⚠️ Dieselbe Regel wie auf den Aufgabenkarten - aber per Tastatur und
+    # ohne Zeiger müssen die Knöpfe erreichbar bleiben.
+    pruefe(".tp-zeile:hover .tp-aktionen" in stil
+           and ".tp-zeile:focus-within .tp-aktionen" in stil,
+           "die Knöpfe erscheinen beim Überfahren und beim Antabben")
+    pruefe("@media (hover: none) { .tp-aktionen { opacity: 1; } }" in stil,
+           "und stehen ohne Zeiger fest da")
+
+
 def test_texte_tot() -> None:
     """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
 
@@ -8708,6 +8843,7 @@ def _durchlauf(client: TestClient) -> None:
         test_mobileconfig(client)
         test_zustaendige_gestapelt(client)
         test_datum_vorbelegt(client)
+        test_tagesprotokoll(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

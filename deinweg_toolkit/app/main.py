@@ -42,7 +42,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.42"
+VERSION = "1.43"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -799,21 +799,42 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
         fremd = bool(eigener and mitarbeiter and norm(mitarbeiter) != norm(eigener))
 
         if mitarbeiter:
-            letzte = con.execute(
-                "SELECT * FROM eintrag WHERE mitarbeiter=? AND import_id IS NULL "
-                "ORDER BY id DESC LIMIT 12", (mitarbeiter,)).fetchall()
             # ⚠️ Ohne eigene Angabe der heutige Tag (seit 1.30). Vorher
             # stand hier nur das gerade gespeicherte Datum aus der
             # Adresse; beim ersten Aufruf war das leer, und die Zahl in
             # der Kopfzeile blieb dauerhaft aus.
             tag = parse_datum(datum) or heute
+            # --- Das Tagesprotokoll (seit 1.43) ---------------------------
+            # ⚠️ Bis 1.42 standen hier die letzten ZWOELF von Hand
+            # erfassten Zeiten - unabhaengig vom Tag, nach
+            # Eingabereihenfolge, und die Tabelle dazu stand unter beiden
+            # Spalten am Seitenende. Drei Gruende, warum sie die Frage
+            # "was ist fuer diesen Tag schon drin" nie beantwortet hat
+            # (Timos Meldung): falscher Ausschnitt, falsche Reihenfolge,
+            # falscher Platz.
+            #
+            # ⚠️ Sortiert nach ANFANGSZEIT, nicht nach id. Die Frage ist
+            # "wie sieht der Tag aus", nicht "was habe ich zuletzt
+            # getippt" - und die zweite Haelfte der Meldung war ja, dass
+            # man die Endzeit des Vortermins nicht mehr weiss. Zeilen
+            # ohne Zeit haengen hinten an; stuenden sie vorn, faenge der
+            # Tag mit einer Luecke an.
+            #
+            # ⚠️ KEIN Filter auf import_id mehr: eine importierte Zeit
+            # ist genauso erfasst wie eine getippte. Sie auszublenden
+            # zeigte ein halbes Tagesbild, und genau daraufhin traegt
+            # jemand dieselbe Zeit ein zweites Mal ein.
+            tagesliste = con.execute(
+                "SELECT * FROM eintrag WHERE mitarbeiter=? AND datum=? "
+                "ORDER BY (start IS NULL OR start=''), start, id",
+                (mitarbeiter, tag.isoformat())).fetchall()
             tagessumme = con.execute(
                 "SELECT COALESCE(SUM(dauer_min),0) m, COUNT(*) n FROM eintrag "
                 "WHERE mitarbeiter=? AND datum=?",
                 (mitarbeiter, tag.isoformat())).fetchone()
             summentag = tag
         else:
-            letzte, tagessumme, summentag = [], {"m": 0, "n": 0}, heute
+            tagesliste, tagessumme, summentag = [], {"m": 0, "n": 0}, heute
 
         # --- Was heute draengt (seit 1.37) ---------------------------------
         # ⚠️ Die Zeiterfassung ist die Seite, die jeder mehrmals am Tag
@@ -848,7 +869,7 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
     return templates.TemplateResponse(request=request, name="index.html", context={
         "draengt": draengt,
         "importe": importe, "summe": summe, "leute": leute,
-        "klienten": klienten, "leistungen": leistungen, "letzte": letzte,
+        "klienten": klienten, "leistungen": leistungen, "tagesliste": tagesliste,
         "mitarbeiterliste": mitarbeiterliste, "klientliste": klientliste,
         "tagessumme": tagessumme, "mitarbeiter": mitarbeiter, "datum": datum,
         "eigener": eigener, "fremd": fremd,
