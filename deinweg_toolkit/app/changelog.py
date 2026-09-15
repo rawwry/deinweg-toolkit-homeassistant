@@ -2394,4 +2394,28 @@ CHANGELOG = [
         "nicht bei jedem Seitenaufbau mitgelesen werden",
         "Prüfung von 2060 auf 2093 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.45", "titel": "Das Symbol gilt jetzt überall", "punkte": [
+        "Das eigene App-Symbol gilt jetzt auch auf dem Android-Homescreen "
+        "und im Installationsdialog des Browsers: das Web-App-Manifest "
+        "wird gerechnet statt statisch ausgeliefert",
+        "Es trägt dabei die GEMESSENE Größe des hochgeladenen Bildes. "
+        "Eine geratene wäre gelogen – Android sucht sich das Symbol nach "
+        "dieser Angabe aus, und ein falsch deklariertes käme unscharf "
+        "heraus",
+        "Die Farbe des Startbildschirms einer installierten App ist "
+        "endlich die des Programms. In der alten, statischen Datei stand "
+        "noch das neutrale Grau von vor 1.14",
+        "Behoben: auf dem Anmeldebildschirm galt ein eigenes Favicon "
+        "nicht – die Seite bringt einen eigenen Kopf mit und war beim "
+        "Einbau in 1.44 übersehen worden",
+        "Der Bereich „Branding“ ist neu gestaltet (Timos Wunsch): je "
+        "Grafik eine Zeile mit der Vorschau in der Größe, die das Bild "
+        "wirklich hat, daneben Name, Stand und ein Hinweis, wofür sie "
+        "gilt. Die langen Vorschauflächen über die volle Breite sind weg",
+        "Empfohlen wird fürs App-Symbol jetzt 512×512 – darunter bietet "
+        "Android „zum Startbildschirm hinzufügen“ gar nicht erst an",
+        "Unter der Haube: die eigenen Grafiken stehen in einem eigenen "
+        "Modul (marke.py), main.py ist wieder unter 1.800 Zeilen",
+        "Prüfung von 2093 auf 2119 Einzelprüfungen erweitert",
+    ]},
 ]

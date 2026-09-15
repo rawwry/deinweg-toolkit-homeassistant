@@ -2264,20 +2264,32 @@
     <summary>Worauf zu achten ist</summary>
     <div class="hinweise-inhalt"><p>{{ t("einst.logo_hinweis") }}</p></div>
   </details>
+  {# ⚠️ Eine Zeile je Grafik (seit 1.45, Timos Wunsch): links die Vorschau
+     in der Größe, die das Bild wirklich hat, rechts Name, Stand, Hinweis
+     und das Dateifeld. Bis 1.44 lag die Vorschau als Fläche über die
+     ganze Spaltenbreite unter dem Feld – ein langes Rechteck, in dem ein
+     Schriftzug verloren stand und das aussah, als gehörte es zum Feld
+     darüber statt zum Bild darin. Dieselbe Bauart wie bei den Symbolen
+     darunter; beide teilen sich `.markenstueck`. #}
   <form action="/einstellungen/logo" method="post" enctype="multipart/form-data">
-    <div class="feldreihe zwei">
+    <div class="markenliste">
       {% for name, angabe in MARKEN.items() %}
-      <label class="feld">
-        <span>{{ angabe[1] }}
-          {% if eigene_logos.get(angabe[0]) %}
-          <span class="marke-status gut">eigenes</span>
-          {% else %}<span class="leise">– ausgeliefert</span>{% endif %}</span>
-        <input type="file" name="{{ angabe[0] }}" accept=".svg,image/svg+xml">
-        {# Zeigt, was gerade gilt - eingebettet als <img>, dort läuft kein
-           Skript. Der Anhang ist der Stand, sonst hinge der Browser nach
-           einem Tausch am alten Bild. #}
-        <span class="logovorschau {{ 'auf-dunkel' if 'dunkel' in name else 'auf-hell' }}">
-          <img src="/marke/{{ name }}.svg?v={{ markenstand() }}" alt="{{ angabe[1] }}">
+      {# Eingebettet als <img> - dort läuft kein Skript. Der Anhang ist der
+         Stand der Grafiken, sonst hinge der Browser nach einem Tausch am
+         alten Bild. #}
+      <label class="markenstueck">
+        <span class="ms-bild ms-bild-logo {{ 'auf-dunkel' if 'dunkel' in name else 'auf-hell' }}">
+          <img src="/marke/{{ name }}.svg?v={{ markenstand() }}" alt="">
+        </span>
+        <span class="ms-text">
+          <span class="ms-kopf">
+            <span class="ms-name">{{ angabe[1] }}</span>
+            {% if eigene_logos.get(angabe[0]) %}
+            <span class="marke-status gut">eigenes</span>
+            {% else %}<span class="ms-stand">ausgeliefert</span>{% endif %}
+          </span>
+          <span class="ms-hinweis">{{ angabe[2] }}</span>
+          <input type="file" name="{{ angabe[0] }}" accept=".svg,image/svg+xml">
         </span>
       </label>
       {% endfor %}
@@ -2312,21 +2324,25 @@
     <div class="hinweise-inhalt"><p>{{ t("einst.symbol_hinweis") }}</p></div>
   </details>
   <form action="/einstellungen/symbol" method="post" enctype="multipart/form-data">
-    <div class="feldreihe zwei">
+    <div class="markenliste">
       {% for name, angabe in SYMBOLE.items() %}
-      <label class="feld">
-        <span>{{ angabe[1] }}
-          {% if eigene_symbole.get(name) %}
-          <span class="marke-status gut">eigenes</span>
-          {% else %}<span class="leise">– ausgeliefert</span>{% endif %}</span>
-        <input type="file" name="{{ angabe[0] }}"
-               accept="{{ 'image/png,image/x-icon,.png,.ico' if name == 'favicon' else 'image/png,.png' }}">
-        <span class="klein leise">{{ angabe[2] }}</span>
-        {# Zeigt, was gerade gilt. Der Anhang ist der Stand der Grafiken,
-           sonst hinge der Browser nach einem Tausch am alten Bild – bei
-           einem Favicon besonders hartnäckig. #}
-        <span class="symbolvorschau">
-          <img src="/symbol/{{ name }}?v={{ markenstand() }}" alt="{{ angabe[1] }}">
+      {# Der Anhang ist der Stand der Grafiken, sonst hinge der Browser
+         nach einem Tausch am alten Bild – bei einem Favicon besonders
+         hartnäckig. #}
+      <label class="markenstueck">
+        <span class="ms-bild ms-bild-symbol">
+          <img src="/symbol/{{ name }}?v={{ markenstand() }}" alt="">
+        </span>
+        <span class="ms-text">
+          <span class="ms-kopf">
+            <span class="ms-name">{{ angabe[1] }}</span>
+            {% if eigene_symbole.get(name) %}
+            <span class="marke-status gut">eigenes</span>
+            {% else %}<span class="ms-stand">ausgeliefert</span>{% endif %}
+          </span>
+          <span class="ms-hinweis">{{ angabe[2] }}</span>
+          <input type="file" name="{{ angabe[0] }}"
+                 accept="{{ 'image/png,image/x-icon,.png,.ico' if name == 'favicon' else 'image/png,.png' }}">
         </span>
       </label>
       {% endfor %}

@@ -222,6 +222,14 @@ CREATE TABLE IF NOT EXISTS symbol (
     name         TEXT PRIMARY KEY,
     art          TEXT NOT NULL,
     daten        BLOB NOT NULL,
+    -- ⚠️ Breite und Hoehe stehen mit in der Zeile (seit 1.45). Das
+    -- manifest.json muss zu jedem Symbol eine Groesse ANGEBEN, und eine
+    -- geratene waere gelogen - ein als "192x192" deklariertes 180er Bild
+    -- sucht sich Android an der falschen Stelle. Gemessen wird einmal
+    -- beim Hochladen (einstellungen.symbol_pruefen), nicht bei jedem
+    -- Abruf.
+    breite       INTEGER NOT NULL DEFAULT 0,
+    hoehe        INTEGER NOT NULL DEFAULT 0,
     geaendert_am TEXT NOT NULL
 );
 
@@ -621,6 +629,12 @@ def init() -> dict | None:
                          "INTEGER NOT NULL DEFAULT 1")
         # Titel eines geloeschten Vorgangs, siehe Schema oben.
         spalte_ergaenzen(con, "vorgang_log", "vorgang_titel", "TEXT")
+        # Masse der eigenen Symbole (seit 1.45). Wer 1.44 schon laufen
+        # hat, traegt sie noch nicht - die Spalten kommen mit 0 dazu, und
+        # das manifest.json laesst ein Symbol ohne Mass einfach ohne
+        # Groessenangabe stehen, statt eine zu erfinden.
+        spalte_ergaenzen(con, "symbol", "breite", "INTEGER NOT NULL DEFAULT 0")
+        spalte_ergaenzen(con, "symbol", "hoehe", "INTEGER NOT NULL DEFAULT 0")
 
         # ⚠️ Zuweisungs-Mail: die Spalte kommt mit Standard 0, aber jeder
         # SCHON VORHANDENE Vorgang muss auf 1 - sonst schickt der erste

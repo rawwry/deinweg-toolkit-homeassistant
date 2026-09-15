@@ -54,6 +54,7 @@ from . import auth  # noqa: E402
 from . import db  # noqa: E402
 from . import mail  # noqa: E402
 from . import texte_standard  # noqa: E402
+from . import marke as _marke  # noqa: E402
 from . import vorgaenge as _vorgaenge  # noqa: E402
 from .main import app  # noqa: E402
 
@@ -6420,6 +6421,135 @@ def test_branding(client: TestClient) -> None:
            "die Route ist Administratoren vorbehalten")
 
 
+def test_manifest(client: TestClient) -> None:
+    """Das gerechnete Manifest und der neue Branding-Bereich (seit 1.45)."""
+    abschnitt("Branding: Manifest und Vorschau")
+    from .main import VERSION, APP_NAME
+
+    def datei(*teile):
+        with open(os.path.join(os.path.dirname(__file__), *teile),
+                  encoding="utf-8") as f:
+            return f.read()
+
+    # --- Ohne eigenes App-Symbol: die ausgelieferten beiden ---------------
+    antwort = client.get("/manifest.json")
+    pruefe(antwort.status_code == 200, "/manifest.json antwortet")
+    m = json.loads(antwort.text)
+    pruefe(m["name"] == APP_NAME and m["short_name"] == "Dein Weg"
+           and m["display"] == "standalone",
+           "es nennt Name, Kurznamen und die Anzeigeart")
+    # ⚠️ Der Grundton ist der des dunklen Themas. Bis 1.44 stand in der
+    # statischen Datei noch #131416 - das neutrale Grau von vor 1.14; der
+    # Startbildschirm blitzte in einer Farbe auf, die es nicht mehr gibt.
+    pruefe(m["background_color"] == "#17121c"
+           and m["theme_color"] == "#17121c",
+           "Grund- und Themenfarbe sind der Ton des dunklen Themas")
+    quellen = [s["src"] for s in m["icons"]]
+    pruefe(any("/static/icon-192.png" in q for q in quellen)
+           and any("/static/icon-512.png" in q for q in quellen),
+           "ohne eigenes Symbol stehen die beiden ausgelieferten darin")
+
+    # ⚠️ Ohne Anmeldung erreichbar: der Browser holt das Manifest auch auf
+    # dem Anmeldebildschirm, also bevor es eine Sitzung gibt.
+    with TestClient(app) as fremd:
+        pruefe(fremd.get("/manifest.json").status_code == 200,
+               "und ohne Anmeldung")
+
+    # ⚠️ Die statische Datei ist weg - zwei Manifeste nebeneinander wären
+    # eines zu viel, und das alte trüge weiter die falschen Farben.
+    pruefe(client.get("/static/manifest.json").status_code == 404,
+           "die statische Datei gibt es nicht mehr")
+    for vorlage in ("base.html", "login.html"):
+        markup = datei("templates", vorlage)
+        pruefe('rel="manifest" href="/manifest.json' in markup
+               and "/static/manifest.json" not in markup,
+               f"{vorlage} verweist auf die gerechnete Fassung")
+
+    # --- Mit eigenem App-Symbol -------------------------------------------
+    with open(os.path.join(os.path.dirname(__file__), "static",
+                           "apple-touch-icon.png"), "rb") as f:
+        png = f.read()          # 180x180, echte Datei statt einer erfundenen
+    antwort = client.post("/einstellungen/symbol", follow_redirects=False,
+                          files={"symbol_touch": ("eigen.png", png, "image/png")})
+    pruefe("fehler" not in antwort.headers.get("location", ""),
+           "ein eigenes App-Symbol lässt sich hochladen")
+    # ⚠️ Die GEMESSENEN Maße stehen mit in der Zeile - das Manifest muss zu
+    # jedem Symbol eine Größe angeben, und eine geratene wäre gelogen.
+    with db.db() as con:
+        zeile = con.execute("SELECT breite, hoehe FROM symbol WHERE name=?",
+                            ("apple-touch-icon",)).fetchone()
+    pruefe(zeile["breite"] == 180 and zeile["hoehe"] == 180,
+           "Breite und Höhe stehen gemessen in der Tabelle")
+
+    m = json.loads(client.get("/manifest.json").text)
+    pruefe(len(m["icons"]) == 1
+           and m["icons"][0]["src"].startswith("/symbol/apple-touch-icon"),
+           "das Manifest nennt jetzt ausschließlich das eigene Symbol")
+    pruefe(m["icons"][0]["sizes"] == "180x180",
+           "und zwar mit der gemessenen Größe, nicht mit einer geratenen")
+    pruefe(m["icons"][0]["type"] == "image/png", "samt Inhaltstyp")
+    # ⚠️ Der Anhang hängt am Stand der Grafiken, nicht an der Fassung.
+    pruefe(f"v={VERSION}" not in m["icons"][0]["src"],
+           "der Anhang ist der Stand der Grafiken, nicht die Programmversion")
+
+    # ⚠️ Wer 1.44 laufen hatte, dessen Zeile trägt noch keine Maße (die
+    # Spalten kommen mit Standard 0 dazu). Dann bleibt die Angabe weg -
+    # lieber keine Größe als eine erfundene.
+    with db.db() as con:
+        con.execute("UPDATE symbol SET breite=0, hoehe=0 WHERE name=?",
+                    ("apple-touch-icon",))
+        con.commit()
+    m = json.loads(client.get("/manifest.json").text)
+    pruefe("sizes" not in m["icons"][0],
+           "eine Zeile ohne gemessene Maße kommt ohne Größenangabe aus")
+
+    # --- Die Anmeldeseite hat einen EIGENEN Kopf --------------------------
+    # ⚠️ Sie erbt nicht von base.html. Von 1.44 bis 1.45 galt ein eigenes
+    # Favicon deshalb überall außer dort.
+    client.post("/einstellungen/symbol", follow_redirects=False,
+                files={"symbol_favicon": ("eigen.png", png, "image/png")})
+    with TestClient(app) as fremd:
+        kopf = fremd.get("/login").text.split("</head>")[0]
+    pruefe("/symbol/favicon" in kopf,
+           "die Anmeldeseite zeigt das eigene Favicon")
+    pruefe("/static/favicon-32x32.png" not in kopf,
+           "und nicht mehr die ausgelieferten Größen daneben")
+    pruefe('content="#17121c"' in kopf and "#131416" not in kopf,
+           "ihre Themenfarbe ist der Ton des dunklen Themas")
+
+    # --- Die Vorschau ist eine Zeile, kein langes Rechteck -----------------
+    stil = client.get("/static/style.css").text
+    pruefe(".markenstueck" in stil,
+           "Logos und Symbole teilen sich dieselbe Zeilenform")
+    pruefe(".logovorschau" not in stil and ".symbolvorschau" not in stil,
+           "die Vorschauflächen über die volle Breite sind weg")
+    seite = client.get("/einstellungen?bereich=system").text
+    branding = seite[seite.index("<h2>Branding</h2>"):]
+    pruefe(branding.count('class="markenstueck"') == 4,
+           "vier Zeilen: zwei Logos, Favicon und App-Symbol")
+    pruefe("ms-bild-logo" in branding and "ms-bild-symbol" in branding,
+           "jede trägt ihre Vorschau in der Größe des Bildes")
+    pruefe("logovorschau" not in branding and "symbolvorschau" not in branding,
+           "und keine Fläche mehr unter dem Dateifeld")
+    # Jede Zeile sagt in einem Halbsatz, wofür die Grafik da ist.
+    pruefe('class="ms-hinweis"' in branding
+           and all(len(a) == 3 for a in _marke.MARKEN.values()),
+           "zu jeder Grafik steht ein Hinweis, wofür sie gilt")
+
+    # --- Das Modul steht für sich -----------------------------------------
+    # ⚠️ marke.py darf main.py nicht importieren (Ringschluss), und main.py
+    # bleibt unter der Grenze, wegen der es das Modul überhaupt gibt.
+    modul = datei("marke.py")
+    pruefe("import main" not in modul and "from .main" not in modul,
+           "marke.py importiert main.py nicht")
+    pruefe("@router.get" in modul and "@app.get" not in modul,
+           "seine drei Adressen hängen am eigenen Router")
+
+    # Aufräumen: die nächsten Prüfungen sollen die ausgelieferten sehen.
+    client.post("/einstellungen/symbol", follow_redirects=False,
+                data={"zuruecksetzen": "1"})
+
+
 def test_texte_tot() -> None:
     """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
 
@@ -9002,6 +9132,7 @@ def _durchlauf(client: TestClient) -> None:
         test_datum_vorbelegt(client)
         test_tagesprotokoll(client)
         test_branding(client)
+        test_manifest(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

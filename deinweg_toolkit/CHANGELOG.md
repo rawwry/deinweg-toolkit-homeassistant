@@ -3,6 +3,18 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.45
+
+- Das eigene App-Symbol gilt auch auf dem Android-Homescreen: das
+  Web-App-Manifest wird gerechnet und trägt die gemessene Bildgröße
+- Die Farben des Manifests entsprechen wieder dem Programm (bisher stand
+  dort das neutrale Grau von vor 1.14)
+- Behoben: auf dem Anmeldebildschirm galt ein eigenes Favicon nicht
+- Bereich „Branding“ neu gestaltet: je Grafik eine Zeile mit Vorschau in
+  ihrer echten Größe statt einer Fläche über die volle Breite
+- Eigenes Modul `marke.py` für Logos, Symbole und Manifest
+- Prüfung von 2093 auf 2119 Einzelprüfungen erweitert
+
 ## 1.44
 
 - Tagesprotokoll als eigene Karte unter der Erfassung, Überschrift

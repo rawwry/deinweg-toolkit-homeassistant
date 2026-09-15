@@ -4589,40 +4589,70 @@ a.vgk-wert:hover { text-decoration: underline; }
   border-color: var(--info); background: var(--info-weich);
 }
 
-/* --- Eigene Logos (seit 1.35) -------------------------------------------
-   Die Vorschau steht auf dem Grund, für den das jeweilige Bild gedacht
-   ist - ein weißer Schriftzug auf hellem Grund wäre sonst unsichtbar,
-   und man hielte den Tausch für misslungen. */
-.logovorschau {
-  display: flex; align-items: center; justify-content: center;
-  margin-top: 8px; padding: 14px 16px; border-radius: 10px;
-  border: 1px solid var(--linie);
+/* --- Branding: Logos, Favicon und App-Symbol ----------------------------
+   ⚠️ Eine ZEILE je Grafik (seit 1.45, Timos Wunsch: "mach da nicht dieses
+   lange rechteck als vorschauflaeche"). Bis 1.44 stand die Vorschau als
+   Flaeche ueber die volle Spaltenbreite unter dem Dateifeld - ein
+   Schriftzug stand darin verloren, ein 32px-Favicon erst recht, und weil
+   die Flaeche unter dem Feld klebte, sah sie aus, als gehoere sie zur
+   Eingabe statt zum Bild darin.
+   Jetzt: links die Vorschau in der Groesse, die das Bild wirklich hat,
+   rechts Name, Stand, Hinweis und das Feld. Logos und Symbole teilen
+   sich die Bauart - es ist dieselbe Frage ("welche Grafik gilt hier?"),
+   also soll sie auch gleich aussehen.
+   ⚠️ Das Ganze ist ein <label>: ein Klick irgendwo in der Zeile - auch
+   auf die Vorschau - oeffnet die Dateiauswahl. */
+.markenliste {
+  display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;
 }
-.logovorschau img { max-height: 46px; width: auto; }
-.logovorschau.auf-dunkel { background: #1b1520; }
-.logovorschau.auf-hell   { background: #f7f5f8; }
-
-/* Vorschau fuer Favicon und App-Symbol (seit 1.44). Wie die Logovorschau,
-   nur klein und quadratisch - ein Favicon sieht man im Tab bei 16px, und
-   gross gezogen taeuscht es eine Schaerfe vor, die es dort nicht hat.
-   ⚠️ Karierter Grund: die meisten Symbole sind durchsichtig, und auf der
-   dunklen Kartenflaeche saehe man von einem dunklen Zeichen nichts. Das
-   Muster ist ein Farbverlauf, kein Bild - nachzuladen gibt es nichts. */
-.symbolvorschau {
-  display: flex; align-items: center; justify-content: center;
-  margin-top: 8px; padding: 14px; border-radius: 10px;
-  border: 1px solid var(--linie);
+.markenstueck {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px; align-items: center; cursor: pointer;
+  padding: 12px 14px; border-radius: 12px;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+}
+.markenstueck:hover { border-color: var(--linie-stark); }
+.markenstueck:has(input:focus-visible) { border-color: var(--akzent); }
+.ms-bild {
+  flex: none; display: flex; align-items: center; justify-content: center;
+  border-radius: 9px; border: 1px solid var(--linie-fein);
+}
+/* ⚠️ Der Grund ist der, fuer den das Bild gedacht ist - ein weisser
+   Schriftzug auf hellem Grund waere unsichtbar, und man hielte den
+   Tausch fuer misslungen. */
+.ms-bild-logo { width: 152px; height: 58px; padding: 6px 10px; }
+.ms-bild-logo img { max-width: 100%; max-height: 100%; width: auto; }
+.ms-bild-logo.auf-dunkel { background: #1b1520; }
+.ms-bild-logo.auf-hell   { background: #f7f5f8; }
+/* ⚠️ Karo: die meisten Symbole sind durchsichtig, und auf der dunklen
+   Kartenflaeche saehe man von einem dunklen Zeichen nichts. Das Muster
+   ist ein Farbverlauf, kein Bild - nachzuladen gibt es nichts. */
+.ms-bild-symbol {
+  width: 58px; height: 58px;
   background-color: #f7f5f8;
   background-image:
     linear-gradient(45deg, #e4e0e8 25%, transparent 25%, transparent 75%, #e4e0e8 75%),
     linear-gradient(45deg, #e4e0e8 25%, transparent 25%, transparent 75%, #e4e0e8 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 8px 8px;
+  background-size: 14px 14px;
+  background-position: 0 0, 7px 7px;
 }
-.symbolvorschau img {
-  width: 48px; height: 48px; object-fit: contain;
-  /* Ein Favicon ist selten quadratisch beschnitten - lieber ein wenig
-     Luft als ein angeschnittenes Zeichen. */
+/* Ein Favicon ist selten quadratisch beschnitten - lieber ein wenig Luft
+   als ein angeschnittenes Zeichen. Und bewusst klein: gross gezogen
+   taeuscht es eine Schaerfe vor, die es im Tab nicht hat. */
+.ms-bild-symbol img { width: 38px; height: 38px; object-fit: contain; }
+.ms-text { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.ms-kopf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ms-name { font-weight: 600; }
+.ms-stand { font-size: 11.5px; color: var(--leise); }
+.ms-hinweis { font-size: 12.5px; color: var(--leise); line-height: 1.4; }
+/* Ein Dateifeld ueber die ganze Restbreite machte die Zeile unten
+   schwer - es ist der kleinste Handgriff darin, nicht der groesste. */
+.markenstueck input[type=file] { max-width: 330px; margin-top: 2px; }
+/* ⚠️ Unter 560px steht die Vorschau UEBER dem Text. Nebeneinander blieben
+   von einer 300px breiten Karte neben dem 152px-Logo keine 120px fuer
+   das Dateifeld uebrig, und das bringt seine eigene Mindestbreite mit. */
+@media (max-width: 560px) {
+  .markenstueck { grid-template-columns: 1fr; justify-items: start; }
 }
 
 /* --- Hinweistexte (seit 1.35) -------------------------------------------

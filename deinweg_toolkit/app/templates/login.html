@@ -3,13 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#131416">
+<meta name="theme-color" content="#17121c">
 <title>Anmelden – Dein Weg Toolkit</title>
 <link rel="stylesheet" href="/static/style.css?v={{ VERSION }}">
-<link rel="manifest" href="/static/manifest.json?v={{ VERSION }}">
+<link rel="manifest" href="/manifest.json?v={{ markenstand() }}">
+{# ⚠️ Diese Seite hat einen EIGENEN Kopf - sie erbt nicht von base.html.
+   Die Symbolzeilen muessen deshalb hier genauso stehen wie dort, sonst
+   gilt ein eigenes Favicon ueberall ausser auf dem Anmeldebildschirm.
+   Genau das war von 1.44 bis 1.45 der Fall. Wer den Kopf in base.html
+   anfasst, fasst diesen hier mit an. #}
+{% set symbole = eigene_symbolnamen() %}
+{% if "favicon" in symbole %}
+<link rel="icon" href="/symbol/favicon?v={{ markenstand() }}">
+{% else %}
 <link rel="icon" type="image/x-icon" href="/static/favicon.ico?v={{ VERSION }}">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png?v={{ VERSION }}">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png?v={{ VERSION }}">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png?v={{ VERSION }}">
+<link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png?v={{ VERSION }}">
+{% endif %}
+{% if "apple-touch-icon" in symbole %}
+<link rel="apple-touch-icon" sizes="180x180" href="/symbol/apple-touch-icon?v={{ markenstand() }}">
+{% else %}
 <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v={{ VERSION }}">
+{% endif %}
 <script>
   (function () {
     try {

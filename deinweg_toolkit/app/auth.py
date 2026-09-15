@@ -267,7 +267,7 @@ ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
                    "/einstellungen/hinweistexte")
 
 # Oeffentlich ohne Anmeldung erreichbar
-OEFFENTLICHE_PFADE = ("/gesundheit", "/login")
+OEFFENTLICHE_PFADE = ("/gesundheit", "/login", "/manifest.json")
 
 
 def bereich_fuer_pfad(pfad: str) -> str | None:
@@ -763,7 +763,9 @@ class SessionAuth(BaseHTTPMiddleware):
         # Anmeldeseite ohne Logo.
         # ⚠️ /symbol/ gehoert seit 1.44 dazu, und zwar aus demselben
         # Grund wie /marke/: der Browser holt das Favicon schon auf dem
-        # Anmeldebildschirm - also bevor es eine Sitzung gibt.
+        # Anmeldebildschirm - also bevor es eine Sitzung gibt. Dasselbe
+        # gilt seit 1.45 fuer /manifest.json (oben in OEFFENTLICHE_PFADE),
+        # das der Browser ebenfalls schon auf dem Anmeldebildschirm holt.
         if (pfad in OEFFENTLICHE_PFADE or pfad.startswith("/static/")
                 or pfad.startswith("/marke/") or pfad.startswith("/symbol/")):
             return await call_next(request)

@@ -26,6 +26,11 @@ from . import mail
 from .parser import (dauer_aus_spanne, fingerprint, hhmm, lies_datei, norm,
                      parse_datum, parse_dauer, parse_zeit, NICHT_ABRECHENBAR)
 from . import auth
+# ⚠️ Die eigenen Grafiken (Schriftzug, Favicon, App-Symbol) samt dem
+# gerechneten Manifest stehen seit 1.45 in einem eigenen Modul. Es
+# importiert nur db - kein Ringschluss, deshalb darf es hier oben
+# stehen; base.html braucht seine beiden Funktionen als Jinja-Global.
+from . import marke as _marke
 from . import wiki as _wiki
 # ⚠️ Reine Rechen- und Formatfunktionen, seit 1.32 in einem eigenen Modul.
 # Es importiert nur db und parser, kennt also weder App noch Templates -
@@ -42,7 +47,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.44"
+VERSION = "1.45"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -203,7 +208,7 @@ def fusstext() -> Markup:
     name, v = escape(APP_NAME), escape(VERSION)
     # ⚠️ Eigener Stand für die Bilder: die Programmversion ändert sich
     # beim Tausch eines Logos nicht, der Browser hinge am alten Bild.
-    mv = escape(markenstand())
+    mv = escape(_marke.markenstand())
     return Markup(
         '<div class="fussband">'
         '<div class="fussmarke">'
@@ -218,179 +223,6 @@ def fusstext() -> Markup:
         '</div></div>')
 
 
-# --- Eigene Logos -------------------------------------------------------------
-#
-# Die beiden Schriftzuege der Kopfzeile lassen sich unter Einstellungen ->
-# System und Sicherung durch eigene SVG-Dateien ersetzen.
-#
-# ⚠️⚠️ Gespeichert wird in der DATENBANK (Tabelle konfig), nicht als Datei
-# neben app/static/. Grund: der Programmcode liegt im Add-on-Abbild
-# (COPY app /opt/deinweg/app im Dockerfile) - eine dort abgelegte Datei
-# waere beim naechsten Update spurlos weg, und zwar ohne Fehlermeldung.
-# In der Datenbank ueberlebt sie jedes Update und liegt ausserdem in der
-# Sicherung mit drin. Eine SVG-Datei ist Text und ein paar Dutzend
-# Kilobyte gross - das traegt die Tabelle muehelos.
-
-MARKEN = {
-    "logo-fuer-dunkel": ("logo_dunkel", "Schriftzug für das dunkle Thema"),
-    "logo-fuer-hell": ("logo_hell", "Schriftzug für das helle Thema"),
-}
-
-# Wird beim Start und nach jedem Tausch neu gefuellt. Ohne den Puffer
-# fragte jeder Seitenaufbau die Datenbank nach dem Zeitstempel - nur um
-# ihn an eine Bildadresse zu haengen.
-_marken_puffer: dict = {"stand": "", "geladen": False, "symbole": frozenset()}
-
-
-def markenstand() -> str:
-    """Der Anhang fuer ?v= an den Logo-Adressen.
-
-    ⚠️ NICHT die Programmversion: die aendert sich beim Tausch eines Logos
-    ja gerade nicht, und der Browser haenge dann am alten Bild. Genau
-    diese Falle ist beim Grafiktausch in 1.27 schon einmal zugeschnappt.
-    """
-    if not _marken_puffer["geladen"]:
-        try:
-            with db.db() as con:
-                zeile = con.execute(
-                    "SELECT wert FROM konfig WHERE schluessel='logo_stand'"
-                ).fetchone()
-            # ⚠️ Nur die Ziffern: der Wert ist ein Zeitpunkt
-            # („2026-09-08 10:48"), und Leerzeichen wie Doppelpunkte
-            # haben in einer Bildadresse nichts verloren.
-            roh = (zeile["wert"] if zeile else "") or ""
-            _marken_puffer["stand"] = re.sub(r"\D", "", roh)
-        except Exception:
-            _marken_puffer["stand"] = ""
-        # Welche eigenen Symbole liegen vor? Nur die Namen - die Bilder
-        # selbst holt erst die Auslieferung.
-        try:
-            with db.db() as con:
-                _marken_puffer["symbole"] = frozenset(
-                    r["name"] for r in con.execute("SELECT name FROM symbol"))
-        except Exception:
-            _marken_puffer["symbole"] = frozenset()
-        _marken_puffer["geladen"] = True
-    return _marken_puffer["stand"] or VERSION
-
-
-def eigene_symbolnamen() -> frozenset:
-    """Welche Favicons/App-Symbole durch eigene ersetzt sind.
-
-    ⚠️⚠️ Der Name ist mit Bedacht sperrig. Als `eigene_symbole` wurde die
-    Funktion auf der Einstellungsseite von der gleichnamigen
-    KONTEXTVARIABLEN verdeckt (dort ein Dict) - base.html rief sie auf
-    und bekam "'dict' object is not callable". Eine Kontextvariable
-    ueberschreibt eine Jinja-Global lautlos; wer eine neue Global
-    anlegt, gibt ihr einen Namen, den keine Seite als Kontext benutzt.
-
-    ⚠️ Die Vorlage braucht das, um die ausgelieferten <link>-Zeilen
-    wegzulassen. Liesse sie sie stehen, suchte der Browser sich aus den
-    Groessenangaben (16, 32, 192, 512) weiter eines davon aus - und der
-    Tausch saehe aus, als haette er nicht gewirkt.
-    """
-    markenstand()          # fuellt den Puffer, falls noetig
-    return _marken_puffer["symbole"]
-
-
-def marken_puffer_leeren() -> None:
-    _marken_puffer.update({"stand": "", "geladen": False,
-                           "symbole": frozenset()})
-
-
-@app.get("/marke/{name}.svg")
-def marke(name: str):
-    """Liefert den Schriftzug aus - eigener aus der Datenbank, sonst der
-    ausgelieferte aus app/static/.
-
-    ⚠️ Der CSP-Kopf muss bleiben. In einem <img> ist eine SVG-Datei
-    harmlos, Skript darin laeuft dort nicht; gefaehrlich ist allein der
-    direkte Aufruf DIESER Adresse, denn dann ist sie ein eigenes
-    Dokument. Dieselbe Regel wie bei dateien.holen().
-    """
-    if name not in MARKEN:
-        raise HTTPException(404, "Unbekannte Marke")
-    koepfe = {
-        "Cache-Control": "public, max-age=86400",
-        "X-Content-Type-Options": "nosniff",
-        "Content-Security-Policy": "sandbox; default-src 'none'",
-    }
-    schluessel = MARKEN[name][0]
-    try:
-        with db.db() as con:
-            zeile = con.execute("SELECT wert FROM konfig WHERE schluessel=?",
-                                (schluessel,)).fetchone()
-    except Exception:
-        zeile = None
-    if zeile and (zeile["wert"] or "").strip():
-        return Response(content=zeile["wert"], media_type="image/svg+xml",
-                        headers=koepfe)
-    pfad = os.path.join(BASIS, "static", f"{name}.svg")
-    try:
-        with open(pfad, encoding="utf-8") as f:
-            inhalt = f.read()
-    except OSError:
-        raise HTTPException(404, "Marke nicht gefunden")
-    return Response(content=inhalt, media_type="image/svg+xml", headers=koepfe)
-
-
-# --- Eigene Favicons und App-Symbole (seit 1.44) ------------------------------
-#
-# Dieselbe Ueberlegung wie bei den Logos, nur fuer Rasterbilder: der
-# Browser-Tab und das Zeichen auf dem iOS-Homescreen lassen sich unter
-# Einstellungen -> System und Sicherung -> Branding austauschen.
-#
-# ⚠️ Gespeichert in der Tabelle "symbol" (BLOB), NICHT in "konfig" -
-# die Begruendung steht im Schema in db.py: konfig_lesen() holt bei jedem
-# Seitenaufbau die ganze Tabelle.
-
-SYMBOLE = {
-    "favicon": ("symbol_favicon", "Favicon", "Das Zeichen im Browser-Tab"),
-    "apple-touch-icon": ("symbol_touch", "App-Symbol",
-                         "Der Homescreen des iPhones, wenn jemand die "
-                         "Seite dort ablegt"),
-}
-
-# Was ausgeliefert wird, wenn kein eigenes hinterlegt ist.
-SYMBOL_STANDARD = {
-    "favicon": ("favicon-32x32.png", "image/png"),
-    "apple-touch-icon": ("apple-touch-icon.png", "image/png"),
-}
-
-
-@app.get("/symbol/{name}")
-def symbol(name: str):
-    """Liefert Favicon bzw. App-Symbol aus - eigenes, sonst das
-    ausgelieferte aus app/static/.
-
-    ⚠️ Ohne Anmeldung erreichbar (auth.SessionAuth): der Browser holt das
-    Favicon auch auf dem Anmeldebildschirm, und zwar bevor es eine
-    Sitzung gibt.
-    """
-    if name not in SYMBOLE:
-        raise HTTPException(404, "Unbekanntes Symbol")
-    koepfe = {
-        "Cache-Control": "public, max-age=86400",
-        # ⚠️ Der Inhaltstyp kommt aus unserer eigenen Pruefung, nie aus
-        # dem Upload - dieselbe Regel wie in dateien.holen().
-        "X-Content-Type-Options": "nosniff",
-    }
-    try:
-        with db.db() as con:
-            zeile = con.execute(
-                "SELECT art, daten FROM symbol WHERE name=?", (name,)).fetchone()
-    except Exception:
-        zeile = None
-    if zeile and zeile["daten"]:
-        return Response(content=bytes(zeile["daten"]),
-                        media_type=zeile["art"], headers=koepfe)
-    datei, art = SYMBOL_STANDARD[name]
-    try:
-        with open(os.path.join(BASIS, "static", datei), "rb") as f:
-            inhalt = f.read()
-    except OSError:
-        raise HTTPException(404, "Symbol nicht gefunden")
-    return Response(content=inhalt, media_type=art, headers=koepfe)
 
 
 def texte_verschlanken() -> None:
@@ -493,10 +325,10 @@ def spruch() -> dict:
 # hier, weil es die Templates nur hier gibt.
 templates.env.globals["monat_wort"] = monat_wort
 # Der Anhang an den Logo-Adressen, siehe markenstand().
-templates.env.globals["markenstand"] = markenstand
+templates.env.globals["markenstand"] = _marke.markenstand
 # Welche Symbole eigene sind - base.html laesst die ausgelieferten
 # <link>-Zeilen dann weg.
-templates.env.globals["eigene_symbolnamen"] = eigene_symbolnamen
+templates.env.globals["eigene_symbolnamen"] = _marke.eigene_symbolnamen
 templates.env.filters["euro"] = euro
 templates.env.filters["zahl"] = zahl
 templates.env.filters["stunden"] = stunden
@@ -1863,9 +1695,9 @@ _einstellungen.setup(templates, {
     "sicherung_anlegen": sicherung_anlegen,
     "FUSS_STANDARD": FUSS_STANDARD,
     # Damit der Logo-Tausch den Puffer für ?v= leeren kann.
-    "marken_puffer_leeren": marken_puffer_leeren,
-    "MARKEN": MARKEN,
-    "SYMBOLE": SYMBOLE,
+    "marken_puffer_leeren": _marke.marken_puffer_leeren,
+    "MARKEN": _marke.MARKEN,
+    "SYMBOLE": _marke.SYMBOLE,
 })
 app.include_router(_einstellungen.router)
 
@@ -1954,3 +1786,9 @@ from . import meinbereich as _meinbereich  # noqa: E402
 
 _meinbereich.setup(templates, {"spruch": spruch})
 app.include_router(_meinbereich.router)
+
+# Eigene Grafiken: /marke/, /symbol/ und /manifest.json. Das Modul
+# braucht nur den Anzeigenamen und die Fassung - Templates kennt es
+# nicht, seine drei Adressen liefern Bilder und JSON aus.
+_marke.setup({"APP_NAME": APP_NAME, "VERSION": VERSION})
+app.include_router(_marke.router)

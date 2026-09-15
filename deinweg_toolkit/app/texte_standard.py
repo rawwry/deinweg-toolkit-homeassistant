@@ -303,17 +303,20 @@ TEXTE_STANDARD["einst.system_branding"] = (
     "Fußzeile. Gilt für alle Konten, anders als der Punkt „Oberfläche“.")
 TEXTE_STANDARD["einst.symbol_lead"] = (
     "Das kleine Zeichen im Browser-Tab und das Symbol, das auf dem "
-    "Homescreen erscheint, wenn jemand die Seite dort ablegt. Wer nur "
-    "eines austauscht, behält für das andere das ausgelieferte.")
+    "Homescreen erscheint, wenn jemand die Seite dort ablegt – auf dem "
+    "iPhone wie auf einem Android-Gerät. Wer nur eines austauscht, behält "
+    "für das andere das ausgelieferte.")
 TEXTE_STANDARD["einst.symbol_hinweis"] = (
     "PNG, höchstens 512 KB – für das Favicon geht auch ICO. Erkannt wird "
     "die Datei an ihrem Inhalt, nicht an der Endung. <strong>Beide "
     "sollten quadratisch sein</strong>; fürs Favicon reichen 32×32 oder "
-    "64×64, fürs App-Symbol sind 180×180 die Größe, die das iPhone "
-    "erwartet. <strong>Durchsichtige Flächen legt iOS schwarz "
-    "hinterlegt</strong> – gib dem App-Symbol lieber einen eigenen "
-    "Hintergrund. Die Dateien liegen in der Datenbank und überstehen "
-    "damit jedes Update; sie sind auch in der Sicherung mit drin.")
+    "64×64. Beim App-Symbol nimm lieber gleich <strong>512×512</strong>: "
+    "das iPhone verkleinert sich das selbst, und Android bietet "
+    "„zum Startbildschirm hinzufügen“ erst ab 192 Pixeln an. "
+    "<strong>Durchsichtige Flächen legt iOS schwarz hinterlegt</strong> – "
+    "gib dem App-Symbol lieber einen eigenen Hintergrund. Die Dateien "
+    "liegen in der Datenbank und überstehen damit jedes Update; sie sind "
+    "auch in der Sicherung mit drin.")
 TEXTE_STANDARD["einst.system_aussehen"] = (
     "Was auf jeder Seite steht: der Schriftzug, die Fußzeile und die "
     "erklärenden Texte. Gilt für alle Konten, anders als der Punkt "

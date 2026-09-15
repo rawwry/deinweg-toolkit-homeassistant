@@ -1737,11 +1737,12 @@ async def symbol_speichern(symbol_favicon: UploadFile = File(None),
     with db.db() as con:
         for name, art, breite, hoehe, rohdaten in neue:
             con.execute(
-                "INSERT INTO symbol (name, art, daten, geaendert_am) "
-                "VALUES (?,?,?,?) ON CONFLICT(name) DO UPDATE SET "
-                "art=excluded.art, daten=excluded.daten, "
-                "geaendert_am=excluded.geaendert_am",
-                (name, art, rohdaten, jetzt))
+                "INSERT INTO symbol (name, art, daten, breite, hoehe, "
+                "geaendert_am) VALUES (?,?,?,?,?,?) "
+                "ON CONFLICT(name) DO UPDATE SET art=excluded.art, "
+                "daten=excluded.daten, breite=excluded.breite, "
+                "hoehe=excluded.hoehe, geaendert_am=excluded.geaendert_am",
+                (name, art, rohdaten, breite, hoehe, jetzt))
             if breite and hoehe:
                 masse.append(f"{breite}×{hoehe}")
         mail.konfig_schreiben(con, {"logo_stand": jetzt})
