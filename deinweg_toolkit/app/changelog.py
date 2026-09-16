@@ -2439,4 +2439,21 @@ CHANGELOG = [
         "Rand hinaus und sind gleich hoch wie die übrigen",
         "Prüfung von 2119 auf 2139 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.47", "titel": "Tippen statt Drehen", "punkte": [
+        "Das Uhrzeit-Rad ist wieder weg – in der Erfassung und in "
+        "„Eintrag bearbeiten“. Uhrzeiten werden überall getippt; „930“ "
+        "wird zu 09:30, „12“ zu 12:00",
+        "Protokoll am Telefon: die Leistung läuft nicht mehr unter die "
+        "Symbole. Bearbeiten und Löschen stehen dort übereinander, damit "
+        "der Name trotzdem Platz hat",
+        "Einstellungen am Telefon: ein Tipp auf einen Menüpunkt springt "
+        "direkt zu seinen Einstellungen, statt oben vor dem Menü stehen "
+        "zu bleiben",
+        "Unter der Haube: die eigenen Logos liegen jetzt neben Favicon und "
+        "App-Symbol in einer eigenen Tabelle und werden nicht mehr bei "
+        "jedem Seitenaufruf mitgelesen. Vorhandene Logos ziehen beim "
+        "Update von selbst um",
+        "Home Assistant: neues Add-on-Symbol und neue Beschreibung",
+        "Prüfung von 2139 auf 2152 Einzelprüfungen erweitert",
+    ]},
 ]

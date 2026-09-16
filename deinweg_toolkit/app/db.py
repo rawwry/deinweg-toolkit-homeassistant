@@ -214,7 +214,13 @@ CREATE TABLE IF NOT EXISTS konfig (
 -- liegen die Bilder als BLOB und werden nur gelesen, wenn sie wirklich
 -- ausgeliefert werden.
 --
--- ⚠️ Wie bei den Logos: in der DATENBANK, nicht als Datei neben
+-- ⚠️⚠️ Seit 1.47 liegen hier AUCH die beiden eigenen Schriftzuege
+-- (Namen "logo-fuer-dunkel" / "logo-fuer-hell", art image/svg+xml). Bis
+-- 1.46 standen sie in konfig - und konfig_lesen() holt die ganze Tabelle
+-- bei jedem Seitenaufbau (ueber fusstext()). Die Migration in init()
+-- zieht sie um.
+--
+-- ⚠️ In der DATENBANK, nicht als Datei neben
 -- app/static/. Der Programmcode liegt im Add-on-Abbild (COPY app
 -- /opt/deinweg/app) - eine dort abgelegte Datei waere beim naechsten
 -- Update spurlos weg, und zwar ohne Fehlermeldung.
@@ -635,6 +641,28 @@ def init() -> dict | None:
         # Groessenangabe stehen, statt eine zu erfinden.
         spalte_ergaenzen(con, "symbol", "breite", "INTEGER NOT NULL DEFAULT 0")
         spalte_ergaenzen(con, "symbol", "hoehe", "INTEGER NOT NULL DEFAULT 0")
+
+        # ⚠️⚠️ Die eigenen Schriftzuege ziehen aus konfig in symbol um
+        # (seit 1.47). In konfig las mail.konfig_lesen() sie bei JEDEM
+        # Seitenaufbau mit - dort stehen alle Einstellungen, und
+        # fusstext() braucht sie fuer jede Seite. Ein Logo sind ein paar
+        # Dutzend Kilobyte, die dabei jedes Mal durch die Abfrage liefen.
+        # Erst einfuegen, dann loeschen - bricht dazwischen etwas ab,
+        # steht das Logo schlimmstenfalls zweimal da, nie keinmal. Laeuft
+        # bei jedem Start; nach dem ersten Mal findet es nichts mehr.
+        for schluessel, name in (("logo_dunkel", "logo-fuer-dunkel"),
+                                 ("logo_hell", "logo-fuer-hell")):
+            alt = con.execute("SELECT wert FROM konfig WHERE schluessel=?",
+                              (schluessel,)).fetchone()
+            if alt is None:
+                continue
+            if (alt["wert"] or "").strip():
+                con.execute(
+                    "INSERT OR IGNORE INTO symbol (name, art, daten, breite, "
+                    "hoehe, geaendert_am) VALUES (?, 'image/svg+xml', ?, 0, 0, ?)",
+                    (name, alt["wert"].encode("utf-8"),
+                     __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M")))
+            con.execute("DELETE FROM konfig WHERE schluessel=?", (schluessel,))
 
         # ⚠️ Zuweisungs-Mail: die Spalte kommt mit Standard 0, aber jeder
         # SCHON VORHANDENE Vorgang muss auf 1 - sonst schickt der erste

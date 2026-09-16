@@ -3,6 +3,17 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.47
+
+- Neue Beschreibung und neues Symbol für das Add-on
+- Uhrzeit-Rad entfernt; Uhrzeiten werden auch in „Eintrag bearbeiten“
+  getippt
+- Protokoll am Telefon: kein Text mehr unter den Symbolen
+- Einstellungen am Telefon springen direkt zum gewählten Punkt
+- Eigene Logos liegen jetzt in der Tabelle `symbol` statt in `konfig`
+  (wird beim Start automatisch umgezogen)
+- Prüfung von 2139 auf 2152 Einzelprüfungen erweitert
+
 ## 1.46
 
 - Tagesprotokoll als Zeitleiste, jüngster Termin oben; Bearbeiten und

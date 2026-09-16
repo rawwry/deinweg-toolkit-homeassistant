@@ -58,6 +58,9 @@ def setup(umgebung: dict) -> None:
 # Sicherung mit drin. Eine SVG-Datei ist Text und ein paar Dutzend
 # Kilobyte gross - das traegt die Tabelle muehelos.
 
+# ⚠️ Der Schluessel ist der Name der Adresse UND - seit 1.47 - der Name
+# der Zeile in der Tabelle symbol. Die erste Angabe ist nur noch der Name
+# des Formularfelds (bis 1.46 zugleich der konfig-Schluessel).
 # ⚠️ Drei Angaben je Eintrag, seit 1.45 auch ein Hinweis: der Name war
 # vorher der ganze Satz ("Schriftzug fuer das dunkle Thema") und stand
 # damit als Ueberschrift ueber einem Feld, das ihn ohnehin erklaert. Die
@@ -148,16 +151,18 @@ def marke(name: str):
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "sandbox; default-src 'none'",
     }
-    schluessel = MARKEN[name][0]
+    # ⚠️ Seit 1.47 aus der Tabelle symbol, nicht mehr aus konfig (siehe
+    # db.init: dort las konfig_lesen() die Logos bei jedem Seitenaufbau
+    # mit). Der Name der Zeile ist der Name der Adresse.
     try:
         with db.db() as con:
-            zeile = con.execute("SELECT wert FROM konfig WHERE schluessel=?",
-                                (schluessel,)).fetchone()
+            zeile = con.execute("SELECT daten FROM symbol WHERE name=?",
+                                (name,)).fetchone()
     except Exception:
         zeile = None
-    if zeile and (zeile["wert"] or "").strip():
-        return Response(content=zeile["wert"], media_type="image/svg+xml",
-                        headers=koepfe)
+    if zeile and zeile["daten"]:
+        return Response(content=bytes(zeile["daten"]),
+                        media_type="image/svg+xml", headers=koepfe)
     pfad = os.path.join(BASIS, "static", f"{name}.svg")
     try:
         with open(pfad, encoding="utf-8") as f:

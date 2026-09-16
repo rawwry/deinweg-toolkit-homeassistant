@@ -13,7 +13,12 @@
   <form class="bearbeitenform" action="{{ request.url.path }}" method="post">
     <input type="hidden" name="zurueck" value="{{ zurueck }}">
 
-    {# ⚠️ Feste Aufteilung statt `auto-fit` (seit 1.46): am iPhone ergab
+    {# ⚠️ Beginn und Ende sind seit 1.47 TIPPFELDER, keine
+       <input type="time"> mehr (Timos Wunsch): auf dem iPhone öffnete das
+       Uhrzeitfeld ein Rad mit jeder einzelnen Minute. Jetzt dieselbe
+       Bedienung wie in der manuellen Erfassung - „930" wird zu 09:30,
+       „12" zu 12:00 (Skript unten, der Server liest dasselbe).
+       ⚠️ Feste Aufteilung statt `auto-fit` (seit 1.46): am iPhone ergab
        auto-fit zwei Spalten zu je 147px, und Safari gibt einem Datums- oder
        Uhrzeitfeld eine eigene Mindestbreite - die Felder liefen über ihre
        Zelle in die Nachbarspalte und über den Kartenrand. Jetzt steht das
@@ -27,11 +32,13 @@
       </label>
       <label class="feld">
         <span>Beginn</span>
-        <input type="time" name="start" value="{{ z.start or '' }}">
+        <input type="text" name="start" value="{{ z.start or '' }}" class="zeitfeld"
+               inputmode="numeric" placeholder="HH:MM" maxlength="5" autocomplete="off">
       </label>
       <label class="feld">
         <span>Ende</span>
-        <input type="time" name="ende" value="{{ z.ende or '' }}">
+        <input type="text" name="ende" value="{{ z.ende or '' }}" class="zeitfeld"
+               inputmode="numeric" placeholder="HH:MM" maxlength="5" autocomplete="off">
       </label>
       <label class="feld">
         <span>Dauer</span>
@@ -76,5 +83,34 @@
     </div>
   </form>
 </section>
+
+<script>
+  // ⚠️ Dieselbe Maske und dieselbe Ergänzung wie in der manuellen
+  // Erfassung (index.html, zeitFuellen). Bewusst hier noch einmal statt
+  // gemeinsam: es gibt keine Skriptdatei, und zwanzig Zeilen sind billiger
+  // als eine. Wer die Regel dort ändert, zieht sie hier mit - der Server
+  // (`main.zeit_lesen`) versteht dieselben Eingaben auch ohne Skript.
+  (function () {
+    function fuellen(feld) {
+      var z = (feld.value || "").replace(/\D/g, ""), std, min;
+      if (!z) return;
+      if (z.length <= 2)       { std = +z;             min = 0; }
+      else if (z.length === 3) { std = +z.slice(0, 1); min = +z.slice(1); }
+      else                     { std = +z.slice(0, 2); min = +z.slice(2, 4); }
+      if (std > 23 || min > 59) return;   // stehen lassen, damit es auffällt
+      feld.value = String(std).padStart(2, "0") + ":" + String(min).padStart(2, "0");
+    }
+    var felder = document.querySelectorAll(".bearbeitenform .zeitfeld");
+    felder.forEach(function (feld) {
+      feld.addEventListener("input", function () {
+        var z = feld.value.replace(/\D/g, "").slice(0, 4);
+        feld.value = z.length > 2 ? z.slice(0, 2) + ":" + z.slice(2) : z;
+      });
+      feld.addEventListener("blur", function () { fuellen(feld); });
+    });
+    var form = document.querySelector(".bearbeitenform");
+    if (form) form.addEventListener("submit", function () { felder.forEach(fuellen); });
+  })();
+</script>
 
 {% endblock %}

@@ -1,7 +1,15 @@
 # Dein Weg Toolkit
 
-Betreuungszeiten, Aufgaben, Fuhrpark, Wiki und Dateiablage für eine
-Einrichtung des ambulant betreuten Wohnens.
+Digitale Unterstützung im Betreuungsalltag: Weil Post-its nun mal keine
+verlässliche Dokumentation sind. Dieses Add-on bringt verlässliche
+Struktur in die täglichen Abläufe des ambulant betreuten Wohnens und
+hält dem Team den Rücken frei. Betreuungszeiten lassen sich damit
+präzise und unkompliziert erfassen, während administrative Vorgänge
+zentral an einem Ort gebündelt werden, statt in unübersichtlichen
+Ordnern zu versanden. Ein integriertes Team-Wiki sorgt zudem dafür, dass
+wichtige Notizen, Standards und der ewig gesuchte Türcode jederzeit
+griffbereit sind. Das Ergebnis ist spürbar weniger Zettelwirtschaft und
+deutlich mehr Zeit für das Wesentliche – die Menschen.
 
 ## Einrichten
 

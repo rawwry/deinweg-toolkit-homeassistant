@@ -307,15 +307,15 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
         # Welche Schriftzüge sind durch eigene ersetzt? Nur die Frage,
         # nicht der Inhalt - eine SVG-Datei gehört nicht ins Markup der
         # Einstellungsseite.
-        eigene_logos = {
-            r["schluessel"]: True for r in con.execute(
-                "SELECT schluessel FROM konfig WHERE schluessel IN "
-                "('logo_dunkel','logo_hell') AND TRIM(COALESCE(wert,'')) <> ''")}
-        # Dasselbe für Favicon und App-Symbol - auch hier nur die Frage,
-        # nie die Bilddaten. Sie liegen in einer eigenen Tabelle, damit
-        # konfig_lesen() sie nicht bei jedem Seitenaufbau mitschleppt.
-        eigene_symbole = {r["name"]: True
-                          for r in con.execute("SELECT name FROM symbol")}
+        # ⚠️ Seit 1.47 liegen Logos UND Symbole in derselben Tabelle -
+        # beide Abfragen müssen deshalb ausdrücklich nach ihren Namen
+        # filtern, sonst hielte die Seite ein eigenes Logo für ein
+        # eigenes Favicon. Das Logo wird nach dem Formularfeld
+        # gemeldet, darauf fragt die Vorlage.
+        marken = _u["MARKEN"]
+        vorhanden = {r["name"] for r in con.execute("SELECT name FROM symbol")}
+        eigene_logos = {marken[n][0]: True for n in marken if n in vorhanden}
+        eigene_symbole = {n: True for n in _u["SYMBOLE"] if n in vorhanden}
         # Das Passwort verlaesst die Anwendung nicht im Klartext - in der
         # Oberflaeche steht nur, ob eines hinterlegt ist.
         passwort_gesetzt = bool(mailkonfig.get("smtp_passwort"))
@@ -1577,7 +1577,8 @@ def _texte_zurueck(**werte):
 # Der Schriftzug in Kopfzeile, Fusszeile und auf dem Anmeldebildschirm
 # laesst sich durch eigene SVG-Dateien ersetzen. Gespeichert wird in der
 # Datenbank, nicht als Datei - der Programmordner liegt im Add-on-Abbild
-# und waere beim naechsten Update ueberschrieben (siehe main.MARKEN).
+# und waere beim naechsten Update ueberschrieben (siehe marke.MARKEN).
+# ⚠️ Seit 1.47 in der Tabelle symbol, nicht mehr in konfig.
 
 # 512 KB. Ein Schriftzug in Pfaden misst ein paar Dutzend Kilobyte; wer
 # hier ein halbes Megabyte hochlaedt, hat ein eingebettetes Foto darin.
@@ -1622,12 +1623,15 @@ async def logo_speichern(logo_dunkel: UploadFile = File(None),
     jetzt = _u["jetzt"]()
     if zuruecksetzen:
         with db.db() as con:
-            con.execute("DELETE FROM konfig WHERE schluessel IN "
-                        "('logo_dunkel','logo_hell')")
+            namen = list(_u["MARKEN"])
+            con.execute("DELETE FROM symbol WHERE name IN (%s)"
+                        % ",".join("?" * len(namen)), namen)
             mail.konfig_schreiben(con, {"logo_stand": jetzt})
         _u["marken_puffer_leeren"]()
         return systemseite(hinweis="Die ausgelieferten Logos gelten wieder.")
 
+    # Formularfeld -> Name der Zeile in symbol (= Name der Adresse)
+    zeilenname = {angabe[0]: name for name, angabe in _u["MARKEN"].items()}
     neue: dict[str, str] = {}
     for feld, datei in (("logo_dunkel", logo_dunkel), ("logo_hell", logo_hell)):
         if datei is None or not (datei.filename or "").strip():
@@ -1641,13 +1645,21 @@ async def logo_speichern(logo_dunkel: UploadFile = File(None),
 
     if not neue:
         return systemseite(fehler="Es war keine Datei dabei.")
-    neue["logo_stand"] = jetzt
+    # ⚠️ Seit 1.47 in die Tabelle symbol, nicht mehr nach konfig - dort
+    # las konfig_lesen() die Logos bei jedem Seitenaufbau mit.
     with db.db() as con:
-        mail.konfig_schreiben(con, neue)
+        for feld, svg in neue.items():
+            con.execute(
+                "INSERT INTO symbol (name, art, daten, breite, hoehe, "
+                "geaendert_am) VALUES (?, 'image/svg+xml', ?, 0, 0, ?) "
+                "ON CONFLICT(name) DO UPDATE SET art=excluded.art, "
+                "daten=excluded.daten, geaendert_am=excluded.geaendert_am",
+                (zeilenname[feld], svg.encode("utf-8"), jetzt))
+        mail.konfig_schreiben(con, {"logo_stand": jetzt})
     # ⚠️ Ohne das Leeren zeigt der Browser weiter das alte Bild: der
     # Anhang ?v= an der Adresse kommt aus diesem Puffer.
     _u["marken_puffer_leeren"]()
-    zahl = len(neue) - 1
+    zahl = len(neue)
     return systemseite(hinweis=f"{zahl} Logo{'s' if zahl != 1 else ''} ersetzt.")
 
 
@@ -1708,7 +1720,11 @@ async def symbol_speichern(symbol_favicon: UploadFile = File(None),
     jetzt = _u["jetzt"]()
     if zuruecksetzen:
         with db.db() as con:
-            con.execute("DELETE FROM symbol")
+            # ⚠️⚠️ NUR Favicon und App-Symbol. Seit 1.47 stehen die Logos
+            # in derselben Tabelle - ein nacktes DELETE nähme sie mit.
+            namen = list(_u["SYMBOLE"])
+            con.execute("DELETE FROM symbol WHERE name IN (%s)"
+                        % ",".join("?" * len(namen)), namen)
             # ⚠️ Derselbe Stand wie bei den Logos: an ihm hängt das ?v=
             # in base.html. Ohne ihn zeigte der Browser weiter das alte
             # Symbol - Favicons merkt er sich besonders hartnäckig.

@@ -3528,7 +3528,7 @@ def test_leistungen_umbenannt(client: TestClient) -> None:
     inhalt = seite.split('<div class="neuheiten"')[0]
     pruefe("Leistungsbeschreibungen" not in inhalt,
            "das lange Wort steht nirgends mehr auf der Seite")
-    pruefe('bereich=leistungen" class="aktiv">Leistungen</a>' in seite,
+    pruefe('bereich=leistungen#punkt" class="aktiv">Leistungen</a>' in seite,
            "im Menü daneben ebenso")
     # ⚠️ Der Berechtigungsschluessel bleibt „leistungen" - sonst verloere
     # jedes eingeschraenkte Konto seinen Zugriff auf diesen Punkt.
@@ -6289,12 +6289,17 @@ def test_tagesprotokoll(client: TestClient) -> None:
     # Alles, was in einer der Abfragen steht, und alles außerhalb.
     teile = stil.split("@container protokoll")
     drin = "".join(t.split("\n}")[0] for t in teile[1:])
-    # ⚠️ Schmal läuft „Person · Leistung" UNTER den Knöpfen durch - am
-    # Telefon brauchte die zweite Zeile die 80px dringender als die erste.
-    pruefe('".     unter unter"' in zeile,
-           "schmal ist der Ausgangszustand, die Unterzeile über die volle Breite")
-    pruefe('".     unter aktionen"' in drin,
-           "breit stehen die Knöpfe über beiden Zeilen")
+    # ⚠️⚠️ Seit 1.47 läuft KEIN Text mehr unter die Knöpfe (Timos
+    # Meldung: „die Leistung ragt in die Spalte mit den Icons"). Die
+    # Knöpfe stehen in jeder Breite über beiden Zeilen - schmal
+    # ÜBEREINANDER, damit der Name trotzdem Platz hat.
+    pruefe('".     unter aktionen"' in zeile and '"unter unter"' not in stil,
+           "die Knöpfe stehen über beiden Zeilen, kein Text läuft darunter")
+    aktionen = stil.split(".tp-aktionen {")[1].split("}")[0]
+    pruefe("flex-direction: column" in aktionen,
+           "schmal stehen die beiden Knöpfe übereinander")
+    pruefe("flex-direction: row" in drin,
+           "breit stehen sie nebeneinander")
     # ⚠️⚠️ Gekürzt wird in JEDER Breite (Timos Wunsch seit 1.44) - die
     # Regel steht deshalb AUSSERHALB der Abfrage.
     pruefe("text-overflow: ellipsis" in stil.split(".tp-person, .tp-text {")[1]
@@ -6609,28 +6614,87 @@ def test_umbau_1_46(client: TestClient) -> None:
     pruefe(".feldreihe > .feld { min-width: 0; }" in stil,
            "eine Rasterzelle schrumpft unter den Inhalt ihres Feldes")
 
-    # --- Das Viertelstunden-Rad ---------------------------------------------
+    # --- Kein Uhrzeit-Rad mehr (seit 1.47) ---------------------------------
+    # ⚠️ Timos Wunsch: das Viertelstunden-Rad von 1.46 ist wieder weg, und
+    # auch das Rad, das iOS in „Eintrag bearbeiten" für <input type="time">
+    # öffnet. Uhrzeiten werden überall getippt.
     start = client.get("/").text
-    pruefe("function zeitrad(" in start and "m += 15" in start,
-           "das Rad bietet Viertelstunden an")
-    pruefe('matchMedia("(hover: none) and (pointer: coarse)")' in start,
-           "und entsteht nur auf Geräten mit Finger")
-    # ⚠️ Es ist ein Zusatz: kein Name, kein Formular - es wird nie
-    # abgeschickt, das Textfeld bleibt die Wahrheit.
-    teil = start.split("function zeitrad(")[1].split("function verkabeln(")[0]
-    pruefe(".name" not in teil and "setAttribute(\"form\"" not in teil
-           and 'setAttribute("form"' not in teil,
-           "das Rad trägt keinen Namen und hängt an keinem Formular")
-    pruefe('name="start"' in start and 'class="zeitfeld"' in start,
-           "das tippbare Zeitfeld bleibt unverändert")
-    radregel = stil.split("select.zeitrad {")[1].split("}")[0]
-    # ⚠️ Durchsichtig, nicht versteckt - ein verstecktes <select> lässt
-    # sich nicht antippen.
-    pruefe("opacity: 0" in radregel and "display: none" not in radregel,
-           "das <select> liegt durchsichtig über dem Zeichen")
-    erfassung = stil.split("@container erfassung (min-width: 760px)")[1]
-    pruefe(".zeitrad-zeichen, select.zeitrad { display: none; }" in erfassung,
-           "im Tabellenraster ist für das Rad kein Platz und es entfällt")
+    pruefe("zeitrad" not in start and "zeitrad" not in stil,
+           "das Viertelstunden-Rad ist aus Erfassung und Stylesheet entfernt")
+    pruefe('type="time"' not in seite,
+           "„Eintrag bearbeiten“ hat kein Uhrzeitfeld mit Rad mehr")
+    pruefe('name="start"' in seite and 'class="zeitfeld"' in seite
+           and 'inputmode="numeric"' in seite,
+           "Beginn und Ende sind Tippfelder wie in der Erfassung")
+    pruefe("function fuellen(" in seite,
+           "und ergänzen „930“ beim Verlassen zu 09:30")
+    # Der Server versteht dieselben Eingaben - auch ohne Skript.
+    from .main import zeit_lesen
+    pruefe(zeit_lesen("930") == ("09:30", True)
+           and zeit_lesen("12") == ("12:00", True)
+           and zeit_lesen("08:15") == ("08:15", True)
+           and zeit_lesen("") == (None, True),
+           "zeit_lesen ergänzt wie das Skript")
+    pruefe(zeit_lesen("2561")[1] is False and zeit_lesen("abc")[1] is False,
+           "und weist Unlesbares ab statt es still zu verwerfen")
+    antwort = client.post(f"/eintraege/{eid}/bearbeiten", follow_redirects=False,
+                          data={"datum": "2026-04-14", "start": "930",
+                                "ende": "1045", "dauer": "", "klient": "Testperson",
+                                "mitarbeiter": "pruefer", "beschreibung": "Rad-Probe",
+                                "zurueck": "/eintraege"})
+    with db.db() as con:
+        z = con.execute("SELECT start, ende, dauer_min FROM eintrag WHERE id=?",
+                        (eid,)).fetchone()
+    pruefe(antwort.status_code == 303 and z["start"] == "09:30"
+           and z["ende"] == "10:45" and z["dauer_min"] == 75,
+           "„930“ bis „1045“ wird ohne Skript als 09:30–10:45 gespeichert")
+    antwort = client.post(f"/eintraege/{eid}/bearbeiten", follow_redirects=False,
+                          data={"datum": "2026-04-14", "start": "9x",
+                                "ende": "10:45", "dauer": "", "klient": "Testperson",
+                                "mitarbeiter": "pruefer", "zurueck": "/eintraege"})
+    pruefe("fehler=" in antwort.headers.get("location", ""),
+           "eine unlesbare Uhrzeit wird mit Meldung abgewiesen")
+
+    # --- Einstellungen: Sprung zum Punkt (seit 1.47) ------------------------
+    menue = client.get("/einstellungen?bereich=system").text
+    pruefe('href="/einstellungen?bereich=oberflaeche#punkt"' in menue
+           and 'href="/einstellungen/datenpflege#punkt"' in menue,
+           "jeder Menüpunkt springt zum Inhalt")
+    pruefe('class="einstellungsinhalt" id="punkt"' in menue,
+           "die Sprungmarke sitzt auf dem Inhalt")
+    pruefe("#punkt { scroll-margin-top: 100vh; }" in stil,
+           "am Schreibtisch springt die Seite nicht")
+
+
+def test_logo_umzug() -> None:
+    """Die Migration zieht alte Logos aus konfig nach symbol (seit 1.47)."""
+    abschnitt("Branding: Logos ziehen um")
+    svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>'
+    with db.db() as con:
+        con.execute("DELETE FROM symbol WHERE name LIKE 'logo-fuer-%'")
+        con.execute("INSERT OR REPLACE INTO konfig (schluessel, wert) "
+                    "VALUES ('logo_hell', ?)", (svg,))
+        con.execute("INSERT OR REPLACE INTO konfig (schluessel, wert) "
+                    "VALUES ('logo_dunkel', '   ')")
+    db.init()
+    with db.db() as con:
+        hell = con.execute("SELECT art, daten FROM symbol "
+                           "WHERE name='logo-fuer-hell'").fetchone()
+        dunkel = con.execute("SELECT COUNT(*) c FROM symbol "
+                             "WHERE name='logo-fuer-dunkel'").fetchone()["c"]
+        rest = con.execute("SELECT COUNT(*) c FROM konfig WHERE schluessel "
+                           "IN ('logo_hell','logo_dunkel')").fetchone()["c"]
+    pruefe(hell is not None and bytes(hell["daten"]).decode() == svg
+           and hell["art"] == "image/svg+xml",
+           "ein altes Logo steht danach unverändert in „symbol“")
+    pruefe(dunkel == 0, "ein leerer alter Eintrag legt kein Logo an")
+    pruefe(rest == 0, "und beide alten Schlüssel sind aus „konfig“ verschwunden")
+    db.init()
+    with db.db() as con:
+        zahl = con.execute("SELECT COUNT(*) c FROM symbol "
+                           "WHERE name='logo-fuer-hell'").fetchone()["c"]
+        con.execute("DELETE FROM symbol WHERE name LIKE 'logo-fuer-%'")
+    pruefe(zahl == 1, "ein zweiter Start ändert nichts mehr")
 
 
 def test_texte_tot() -> None:
@@ -7509,6 +7573,32 @@ def test_logos(client: TestClient) -> None:
            "ohne Fehlermeldung")
     pruefe('fill="#0af"' in client.get("/marke/logo-fuer-dunkel.svg").text,
            "und danach ausgeliefert")
+    # ⚠️⚠️ Seit 1.47 in der Tabelle symbol und NICHT mehr in konfig -
+    # konfig_lesen() liest die ganze Tabelle bei jedem Seitenaufbau.
+    with db.db() as con:
+        in_symbol = con.execute(
+            "SELECT art FROM symbol WHERE name='logo-fuer-dunkel'").fetchone()
+        in_konfig = con.execute(
+            "SELECT COUNT(*) c FROM konfig WHERE schluessel LIKE 'logo_%' "
+            "AND schluessel <> 'logo_stand'").fetchone()["c"]
+        # Das Symbol-Zurücksetzen darf die Logos nicht mitnehmen - sie
+        # stehen jetzt in derselben Tabelle.
+        client.post("/einstellungen/symbol", follow_redirects=False,
+                    data={"zuruecksetzen": "1"})
+        noch_da = con.execute(
+            "SELECT COUNT(*) c FROM symbol WHERE name='logo-fuer-dunkel'"
+        ).fetchone()["c"]
+    pruefe(in_symbol is not None and in_symbol["art"] == "image/svg+xml"
+           and in_konfig == 0,
+           "gespeichert in der Tabelle „symbol“, nicht mehr in „konfig“")
+    pruefe(noch_da == 1,
+           "„Symbole zurücksetzen“ lässt das eigene Logo stehen")
+    einst = client.get("/einstellungen?bereich=system").text
+    branding = einst.split("<h2>Eigene Logos</h2>")[1]
+    logos = branding.split("<h2>Favicon und App-Symbol</h2>")[0]
+    symbole = branding.split("<h2>Favicon und App-Symbol</h2>")[1].split("<h2>")[0]
+    pruefe("marke-status gut" in logos and "marke-status gut" not in symbole,
+           "die Seite hält ein eigenes Logo nicht für ein eigenes Favicon")
     pruefe("Layer_1" in client.get("/marke/logo-fuer-hell.svg").text
            or client.get("/marke/logo-fuer-hell.svg").status_code == 200,
            "das andere Thema bleibt beim ausgelieferten")
@@ -9217,6 +9307,7 @@ def _durchlauf(client: TestClient) -> None:
         test_branding(client)
         test_manifest(client)
         test_umbau_1_46(client)
+        test_logo_umzug()
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

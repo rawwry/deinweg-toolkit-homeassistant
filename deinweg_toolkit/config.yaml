@@ -8,11 +8,22 @@
 # steigt "version", bietet der Store die neue Fassung an. Sie muss also
 # bei jeder Auslieferung mit main.py VERSION uebereinstimmen.
 name: Dein Weg Toolkit
-version: "1.46"
+version: "1.47"
 slug: deinweg_toolkit
+# Timos Wortlaut (seit 1.47). UTF-8 ist hier unproblematisch, der
+# Supervisor liest die Datei als YAML.
 description: >-
-  Betreuungszeiten, Verwaltungsvorgaenge, Fuhrpark und Wiki
-  fuer das ambulant betreute Wohnen
+  Digitale Unterstützung im Betreuungsalltag: Weil Post-its nun mal
+  keine verlässliche Dokumentation sind. Dieses Add-on bringt
+  verlässliche Struktur in die täglichen Abläufe des ambulant betreuten
+  Wohnens und hält dem Team den Rücken frei. Betreuungszeiten lassen
+  sich damit präzise und unkompliziert erfassen, während administrative
+  Vorgänge zentral an einem Ort gebündelt werden, statt in
+  unübersichtlichen Ordnern zu versanden. Ein integriertes Team-Wiki
+  sorgt zudem dafür, dass wichtige Notizen, Standards und der ewig
+  gesuchte Türcode jederzeit griffbereit sind. Das Ergebnis ist spürbar
+  weniger Zettelwirtschaft und deutlich mehr Zeit für das Wesentliche –
+  die Menschen.
 stage: stable
 
 arch:

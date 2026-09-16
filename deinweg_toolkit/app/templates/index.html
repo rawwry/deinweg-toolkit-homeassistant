@@ -1042,83 +1042,10 @@
       ausgabe.className = "dauer-ausgabe " + (d > 720 ? "achtung" : "gut");
     }
 
-    // --- Das Viertelstunden-Rad (seit 1.46, Timos Wunsch) -------------
-    // ⚠️ Warum ein <select> und kein <input type="time">: das Uhrzeitfeld
-    // von iOS öffnet zwar ein Rad, übergeht aber `step` und zeigt jede
-    // Minute. Ein <select> öffnet auf dem iPhone ebenfalls ein Rad - und
-    // darin steht genau, was in der Liste steht: 00:00, 00:15 … 23:45.
-    // ⚠️ Es ist ein ZUSATZ. Das Textfeld bleibt die Wahrheit und bleibt
-    // tippbar; das Rad schreibt nur hinein. Das <select> trägt keinen
-    // Namen und hängt an keinem Formular, es wird also nie abgeschickt.
-    // ⚠️ Nur auf Geräten mit Finger (`pointer: coarse`) und nur, solange
-    // die Zeile gestapelt steht (das Stylesheet blendet es im Raster aus):
-    // dort haben die Spalten keine 30px übrig.
-    var RAD = window.matchMedia && matchMedia("(hover: none) and (pointer: coarse)").matches;
-    var UHR = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
-      '<circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/>' +
-      '<path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" ' +
-      'stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    function uhrzeit(min) {
-      return String(Math.floor(min / 60)).padStart(2, "0") + ":" +
-             String(min % 60).padStart(2, "0");
-    }
-    function zeitrad(feld, zeile) {
-      if (!RAD || feld.parentNode.classList.contains("zeitrad-huelle")) return;
-      var huelle = document.createElement("span");
-      huelle.className = "zeitrad-huelle";
-      feld.parentNode.insertBefore(huelle, feld);
-      huelle.appendChild(feld);
-      // „HH:MM" passt neben dem Zeichen nicht mehr ins Feld; „--:--"
-      // ist ohnehin das, was iOS in einem leeren Uhrzeitfeld zeigt.
-      feld.placeholder = "--:--";
-
-      var zeichen = document.createElement("span");
-      zeichen.className = "zeitrad-zeichen";
-      zeichen.innerHTML = UHR;
-      var rad = document.createElement("select");
-      rad.className = "zeitrad";
-      rad.tabIndex = -1;
-      rad.setAttribute("aria-label", "Uhrzeit in Viertelstunden wählen");
-      for (var m = 0; m < 1440; m += 15) {
-        var o = document.createElement("option");
-        o.value = o.textContent = uhrzeit(m);
-        rad.appendChild(o);
-      }
-      huelle.appendChild(zeichen);
-      huelle.appendChild(rad);
-
-      // Das Rad öffnet dort, wo das Feld steht - gerundet auf die
-      // nächste Viertelstunde. Ist das Feld leer, schlägt es beim Ende
-      // eine Stunde nach dem Beginn vor, sonst die laufende Viertelstunde.
-      function vorwaehlen() {
-        var wert = minuten(feld.value);
-        if (wert === null) {
-          var felder = zeile.querySelectorAll(".zeitfeld"),
-              beginn = minuten(felder[0].value);
-          if (feld === felder[1] && beginn !== null) {
-            wert = beginn + 60;
-          } else {
-            var jetzt = new Date();
-            wert = Math.floor((jetzt.getHours() * 60 + jetzt.getMinutes()) / 15) * 15;
-          }
-        }
-        rad.value = uhrzeit((Math.round(wert / 15) * 15) % 1440);
-      }
-      function einsetzen() {
-        if (!rad.value || rad.value === feld.value) return;
-        feld.value = rad.value;
-        rechnen(zeile);
-      }
-      rad.addEventListener("touchstart", vorwaehlen, { passive: true });
-      rad.addEventListener("mousedown", vorwaehlen);
-      rad.addEventListener("focus", vorwaehlen);
-      rad.addEventListener("change", einsetzen);
-      // ⚠️ Wer das Rad öffnet und ohne zu drehen „Fertig" tippt, löst
-      // kein `change` aus - bei einem leeren Feld nimmt das Schließen
-      // deshalb den angezeigten Vorschlag. Ein schon gefülltes Feld
-      // bleibt dann, wie es war.
-      rad.addEventListener("blur", function () { if (!feld.value) einsetzen(); });
-    }
+    // ⚠️ Ein Viertelstunden-Rad (durchsichtiges <select> über einem
+    // Uhrzeichen) stand hier in 1.46 und ist mit 1.47 auf Timos Wunsch
+    // wieder entfallen („irgendwie doof"). Uhrzeiten werden getippt.
+    // Nicht wieder einbauen.
 
     function verkabeln(zeile) {
       var datum = zeile.querySelector(".datumfeld");
@@ -1137,7 +1064,6 @@
           zeitFuellen(feld);
           rechnen(zeile);
         });
-        zeitrad(feld, zeile);
       });
       var weg = zeile.querySelector(".zeile-weg");
       if (weg) {

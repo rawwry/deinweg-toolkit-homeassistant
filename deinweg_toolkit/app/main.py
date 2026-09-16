@@ -47,7 +47,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.46"
+VERSION = "1.47"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1322,6 +1322,36 @@ def eintrag_formular(request: Request, eintrag_id: int,
                  else "eintraege"})
 
 
+def zeit_lesen(text: str):
+    """Eine getippte Uhrzeit aus der Bearbeiten-Maske.
+
+    ⚠️ Seit 1.47 ist das Feld ein Tippfeld statt <input type="time">.
+    Das Skript ergaenzt "930" zu "09:30" - ohne Skript kommt aber die rohe
+    Eingabe an, und parse_zeit() allein verlangt einen Doppelpunkt: "930"
+    waere still zu "keine Zeit" geworden. Dieselbe Regel wie
+    zeitFuellen() im Browser. Gibt (wert, ok) zurueck: leer ist ok,
+    Unlesbares nicht.
+    """
+    text = (text or "").strip()
+    if not text:
+        return None, True
+    wert = parse_zeit(text)
+    if wert:
+        return wert, True
+    ziffern = text.replace(":", "")
+    if not ziffern.isdigit() or len(ziffern) > 4:
+        return None, False
+    if len(ziffern) <= 2:
+        std, mnt = int(ziffern), 0
+    elif len(ziffern) == 3:
+        std, mnt = int(ziffern[0]), int(ziffern[1:])
+    else:
+        std, mnt = int(ziffern[:2]), int(ziffern[2:])
+    if std > 23 or mnt > 59:
+        return None, False
+    return f"{std:02d}:{mnt:02d}", True
+
+
 @app.post("/eintraege/{eintrag_id}/bearbeiten")
 @app.post("/meinbereich/eintrag/{eintrag_id}/bearbeiten")
 def eintrag_speichern(request: Request, eintrag_id: int,
@@ -1341,8 +1371,14 @@ def eintrag_speichern(request: Request, eintrag_id: int,
     except ValueError:
         return zurueck_mit_fehler("Das Datum ist nicht gültig.")
 
-    beginn = parse_zeit(start) if start.strip() else None
-    schluss = parse_zeit(ende) if ende.strip() else None
+    beginn, ok_beginn = zeit_lesen(start)
+    schluss, ok_ende = zeit_lesen(ende)
+    # ⚠️ Eine unlesbare Uhrzeit wird abgewiesen, nicht still verworfen -
+    # sonst verschwaende ein Tippfehler beim Speichern spurlos.
+    if not (ok_beginn and ok_ende):
+        return zurueck_mit_fehler(
+            "Eine Uhrzeit ist nicht lesbar. Bitte als Stunden:Minuten "
+            "eintragen, zum Beispiel 09:30.")
 
     minuten = parse_dauer(dauer) if dauer.strip() else None
     if minuten is None:

@@ -1139,12 +1139,6 @@ input[type=date], input[type=time] { min-width: 0; }
 .bearbeitenform { container-type: inline-size; container-name: bearbeiten; }
 .feldreihe.bearbeitenzeiten { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
 .bearbeitenzeiten .b-datum { grid-column: 1 / -1; }
-/* ⚠️ Chrome (auch auf Android) stellt ein Uhrensymbol ins Feld - in einer
-   Spalte von knapp 100px blieb daneben für „08:30" kein Platz mehr, die
-   Zeit wurde abgeschnitten. Die Auswahl öffnet sich am Telefon ohnehin
-   beim Antippen des Feldes; am Schreibtisch tippt man die Uhrzeit. */
-.bearbeitenzeiten input[type=time] { padding-left: 10px; padding-right: 10px; }
-.bearbeitenzeiten input[type=time]::-webkit-calendar-picker-indicator { display: none; }
 @container bearbeiten (min-width: 520px) {
   .feldreihe.bearbeitenzeiten { grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 16px; }
   .bearbeitenzeiten .b-datum { grid-column: auto; }
@@ -1434,14 +1428,16 @@ input[type="date"] { text-transform: uppercase; }
    Verlauf - und nicht wie eine weitere Tabelle neben "Bestand" und
    "Abgaben". Dieselbe Formensprache wie der Verlauf einer Aufgabe
    (.verlaufsleiste): Punkt je Schritt, eine Linie verbindet sie.
-   ⚠️ Das Raster der Zeile (eine Container-Abfrage auf .tagesprotokoll):
-   * oben Punkt, Zeitspanne mit Dauer, und die Knoepfe;
-   * darunter "Person · Leistung" - SCHMAL ueber die volle Breite, also
-     auch unter den Knoepfen hindurch, BREIT neben den Knoepfen, die
-     dann ueber beide Zeilen mittig stehen.
-   Am Telefon war das der Unterschied zwischen "Clara Wollens… ·
-   Telefo…" und dem ganzen Namen: die Knoepfe nehmen rund 80px, und die
-   braucht die zweite Zeile dringender als die erste.
+   ⚠️ Das Raster der Zeile: links der Punkt, in der Mitte oben die
+   Zeitspanne mit Dauer und darunter "Person · Leistung", rechts die
+   Knoepfe UEBER BEIDE Zeilen. Kein Text laeuft unter die Knoepfe.
+   ⚠️⚠️ Zwei Anlaeufe davor: 1.46 liess die Unterzeile am Telefon unter
+   den Knoepfen hindurchlaufen, damit der Name Platz hat - Timos
+   Meldung: "die Leistung ragt in die Spalte mit den Icons". Stehen die
+   Knoepfe aber NEBENEINANDER neben beiden Zeilen, nehmen sie rund 80px,
+   und von "Clara Wollenschlaeger · Telefonat" bleibt nur Rest. Deshalb
+   stehen sie SCHMAL (Container unter 440px) UEBEREINANDER - rund 40px -
+   und erst breit nebeneinander.
    ⚠️ Die erste Zeile ist FEST 30px hoch (so hoch wie ein Knopf). Nur so
    liegt der Punkt in beiden Ordnungen gleich tief, und die Linie
    zwischen den Punkten braucht eine einzige Zahl. .tp-inhalt steht auf
@@ -1462,15 +1458,9 @@ input[type="date"] { text-transform: uppercase; }
   display: grid; grid-template-columns: 18px minmax(0, 1fr) auto;
   grid-template-rows: 30px auto;
   grid-template-areas: "punkt kopf  aktionen"
-                       ".     unter unter";
+                       ".     unter aktionen";
   column-gap: 12px; align-items: center;
   padding: 9px 0;
-}
-@container protokoll (min-width: 440px) {
-  .tp-zeile {
-    grid-template-areas: "punkt kopf  aktionen"
-                         ".     unter aktionen";
-  }
 }
 
 .tp-punkt {
@@ -1523,7 +1513,7 @@ input[type="date"] { text-transform: uppercase; }
 .tp-person, .tp-text {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.tp-person { flex: 0 1 auto; max-width: 58%; color: var(--tinte); }
+.tp-person { flex: 0 1 auto; max-width: 62%; color: var(--tinte); }
 .tp-person:only-child { max-width: none; }
 .tp-text { flex: 1 1 0; min-width: 0; color: var(--leise); }
 .tp-text::before { content: "·"; margin: 0 7px; }
@@ -1536,20 +1526,30 @@ input[type="date"] { text-transform: uppercase; }
    erst beim Ueberfahren - sonst zoege es auf zehn Zeilen mehr
    Aufmerksamkeit als die Zeiten. */
 .tp-aktionen {
-  grid-area: aktionen; display: flex; align-items: center; gap: 2px;
-  padding-left: 10px; border-left: 1px solid var(--linie);
+  grid-area: aktionen; align-self: stretch;
+  display: flex; flex-direction: column; justify-content: center;
+  align-items: center; gap: 2px;
+  padding-left: 8px; border-left: 1px solid var(--linie);
 }
 .tp-aktionen .knopf-icon {
-  width: 30px; height: 30px; border-radius: 8px;
+  width: 28px; height: 26px; border-radius: 7px;
   border-color: transparent; background: transparent; color: var(--leise);
 }
 .tp-aktionen .knopf-icon svg { width: 16px; height: 16px; }
+/* ⚠️ `.knopf-icon + form.inline` rueckt sonst 6px nach rechts ein - in
+   der gestapelten Fassung stuende der Muelleimer schief unter dem Stift. */
+.tp-aktionen .knopf-icon + form.inline { margin-left: 0; display: flex; }
 .tp-aktionen .knopf-icon:hover,
 .tp-aktionen .knopf-icon:focus-visible {
   background: var(--flaeche-2); border-color: var(--linie); color: var(--akzent);
 }
 .tp-aktionen .knopf-icon.warn:hover,
 .tp-aktionen .knopf-icon.warn:focus-visible { color: var(--dopp); }
+/* Breit ist Platz genug: dann nebeneinander und etwas groesser. */
+@container protokoll (min-width: 440px) {
+  .tp-aktionen { flex-direction: row; padding-left: 10px; }
+  .tp-aktionen .knopf-icon { width: 30px; height: 30px; border-radius: 8px; }
+}
 @media (prefers-reduced-motion: no-preference) {
   .tp-aktionen .knopf-icon { transition: color .12s ease, background-color .12s ease; }
 }
@@ -1781,29 +1781,6 @@ input[type="date"] { text-transform: uppercase; }
 .erfasszeile-weg .zeile-weg { opacity: 0; pointer-events: none; }
 .erfassliste.mehrere .zeile-weg { opacity: 1; pointer-events: auto; }
 
-/* --- Das Viertelstunden-Rad (seit 1.46) --------------------------------
-   Rechts im Zeitfeld ein Uhrzeichen; darüber liegt unsichtbar ein
-   <select> mit allen Viertelstunden, das iOS als Rad öffnet. Das Skript
-   baut es nur auf Geräten mit Finger. ⚠️ Das <select> ist durchsichtig,
-   nicht versteckt: ein verstecktes lässt sich nicht antippen.
-   ⚠️ Das Feld ist hier 81px breit (iPhone mit 375px, 79px innen).
-   „08:00" misst in 16px halbfett 46,5px - mit 7px links und 24px
-   rechts bleiben 48px. Gemessen: bei 9/28 wurde die letzte Ziffer
-   abgeschnitten. Wer Polsterung oder Zeichen vergrößert, misst neu. */
-.zeitrad-huelle { position: relative; display: block; }
-.zeitrad-huelle > .zeitfeld { padding-left: 7px; padding-right: 24px; }
-.zeitrad-zeichen {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 26px;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--akzent); pointer-events: none;
-}
-.zeitrad-zeichen svg { width: 16px; height: 16px; }
-select.zeitrad {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 32px;
-  min-height: 0; margin: 0; padding: 0; border: 0;
-  opacity: 0; font-size: 16px; cursor: pointer;
-}
-
 /* --- Passt die Karte, wird daraus wieder eine Tabellenzeile ---------- */
 /* ⚠️ 750px braucht das Raster aus neun Spalten samt Abständen; 760 lässt
    Luft für Rundungen und breitere Schriften auf anderen Rechnern. Die
@@ -1830,10 +1807,6 @@ select.zeitrad {
   .erfasszeile > .feld,
   .erfasszeile > .f-zeit,
   .erfasszeile > .f-dauer { grid-column: auto; }
-  /* Im Raster ist die Zeitspalte 76px breit - für das Rad ist dort kein
-     Platz, und am Schreibtisch tippt man die Uhrzeit ohnehin. */
-  .zeitrad-zeichen, select.zeitrad { display: none; }
-  .zeitrad-huelle > .zeitfeld { padding-left: 11px; padding-right: 11px; }
   /* ⚠️ Die Beschriftungen bleiben im Markup und werden nur unsichtbar -
      der Spaltenkopf ist eine reine Anzeige (aria-hidden),
      Vorleseprogramme brauchen die Beschriftung am Feld. */
@@ -2158,6 +2131,17 @@ textarea:focus { border-color: var(--akzent); }
 }
 .einstellungsinhalt { display: flex; flex-direction: column; gap: var(--abstand);
                       min-width: 0; }
+/* ⚠️ Sprungmarke `#punkt` (seit 1.47): am Telefon landet ein Tipp im Menü
+   direkt beim gewählten Punkt. Dort klebt die Kopfzeile nicht, also nur
+   wenig Luft darüber. Am Schreibtisch stehen Menü und Inhalt
+   nebeneinander - ein Rand, der größer ist als jede mögliche Scrollhöhe,
+   lässt den Browser dort gar nicht erst springen. */
+@media (max-width: 860px) {
+  #punkt { scroll-margin-top: 12px; }
+}
+@media (min-width: 900px) {
+  #punkt { scroll-margin-top: 100vh; }
+}
 
 .seitenmenue {
   display: flex; flex-direction: column; gap: 2px;
