@@ -47,7 +47,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.45"
+VERSION = "1.46"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -741,6 +741,11 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
             # man die Endzeit des Vortermins nicht mehr weiss. Zeilen
             # ohne Zeit haengen hinten an; stuenden sie vorn, faenge der
             # Tag mit einer Luecke an.
+            # ⚠️⚠️ ABSTEIGEND seit 1.46 (Timos Wunsch: "der letzte Eintrag
+            # oben"). Der spaeteste Termin des Tages steht damit direkt
+            # unter dem Formular - genau der, an dessen Endzeit der naechste
+            # ansetzt. Die Zeilen ohne Zeit bleiben trotzdem UNTEN: sie
+            # sind kein spaeter Termin, sondern einer ohne Uhrzeit.
             #
             # ⚠️ KEIN Filter auf import_id mehr: eine importierte Zeit
             # ist genauso erfasst wie eine getippte. Sie auszublenden
@@ -748,7 +753,7 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
             # jemand dieselbe Zeit ein zweites Mal ein.
             tagesliste = con.execute(
                 "SELECT * FROM eintrag WHERE mitarbeiter=? AND datum=? "
-                "ORDER BY (start IS NULL OR start=''), start, id",
+                "ORDER BY (start IS NULL OR start=''), start DESC, id DESC",
                 (mitarbeiter, tag.isoformat())).fetchall()
             tagessumme = con.execute(
                 "SELECT COALESCE(SUM(dauer_min),0) m, COUNT(*) n FROM eintrag "

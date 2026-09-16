@@ -2418,4 +2418,25 @@ CHANGELOG = [
         "Modul (marke.py), main.py ist wieder unter 1.800 Zeilen",
         "Prüfung von 2093 auf 2119 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.46", "titel": "Der Tag als Zeitleiste", "punkte": [
+        "„Bereits von dir erfasst“ ist jetzt eine Zeitleiste: ein Punkt je "
+        "Termin, verbunden durch eine Linie, oben die Uhrzeit in Pink und "
+        "die Dauer leise daneben, darunter Person und Leistung",
+        "Der jüngste Termin steht oben und ist hervorgehoben – an seiner "
+        "Endzeit setzt der nächste an. Zeiten ohne Uhrzeit bleiben unten",
+        "Bearbeiten und Löschen stehen jetzt immer da, als leise Symbole "
+        "und durch eine Linie von der Zeile abgesetzt – nicht mehr erst "
+        "beim Überfahren",
+        "Am Telefon läuft „Person · Leistung“ unter den Knöpfen hindurch; "
+        "der Name wird dadurch nicht mehr abgeschnitten",
+        "Neu am Telefon: ein Uhr-Symbol in den Feldern „Von“ und „Bis“ "
+        "öffnet ein Rad mit allen Viertelstunden. Tippen geht weiterhin",
+        "„Erfasst für“ sitzt jetzt genau mittig neben dem Namen – vorher "
+        "stand der kleine Titel ein Stück zu tief",
+        "„Eintrag bearbeiten“ am Telefon aufgeräumt: das Datum steht "
+        "allein, darunter Beginn, Ende und Dauer nebeneinander. Die "
+        "Datums- und Uhrzeitfelder von iOS laufen nicht mehr über ihren "
+        "Rand hinaus und sind gleich hoch wie die übrigen",
+        "Prüfung von 2119 auf 2139 Einzelprüfungen erweitert",
+    ]},
 ]

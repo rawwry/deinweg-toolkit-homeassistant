@@ -10,11 +10,18 @@
 
   {# Dieselbe Seite ist über zwei Wege erreichbar (Übersicht und Mein
      Bereich). Sie schickt dorthin zurück, wo sie geöffnet wurde. #}
-  <form action="{{ request.url.path }}" method="post">
+  <form class="bearbeitenform" action="{{ request.url.path }}" method="post">
     <input type="hidden" name="zurueck" value="{{ zurueck }}">
 
-    <div class="feldreihe">
-      <label class="feld">
+    {# ⚠️ Feste Aufteilung statt `auto-fit` (seit 1.46): am iPhone ergab
+       auto-fit zwei Spalten zu je 147px, und Safari gibt einem Datums- oder
+       Uhrzeitfeld eine eigene Mindestbreite - die Felder liefen über ihre
+       Zelle in die Nachbarspalte und über den Kartenrand. Jetzt steht das
+       Datum allein, darunter Beginn, Ende und Dauer nebeneinander; ab
+       genug Kartenbreite alle vier in einer Reihe (Container-Abfrage auf
+       dem Formular, siehe `.bearbeitenform`). #}
+    <div class="feldreihe bearbeitenzeiten">
+      <label class="feld b-datum">
         <span>Datum</span>
         <input type="date" name="datum" value="{{ z.datum }}" required>
       </label>

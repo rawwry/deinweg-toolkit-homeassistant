@@ -3,6 +3,16 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.46
+
+- Tagesprotokoll als Zeitleiste, jüngster Termin oben; Bearbeiten und
+  Löschen stehen immer sichtbar und abgesetzt da
+- Uhrzeit-Rad in Viertelstunden für „Von“ und „Bis“ auf Touch-Geräten
+- „Erfasst für“ exakt mittig ausgerichtet
+- „Eintrag bearbeiten“ am Telefon: feste Aufteilung, iOS-Datums- und
+  Uhrzeitfelder laufen nicht mehr über
+- Prüfung von 2119 auf 2139 Einzelprüfungen erweitert
+
 ## 1.45
 
 - Das eigene App-Symbol gilt auch auf dem Android-Homescreen: das

@@ -6204,13 +6204,21 @@ def test_tagesprotokoll(client: TestClient) -> None:
     pruefe("Zeile aus der Liste" in block,
            "eine importierte Zeit steht ebenfalls darin")
 
-    # --- Sortiert nach Uhrzeit, nicht nach Eingabereihenfolge -------------
+    # --- Sortiert nach Uhrzeit, der späteste Termin OBEN (seit 1.46) -------
+    # ⚠️ Timos Wunsch: „der letzte Eintrag oben". Die Zeile ohne Uhrzeit
+    # bleibt trotzdem unten - sie ist kein später Termin, sondern einer
+    # ohne Zeit.
     reihe = [t for t in ("Fruehbesuch", "Mittagsbesuch", "Spaetbesuch",
                          "Zeile aus der Liste") if t in block]
-    pruefe(sorted(reihe, key=block.index) == ["Fruehbesuch", "Mittagsbesuch",
-                                              "Spaetbesuch",
+    pruefe(sorted(reihe, key=block.index) == ["Spaetbesuch", "Mittagsbesuch",
+                                              "Fruehbesuch",
                                               "Zeile aus der Liste"],
-           "sortiert nach Anfangszeit – die Zeile ohne Uhrzeit hängt hinten an")
+           "absteigend nach Anfangszeit – die Zeile ohne Uhrzeit hängt hinten an")
+    pruefe(block.count("tp-zeile neuester") == 1
+           and block.index("tp-zeile neuester") < block.index("Spaetbesuch"),
+           "genau der oberste Termin ist als jüngster markiert")
+    pruefe("tp-zeile ohne-zeit" in block,
+           "die Zeile ohne Uhrzeit trägt ihre eigene Klasse")
     pruefe("ohne Zeit" in block,
            "und sagt bei ihr ausdrücklich „ohne Zeit“ statt einer Lücke")
 
@@ -6219,8 +6227,13 @@ def test_tagesprotokoll(client: TestClient) -> None:
     # aber das Pink – bau das einfach bei den Uhrzeiten rein." Wie lang
     # der Termin war, steht ohnehin in der Spanne; die gewonnene Breite
     # bekommt die Leistung.
-    pruefe("tp-dauer" not in block and "tp-dauer" not in stil,
-           "die eigene Spalte „Dauer“ gibt es nicht mehr")
+    # ⚠️ Seit 1.46 steht die Dauer wieder da - leise neben der Spanne und
+    # ausdrücklich NICHT in Pink (Timos Wahl der Zeitleiste). Und mit
+    # „Std", sonst läse sie sich als dritte Uhrzeit.
+    pruefe("01:00 Std" in block, "die Dauer steht leise mit Einheit daneben")
+    dauerregel = stil.split(".tp-dauer {")[1].split("}")[0]
+    pruefe("var(--leise)" in dauerregel and "akzent" not in dauerregel,
+           "und trägt nicht die Akzentfarbe")
     zeitregel = stil.split(".tp-zeit {")[1].split("}")[0]
     pruefe("var(--akzent)" in zeitregel,
            "dafür trägt die Zeitspanne die Akzentfarbe")
@@ -6258,38 +6271,43 @@ def test_tagesprotokoll(client: TestClient) -> None:
     pruefe("Zuletzt von Hand erfasst" not in ohne_dialog,
            "die Tabelle „Zuletzt von Hand erfasst“ ist ersetzt")
 
-    # --- Stylesheet ---------------------------------------------------------
+    # --- Stylesheet: die Zeitleiste (seit 1.46) ----------------------------
+    pruefe(block.count('class="tp-punkt"') == 4,
+           "jede Zeile trägt ihren Punkt auf der Zeitleiste")
+    pruefe(".tp-zeile:not(:last-child)::before" in stil,
+           "eine Linie verbindet die Punkte, nach dem letzten endet sie")
+    linie = stil.split(".tp-zeile:not(:last-child)::before {")[1].split("}")[0]
+    pruefe("top: 24px" in linie and "bottom: -24px" in linie,
+           "die Linie läuft von Punktmitte zu Punktmitte (beide 24px)")
+    zeile = stil.split(".tp-zeile {")[1].split("}")[0]
+    # ⚠️ Nur mit einer FESTEN ersten Zeile liegt der Punkt in beiden
+    # Ordnungen gleich tief - daran hängen die 24px oben.
+    pruefe("grid-template-rows: 30px auto" in zeile and "padding: 9px 0" in zeile,
+           "erste Zeile fest 30px, Polsterung 9px – das ergibt die 24px")
     pruefe("container-name: protokoll" in stil,
            "die Hülle spannt die Container-Abfrage auf")
-    pruefe("@container protokoll (min-width: 560px)" in stil,
-           "die Zeile kommt über eine Container-Abfrage dazu")
-    vor = stil.split("@container protokoll")[0]
-    drin = stil.split("@container protokoll")[1]
-    # ⚠️ Gestapelt ist der Ausgangszustand - ein Browser ohne
-    # Container-Abfragen bleibt damit bei den Blöcken statt bei nichts.
-    pruefe('"zeit person aktionen"' in vor and '"text text   text"' in vor,
-           "gestapelt ist der Ausgangszustand")
-    # ⚠️ Timos Wunsch: der Name steht gestapelt NEBEN der Zeitspanne und
-    # nicht in einer eigenen Zeile - das spart je Eintrag eine Zeile.
-    pruefe('"person person person"' not in vor,
-           "die betreute Person steht dabei neben der Zeit, nicht darunter")
-    pruefe('"zeit person text aktionen"' in drin
-           and '"zeit person text aktionen"' not in vor,
-           "die einzeilige Fassung steht ausschließlich in der Abfrage")
-    # ⚠️⚠️ Gekürzt wird in JEDER Breite, auch am Telefon (Timos Wunsch):
-    # das Protokoll dient der Orientierung während einer laufenden
-    # Erfassung, eine lange Leistungsbeschreibung darf die Zeile nicht
-    # auf drei aufziehen. Die Regel steht deshalb AUSSERHALB der Abfrage.
-    pruefe("text-overflow: ellipsis" in vor.split(".tp-person, .tp-text {")[1]
-           .split("}")[0],
-           "gekürzt wird in jeder Breite, nicht erst in der Zeilenansicht")
-    # ⚠️ Dieselbe Regel wie auf den Aufgabenkarten - aber per Tastatur und
-    # ohne Zeiger müssen die Knöpfe erreichbar bleiben.
-    pruefe(".tp-zeile:hover .tp-aktionen" in stil
-           and ".tp-zeile:focus-within .tp-aktionen" in stil,
-           "die Knöpfe erscheinen beim Überfahren und beim Antabben")
-    pruefe("@media (hover: none) { .tp-aktionen { opacity: 1; } }" in stil,
-           "und stehen ohne Zeiger fest da")
+    # Alles, was in einer der Abfragen steht, und alles außerhalb.
+    teile = stil.split("@container protokoll")
+    drin = "".join(t.split("\n}")[0] for t in teile[1:])
+    # ⚠️ Schmal läuft „Person · Leistung" UNTER den Knöpfen durch - am
+    # Telefon brauchte die zweite Zeile die 80px dringender als die erste.
+    pruefe('".     unter unter"' in zeile,
+           "schmal ist der Ausgangszustand, die Unterzeile über die volle Breite")
+    pruefe('".     unter aktionen"' in drin,
+           "breit stehen die Knöpfe über beiden Zeilen")
+    # ⚠️⚠️ Gekürzt wird in JEDER Breite (Timos Wunsch seit 1.44) - die
+    # Regel steht deshalb AUSSERHALB der Abfrage.
+    pruefe("text-overflow: ellipsis" in stil.split(".tp-person, .tp-text {")[1]
+           .split("}")[0] and ".tp-person, .tp-text {" not in drin,
+           "gekürzt wird in jeder Breite, nicht erst in der breiten Ansicht")
+    # ⚠️⚠️ Die Knöpfe stehen IMMER da (seit 1.46). Bis 1.45 erschienen sie
+    # erst beim Überfahren - Timos „sieht unfertig aus".
+    pruefe(".tp-zeile:hover .tp-aktionen" not in stil
+           and "opacity: 0" not in stil.split(".tp-aktionen {")[1].split("}")[0],
+           "die Knöpfe stehen immer da, nicht erst beim Überfahren")
+    pruefe("border-left: 1px solid var(--linie)"
+           in stil.split(".tp-aktionen {")[1].split("}")[0],
+           "und sind durch eine Linie von der Zeile abgesetzt")
 
 
 def test_branding(client: TestClient) -> None:
@@ -6548,6 +6566,71 @@ def test_manifest(client: TestClient) -> None:
     # Aufräumen: die nächsten Prüfungen sollen die ausgelieferten sehen.
     client.post("/einstellungen/symbol", follow_redirects=False,
                 data={"zuruecksetzen": "1"})
+
+
+def test_umbau_1_46(client: TestClient) -> None:
+    """Band, Bearbeiten-Maske und Viertelstunden-Rad (seit 1.46)."""
+    abschnitt("Zeiterfassung: Band, Bearbeiten, Uhrzeit-Rad")
+    stil = client.get("/static/style.css").text
+
+    # --- „Erfasst für" sitzt mittig ----------------------------------------
+    # ⚠️ Timos Meldung: der kleine Versaltitel saß ein paar Pixel zu tief.
+    # Ursache war die gemeinsame Grundlinie mit dem größeren Namen.
+    zeile = stil.split(".erfasser-zeile {")[1].split("}")[0]
+    pruefe("align-items: center" in zeile and "baseline" not in zeile,
+           "das Band richtet mittig aus, nicht auf der Grundlinie")
+    pruefe("text-box: trim-both cap alphabetic" in stil,
+           "und schneidet Titel und Name auf die Versalhöhe zu")
+    pruefe("padding: 9px 14px;" in stil.split(".erfasser {")[1].split("}")[0],
+           "die Polsterung des Bandes ist oben und unten gleich")
+
+    # --- Eintrag bearbeiten ------------------------------------------------
+    with db.db() as con:
+        eid = con.execute("SELECT id FROM eintrag WHERE mitarbeiter='pruefer' "
+                          "ORDER BY id LIMIT 1").fetchone()["id"]
+    seite = client.get(f"/eintraege/{eid}/bearbeiten").text
+    pruefe('class="bearbeitenform"' in seite
+           and 'class="feldreihe bearbeitenzeiten"' in seite
+           and 'class="feld b-datum"' in seite,
+           "die Bearbeiten-Maske trägt ihre feste Aufteilung")
+    reihe = stil.split(".feldreihe.bearbeitenzeiten {")[1].split("}")[0]
+    # ⚠️ Mit `auto-fit` ergab das am iPhone zwei Spalten zu je 147px, und
+    # Safaris Datumsfeld sprengte sie.
+    pruefe("repeat(3, minmax(0, 1fr))" in reihe and "auto-fit" not in reihe,
+           "gestapelt drei feste Spalten statt auto-fit")
+    pruefe("@container bearbeiten (min-width: 520px)" in stil
+           and "container-name: bearbeiten" in stil,
+           "die vierspaltige Reihe kommt über eine Container-Abfrage dazu")
+    pruefe("input[type=date], input[type=time] { min-width: 0; }" in stil,
+           "Datums- und Uhrzeitfelder dürfen unter ihre Eigenbreite schrumpfen")
+    pruefe("@supports (-webkit-touch-callout: none)" in stil
+           and "::-webkit-date-and-time-value" in stil,
+           "die iOS-Eigenheiten (Mitte, leere Höhe) sind nur für iOS abgefangen")
+    pruefe(".feldreihe > .feld { min-width: 0; }" in stil,
+           "eine Rasterzelle schrumpft unter den Inhalt ihres Feldes")
+
+    # --- Das Viertelstunden-Rad ---------------------------------------------
+    start = client.get("/").text
+    pruefe("function zeitrad(" in start and "m += 15" in start,
+           "das Rad bietet Viertelstunden an")
+    pruefe('matchMedia("(hover: none) and (pointer: coarse)")' in start,
+           "und entsteht nur auf Geräten mit Finger")
+    # ⚠️ Es ist ein Zusatz: kein Name, kein Formular - es wird nie
+    # abgeschickt, das Textfeld bleibt die Wahrheit.
+    teil = start.split("function zeitrad(")[1].split("function verkabeln(")[0]
+    pruefe(".name" not in teil and "setAttribute(\"form\"" not in teil
+           and 'setAttribute("form"' not in teil,
+           "das Rad trägt keinen Namen und hängt an keinem Formular")
+    pruefe('name="start"' in start and 'class="zeitfeld"' in start,
+           "das tippbare Zeitfeld bleibt unverändert")
+    radregel = stil.split("select.zeitrad {")[1].split("}")[0]
+    # ⚠️ Durchsichtig, nicht versteckt - ein verstecktes <select> lässt
+    # sich nicht antippen.
+    pruefe("opacity: 0" in radregel and "display: none" not in radregel,
+           "das <select> liegt durchsichtig über dem Zeichen")
+    erfassung = stil.split("@container erfassung (min-width: 760px)")[1]
+    pruefe(".zeitrad-zeichen, select.zeitrad { display: none; }" in erfassung,
+           "im Tabellenraster ist für das Rad kein Platz und es entfällt")
 
 
 def test_texte_tot() -> None:
@@ -9133,6 +9216,7 @@ def _durchlauf(client: TestClient) -> None:
         test_tagesprotokoll(client)
         test_branding(client)
         test_manifest(client)
+        test_umbau_1_46(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

@@ -1107,6 +1107,53 @@ input[type=date], input[type=time] {
   background: var(--flaeche-2); color: inherit;
   min-height: 43px;
 }
+/* ⚠️⚠️ iOS-Safari malt Datum und Uhrzeit mit eigenem Aussehen (seit 1.46
+   abgefangen, Timos Meldung „Felder überlappen, gehen über den Rand,
+   verschiedene Größen" in „Eintrag bearbeiten"). Drei Eigenheiten:
+   * das Feld bringt eine eigene MINDESTBREITE mit und sprengt damit
+     jede Raster- oder Flexzelle, die schmaler ist - `min-width: 0`;
+   * der Wert steht MITTIG statt links wie in jedem Textfeld daneben;
+   * ein LEERES Feld fällt auf die Höhe seines Rahmens zusammen, weil
+     die innere Wertzeile ohne Inhalt keine Höhe hat.
+   Nur für iOS (`-webkit-touch-callout` kennt nur dieses WebKit): am
+   Schreibtisch nähme `appearance: none` in manchen Browsern den
+   Kalenderknopf mit. */
+input[type=date], input[type=time] { min-width: 0; }
+@supports (-webkit-touch-callout: none) {
+  input[type=date], input[type=time] {
+    -webkit-appearance: none; appearance: none; display: block;
+  }
+  input[type=date]::-webkit-date-and-time-value,
+  input[type=time]::-webkit-date-and-time-value {
+    text-align: left; min-height: 1.55em; margin: 0;
+  }
+}
+/* Eine Rasterzelle schrumpft sonst nicht unter den Inhalt ihres Feldes. */
+.feldreihe > .feld { min-width: 0; }
+
+/* --- Eintrag bearbeiten: Datum und Zeiten (seit 1.46) ----------------
+   Gestapelt ist der Ausgangszustand - Datum über die volle Breite,
+   darunter Beginn, Ende und Dauer; die Reihe kommt über die
+   Container-Abfrage dazu. ⚠️ Der Container ist das FORMULAR, umgelegt
+   wird die Feldreihe darin (dieselbe Lehre wie in 1.39). */
+.bearbeitenform { container-type: inline-size; container-name: bearbeiten; }
+.feldreihe.bearbeitenzeiten { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
+.bearbeitenzeiten .b-datum { grid-column: 1 / -1; }
+/* ⚠️ Chrome (auch auf Android) stellt ein Uhrensymbol ins Feld - in einer
+   Spalte von knapp 100px blieb daneben für „08:30" kein Platz mehr, die
+   Zeit wurde abgeschnitten. Die Auswahl öffnet sich am Telefon ohnehin
+   beim Antippen des Feldes; am Schreibtisch tippt man die Uhrzeit. */
+.bearbeitenzeiten input[type=time] { padding-left: 10px; padding-right: 10px; }
+.bearbeitenzeiten input[type=time]::-webkit-calendar-picker-indicator { display: none; }
+@container bearbeiten (min-width: 520px) {
+  .feldreihe.bearbeitenzeiten { grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .bearbeitenzeiten .b-datum { grid-column: auto; }
+}
+/* Die beiden Namensfelder stehen am Telefon untereinander; `auto-fit`
+   mit 240px Mindestbreite passt dort ohnehin nur eine hinein - ohne die
+   `min()` erzwang es aber 240px auch in einer schmaleren Karte. */
+.bearbeitenform .feldreihe.zwei { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+
 [data-thema="dunkel"] input[type=date]::-webkit-calendar-picker-indicator,
 [data-thema="dunkel"] input[type=time]::-webkit-calendar-picker-indicator {
   filter: invert(.75);
@@ -1248,7 +1295,7 @@ input[type="date"] { text-transform: uppercase; }
    darunter das Feld, darunter der Satz. Alles beginnt an derselben
    Kante. */
 .erfasser {
-  padding: 9px 14px 8px; border-radius: 12px;
+  padding: 9px 14px; border-radius: 12px;
   background: var(--flaeche-2); border: 1px solid var(--linie);
   border-left: 3px solid var(--akzent);
 }
@@ -1297,8 +1344,22 @@ input[type="date"] { text-transform: uppercase; }
    Konto, stünde da ein anderer Name. */
 .erfasser-zeile {
   list-style: none; cursor: pointer;
-  display: flex; align-items: baseline; gap: 4px 9px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 4px 9px; flex-wrap: wrap;
 }
+/* ⚠️⚠️ Mittig auf die VERSALHÖHE, nicht auf die Grundlinie (seit 1.46,
+   Timos Meldung „Erfasst für sitzt ein paar Pixel zu tief"). Bis 1.45
+   stand die Zeile auf `align-items: baseline`: der kleine Versaltitel
+   (11,5px) und der Name (15px) teilten sich die Grundlinie - und damit
+   lag die Mitte der kleinen Versalien um die halbe Differenz der
+   Versalhöhen TIEFER als die des Namens (gemessen gut 1px, dazu 1px aus
+   der ungleichen Polsterung des Bandes). Auf dem Telefon mit anderer
+   Schrift entsprechend mehr.
+   `text-box` schneidet jeden Kasten auf Versalhöhe bis Grundlinie zu;
+   danach ist „mittig" genau die optische Mitte der Buchstaben, egal in
+   welcher Schrift. Ein Browser ohne `text-box` zentriert die Zeilenkästen
+   - auch das liegt näher als die alte Grundlinie. */
+.erfasser-zeile .erfasser-titel,
+.erfasser-zeile .erfasser-name { text-box: trim-both cap alphabetic; }
 .erfasser-zeile::-webkit-details-marker { display: none; }
 .erfasser-zeile::marker { content: ""; }
 .erfasser-name { margin: 0; font-size: 15px; font-weight: 700; }
@@ -1359,114 +1420,144 @@ input[type="date"] { text-transform: uppercase; }
   color: var(--akzent); text-decoration: underline;
 }
 
-/* --- Tagesprotokoll (seit 1.43, eigene Karte seit 1.44) ---------------
+/* --- Tagesprotokoll (seit 1.43, eigene Karte seit 1.44, Zeitleiste seit
+   1.46) --------------------------------------------------------------
    Was fuer diesen Tag schon erfasst ist - eine eigene Karte unter der
    manuellen Erfassung. Bis 1.42 stand dieselbe Auskunft als Tabelle
-   "Zuletzt von Hand erfasst" unter BEIDEN Spalten am Seitenende,
-   ungefiltert nach Tag und nach Eingabereihenfolge sortiert; in 1.43 lag
-   sie im Formular ueber den Eingabezeilen.
+   "Zuletzt von Hand erfasst" unter BEIDEN Spalten am Seitenende; in 1.43
+   lag sie im Formular ueber den Eingabezeilen.
 
-   ⚠️ Der Container ist .tagesprotokoll, umgelegt wird .tp-zeile darin.
-   Eine Container-Abfrage darf das Element, das sie aufspannt, nicht
-   selbst umlegen - das ist zirkulaer und greift schlicht nicht (die
-   Lehre aus 1.39). Die KARTE taugt dafuer nicht: sie traegt
-   `overflow-x: auto`, und die Huelle liegt ohnehin schon da. */
+   ⚠️⚠️ Seit 1.46 eine ZEITLEISTE statt einer Tabellenzeile (Timos Wahl
+   unter drei Entwuerfen; seine Meldung: "sieht unfertig aus", die Knoepfe
+   erschienen nur beim Ueberfahren und waren nicht von der Leistung
+   abgegrenzt). Das Protokoll soll aussehen wie das, was es ist - ein
+   Verlauf - und nicht wie eine weitere Tabelle neben "Bestand" und
+   "Abgaben". Dieselbe Formensprache wie der Verlauf einer Aufgabe
+   (.verlaufsleiste): Punkt je Schritt, eine Linie verbindet sie.
+   ⚠️ Das Raster der Zeile (eine Container-Abfrage auf .tagesprotokoll):
+   * oben Punkt, Zeitspanne mit Dauer, und die Knoepfe;
+   * darunter "Person · Leistung" - SCHMAL ueber die volle Breite, also
+     auch unter den Knoepfen hindurch, BREIT neben den Knoepfen, die
+     dann ueber beide Zeilen mittig stehen.
+   Am Telefon war das der Unterschied zwischen "Clara Wollens… ·
+   Telefo…" und dem ganzen Namen: die Knoepfe nehmen rund 80px, und die
+   braucht die zweite Zeile dringender als die erste.
+   ⚠️ Die erste Zeile ist FEST 30px hoch (so hoch wie ein Knopf). Nur so
+   liegt der Punkt in beiden Ordnungen gleich tief, und die Linie
+   zwischen den Punkten braucht eine einzige Zahl. .tp-inhalt steht auf
+   `display: contents`, damit Kopf und Unterzeile direkt ins Raster der
+   Zeile fallen. */
 .tagesprotokoll { container-type: inline-size; container-name: protokoll; }
 
 /* Die Ueberschrift ist ein gewoehnliches <h2> im Hausstil (versal, leise)
-   wie "BESTAND" und "ABGABEN" daneben - die Karte soll sich in die Spalte
-   einfuegen, nicht aus ihr herausstechen. Rechts daneben der Stand. */
-.protokollkarte .kopfzeile { margin-bottom: 10px; }
+   wie "BESTAND" und "ABGABEN" daneben. Rechts daneben der Stand. */
+.protokollkarte .kopfzeile { margin-bottom: 8px; }
 .tp-stand {
   font-size: 12.5px; color: var(--leise); font-variant-numeric: tabular-nums;
 }
 
-/* ⚠️ Kein eigener Rahmen um die Liste. Sie steht in einer Karte, und ein
-   Kasten im Kasten ist eine Kante zu viel - die Zeilen trennt eine
-   Haarlinie, den Zeiger fuehrt die Toenung beim Ueberfahren. */
 .tp-liste { list-style: none; margin: 0; padding: 0; }
-/* ⚠️ Gestapelt ist der AUSGANGSZUSTAND, die Zeile kommt ueber die
-   Container-Abfrage dazu - wie bei .erfasszeile und der Aufgabenliste.
-   Ein Browser ohne Container-Abfragen bleibt damit bei den Bloecken:
-   unschoen, aber vollstaendig lesbar. Nicht umdrehen.
-   ⚠️ Gestapelt steht die betreute Person NEBEN der Zeitspanne und nicht
-   in einer eigenen Zeile (Timos Wunsch) - das spart je Eintrag eine
-   Zeile, und am Telefon zaehlt jede. */
 .tp-zeile {
-  display: grid; align-items: center; gap: 1px 10px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas:
-    "zeit person aktionen"
-    "text text   text";
-  padding: 7px 10px; margin: 0 -10px; border-radius: 8px;
-  font-size: 13px; line-height: 1.45;
+  position: relative;
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto;
+  grid-template-rows: 30px auto;
+  grid-template-areas: "punkt kopf  aktionen"
+                       ".     unter unter";
+  column-gap: 12px; align-items: center;
+  padding: 9px 0;
 }
-.tp-zeile + .tp-zeile { border-top: 1px solid var(--linie); }
-@media (prefers-reduced-motion: no-preference) {
-  .tp-zeile { transition: background-color .12s ease; }
+@container protokoll (min-width: 440px) {
+  .tp-zeile {
+    grid-template-areas: "punkt kopf  aktionen"
+                         ".     unter aktionen";
+  }
 }
-.tp-zeile:hover { background: var(--flaeche-2); }
 
-/* ⚠️ Die Zeitspanne traegt die Akzentfarbe (Timos Wunsch: "die pinke
-   Stundenangabe kann raus, mir gefaellt aber das Pink - bau das einfach
-   bei den Uhrzeiten rein"). Die eigene Spalte "Dauer" ist damit
-   entfallen; wie lang der Termin war, steht in der Spanne. */
-.tp-zeit { grid-area: zeit; color: var(--akzent); font-weight: 600;
-           white-space: nowrap; }
-.tp-bis  { opacity: .55; margin: 0 3px; }
+.tp-punkt {
+  grid-area: punkt; justify-self: center; position: relative; z-index: 1;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--akzent); background: var(--flaeche);
+}
+/* Der juengste Termin steht oben (seit 1.46) und ist gefuellt - an
+   seiner Endzeit setzt der naechste an. */
+.tp-zeile.neuester .tp-punkt {
+  background: var(--akzent); box-shadow: 0 0 0 4px var(--akzent-weich);
+}
+/* Eine fehlende Uhrzeit ist kein Zeitpunkt: der Punkt bleibt grau. */
+.tp-zeile.ohne-zeit .tp-punkt { border-color: var(--linie-stark); }
+
+/* ⚠️ Die Linie laeuft von DIESEM Punkt bis zum Punkt der naechsten
+   Zeile: Polsterung 9 + halbe erste Zeile 15 = 24px unter dem Anfang,
+   bei beiden Zeilen gleich - daher top und bottom mit derselben Zahl.
+   Wer Polsterung oder Zeilenhoehe aendert, zieht beide mit. */
+.tp-zeile:not(:last-child)::before {
+  content: ""; position: absolute; left: 8px; width: 2px;
+  top: 24px; bottom: -24px; background: var(--linie-stark);
+}
+
+.tp-inhalt { display: contents; }
+.tp-kopf {
+  grid-area: kopf; min-width: 0;
+  display: flex; align-items: baseline; gap: 8px; white-space: nowrap;
+}
+/* ⚠️ Die Zeitspanne traegt die Akzentfarbe (Timos Wunsch seit 1.44). */
+.tp-zeit { color: var(--akzent); font-weight: 700; font-size: 15px; }
+.tp-bis  { opacity: .55; margin: 0 3px; font-weight: 400; }
 /* Eine fehlende Angabe ist kein Wert - sie bekommt die Akzentfarbe nicht. */
-.tp-ohnezeit { color: var(--leise); font-weight: 400; }
-.tp-person { grid-area: person; min-width: 0; color: var(--tinte); }
-.tp-text   { grid-area: text; color: var(--leise); min-width: 0; }
-/* ⚠️⚠️ Gekuerzt wird in JEDER Breite, auch am Telefon (Timos Wunsch).
-   Das Protokoll dient der Orientierung waehrend einer laufenden
-   Erfassung; eine lange Leistungsbeschreibung, die eine Zeile auf drei
-   aufzieht, macht genau das kaputt, wofuer es da ist. Lieber ein "…". */
+.tp-ohnezeit { color: var(--leise); font-weight: 500; font-size: 13px; }
+/* Die Dauer steht leise neben der Spanne, ausdruecklich NICHT in Pink:
+   die pinke Stundenspalte ist 1.44 auf Timos Wunsch entfallen. Das
+   "Std" ist Absicht - "01:30" neben "08:30–10:00" laese sich sonst als
+   dritte Uhrzeit (dieselbe Lehre wie an den Kennzahlen in 1.41). */
+.tp-dauer { font-size: 12px; color: var(--leise); overflow: hidden; text-overflow: ellipsis; }
+
+/* ⚠️⚠️ Gekuerzt wird in JEDER Breite (Timos Wunsch seit 1.44): das
+   Protokoll dient der Orientierung waehrend einer laufenden Erfassung,
+   eine lange Leistungsbeschreibung darf keine Zeile auf drei aufziehen.
+   Die Person darf hoechstens gut die Haelfte nehmen, damit von der
+   Leistung etwas uebrig bleibt. */
+.tp-unter {
+  grid-area: unter; min-width: 0; margin-top: 1px;
+  display: flex; font-size: 13px; line-height: 1.45;
+}
 .tp-person, .tp-text {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.tp-person { flex: 0 1 auto; max-width: 58%; color: var(--tinte); }
+.tp-person:only-child { max-width: none; }
+.tp-text { flex: 1 1 0; min-width: 0; color: var(--leise); }
+.tp-text::before { content: "·"; margin: 0 7px; }
 
-/* ⚠️ Dieselbe Regel wie auf den Aufgabenkarten (.vk-aktionen): erst
-   beim Ueberfahren. Sonst zieht das Rot des Muelleimers auf zehn Zeilen
-   mehr Aufmerksamkeit als die Zeiten, um die es geht. Per Tastatur und
-   auf Geraeten ohne Zeiger stehen sie immer da - dort gibt es kein
-   Ueberfahren, und unerreichbar duerfen sie nie sein.
-   ⚠️ Ausgeblendet ueber die Deckkraft, nicht ueber display: so bleibt
-   die Spalte belegt und die Zeile springt beim Ueberfahren nicht. */
+/* ⚠️⚠️ Die Knoepfe stehen IMMER da (seit 1.46). Bis 1.45 erschienen sie
+   erst beim Ueberfahren - am Schreibtisch sah die Liste dadurch aus, als
+   fehle ihr etwas, und wenn sie auftauchten, klebten sie an der
+   Leistung. Jetzt: leise Symbole ohne eigenen Kasten, durch eine feine
+   senkrechte Linie von der Zeile getrennt. Das Rot des Muelleimers kommt
+   erst beim Ueberfahren - sonst zoege es auf zehn Zeilen mehr
+   Aufmerksamkeit als die Zeiten. */
 .tp-aktionen {
-  grid-area: aktionen; justify-self: end; white-space: nowrap; opacity: 0;
+  grid-area: aktionen; display: flex; align-items: center; gap: 2px;
+  padding-left: 10px; border-left: 1px solid var(--linie);
 }
-.tp-zeile:hover .tp-aktionen,
-.tp-zeile:focus-within .tp-aktionen { opacity: 1; }
-@media (hover: none) { .tp-aktionen { opacity: 1; } }
+.tp-aktionen .knopf-icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  border-color: transparent; background: transparent; color: var(--leise);
+}
+.tp-aktionen .knopf-icon svg { width: 16px; height: 16px; }
+.tp-aktionen .knopf-icon:hover,
+.tp-aktionen .knopf-icon:focus-visible {
+  background: var(--flaeche-2); border-color: var(--linie); color: var(--akzent);
+}
+.tp-aktionen .knopf-icon.warn:hover,
+.tp-aktionen .knopf-icon.warn:focus-visible { color: var(--dopp); }
 @media (prefers-reduced-motion: no-preference) {
-  .tp-aktionen { transition: opacity .13s ease; }
+  .tp-aktionen .knopf-icon { transition: color .12s ease, background-color .12s ease; }
 }
-/* ⚠️ Kleinere Knoepfe als sonst (26 statt 30px). Sie geben die
-   Zeilenhoehe vor - mit den normalen 30px war eine Zeile 45px hoch, und
-   bei acht Eintraegen stand damit ein 360px hoher Block da. */
-.tp-aktionen .knopf-icon { width: 26px; height: 26px; border-radius: 7px; }
-.tp-aktionen .knopf-icon svg { width: 15px; height: 15px; }
-.tp-aktionen .knopf-icon + form.inline { margin-left: 4px; }
 
 /* ⚠️ Kein Kasten um den leeren Zustand. Ein gestrichelter Rahmen war bei
    "Weitere Zeile" schon einmal zu viel (1.25 -> 1.25.1); eine ruhige
    Zeile sagt dasselbe. */
 .tp-leer { margin: 0; font-size: 13px; color: var(--leise); }
-
-/* Ab hier steht eine Zeile nebeneinander. Gerechnet: Zeit 108px
-   ("09:00 - 10:30" misst bei 13px rund 84px, "ohne Zeit" rund 52px),
-   Aktionen 68px (zwei 30px-Knoepfe plus 6px Abstand), drei Abstaende zu
-   10px - macht 206px. Bei 560px bleiben rund 354px fuer Person und
-   Leistung; die Leistung bekommt davon das meiste, sie ist der laengste
-   Text. */
-@container protokoll (min-width: 560px) {
-  .tp-zeile {
-    grid-template-columns: 108px minmax(0, 1fr) minmax(0, 1.7fr) auto;
-    grid-template-areas: "zeit person text aktionen";
-    gap: 10px; padding: 6px 10px;
-  }
-}
 
 /* Trennlinie mit Beschriftung zwischen Kopf und Eintragszeilen. Eine
    normale Überschrift stand dort wie ein neuer Abschnitt; hier gehört
@@ -1690,6 +1781,29 @@ input[type="date"] { text-transform: uppercase; }
 .erfasszeile-weg .zeile-weg { opacity: 0; pointer-events: none; }
 .erfassliste.mehrere .zeile-weg { opacity: 1; pointer-events: auto; }
 
+/* --- Das Viertelstunden-Rad (seit 1.46) --------------------------------
+   Rechts im Zeitfeld ein Uhrzeichen; darüber liegt unsichtbar ein
+   <select> mit allen Viertelstunden, das iOS als Rad öffnet. Das Skript
+   baut es nur auf Geräten mit Finger. ⚠️ Das <select> ist durchsichtig,
+   nicht versteckt: ein verstecktes lässt sich nicht antippen.
+   ⚠️ Das Feld ist hier 81px breit (iPhone mit 375px, 79px innen).
+   „08:00" misst in 16px halbfett 46,5px - mit 7px links und 24px
+   rechts bleiben 48px. Gemessen: bei 9/28 wurde die letzte Ziffer
+   abgeschnitten. Wer Polsterung oder Zeichen vergrößert, misst neu. */
+.zeitrad-huelle { position: relative; display: block; }
+.zeitrad-huelle > .zeitfeld { padding-left: 7px; padding-right: 24px; }
+.zeitrad-zeichen {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 26px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--akzent); pointer-events: none;
+}
+.zeitrad-zeichen svg { width: 16px; height: 16px; }
+select.zeitrad {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 32px;
+  min-height: 0; margin: 0; padding: 0; border: 0;
+  opacity: 0; font-size: 16px; cursor: pointer;
+}
+
 /* --- Passt die Karte, wird daraus wieder eine Tabellenzeile ---------- */
 /* ⚠️ 750px braucht das Raster aus neun Spalten samt Abständen; 760 lässt
    Luft für Rundungen und breitere Schriften auf anderen Rechnern. Die
@@ -1716,6 +1830,10 @@ input[type="date"] { text-transform: uppercase; }
   .erfasszeile > .feld,
   .erfasszeile > .f-zeit,
   .erfasszeile > .f-dauer { grid-column: auto; }
+  /* Im Raster ist die Zeitspalte 76px breit - für das Rad ist dort kein
+     Platz, und am Schreibtisch tippt man die Uhrzeit ohnehin. */
+  .zeitrad-zeichen, select.zeitrad { display: none; }
+  .zeitrad-huelle > .zeitfeld { padding-left: 11px; padding-right: 11px; }
   /* ⚠️ Die Beschriftungen bleiben im Markup und werden nur unsichtbar -
      der Spaltenkopf ist eine reine Anzeige (aria-hidden),
      Vorleseprogramme brauchen die Beschriftung am Feld. */
