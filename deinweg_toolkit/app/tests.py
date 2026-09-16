@@ -6697,6 +6697,33 @@ def test_logo_umzug() -> None:
     pruefe(zahl == 1, "ein zweiter Start ändert nichts mehr")
 
 
+def test_umbau_1_48(client: TestClient) -> None:
+    """Zentrierte Zeiten und die Fußleiste der Erfassung (seit 1.48)."""
+    abschnitt("Zeiterfassung: mittige Zeiten, Fußleiste")
+    stil = client.get("/static/style.css").text
+    # Timos Wunsch: getippte Zeiten stehen mittig - in der Erfassung und
+    # beim Bearbeiten, beide Felder tragen .zeitfeld.
+    pruefe("input.zeitfeld { text-align: center; }" in stil,
+           "getippte Uhrzeiten stehen mittig")
+    pruefe(".bearbeitenzeiten input[name=dauer] { text-align: center; }" in stil,
+           "beim Bearbeiten auch die Dauer")
+
+    seite = client.get("/").text
+    fuss = seite.split('class="erfass-fuss"')[1].split("</div>\n\n")[0]
+    # ⚠️ Statt eines nackten „1 Eintrag" ein Block aus Zahl, Wort und
+    # Summe. Die Summe füllt das Skript - ohne Skript bleibt sie leer und
+    # fällt weg, statt etwas Falsches zu behaupten.
+    pruefe('id="zeilenzahl">1<' in fuss and 'id="zeilenstand">Eintrag<' in fuss,
+           "die Fußleiste zeigt Zahl und Wort getrennt")
+    pruefe('id="zeilensumme"></span>' in fuss,
+           "die Summe steht leer im Markup und kommt erst vom Skript")
+    pruefe(".erfass-summe:empty { display: none; }" in stil,
+           "eine leere Summe nimmt keinen Platz weg")
+    pruefe("function summieren()" in seite and '"zusammen "' in seite,
+           "das Skript rechnet die Summe aller Zeilen")
+    pruefe(">1 Eintrag<" not in fuss, "das alte „1 Eintrag“ ist weg")
+
+
 def test_texte_tot() -> None:
     """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
 
@@ -6882,7 +6909,9 @@ def test_erfassungsband(client: TestClient) -> None:
 
     pruefe("Alle Einträge von" not in ohne_dialog,
            "der zweite Knopf neben „Speichern“ ist weg")
-    pruefe('id="zeilenstand">1 Eintrag<' in ohne_dialog,
+    # Seit 1.48 stehen Zahl und Wort getrennt (test_umbau_1_48).
+    pruefe('id="zeilenzahl">1<' in ohne_dialog
+           and 'id="zeilenstand">Eintrag<' in ohne_dialog,
            "die Fußleiste nennt die Zahl auch bei einer Zeile")
     fuss = stil.split(".erfass-fuss {")[1].split("}")[0]
     pruefe("var(--flaeche-2)" in fuss and "space-between" in fuss,
@@ -9308,6 +9337,7 @@ def _durchlauf(client: TestClient) -> None:
         test_manifest(client)
         test_umbau_1_46(client)
         test_logo_umzug()
+        test_umbau_1_48(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

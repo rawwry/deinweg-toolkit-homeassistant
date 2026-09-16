@@ -1131,6 +1131,13 @@ input[type=date], input[type=time] { min-width: 0; }
 /* Eine Rasterzelle schrumpft sonst nicht unter den Inhalt ihres Feldes. */
 .feldreihe > .feld { min-width: 0; }
 
+/* ⚠️ Getippte Uhrzeiten stehen MITTIG (seit 1.48, Timos Wunsch) - in der
+   manuellen Erfassung wie in „Eintrag bearbeiten", beide tragen
+   `.zeitfeld`. Die Dauer daneben steht in der Erfassung ohnehin mittig;
+   linksbündige Zeiten wirkten neben ihr schief. Der Platzhalter „HH:MM"
+   folgt von selbst. */
+input.zeitfeld { text-align: center; }
+
 /* --- Eintrag bearbeiten: Datum und Zeiten (seit 1.46) ----------------
    Gestapelt ist der Ausgangszustand - Datum über die volle Breite,
    darunter Beginn, Ende und Dauer; die Reihe kommt über die
@@ -1139,6 +1146,9 @@ input[type=date], input[type=time] { min-width: 0; }
 .bearbeitenform { container-type: inline-size; container-name: bearbeiten; }
 .feldreihe.bearbeitenzeiten { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
 .bearbeitenzeiten .b-datum { grid-column: 1 / -1; }
+/* Getippte Zeiten stehen mittig (seit 1.48, Timos Wunsch) - hier auch die
+   Dauer, sie ist genauso eine Uhrzeitangabe. */
+.bearbeitenzeiten input[name=dauer] { text-align: center; }
 @container bearbeiten (min-width: 520px) {
   .feldreihe.bearbeitenzeiten { grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 16px; }
   .bearbeitenzeiten .b-datum { grid-column: auto; }
@@ -1656,6 +1666,26 @@ input[type="date"] { text-transform: uppercase; }
   gap: 12px; flex-wrap: wrap;
 }
 .erfass-fuss .knopf { margin-left: auto; }
+
+/* ⚠️ Links in der Fußleiste seit 1.48 ein Block statt eines nackten
+   „1 Eintrag" (Timos Meldung: „sieht total verloren aus"). Die Zahl
+   steht als Plakette in der Akzentfarbe, daneben das Wort und - sobald
+   Zeiten getippt sind - deren Summe. Die Zeile der Summe fällt weg,
+   solange sie leer ist; dann steht das Wort mittig neben der Zahl. */
+.erfass-stand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.erfass-zahl {
+  flex: none; min-width: 32px; height: 32px; padding: 0 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: var(--akzent-weich);
+  border: 1px solid var(--linie); color: var(--akzent);
+  font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums;
+}
+.erfass-standtext { display: flex; flex-direction: column; line-height: 1.3; }
+.erfass-standwort { font-size: 13.5px; font-weight: 600; color: var(--tinte); }
+.erfass-summe {
+  font-size: 12px; color: var(--leise); font-variant-numeric: tabular-nums;
+}
+.erfass-summe:empty { display: none; }
 
 /* Ablagefeld für die Zeitlisten. Das nackte <input type="file"> sieht in
    jedem Browser anders aus und wirkt zwischen den übrigen Feldern wie

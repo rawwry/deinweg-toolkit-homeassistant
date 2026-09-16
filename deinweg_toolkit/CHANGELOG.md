@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.48
+
+- Getippte Uhrzeiten mittig (Erfassung und „Eintrag bearbeiten“)
+- Fußleiste der Erfassung: Zahl als Plakette und Summe der Zeiten
+- Prüfung von 2152 auf 2159 Einzelprüfungen erweitert
+
 ## 1.47
 
 - Neue Beschreibung und neues Symbol für das Add-on

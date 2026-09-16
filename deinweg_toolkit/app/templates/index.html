@@ -357,7 +357,19 @@
          Dieselbe Rolle wie eine Dialogfußzeile - man sieht, wo die
          Eingabe endet. #}
       <div class="erfass-fuss">
-        <span class="klein leise" id="zeilenstand">1 Eintrag</span>
+        {# ⚠️ Seit 1.48 ein kleiner Block statt eines nackten „1 Eintrag"
+           (Timos Meldung: sah verloren aus). Links die Zahl als Plakette,
+           daneben das Wort und die SUMME der eingetippten Zeiten - die
+           Auskunft, die man vor dem Speichern wirklich braucht. Die
+           Summe füllt das Skript; ohne Skript bleibt die Zeile leer und
+           verschwindet (`:empty`), statt etwas Falsches zu behaupten. #}
+        <div class="erfass-stand">
+          <span class="erfass-zahl" id="zeilenzahl">1</span>
+          <span class="erfass-standtext">
+            <span class="erfass-standwort" id="zeilenstand">Eintrag</span>
+            <span class="erfass-summe" id="zeilensumme"></span>
+          </span>
+        </div>
         <button class="knopf haupt" type="submit" form="erfassung" id="erfassen-knopf">
           Eintrag speichern</button>
       </div>
@@ -929,6 +941,8 @@
     var knopfreihe = document.getElementById("zeilenknopf"),
         mehrknopf  = document.getElementById("zeile-mehr"),
         stand      = document.getElementById("zeilenstand"),
+        zahl       = document.getElementById("zeilenzahl"),
+        summe      = document.getElementById("zeilensumme"),
         speichern  = document.getElementById("erfassen-knopf"),
         vorlage    = liste.firstElementChild.cloneNode(true);
 
@@ -952,7 +966,9 @@
       // Steht jetzt in der Fußleiste links neben dem Knopf und ist
       // deshalb auch bei einer Zeile ausgeschrieben - eine leere
       // Stelle dort sähe aus, als fehlte etwas.
-      stand.textContent = alle.length > 1 ? alle.length + " Einträge" : "1 Eintrag";
+      zahl.textContent = alle.length;
+      stand.textContent = alle.length > 1 ? "Einträge" : "Eintrag";
+      summieren();
       speichern.textContent = alle.length > 1 ? "Einträge speichern"
                                               : "Eintrag speichern";
     }
@@ -1029,10 +1045,31 @@
 
     // Die Dauer wird je Zeile gerechnet - deshalb über die Zeile suchen
     // und nicht über Kennungen, die es bei mehreren Zeilen mehrfach gäbe.
+    // Die Summe aller Zeilen für die Fußleiste (seit 1.48). Dieselbe
+    // Rechnung wie je Zeile - über Mitternacht zählt weiter, eine
+    // Spanne von null zählt nicht.
+    function summieren() {
+      var gesamt = 0;
+      zeilen().forEach(function (z) {
+        var f = z.querySelectorAll(".zeitfeld");
+        if (f.length < 2) return;
+        var a = minuten(f[0].value), b = minuten(f[1].value);
+        if (a === null || b === null) return;
+        var d = b - a;
+        if (d < 0) d += 1440;
+        gesamt += d;
+      });
+      summe.textContent = gesamt
+        ? "zusammen " + Math.floor(gesamt / 60) + ":" +
+          String(gesamt % 60).padStart(2, "0") + " Std"
+        : "";
+    }
+
     function rechnen(zeile) {
       var ausgabe = zeile.querySelector(".dauer-ausgabe"),
           felder  = zeile.querySelectorAll(".zeitfeld");
       if (!ausgabe || felder.length < 2) return;
+      if (summe) summieren();
       var a = minuten(felder[0].value), b = minuten(felder[1].value);
       if (a === null || b === null) { ausgabe.textContent = "–"; ausgabe.className = "dauer-ausgabe"; return; }
       var d = b - a;

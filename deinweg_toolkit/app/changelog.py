@@ -2456,4 +2456,13 @@ CHANGELOG = [
         "Home Assistant: neues Add-on-Symbol und neue Beschreibung",
         "Prüfung von 2139 auf 2152 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.48", "titel": "Mittig und aufgeräumt", "punkte": [
+        "Getippte Uhrzeiten stehen jetzt mittig im Feld – in der "
+        "manuellen Erfassung und in „Eintrag bearbeiten“, dort auch die "
+        "Dauer",
+        "Die Fußleiste der Erfassung zeigt links die Zahl der Einträge "
+        "als Plakette und darunter die Summe der eingetippten Zeiten "
+        "(„zusammen 3:00 Std“) – statt eines einsamen „1 Eintrag“",
+        "Prüfung von 2152 auf 2159 Einzelprüfungen erweitert",
+    ]},
 ]
