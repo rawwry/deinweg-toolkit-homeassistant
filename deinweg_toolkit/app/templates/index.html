@@ -1132,8 +1132,8 @@
     zeilen().forEach(function (z) { entfernenknopf(z); verkabeln(z); });
     knopfreihe.hidden = false;
 
-    // ⚠️ Eine neue Zeile übernimmt Datum und Leistung der vorigen, und
-    // ihre Startzeit ist die Endzeit der Zeile darüber. Das ist der
+    // ⚠️ Eine neue Zeile übernimmt das Datum der vorigen, und ihre
+    // Startzeit ist die Endzeit der Zeile darüber. Das ist der
     // eigentliche Punkt an der ganzen Umstellung: wer mehrere Termine
     // eines Tages erfasst, tippt kein Datum mehr und keine Anfangszeit.
     //
@@ -1142,9 +1142,15 @@
     // fast immer den nächsten Termin, also jemand anderen. Ein stehen
     // gebliebener Name wäre hier kein gesparter Handgriff, sondern eine
     // Falle - stattdessen klappt die Auswahl gleich auf.
+    //
+    // ⚠️ Die LEISTUNG steht seit 1.48.1 aus demselben Grund nicht mehr
+    // dabei (Timos Meldung): der nächste Termin ist fast nie dieselbe
+    // Leistung, und eine stehen gebliebene wird stillschweigend
+    // mitgespeichert - die Zeile sieht ausgefüllt aus und ist falsch.
+    // Ein leeres Feld fällt auf, ein falsch vorbelegtes nicht.
     function uebernehmen(neue, vorige) {
       if (!vorige) return;
-      ["datum", "leistung"].forEach(function (name) {
+      ["datum"].forEach(function (name) {
         var a = vorige.querySelector("[name='" + name + "']"),
             b = neue.querySelector("[name='" + name + "']");
         if (a && b) { b.value = a.value; }

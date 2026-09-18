@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.48.1
+
+- Manuelle Zeiterfassung: eine neue Zeile übernimmt die Leistung der
+  vorigen nicht mehr (Datum und Anschlusszeit weiterhin schon)
+- Prüfung von 2159 auf 2160 Einzelprüfungen erweitert
+
 ## 1.48
 
 - Getippte Uhrzeiten mittig (Erfassung und „Eintrag bearbeiten“)

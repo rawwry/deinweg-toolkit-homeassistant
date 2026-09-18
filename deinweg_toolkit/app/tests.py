@@ -8468,11 +8468,16 @@ def test_erfassraster(client: TestClient) -> None:
     # --- Eine neue Zeile übernimmt die Angaben der vorigen ------------------
     # ⚠️ Die betreute Person steht seit 1.24 ausdrücklich NICHT dabei:
     # eine zweite Zeile am selben Tag meint fast immer den nächsten
-    # Termin, also jemand anderen.
-    pruefe('["datum", "leistung"].forEach' in seite,
-           "Datum und Leistung wandern in die neue Zeile")
-    pruefe('"klient"' not in seite.split("function uebernehmen")[1][:400],
+    # Termin, also jemand anderen. Seit 1.48.1 gilt dasselbe für die
+    # LEISTUNG (Timos Meldung) - eine mitgewanderte Leistung wird
+    # stillschweigend mitgespeichert.
+    pruefe('["datum"].forEach' in seite,
+           "das Datum wandert in die neue Zeile")
+    uebernahme = seite.split("function uebernehmen")[1][:400]
+    pruefe('"klient"' not in uebernahme,
            "die betreute Person wird nicht mit übernommen")
+    pruefe('"leistung"' not in uebernahme,
+           "und die Leistung seit 1.48.1 ebenso wenig")
     pruefe("wahl.oeffnen()" in seite,
            "stattdessen klappt die Auswahl der neuen Zeile gleich auf")
     pruefe("if (ende && start && ende.value) { start.value = ende.value; }" in seite,

@@ -2465,4 +2465,13 @@ CHANGELOG = [
         "(„zusammen 3:00 Std“) – statt eines einsamen „1 Eintrag“",
         "Prüfung von 2152 auf 2159 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.48.1", "titel": "Die Leistung bleibt leer", "punkte": [
+        "Manuelle Zeiterfassung: eine neue Zeile übernimmt die Leistung "
+        "der vorigen nicht mehr. Wer eben „Entlastungsgespräch“ gewählt "
+        "hatte, fand es in der nächsten Zeile vorbelegt wieder – und "
+        "hätte es stillschweigend mitgespeichert",
+        "Datum und Anschlusszeit wandern weiter mit: das sind Angaben, "
+        "die am selben Tag tatsächlich gleich bleiben",
+        "Prüfung von 2159 auf 2160 Einzelprüfungen erweitert",
+    ]},
 ]
