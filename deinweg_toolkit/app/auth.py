@@ -245,6 +245,9 @@ ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
                    "/einstellungen/bewilligungsmail", "/einstellungen/fristmail",
                    "/einstellungen/zuweisungsmail",
                    "/einstellungen/erledigtmail",
+                   # „Passwort vergessen?" samt der Adresse, die in den
+                   # Link kommt - wer sie aendert, lenkt jeden Link um.
+                   "/einstellungen/passwortmail",
                    # E-Mail-Vorlagen
                    "/einstellungen/vorlagen",
                    # System und Sicherung
@@ -267,7 +270,10 @@ ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
                    "/einstellungen/hinweistexte")
 
 # Oeffentlich ohne Anmeldung erreichbar
-OEFFENTLICHE_PFADE = ("/gesundheit", "/login", "/manifest.json")
+# ⚠️ Die beiden Passwort-Adressen muessen es sein (seit 1.49): wer sein
+# Passwort vergessen hat, hat keine Sitzung.
+OEFFENTLICHE_PFADE = ("/gesundheit", "/login", "/manifest.json",
+                      "/passwort-vergessen", "/passwort-neu")
 
 
 def bereich_fuer_pfad(pfad: str) -> str | None:
@@ -839,7 +845,8 @@ class SessionAuth(BaseHTTPMiddleware):
 # --- Login / Logout -----------------------------------------------------------
 
 @router.get("/login", response_class=HTMLResponse)
-def login_formular(request: Request, weiter: str = "/", fehler: str = ""):
+def login_formular(request: Request, weiter: str = "/", fehler: str = "",
+                   geaendert: str = ""):
     token = request.cookies.get(COOKIE_NAME, "")
     if token:
         with db.db() as con:
@@ -847,7 +854,11 @@ def login_formular(request: Request, weiter: str = "/", fehler: str = ""):
                 return RedirectResponse(weiter or "/", status_code=303)
     return _umgebung["templates"].TemplateResponse(
         request=request, name="login.html",
-        context={"weiter": weiter or "/", "fehler": fehler})
+        context={"weiter": weiter or "/", "fehler": fehler, "modus": "anmelden",
+                 # Fester Satz statt eines Textes aus der Adresse - sonst
+                 # liesse sich jeder beliebige Satz auf die Anmeldeseite
+                 # schreiben.
+                 "geaendert": geaendert == "1"})
 
 
 @router.post("/login")

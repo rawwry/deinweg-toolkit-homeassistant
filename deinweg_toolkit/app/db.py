@@ -194,6 +194,17 @@ CREATE TABLE IF NOT EXISTS sitzung (
 
 CREATE INDEX IF NOT EXISTS idx_sitzung_benutzer ON sitzung(benutzer_id);
 
+-- Links aus „Passwort vergessen?" (seit 1.49, passwort.py). ⚠️ Hier steht
+-- nur der SHA-256 des Schluessels, nie der Schluessel selbst: wer die
+-- Datenbank oder eine Sicherung in die Hand bekommt, kann damit kein
+-- Passwort setzen. Ein Link gilt 30 Minuten und nur einmal.
+CREATE TABLE IF NOT EXISTS passwort_link (
+    token_hash        TEXT PRIMARY KEY,
+    benutzer_id       INTEGER NOT NULL REFERENCES benutzer(id) ON DELETE CASCADE,
+    erstellt_am       TEXT NOT NULL,
+    gueltig_bis       TEXT NOT NULL
+);
+
 -- freie Schluessel/Wert-Ablage fuer Einstellungen, die zur Laufzeit
 -- aenderbar sein sollen (SMTP-Zugang, E-Mail-Vorlagen). Bewusst nicht in
 -- strings.txt, weil hier auch Zugangsdaten liegen und die Pflege ueber die

@@ -55,10 +55,17 @@
       <img class="nur-hell"   src="/marke/logo-fuer-hell.svg?v={{ markenstand() }}"   alt="Dein Weg Toolkit">
     </a>
 
+    {# ⚠️ Seit 1.49 zeigt diese eine Vorlage auch „Passwort vergessen?"
+       (passwort.py) - bewusst hier und nicht in einer eigenen Datei:
+       sonst stünde der eigene <head> oben ein drittes Mal da, und genau
+       dieser Kopf ist schon einmal auseinandergelaufen (1.44/1.45). #}
+    {% set modus = modus or "anmelden" %}
     <div class="karte anmeldekarte">
+    {% if modus == "anmelden" %}
       <h1>Anmelden</h1>
       <p class="lead">{{ t("login.lead") }}</p>
 
+    {% if geaendert %}<p class="meldung hinweis">Dein neues Passwort gilt. Bitte melde dich damit an.</p>{% endif %}
     {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
 
     <form action="/login" method="post">
@@ -75,6 +82,58 @@
         <button class="knopf haupt anmelde-knopf" type="submit">Anmelden</button>
       </div>
     </form>
+    {% if passwortlink_bereit() %}
+    <p class="anmelde-vergessen"><a href="/passwort-vergessen">Passwort vergessen?</a></p>
+    {% endif %}
+
+    {% elif modus == "vergessen" %}
+      <h1>Passwort vergessen</h1>
+    {% if not bereit %}
+      <p class="lead">{{ t("login.vergessen_aus") }}</p>
+    {% elif gesendet %}
+      {# ⚠️ Derselbe Satz, ob es das Konto gibt oder nicht - sonst
+         verriete die Seite, welche Namen und Adressen es im Haus gibt. #}
+      <p class="meldung hinweis">{{ t("login.vergessen_gesendet") }}</p>
+    {% else %}
+      <p class="lead">{{ t("login.vergessen_lead") }}</p>
+      <form action="/passwort-vergessen" method="post">
+        <label class="feld">
+          <span>Benutzername oder E-Mail-Adresse</span>
+          <input type="text" name="angabe" required autofocus autocomplete="username">
+        </label>
+        <div class="knopfreihe">
+          <button class="knopf haupt anmelde-knopf" type="submit">Link anfordern</button>
+        </div>
+      </form>
+    {% endif %}
+      <p class="anmelde-vergessen"><a href="/login">Zurück zur Anmeldung</a></p>
+
+    {% elif modus == "neu" %}
+      <h1>Neues Passwort</h1>
+      <p class="lead">Für das Konto <strong>{{ name }}</strong>. Mindestens acht Zeichen – danach bist du überall abgemeldet und meldest dich mit dem neuen Passwort an.</p>
+    {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+      <form action="/passwort-neu" method="post">
+        <input type="hidden" name="token" value="{{ token }}">
+        {# Für Passwortmanager: welches Konto hier ein neues Passwort bekommt. #}
+        <input type="text" name="benutzername" value="{{ name }}" autocomplete="username" hidden>
+        <label class="feld">
+          <span>Neues Passwort</span>
+          <input type="password" name="passwort" required minlength="8" autofocus autocomplete="new-password">
+        </label>
+        <label class="feld">
+          <span>Neues Passwort wiederholen</span>
+          <input type="password" name="passwort2" required minlength="8" autocomplete="new-password">
+        </label>
+        <div class="knopfreihe">
+          <button class="knopf haupt anmelde-knopf" type="submit">Passwort speichern</button>
+        </div>
+      </form>
+
+    {% else %}
+      <h1>Link ungültig</h1>
+      <p class="lead">Dieser Link ist abgelaufen oder wurde schon benutzt. Ein Link gilt 30 Minuten und nur einmal.</p>
+      <p class="anmelde-vergessen"><a href="/passwort-vergessen">Neuen Link anfordern</a> · <a href="/login">Zur Anmeldung</a></p>
+    {% endif %}
     </div>
 
     <p class="anmelde-fuss">Dein Weg Toolkit · Version {{ VERSION }}</p>

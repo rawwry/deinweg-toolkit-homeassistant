@@ -27,6 +27,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from . import auth
 from . import db
+from . import passwort
 from .parser import hhmm
 from .rechnen import (ABWESEND_SQL, ARBEITSTAGE_MONAT, MONATSNAMEN,
                       abwesenheitstage,
@@ -512,7 +513,9 @@ def konto_speichern(request: Request, email: str = Form(""),
         if satz is None:
             return _konto_zurueck(fehler="Dieses Konto gibt es nicht mehr.")
 
-        if passwort_neu or passwort_neu2 or passwort_alt:
+        # ⚠️ Seit 1.49 nur bei einem NEUEN Passwort: das aktuelle allein
+        # ist jetzt auch die Bestaetigung fuer eine neue E-Mail-Adresse.
+        if passwort_neu or passwort_neu2:
             # Das aktuelle Passwort ist Pflicht. Sonst koennte jemand an
             # einem unbeaufsichtigt offenen Bildschirm das Konto uebernehmen
             # und die eigentliche Inhaberin aussperren.
@@ -537,10 +540,24 @@ def konto_speichern(request: Request, email: str = Form(""),
             con.execute("DELETE FROM sitzung WHERE benutzer_id=? AND token<>?",
                         (benutzer["id"], token))
             meldungen.append("Passwort geändert")
+            passwort.links_verwerfen(con, benutzer["id"])
 
         if email != (satz["email"] or ""):
+            # ⚠️ Seit 1.49 verlangt das das aktuelle Passwort. Die Adresse
+            # ist jetzt der Weg zu einem neuen Passwort („Passwort
+            # vergessen?"): wer an einem offen stehenden Bildschirm seine
+            # eigene eintraegt, koennte sich danach das Konto holen.
+            # ``satz`` ist die Zeile von VOR einem Passwortwechsel oben -
+            # geprueft wird also immer gegen das bisherige Passwort.
+            if not db.passwort_pruefen(passwort_alt, satz["passwort_hash"]):
+                return _konto_zurueck(
+                    fehler="Zum Ändern der E-Mail-Adresse bitte unter "
+                           "„Passwort ändern“ dein aktuelles Passwort "
+                           "eingeben – die Adresse ist auch der Weg zu "
+                           "einem neuen Passwort.", pw="1")
             con.execute("UPDATE benutzer SET email=? WHERE id=?",
                         (email or None, benutzer["id"]))
+            passwort.links_verwerfen(con, benutzer["id"])
             meldungen.append("E-Mail-Adresse gespeichert" if email
                              else "E-Mail-Adresse entfernt")
 

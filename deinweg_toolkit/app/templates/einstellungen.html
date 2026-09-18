@@ -2052,6 +2052,37 @@
   </form>
 </section>
 
+{# „Passwort vergessen?" (seit 1.49, passwort.py). ⚠️ Bewusst OHNE
+   pflegbaren Wortlaut: die Mail trägt den Link, und eine Vorlage, aus der
+   jemand den Platzhalter löscht, legte die Funktion still - für einen
+   Text, den ohnehin niemand umformulieren will. Deshalb auch kein
+   sechster vorlagenblock. #}
+<section class="karte anlasskarte">
+  {{ anlasskopf("Passwort vergessen", passwort_bereit) }}
+  <p class="lead">{{ t("einst.passwortmail_wozu") }}</p>
+
+  <form action="/einstellungen/passwortmail" method="post">
+    <label class="filter-umschalter" style="margin-bottom: 18px;">
+      <input type="checkbox" name="passwortlink_aktiv" value="1"
+             {{ 'checked' if mailkonfig.passwortlink_aktiv == '1' }}>
+      <span>„Passwort vergessen?“ anbieten</span>
+    </label>
+    <label class="feld">
+      <span>Adresse der Anwendung</span>
+      <input type="url" name="app_adresse" value="{{ mailkonfig.app_adresse }}"
+             placeholder="http://192.168.1.20:8778" inputmode="url">
+    </label>
+    <p class="klein leise felderklaerung">{{ t("einst.passwortmail_adresse") }}</p>
+    {% if mailkonfig.passwortlink_aktiv == '1' and not passwort_bereit %}
+    <p class="meldung offen-hinweis">Eingeschaltet, aber noch nicht bereit: es fehlen Postausgangsserver, Absender oder die Adresse der Anwendung. Solange steht auf dem Anmeldebildschirm kein Verweis.</p>
+    {% endif %}
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Speichern</button>
+    </div>
+  </form>
+</section>
+
 {# --- 3. Was gelaufen ist ------------------------------------------------ #}
 <div class="abschnittsband">
   <h2>Protokoll</h2>

@@ -6697,6 +6697,258 @@ def test_logo_umzug() -> None:
     pruefe(zahl == 1, "ein zweiter Start ändert nichts mehr")
 
 
+def test_passwort_vergessen(client: TestClient) -> None:
+    """„Passwort vergessen?" per E-Mail-Link (seit 1.49)."""
+    abschnitt("Passwort vergessen")
+    import hashlib
+    import logging
+    from . import passwort
+
+    passwort._ANFRAGEN_ANGABE.clear()
+    passwort._ANFRAGEN_RECHNER.clear()
+    vorher_k = {s: mail.konfig_lesen()[s] for s in (
+        "smtp_server", "smtp_absender", "passwortlink_aktiv", "app_adresse")}
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO benutzer (benutzername, passwort_hash, rolle, email, "
+            "aktiv, angelegt_am) VALUES ('vergesslich', ?, 'benutzer', "
+            "'v@beispiel.test', 1, '2026-01-01 08:00')",
+            (db.passwort_hashen("altespasswort1"),))
+        konto_id = con.execute("SELECT id FROM benutzer WHERE "
+                               "benutzername='vergesslich'").fetchone()["id"]
+        mail.konfig_schreiben(con, {"smtp_server": "smtp.beispiel.test",
+                                    "smtp_absender": "toolkit@beispiel.test",
+                                    "passwortlink_aktiv": "0", "app_adresse": ""})
+
+    gast = TestClient(app)
+    # --- ausgeschaltet ------------------------------------------------------
+    pruefe("Passwort vergessen?" not in gast.get("/login").text,
+           "ausgeschaltet steht kein Verweis auf dem Anmeldebildschirm")
+    seite = gast.get("/passwort-vergessen")
+    pruefe(seite.status_code == 200 and "Verwaltung" in seite.text
+           and 'name="angabe"' not in seite.text,
+           "die Seite ist ohne Anmeldung erreichbar und verweist auf die Verwaltung")
+
+    # --- einschalten --------------------------------------------------------
+    pruefe("/einstellungen/passwortmail" in auth.ADMIN_NUR_PFADE,
+           "die Einstellung ist Administratoren vorbehalten")
+    antwort = client.post("/einstellungen/passwortmail", data={
+        "passwortlink_aktiv": "1", "app_adresse": "toolkit.test"},
+        follow_redirects=False)
+    pruefe("fehler" in antwort.headers.get("location", ""),
+           "eine Adresse ohne http(s):// wird abgewiesen")
+    pruefe(mail.konfig_lesen().get("passwortlink_aktiv") == "0",
+           "und dabei nichts gespeichert")
+    client.post("/einstellungen/passwortmail", data={
+        "passwortlink_aktiv": "1", "app_adresse": " http://toolkit.test:8778/ "})
+    k = mail.konfig_lesen()
+    pruefe(k["app_adresse"] == "http://toolkit.test:8778",
+           "die Adresse wird ohne Schrägstrich am Ende gespeichert")
+    pruefe(passwort.bereit(k), "mit Server, Absender und Adresse ist es bereit")
+    pruefe("anlasskarte" in client.get("/einstellungen?bereich=email").text
+           and "/einstellungen/passwortmail" in client.get(
+               "/einstellungen?bereich=email").text,
+           "die Karte steht unter E-Mail")
+    pruefe("Passwort vergessen?" in gast.get("/login").text,
+           "jetzt steht der Verweis auf dem Anmeldebildschirm")
+
+    gesendet = []
+    echt_senden = mail.senden
+    try:
+        mail.senden = lambda adr, betr, txt, kk=None: (
+            gesendet.append((adr, betr, txt)) or (True, "ok"))
+
+        # --- unbekannt und bekannt antworten gleich -------------------------
+        a1 = gast.post("/passwort-vergessen", data={"angabe": "niemand"},
+                       follow_redirects=False)
+        pruefe(not gesendet, "für einen unbekannten Namen geht nichts hinaus")
+        # ⚠️ Mit gefaelschtem Host-Kopf: der Link darf trotzdem nur auf die
+        # eingetragene Adresse zeigen.
+        a2 = gast.post("/passwort-vergessen",
+                       data={"angabe": " V@Beispiel.test "},
+                       headers={"host": "boese.test"}, follow_redirects=False)
+        pruefe(a1.status_code == a2.status_code == 303 and
+               a1.headers["location"] == a2.headers["location"],
+               "ein unbekanntes und ein bekanntes Konto bekommen dieselbe Antwort")
+        pruefe(len(gesendet) == 1 and gesendet[0][0] == "v@beispiel.test",
+               "über die E-Mail-Adresse gefunden, Mail an genau diese Adresse")
+        text = gesendet[0][2] if gesendet else ""
+        treffer = re.search(r"(\S+)/passwort-neu\?token=([\w-]+)", text)
+        pruefe(treffer and treffer.group(1) == "http://toolkit.test:8778",
+               "der Link zeigt auf die eingetragene Adresse, nicht auf den Host-Kopf")
+        pruefe("boese.test" not in text, "der gefälschte Host steht nirgends")
+        token = treffer.group(2) if treffer else ""
+        pruefe(len(token) >= 40, "der Schlüssel ist lang genug (32 Zufallsbytes)")
+        with db.db() as con:
+            zeilen = con.execute("SELECT * FROM passwort_link").fetchall()
+            protokoll = con.execute(
+                "SELECT meldung FROM benachrichtigung WHERE art='passwort'"
+            ).fetchall()
+        pruefe(len(zeilen) == 1 and zeilen[0]["token_hash"] ==
+               hashlib.sha256(token.encode()).hexdigest(),
+               "in der Datenbank steht nur der Hash des Schlüssels")
+        pruefe(all(token not in str(tuple(z)) for z in zeilen)
+               and all(token not in (z["meldung"] or "") for z in protokoll),
+               "der Schlüssel selbst steht weder in der Tabelle noch im Protokoll")
+
+        # Gleich noch einmal: innerhalb einer Minute keine zweite Mail.
+        gast.post("/passwort-vergessen", data={"angabe": "vergesslich"})
+        pruefe(len(gesendet) == 1, "ein zweiter Klick verschickt keine zweite Mail")
+
+        # --- der Link --------------------------------------------------------
+        pruefe("Link ungültig" in gast.get("/passwort-neu?token=falsch").text,
+               "ein falscher Schlüssel zeigt „Link ungültig“")
+        seite = gast.get(f"/passwort-neu?token={token}")
+        pruefe('name="passwort2"' in seite.text and "vergesslich" in seite.text,
+               "der echte Schlüssel öffnet das Formular für dieses Konto")
+        pruefe(seite.headers.get("referrer-policy") == "no-referrer"
+               and seite.headers.get("cache-control") == "no-store",
+               "die Seite gibt ihre Adresse nicht weiter und wird nicht gespeichert")
+
+        antwort = gast.post("/passwort-neu", data={
+            "token": token, "passwort": "kurz", "passwort2": "kurz"})
+        pruefe("mindestens" in antwort.text, "ein zu kurzes Passwort wird abgewiesen")
+        antwort = gast.post("/passwort-neu", data={
+            "token": token, "passwort": "neuespasswort1",
+            "passwort2": "anderespasswort"})
+        pruefe("nicht gleich" in antwort.text,
+               "zwei verschiedene Passwörter werden abgewiesen")
+        with db.db() as con:
+            hash_jetzt = con.execute("SELECT passwort_hash FROM benutzer "
+                                     "WHERE id=?", (konto_id,)).fetchone()[0]
+        pruefe(db.passwort_pruefen("altespasswort1", hash_jetzt),
+               "nach den Fehlversuchen gilt das alte Passwort noch")
+
+        # Eine laufende Anmeldung des Kontos - sie muss danach weg sein.
+        sitzung = TestClient(app)
+        sitzung.post("/login", data={"benutzername": "vergesslich",
+                                     "passwort": "altespasswort1", "weiter": "/"})
+        pruefe(sitzung.get("/meinbereich", follow_redirects=False).status_code
+               == 200, "vorher ist das Konto angemeldet")
+
+        antwort = gast.post("/passwort-neu", data={
+            "token": token, "passwort": "neuespasswort1",
+            "passwort2": "neuespasswort1"}, follow_redirects=False)
+        pruefe(antwort.status_code == 303 and
+               antwort.headers["location"] == "/login?geaendert=1",
+               "ein gültiges Passwort führt zur Anmeldung zurück")
+        pruefe("neues Passwort gilt" in gast.get("/login?geaendert=1").text,
+               "und die sagt, dass es geklappt hat")
+        pruefe(sitzung.get("/meinbereich", follow_redirects=False).status_code
+               == 303, "alle bisherigen Sitzungen des Kontos sind beendet")
+        pruefe(len(gesendet) == 2 and "geändert" in gesendet[1][1],
+               "an dieselbe Adresse geht eine Bestätigung")
+        pruefe("Link ungültig" in gast.get(f"/passwort-neu?token={token}").text,
+               "der Link lässt sich nur einmal benutzen")
+        neu = TestClient(app)
+        a = neu.post("/login", data={"benutzername": "vergesslich",
+                                     "passwort": "neuespasswort1", "weiter": "/"},
+                     follow_redirects=False)
+        pruefe("fehler" not in a.headers.get("location", ""),
+               "mit dem neuen Passwort klappt die Anmeldung")
+        a = TestClient(app).post("/login", data={
+            "benutzername": "vergesslich", "passwort": "altespasswort1",
+            "weiter": "/"}, follow_redirects=False)
+        pruefe("fehler" in a.headers.get("location", ""),
+               "das alte gilt nicht mehr")
+
+        # --- abgelaufen -----------------------------------------------------
+        with db.db() as con:
+            con.execute("INSERT INTO passwort_link VALUES (?,?,?,?)",
+                        (hashlib.sha256(b"alt").hexdigest(), konto_id,
+                         "2026-01-01 08:00:00", "2026-01-01 08:30:00"))
+        pruefe("Link ungültig" in gast.get("/passwort-neu?token=alt").text,
+               "ein abgelaufener Link ist ungültig")
+        with db.db() as con:
+            pruefe(con.execute("SELECT COUNT(*) FROM passwort_link").fetchone()[0]
+                   == 0, "und wird dabei weggeräumt")
+
+        # --- stillgelegtes Konto -------------------------------------------
+        with db.db() as con:
+            con.execute("UPDATE benutzer SET aktiv=0 WHERE id=?", (konto_id,))
+            con.execute("DELETE FROM passwort_link")
+        passwort._ANFRAGEN_ANGABE.clear()
+        vorher = len(gesendet)
+        gast.post("/passwort-vergessen", data={"angabe": "vergesslich"})
+        pruefe(len(gesendet) == vorher,
+               "ein stillgelegtes Konto bekommt keinen Link")
+        with db.db() as con:
+            con.execute("UPDATE benutzer SET aktiv=1 WHERE id=?", (konto_id,))
+
+        # --- die Bremse -----------------------------------------------------
+        aufrufe = []
+        echt_bearbeiten = passwort._anfrage_bearbeiten
+        passwort._anfrage_bearbeiten = lambda angabe: aufrufe.append(angabe)
+        try:
+            passwort._ANFRAGEN_ANGABE.clear()
+            passwort._ANFRAGEN_RECHNER.clear()
+            antworten = [gast.post("/passwort-vergessen",
+                                   data={"angabe": "Gebremst"},
+                                   follow_redirects=False) for _ in range(4)]
+            pruefe(len(aufrufe) == 3, "je Angabe höchstens drei Anfragen in 15 Minuten")
+            pruefe(len({a.headers["location"] for a in antworten}) == 1,
+                   "und die gebremste Anfrage sieht genauso aus")
+            for i in range(10):
+                gast.post("/passwort-vergessen", data={"angabe": f"name{i}"})
+            pruefe(len(aufrufe) == 3 + 6,
+                   "je Rechner höchstens zehn Anfragen in der Stunde")
+        finally:
+            passwort._anfrage_bearbeiten = echt_bearbeiten
+            passwort._ANFRAGEN_ANGABE.clear()
+            passwort._ANFRAGEN_RECHNER.clear()
+
+        # --- ein neuer Link fällt weg, wenn sich woanders etwas ändert ------
+        with db.db() as con:
+            con.execute("INSERT INTO passwort_link VALUES ('x1', ?, "
+                        "'2099-01-01 08:00:00', '2099-01-01 08:30:00')", (konto_id,))
+        antwort = neu.post("/meinbereich/konto",
+                           data={"email": "boese@beispiel.test"},
+                           follow_redirects=False)
+        pruefe("fehler" in antwort.headers.get("location", ""),
+               "die eigene E-Mail-Adresse ändert sich nicht ohne das Passwort")
+        with db.db() as con:
+            pruefe(con.execute("SELECT email FROM benutzer WHERE id=?",
+                               (konto_id,)).fetchone()[0] == "v@beispiel.test",
+                   "und bleibt dabei unverändert")
+        neu.post("/meinbereich/konto", data={
+            "email": "neu@beispiel.test", "passwort_alt": "neuespasswort1"})
+        with db.db() as con:
+            pruefe(con.execute("SELECT email FROM benutzer WHERE id=?",
+                               (konto_id,)).fetchone()[0] == "neu@beispiel.test",
+                   "mit dem aktuellen Passwort geht es")
+            pruefe(con.execute("SELECT COUNT(*) FROM passwort_link").fetchone()[0]
+                   == 0, "und ein offener Link ist danach verbraucht")
+            con.execute("INSERT INTO passwort_link VALUES ('x2', ?, "
+                        "'2099-01-01 08:00:00', '2099-01-01 08:30:00')", (konto_id,))
+        client.post(f"/einstellungen/benutzer/{konto_id}", data={
+            "benutzername": "vergesslich", "rolle": "benutzer",
+            "email": "neu@beispiel.test", "aktiv": "1",
+            "neues_passwort": "vonderverwaltung1"})
+        with db.db() as con:
+            pruefe(con.execute("SELECT COUNT(*) FROM passwort_link").fetchone()[0]
+                   == 0, "setzt die Verwaltung ein Passwort, verfällt ein offener Link")
+    finally:
+        mail.senden = echt_senden
+
+    # --- das Protokoll von uvicorn -----------------------------------------
+    satz = logging.LogRecord("uvicorn.access", logging.INFO, "", 0,
+                             '%s - "%s %s HTTP/%s" %d', (
+                                 "1.2.3.4", "GET", "/passwort-neu?token=GEHEIM123",
+                                 "1.1", 200), None)
+    passwort._Schwaerzen().filter(satz)
+    pruefe("GEHEIM123" not in satz.getMessage(),
+           "im Zugriffsprotokoll steht der Schlüssel nicht")
+
+    quelle = open(os.path.join(os.path.dirname(__file__), "passwort.py"),
+                  encoding="utf-8").read()
+    pruefe("base_url" not in quelle and "request.url" not in quelle
+           and "headers.get(\"host\")" not in quelle,
+           "die Adresse im Link kommt nie aus der Anfrage")
+
+    with db.db() as con:
+        mail.konfig_schreiben(con, vorher_k)
+
+
 def test_umbau_1_48(client: TestClient) -> None:
     """Zentrierte Zeiten und die Fußleiste der Erfassung (seit 1.48)."""
     abschnitt("Zeiterfassung: mittige Zeiten, Fußleiste")
@@ -9343,6 +9595,7 @@ def _durchlauf(client: TestClient) -> None:
         test_umbau_1_46(client)
         test_logo_umzug()
         test_umbau_1_48(client)
+        test_passwort_vergessen(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

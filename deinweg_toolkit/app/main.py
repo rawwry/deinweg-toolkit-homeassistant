@@ -47,7 +47,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.48.1"
+VERSION = "1.49"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1833,3 +1833,10 @@ app.include_router(_meinbereich.router)
 # nicht, seine drei Adressen liefern Bilder und JSON aus.
 _marke.setup({"APP_NAME": APP_NAME, "VERSION": VERSION})
 app.include_router(_marke.router)
+
+# „Passwort vergessen?" (seit 1.49): Link per E-Mail. Braucht nur die
+# Templates - login.html zeigt auch seine drei Seiten.
+from . import passwort as _passwort  # noqa: E402
+
+_passwort.setup(templates)
+app.include_router(_passwort.router)

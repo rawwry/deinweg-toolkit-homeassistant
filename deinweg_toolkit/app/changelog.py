@@ -2474,4 +2474,20 @@ CHANGELOG = [
         "die am selben Tag tatsächlich gleich bleiben",
         "Prüfung von 2159 auf 2160 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.49", "titel": "Passwort vergessen", "punkte": [
+        "Auf dem Anmeldebildschirm steht jetzt „Passwort vergessen?“: wer "
+        "Benutzernamen oder E-Mail-Adresse eingibt, bekommt einen Link an "
+        "die Adresse seines Kontos und legt darüber ein neues Passwort fest",
+        "Der Link gilt 30 Minuten und nur einmal. Danach sind alle "
+        "Anmeldungen des Kontos beendet, und eine Bestätigung geht an "
+        "dieselbe Adresse",
+        "Die Seite antwortet immer gleich – ob es das Konto gibt, verrät sie "
+        "nicht. Zu viele Anfragen werden still gebremst",
+        "Eingeschaltet wird es unter Einstellungen → E-Mail. Dort steht "
+        "auch die Adresse der Anwendung, die in den Link kommt",
+        "Die eigene E-Mail-Adresse lässt sich in „Mein Konto“ nur noch mit "
+        "dem aktuellen Passwort ändern – sie ist jetzt der Weg zu einem "
+        "neuen Passwort",
+        "Prüfung von 2160 auf 2206 Einzelprüfungen erweitert",
+    ]},
 ]

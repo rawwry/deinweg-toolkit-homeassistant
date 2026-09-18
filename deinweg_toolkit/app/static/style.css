@@ -376,7 +376,7 @@ h2 { font-size: 12.5px; margin: 0 0 14px; text-transform: uppercase;
    Wer den Wert ändert, muss die Zeilenhöhe des Dateifelds unten
    mitziehen. */
 input[type=text], input[type=search], input[type=file], input[type=password],
-input[type=email], input[type=tel], input[type=number], select {
+input[type=email], input[type=tel], input[type=number], input[type=url], select {
   width: 100%; padding: 9px 11px; font: inherit;
   border: 1px solid var(--linie); border-radius: 8px;
   background: var(--flaeche-2); color: inherit;
@@ -3227,6 +3227,12 @@ body.anmeldeseite {
 .anmeldekarte .feld { margin-bottom: 16px; }
 .anmeldekarte .knopfreihe { margin-top: 22px; margin-bottom: 0; }
 .anmelde-knopf { width: 100%; justify-content: center; padding: 11px 16px; }
+/* „Passwort vergessen?" und die Rueckwege (seit 1.49): klein und mittig
+   unter dem Knopf - ein Ausweg, keine zweite Handlung gleichen Ranges. */
+.anmelde-vergessen { margin: 14px 0 0; text-align: center; font-size: 13.5px; }
+.anmelde-vergessen a { color: var(--leise); text-decoration: none; }
+.anmelde-vergessen a:hover, .anmelde-vergessen a:focus-visible {
+  color: var(--akzent); text-decoration: underline; }
 
 .anmelde-fuss {
   margin: 22px 0 0; font-size: 12px; color: var(--leise); text-align: center;
@@ -6359,7 +6365,7 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 */
 @media (max-width: 760px) {
   input[type=text], input[type=search], input[type=password],
-  input[type=email], input[type=tel], input[type=number],
+  input[type=email], input[type=tel], input[type=number], input[type=url],
   input[type=date], input[type=time], select, textarea {
     font-size: 16px;
   }

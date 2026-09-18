@@ -3,6 +3,15 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.49
+
+- Neu: „Passwort vergessen?“ auf dem Anmeldebildschirm – Link per E-Mail,
+  30 Minuten gültig, nur einmal benutzbar; danach sind alle Sitzungen
+  beendet. Einzuschalten unter Einstellungen → E-Mail, dort auch die
+  Adresse der Anwendung eintragen
+- Die eigene E-Mail-Adresse ändert sich nur noch mit dem aktuellen Passwort
+- Prüfung von 2160 auf 2206 Einzelprüfungen erweitert
+
 ## 1.48.1
 
 - Manuelle Zeiterfassung: eine neue Zeile übernimmt die Leistung der

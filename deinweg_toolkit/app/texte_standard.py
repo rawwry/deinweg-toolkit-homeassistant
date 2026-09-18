@@ -860,6 +860,32 @@ TEXTE_STANDARD["datenpflege.sicherung"] = (
     "höchstens stillgelegt.")
 TEXTE_STANDARD["login.lead"] = (
     "Mit Benutzername und Passwort anmelden, um fortzufahren.")
+TEXTE_STANDARD["login.vergessen_lead"] = (
+    "Gib deinen Benutzernamen oder deine E-Mail-Adresse ein. Ist für "
+    "dein Konto eine Adresse hinterlegt, schicken wir dorthin einen Link, "
+    "über den du ein neues Passwort festlegst.")
+TEXTE_STANDARD["login.vergessen_gesendet"] = (
+    "Wenn es zu dieser Angabe ein Konto mit hinterlegter E-Mail-Adresse "
+    "gibt, ist jetzt ein Link dorthin unterwegs. Er gilt 30 Minuten. "
+    "Kommt nichts an, sieh im Spam-Ordner nach oder wende dich an die "
+    "Verwaltung.")
+TEXTE_STANDARD["login.vergessen_aus"] = (
+    "Ein neues Passwort per E-Mail ist hier nicht eingerichtet. Bitte "
+    "wende dich an die Verwaltung – dort lässt sich dein Passwort neu "
+    "setzen.")
+TEXTE_STANDARD["einst.passwortmail_wozu"] = (
+    "Auf dem Anmeldebildschirm steht dann „Passwort vergessen?“. Wer "
+    "Benutzernamen oder E-Mail-Adresse eingibt, bekommt einen Link an die "
+    "Adresse seines Kontos, über den er ein neues Passwort festlegt. Der "
+    "Link gilt 30 Minuten und nur einmal; danach sind alle Anmeldungen "
+    "des Kontos beendet, und eine Bestätigung geht an dieselbe Adresse.")
+TEXTE_STANDARD["einst.passwortmail_adresse"] = (
+    "Unter dieser Adresse ruft das Team die Anwendung auf, zum Beispiel "
+    "http://192.168.1.20:8778 – so steht sie im Link. Sie wird bewusst "
+    "hier eingetragen und nicht aus der Anfrage gelesen: sonst ließe sich "
+    "ein Link auf einen fremden Server umlenken. Ohne Adresse bleibt die "
+    "Funktion aus. Wer kein Konto mit E-Mail-Adresse hat, bekommt keinen "
+    "Link; dessen Passwort setzt weiterhin die Verwaltung.")
 TEXTE_STANDARD["vorgaenge.verlauf_leer"] = "Noch keine Einträge."
 TEXTE_STANDARD["vorgaenge.loeschen_hinweis"] = (
     "Der Vorgang verschwindet dabei vollständig, inklusive seines "

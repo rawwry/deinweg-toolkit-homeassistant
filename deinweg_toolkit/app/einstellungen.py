@@ -21,7 +21,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
-from . import auth, dateien, db, kfz, mail, ntfy, texte_standard, wiki
+from . import auth, dateien, db, kfz, mail, ntfy, passwort, texte_standard, wiki
 from .parser import norm, NICHT_ABRECHENBAR
 
 # Klartextnamen der Textgruppen. Der Schluesselpraefix allein ("vorgaenge",
@@ -446,6 +446,7 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
             "mailkonfig": mailkonfig, "passwort_gesetzt": passwort_gesetzt,
             "ntfy_zugang": ntfy_zugang,
             "ntfy_bereit": not ntfy.einrichtung_pruefen(mailkonfig),
+            "passwort_bereit": passwort.bereit(mailkonfig),
             "bewilligung_empfaenger":
                 mail.empfaengerliste(mailkonfig.get("bewilligung_empfaenger")),
             "frist_kopie": mail.empfaengerliste(mailkonfig.get("frist_kopie")),
@@ -1088,6 +1089,11 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                       dateien_ordner, auth.geschuetzte_dateiordner(con))}
         if neues_passwort:
             felder["passwort_hash"] = db.passwort_hashen(neues_passwort)
+        # Ein vorher angeforderter Link darf das, was die Verwaltung eben
+        # gesetzt hat, nicht wieder ueberschreiben (seit 1.49).
+        if (neues_passwort or not aktiv_neu
+                or (email or None) != (satz["email"] or None)):
+            passwort.links_verwerfen(con, benutzer_id)
         satzstueck = ", ".join(f"{k}=?" for k in felder)
         con.execute(f"UPDATE benutzer SET {satzstueck} WHERE id=?",
                     [*felder.values(), benutzer_id])
@@ -1292,6 +1298,32 @@ def zuweisungsmail_speichern(zuweisung_aktiv: str = Form(""),
     with db.db() as con:
         mail.konfig_schreiben(con, werte)
     return email_zurueck(hinweis="Erinnerung an neue Aufgaben gespeichert.")
+
+
+@router.post("/einstellungen/passwortmail")
+def passwortmail_speichern(passwortlink_aktiv: str = Form(""),
+                           app_adresse: str = Form("")):
+    """„Passwort vergessen?" samt der Adresse, die in den Link kommt.
+
+    ⚠️ Eine unbrauchbare Adresse wird abgewiesen statt gespeichert: der
+    Link waere sonst tot, und niemand merkte es vor dem Ernstfall.
+    """
+    werte = {"passwortlink_aktiv": "1" if passwortlink_aktiv else "0"}
+    if app_adresse.strip():
+        adresse = passwort.adresse_pruefen(app_adresse)
+        if adresse is None:
+            return email_zurueck(
+                fehler="Die Adresse der Anwendung muss mit http:// oder "
+                       "https:// beginnen, etwa http://192.168.1.20:8778.")
+        werte["app_adresse"] = adresse
+    else:
+        werte["app_adresse"] = ""
+    with db.db() as con:
+        mail.konfig_schreiben(con, werte)
+        # Wer die Adresse aendert oder abschaltet, soll keine alten
+        # Links mehr im Umlauf haben, die noch auf die alte zeigen.
+        con.execute("DELETE FROM passwort_link")
+    return email_zurueck(hinweis="„Passwort vergessen“ gespeichert.")
 
 
 @router.post("/einstellungen/erledigtmail")

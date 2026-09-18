@@ -133,6 +133,11 @@ STANDARD = {
     ),
     # Aufgabe erledigt -> Mail an die Person, die sie angelegt hat.
     # Standard aus, wie bei jedem Anlass, den es vorher nicht gab.
+    # „Passwort vergessen?" (seit 1.49, passwort.py). Standard aus, und
+    # ohne eigene Adresse der Anwendung bleibt es aus - siehe dort, warum
+    # die Adresse nicht aus der Anfrage kommen darf.
+    "passwortlink_aktiv": "0",
+    "app_adresse": "",
     "erledigt_aktiv": "0",
     "vorlage_erledigt_betreff": "Erledigt: {titel}",
     "vorlage_erledigt_text": (
