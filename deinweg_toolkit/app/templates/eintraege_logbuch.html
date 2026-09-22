@@ -76,7 +76,7 @@
     {# Das Formular steht leer neben der Liste, die Kästchen verweisen
        über form="logloeschen" darauf. #}
     <form action="/eintraege/logbuch/loeschen" method="post" id="logloeschen"
-          onsubmit="return massenwahl_bestaetigen()">
+          onsubmit="return massenwahl_bestaetigen(event)">
       <input type="hidden" name="zurueck" value="{{ zurueck }}">
     </form>
 
@@ -222,10 +222,10 @@
       });
     }
 
-    window.massenwahl_bestaetigen = function () {
+    window.massenwahl_bestaetigen = function (ereignis) {
       var n = gewaehlt().length;
-      if (!n) return false;
-      return confirm(n === 1
+      if (!n) return dwt.abbrechen(ereignis);
+      return dwt.frage(ereignis, n === 1
         ? "Diese Logzeile entfernen? Dass hier aufgeräumt wurde, bleibt "
           + "als eigene Zeile stehen."
         : n + " Logzeilen entfernen? Das lässt sich nicht rückgängig "

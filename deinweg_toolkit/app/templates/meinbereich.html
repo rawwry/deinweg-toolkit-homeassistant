@@ -942,7 +942,7 @@
             </svg>
           </a>
           <form class="inline" action="/meinbereich/eintrag/{{ z.id }}/loeschen" method="post"
-                onsubmit="return confirm('Diesen Eintrag vom {{ z.datum | deutsch }} wirklich löschen?')">
+                onsubmit="return dwt.frage(event, 'Diesen Eintrag vom {{ z.datum | deutsch }} wirklich löschen?')">
             <input type="hidden" name="zurueck" value="/meinbereich?zeiten={{ zeiten_monat }}#zeiten">
             <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

@@ -162,7 +162,7 @@
      ließe sich zu leicht im Vorbeigehen treffen, und zurücknehmen lässt
      sich das nur über die Sicherung. #}
   <form action="/datenpflege/anwenden" method="post" class="anwendform"
-        onsubmit="return confirm('Wirklich {{ vorschau.gesamt }} Stellen ändern?')">
+        onsubmit="return dwt.frage(event, 'Wirklich {{ vorschau.gesamt }} Stellen ändern?')">
     <input type="hidden" name="feld" value="{{ feld }}">
     <input type="hidden" name="suchart" value="{{ suchart }}">
     <input type="hidden" name="suchwert" value="{{ suchwert }}">

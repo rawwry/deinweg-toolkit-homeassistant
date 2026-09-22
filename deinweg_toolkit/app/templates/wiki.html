@@ -168,7 +168,7 @@
           </a>
           {% if darf_schreiben %}
           <form class="inline" action="/wiki/aktion/loeschen" method="post"
-                onsubmit="return confirm('Die Seite „{{ titel }}“ ({{ aktuell }}) endgültig löschen? Das lässt sich nicht rückgängig machen.')">
+                onsubmit="return dwt.frage(event, 'Die Seite „{{ titel }}“ ({{ aktuell }}) endgültig löschen? Das lässt sich nicht rückgängig machen.')">
             <input type="hidden" name="pfad" value="{{ aktuell }}">
             <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -268,7 +268,7 @@
           {% endif %}
           {% if aktuell and darf_schreiben %}
           <form class="inline" action="/wiki/aktion/loeschen" method="post"
-                onsubmit="return confirm('Den Ordner „{{ titel }}“ entfernen? Das geht nur, wenn er leer ist.')">
+                onsubmit="return dwt.frage(event, 'Den Ordner „{{ titel }}“ entfernen? Das geht nur, wenn er leer ist.')">
             <input type="hidden" name="pfad" value="{{ aktuell }}">
             <button class="knopf-icon warn" type="submit"
                     title="Ordner löschen" aria-label="Ordner „{{ titel }}“ löschen">

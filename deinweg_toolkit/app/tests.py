@@ -7072,6 +7072,30 @@ def test_htmx(client: TestClient) -> None:
            and "opacity: .55" in stil,
            "ein Bereich, der gerade geholt wird, tritt zurück")
 
+    # --- 4. „Abbrechen" muss auch htmx abbrechen (1.50.1) ------------------
+    # ⚠️⚠️ Der teuerste Fund dieser Reihe: htmx hängt am `submit`-Ereignis
+    # und sieht sich NICHT an, ob das `onsubmit`-Attribut die Absendung
+    # schon abgebrochen hat. In 1.50 wurde eine Aufgabe samt Logbuch
+    # deshalb auch dann gelöscht, wenn man „Abbrechen" gedrückt hat.
+    pruefe("window.dwt.frage" in basis and "stopImmediatePropagation" in basis,
+           "dwt.frage bricht eine htmx-Anfrage mit ab")
+    offen = []
+    for name in sorted(os.listdir(vorlagen)):
+        if not name.endswith(".html"):
+            continue
+        text = quelle(name)
+        for zeile in text.split("onsubmit=")[1:]:
+            wert = zeile.split('"')[1]
+            if "dwt.frage" not in wert and "massenwahl_bestaetigen(event)" not in wert:
+                offen.append(name + ": " + wert[:40])
+    pruefe(not offen, "jede Sicherheitsabfrage läuft über dwt "
+                      + ("" if not offen else str(offen)))
+    # Die Sammelauswahl fragt selbst - sie muss dafür das Ereignis kennen.
+    for datei in ("eintraege.html", "eintraege_logbuch.html"):
+        pruefe("massenwahl_bestaetigen = function (ereignis)" in quelle(datei)
+               and "dwt.abbrechen(ereignis)" in quelle(datei),
+               f"die Sammelauswahl in {datei} hält auch htmx auf")
+
 
 def test_bearbeiten_dauer(client: TestClient) -> None:
     """Die Dauer folgt den Uhrzeiten, und die Maske ist aufgeräumt (1.49.1)."""

@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.50.1
+
+- Behoben: seit 1.50 wurde in den Aufgaben und im Tagesprotokoll auch dann
+  gelöscht, wenn man im Sicherheitsdialog „Abbrechen“ gedrückt hat
+- Prüfung von 2252 auf 2256 Einzelprüfungen erweitert
+
 ## 1.50
 
 - Status auf einer Aufgabenkarte, Speichern einer Zeit sowie Filter und

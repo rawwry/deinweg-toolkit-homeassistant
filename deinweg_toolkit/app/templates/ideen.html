@@ -83,7 +83,7 @@
             </svg>
           </a>
           <form class="inline" action="/ideen/{{ e.nr }}/loeschen" method="post"
-                onsubmit="return confirm('Diesen Eintrag endgültig entfernen?')">
+                onsubmit="return dwt.frage(event, 'Diesen Eintrag endgültig entfernen?')">
             <button class="knopf-icon warn" type="submit" title="Entfernen" aria-label="Entfernen">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"

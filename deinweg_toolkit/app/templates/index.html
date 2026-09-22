@@ -481,7 +481,7 @@
                   hx-post="/eintraege/{{ z.id }}/loeschen" hx-target="#protokollkarte"
                   hx-select="#protokollkarte" hx-swap="outerHTML"
                   hx-select-oob="#erfassen,#bestandkarte,#abgabenkarte"
-                  onsubmit="return confirm('Diesen Eintrag löschen?')">
+                  onsubmit="return dwt.frage(event, 'Diesen Eintrag löschen?')">
               <input type="hidden" name="zurueck" value="/?mitarbeiter={{ mitarbeiter | urlencode }}&datum={{ datum | urlencode }}">
               <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Eintrag löschen">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

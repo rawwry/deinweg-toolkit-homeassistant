@@ -322,7 +322,7 @@
           {% if darf_vorgang_loeschen(request, z.v) %}
           <form class="inline" action="/vorgaenge/{{ z.v.id }}/loeschen" method="post"
                 hx-post="/vorgaenge/{{ z.v.id }}/loeschen" hx-push-url="false"
-                onsubmit="return confirm('Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
+                onsubmit="return dwt.frage(event, 'Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
             <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
             <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -503,7 +503,7 @@
           {% if darf_vorgang_loeschen(request, z.v) %}
           <form class="inline" action="/vorgaenge/{{ z.v.id }}/loeschen" method="post"
                 hx-post="/vorgaenge/{{ z.v.id }}/loeschen" hx-push-url="false"
-                onsubmit="return confirm('Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
+                onsubmit="return dwt.frage(event, 'Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
             <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
             <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

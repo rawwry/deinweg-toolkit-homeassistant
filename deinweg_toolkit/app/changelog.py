@@ -2519,4 +2519,13 @@ CHANGELOG = [
         "bisher, jeder Verweis führt wie bisher",
         "Prüfung von 2218 auf 2252 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.50.1", "titel": "Abbrechen heißt Abbrechen", "punkte": [
+        "Behoben: seit 1.50 wurde in den Aufgaben und im Tagesprotokoll "
+        "auch dann gelöscht, wenn man im Sicherheitsdialog auf "
+        "„Abbrechen“ gedrückt hat – der neue Weg ohne Seitenaufbau hat "
+        "sich die Antwort nicht angesehen",
+        "Die Regel gilt jetzt an einer Stelle für jede Sicherheitsabfrage "
+        "im Programm, auch für jede künftige",
+        "Prüfung von 2252 auf 2256 Einzelprüfungen erweitert",
+    ]},
 ]

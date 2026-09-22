@@ -92,7 +92,7 @@
   </svg>
 </button>
 <form class="inline" action="/dateien/loeschen" method="post"
-      onsubmit="return confirm('„{{ d.name }}“ endgültig löschen? Verweise darauf im Wiki laufen danach ins Leere.')">
+      onsubmit="return dwt.frage(event, '„{{ d.name }}“ endgültig löschen? Verweise darauf im Wiki laufen danach ins Leere.')">
   <input type="hidden" name="pfad" value="{{ d.pfad }}">
   <input type="hidden" name="ordner" value="{{ ordner }}">
   <button class="knopf-icon warn" type="submit" title="Löschen"
@@ -129,7 +129,7 @@
   </svg>
 </button>
 <form class="inline" action="/dateien/loeschen" method="post"
-      onsubmit="return confirm({% if o.anzahl %}'Ordner „{{ o.name }}“ mit {{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträgen' }} endgültig löschen? Der gesamte Inhalt geht mit.'{% else %}'Ordner „{{ o.name }}“ entfernen?'{% endif %})">
+      onsubmit="return dwt.frage(event, {% if o.anzahl %}'Ordner „{{ o.name }}“ mit {{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträgen' }} endgültig löschen? Der gesamte Inhalt geht mit.'{% else %}'Ordner „{{ o.name }}“ entfernen?'{% endif %})">
   <input type="hidden" name="pfad" value="{{ o.pfad }}">
   <input type="hidden" name="ordner" value="{{ ordner }}">
   <button class="knopf-icon warn" type="submit" title="Ordner löschen"

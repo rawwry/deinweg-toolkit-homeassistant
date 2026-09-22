@@ -141,7 +141,7 @@
             </a>
             <form class="inline" method="post"
                   action="/fuhrpark/ereignis/{{ z.id }}/loeschen"
-                  onsubmit="return confirm('Diesen Eintrag wirklich löschen?');">
+                  onsubmit="return dwt.frage(event, 'Diesen Eintrag wirklich löschen?')">
               <input type="hidden" name="zurueck" value="/fuhrpark?fahrzeug={{ gewaehlt.id }}">
               <button class="knopf-icon warn" type="submit" title="Eintrag löschen">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

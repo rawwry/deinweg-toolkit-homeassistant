@@ -75,6 +75,32 @@
   // Seite beim Zurückgehen frisch vom Server, also unangereichert - und
   // hier wird sie wieder verkabelt.
   document.addEventListener("htmx:historyRestore", function () { window.dwt.bauen(); });
+
+  // ⚠️⚠️ „Abbrechen" im Sicherheitsdialog muss auch htmx abbrechen
+  // (seit 1.50.1). Ein `onsubmit`, das ein `confirm(…)` zurückgibt, hält
+  // nur die Absendung des BROWSERS auf; htmx hängt daneben am selben `submit`-Ereignis und
+  // sieht sich das nicht an. In 1.50 hieß das: wer eine Aufgabe löschen
+  // wollte und dann „Abbrechen" drückte, hat sie trotzdem gelöscht, samt
+  // ihrem Logbuch - nachgemessen, nicht vermutet.
+  //
+  // `stopImmediatePropagation()` ist die Stelle, an der es hält: der
+  // Horcher aus dem `onsubmit`-Attribut steht schon beim Zerlegen der
+  // Seite da, htmx hängt seinen erst danach an - und kommt so gar nicht
+  // mehr zum Zug. ⚠️ Deshalb läuft JEDE Sicherheitsabfrage im Programm
+  // über `dwt.frage(event, "…")` statt über ein nacktes `confirm()`, auch
+  // dort, wo heute noch kein htmx hängt: sonst ist die nächste Stelle,
+  // die eines bekommt, still wieder offen. Ohne htmx verhält sich beides
+  // wie zuvor.
+  window.dwt.abbrechen = function (ereignis) {
+    if (ereignis) {
+      ereignis.preventDefault();
+      ereignis.stopImmediatePropagation();
+    }
+    return false;
+  };
+  window.dwt.frage = function (ereignis, text) {
+    return confirm(text) ? true : window.dwt.abbrechen(ereignis);
+  };
 </script>
 
 <script>

@@ -291,7 +291,7 @@
             </svg>
           </a>
           <form class="inline" action="/einstellungen/spruch/{{ s.nr }}/loeschen" method="post"
-                onsubmit="return confirm('Diesen Spruch endgültig entfernen?')">
+                onsubmit="return dwt.frage(event, 'Diesen Spruch endgültig entfernen?')">
             {{ muelleimer("Spruch entfernen") }}
           </form>
         </div>
@@ -548,7 +548,7 @@
       </form>
       <form class="inline" method="post"
             action="/einstellungen/person/{{ p.id }}/grundwert-verwerfen"
-            onsubmit="return confirm('Den alten Grundwert von {{ p.name }} ersatzlos verwerfen?')">
+            onsubmit="return dwt.frage(event, 'Den alten Grundwert von {{ p.name }} ersatzlos verwerfen?')">
         <button class="knopf leise klein" type="submit">Grundwert verwerfen</button>
       </form>
     </div>
@@ -596,7 +596,7 @@
               </button>
               <form class="inline" method="post"
                     action="/einstellungen/person/zeitraum/{{ z.id }}/loeschen"
-                    onsubmit="return confirm('Diesen Zeitraum entfernen?')">
+                    onsubmit="return dwt.frage(event, 'Diesen Zeitraum entfernen?')">
                 {{ muelleimer("Zeitraum entfernen") }}
               </form>
             </td>
@@ -727,7 +727,7 @@
     <div class="knopfreihe konto-fuss">
       <button class="knopf haupt" type="submit" form="person-f-{{ p.id }}">speichern</button>
       <form class="inline entfernen-rechts" action="/einstellungen/person/{{ p.id }}/loeschen" method="post"
-            onsubmit="return confirm('{{ p.name }} aus den Stammdaten entfernen? Erfasste Zeiten bleiben erhalten, die hinterlegten Zeiträume nicht.')">
+            onsubmit="return dwt.frage(event, '{{ p.name }} aus den Stammdaten entfernen? Erfasste Zeiten bleiben erhalten, die hinterlegten Zeiträume nicht.')">
         {{ muelleimer("Person entfernen") }}
       </form>
     </div>
@@ -868,7 +868,7 @@
       </form>
       <form class="inline entfernen-rechts konto-entfernen"
             action="/einstellungen/mitarbeiter/{{ m.id }}/loeschen" method="post"
-            onsubmit="return confirm('{{ m.name }} aus dem Team entfernen? Erfasste Zeiten bleiben erhalten.')">
+            onsubmit="return dwt.frage(event, '{{ m.name }} aus dem Team entfernen? Erfasste Zeiten bleiben erhalten.')">
         {{ muelleimer(m.name ~ " entfernen") }}
       </form>
     {% endcall %}
@@ -943,7 +943,7 @@
       </form>
       <form class="inline entfernen-rechts konto-entfernen"
             action="/einstellungen/vorgangsart/{{ a.id }}/loeschen" method="post"
-            onsubmit="return confirm('{{ a.name }} endgültig entfernen?{% if a.verwendungen %} Bestehende Vorgänge behalten die Bezeichnung dennoch.{% endif %}')">
+            onsubmit="return dwt.frage(event, '{{ a.name }} endgültig entfernen?{% if a.verwendungen %} Bestehende Vorgänge behalten die Bezeichnung dennoch.{% endif %}')">
         {{ muelleimer(a.name ~ " entfernen") }}
       </form>
     {% endcall %}
@@ -1017,7 +1017,7 @@
       </form>
       <form class="inline entfernen-rechts konto-entfernen"
             action="/einstellungen/leistung/{{ l.id }}/loeschen" method="post"
-            onsubmit="return confirm('{{ l.name }} aus der Auswahl entfernen? Bereits erfasste Zeiten behalten ihre Beschreibung.')">
+            onsubmit="return dwt.frage(event, '{{ l.name }} aus der Auswahl entfernen? Bereits erfasste Zeiten behalten ihre Beschreibung.')">
         {{ muelleimer(l.name ~ " entfernen") }}
       </form>
     {% endcall %}
@@ -1184,7 +1184,7 @@
         <button class="knopf" type="submit">archivieren</button>
       </form>
       <form class="inline" action="/einstellungen/fahrzeug/{{ f.id }}/loeschen" method="post"
-            onsubmit="return confirm('{{ kfz_bezeichnung(f) }} endgültig löschen? Damit verschwinden auch die {{ f.eintraege }} Einträge der Historie. Zum Ausmustern reicht „archivieren“.')">
+            onsubmit="return dwt.frage(event, '{{ kfz_bezeichnung(f) }} endgültig löschen? Damit verschwinden auch die {{ f.eintraege }} Einträge der Historie. Zum Ausmustern reicht „archivieren“.')">
         <button class="knopf warn" type="submit">löschen</button>
       </form>
     </div>
@@ -1218,7 +1218,7 @@
             <button class="knopf klein" type="submit">zurückholen</button>
           </form>
           <form class="inline" action="/einstellungen/fahrzeug/{{ f.id }}/loeschen" method="post"
-                onsubmit="return confirm('{{ kfz_bezeichnung(f) }} endgültig löschen? Damit verschwinden auch die {{ f.eintraege }} Einträge der Historie.')">
+                onsubmit="return dwt.frage(event, '{{ kfz_bezeichnung(f) }} endgültig löschen? Damit verschwinden auch die {{ f.eintraege }} Einträge der Historie.')">
             <button class="knopf klein warn" type="submit">löschen</button>
           </form>
         </td>
@@ -1687,7 +1687,7 @@
       <button class="knopf haupt" type="submit" form="bn-{{ b.id }}">speichern</button>
       {% if b.id != eigene_id %}
       <form class="inline" action="/einstellungen/benutzer/{{ b.id }}/loeschen" method="post"
-            onsubmit="return confirm('Konto „{{ b.benutzername }}“ endgültig löschen?')">
+            onsubmit="return dwt.frage(event, 'Konto „{{ b.benutzername }}“ endgültig löschen?')">
         <button class="knopf warn" type="submit">löschen</button>
       </form>
       {% else %}
@@ -2123,7 +2123,7 @@
   <h2>Vorlagen zurücksetzen</h2>
   <p class="lead">{{ t("einst.vorlagen_ruecksetzen_alle") }}</p>
   <form action="/einstellungen/vorlagen/zuruecksetzen" method="post"
-        onsubmit="return confirm('Alle Vorlagen auf den Auslieferungsstand zurücksetzen? Deine Änderungen gehen dabei verloren.')">
+        onsubmit="return dwt.frage(event, 'Alle Vorlagen auf den Auslieferungsstand zurücksetzen? Deine Änderungen gehen dabei verloren.')">
     <button class="knopf warn" type="submit">Auf Auslieferungsstand zurücksetzen</button>
   </form>
 </section>
@@ -2331,7 +2331,7 @@
   </form>
   {% if eigene_logos %}
   <form action="/einstellungen/logo" method="post" enctype="multipart/form-data"
-        onsubmit="return confirm('Wieder die ausgelieferten Logos verwenden? Die hochgeladenen Dateien werden dabei entfernt.')">
+        onsubmit="return dwt.frage(event, 'Wieder die ausgelieferten Logos verwenden? Die hochgeladenen Dateien werden dabei entfernt.')">
     <input type="hidden" name="zuruecksetzen" value="1">
     <div class="knopfreihe">
       <button class="knopf leise" type="submit">Wieder die ausgelieferten verwenden</button>
@@ -2384,7 +2384,7 @@
   </form>
   {% if eigene_symbole %}
   <form action="/einstellungen/symbol" method="post" enctype="multipart/form-data"
-        onsubmit="return confirm('Wieder die ausgelieferten Symbole verwenden? Die hochgeladenen Dateien werden dabei entfernt.')">
+        onsubmit="return dwt.frage(event, 'Wieder die ausgelieferten Symbole verwenden? Die hochgeladenen Dateien werden dabei entfernt.')">
     <input type="hidden" name="zuruecksetzen" value="1">
     <div class="knopfreihe">
       <button class="knopf leise" type="submit">Wieder die ausgelieferten verwenden</button>
@@ -2457,7 +2457,7 @@
     <h2>Sicherung einspielen</h2>
     <p class="klein leise felderklaerung">{{ t("einst.sicherung_import") }}</p>
     <form action="/einstellungen/sicherung" method="post" enctype="multipart/form-data"
-          onsubmit="return confirm('Der gesamte aktuelle Datenbestand wird durch die hochgeladene Sicherung ersetzt. Wirklich fortfahren?')">
+          onsubmit="return dwt.frage(event, 'Der gesamte aktuelle Datenbestand wird durch die hochgeladene Sicherung ersetzt. Wirklich fortfahren?')">
       <label class="feld">
         <span>Sicherungsdatei (.db)</span>
         <input type="file" name="datei" accept=".db,.sqlite,.sqlite3" required>
@@ -2595,14 +2595,14 @@
   {% for g in textgruppen %}
   <form id="textgruppe-{{ g.schluessel }}" method="post"
         action="/einstellungen/hinweistexte/zuruecksetzen"
-        onsubmit="return confirm('Alle Texte im Bereich „{{ g.titel }}“ auf den Auslieferungsstand setzen?')">
+        onsubmit="return dwt.frage(event, 'Alle Texte im Bereich „{{ g.titel }}“ auf den Auslieferungsstand setzen?')">
     <input type="hidden" name="gruppe" value="{{ g.schluessel }}">
   </form>
   {% endfor %}
   {# Ohne „gruppe" setzt die Route alle Bereiche zurück. #}
   <form id="textgruppe-alle" method="post"
         action="/einstellungen/hinweistexte/zuruecksetzen"
-        onsubmit="return confirm('Alle Texte auf den Auslieferungsstand setzen? Eigene Formulierungen gehen dabei verloren.')">
+        onsubmit="return dwt.frage(event, 'Alle Texte auf den Auslieferungsstand setzen? Eigene Formulierungen gehen dabei verloren.')">
     <input type="hidden" name="gruppe" value="">
   </form>
 </div>

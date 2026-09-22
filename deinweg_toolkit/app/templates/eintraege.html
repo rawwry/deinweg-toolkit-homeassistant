@@ -108,7 +108,7 @@
      lägen dann verschachtelt darin, was ungültiges HTML wäre. #}
   {% if loeschbar %}
   <form action="/eintraege/loeschen" method="post" id="massenloeschen"
-        onsubmit="return massenwahl_bestaetigen()">
+        onsubmit="return massenwahl_bestaetigen(event)">
     <input type="hidden" name="zurueck" value="/eintraege?{{ query }}">
   </form>
   {% endif %}
@@ -166,7 +166,7 @@
           {% endif %}
           {% if z.id in loeschbar %}
           <form class="inline" action="/eintraege/{{ z.id }}/loeschen" method="post"
-                onsubmit="return confirm('Diesen Eintrag löschen?')">
+                onsubmit="return dwt.frage(event, 'Diesen Eintrag löschen?')">
             <input type="hidden" name="zurueck" value="/eintraege?{{ query }}">
             <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -275,10 +275,13 @@
       });
     }
 
-    window.massenwahl_bestaetigen = function () {
+    window.massenwahl_bestaetigen = function (ereignis) {
+      // ⚠️ Beides über dwt (seit 1.50.1): ein „Abbrechen" muss auch eine
+      // htmx-Anfrage aufhalten, und dieses Formular steht in einem
+      // Bereich, der ausgetauscht wird.
       var n = gewaehlt().length;
-      if (!n) return false;
-      return confirm(n === 1
+      if (!n) return dwt.abbrechen(ereignis);
+      return dwt.frage(ereignis, n === 1
         ? "Diesen Eintrag unwiderruflich löschen?"
         : n + " Einträge unwiderruflich löschen? Das lässt sich nicht rückgängig machen.");
     };

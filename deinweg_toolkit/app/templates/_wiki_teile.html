@@ -91,7 +91,7 @@
 </a>
 {% if darf_schreiben %}
 <form class="inline" action="/wiki/aktion/loeschen" method="post"
-      onsubmit="return confirm('Die Seite „{{ titel }}“ ({{ pfad }}) endgültig löschen? Das lässt sich nicht rückgängig machen.')">
+      onsubmit="return dwt.frage(event, 'Die Seite „{{ titel }}“ ({{ pfad }}) endgültig löschen? Das lässt sich nicht rückgängig machen.')">
   <input type="hidden" name="pfad" value="{{ pfad }}">
   <button class="knopf-icon warn" type="submit"
           title="Löschen" aria-label="„{{ titel }}“ löschen">
