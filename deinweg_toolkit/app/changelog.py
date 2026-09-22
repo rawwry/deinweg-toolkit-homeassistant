@@ -2490,4 +2490,17 @@ CHANGELOG = [
         "neuen Passwort",
         "Prüfung von 2160 auf 2206 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.49.1", "titel": "Die Dauer rechnet wieder mit", "punkte": [
+        "„Eintrag bearbeiten“: wer eine Uhrzeit ändert, bekommt die neue "
+        "Dauer sofort – vorher blieb die alte stehen, weil das Dauerfeld "
+        "vorbelegt war und damit immer gewann",
+        "Eine selbst eingetragene Dauer gilt weiterhin: das ist der Weg "
+        "für einen Zettel ohne Uhrzeiten",
+        "Die Maske ist aufgeräumt: oben der Bezug und die Dauer als "
+        "Plakette, darunter „Wann“ und „Wer und was“ als zwei Blöcke, "
+        "unten eine Fußleiste wie in der Erfassung",
+        "Die Werte in den Feldern stehen beim Bearbeiten wieder "
+        "linksbündig",
+        "Prüfung von 2206 auf 2218 Einzelprüfungen erweitert",
+    ]},
 ]

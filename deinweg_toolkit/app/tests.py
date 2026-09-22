@@ -6949,16 +6949,93 @@ def test_passwort_vergessen(client: TestClient) -> None:
         mail.konfig_schreiben(con, vorher_k)
 
 
+def test_bearbeiten_dauer(client: TestClient) -> None:
+    """Die Dauer folgt den Uhrzeiten, und die Maske ist aufgeräumt (1.49.1)."""
+    abschnitt("Eintrag bearbeiten: Dauer und Maske")
+    with db.db() as con:
+        con.execute(
+            "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, "
+            "klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
+            "angelegt_am) VALUES ('pruefer','2026-05-04','2026-05','09:00',"
+            "'10:00','Testperson','Probe',60,1,'dauer-probe',"
+            "'2026-05-04 12:00')")
+        eid = con.execute("SELECT id FROM eintrag WHERE "
+                          "fingerprint='dauer-probe'").fetchone()["id"]
+
+    seite = client.get(f"/eintraege/{eid}/bearbeiten").text
+    pruefe('name="dauer_alt"' in seite and 'value="01:00"' in seite,
+           "die gespeicherte Dauer fährt als verstecktes Feld mit")
+    pruefe("function rechnen()" in seite,
+           "das Skript rechnet die Dauer aus Beginn und Ende")
+
+    def speichern(**felder):
+        daten = {"datum": "2026-05-04", "start": "09:00", "ende": "10:00",
+                 "dauer": "01:00", "dauer_alt": "01:00", "klient": "Testperson",
+                 "mitarbeiter": "pruefer", "beschreibung": "Probe",
+                 "abrechenbar": "1", "zurueck": "/eintraege"}
+        daten.update(felder)
+        client.post(f"/eintraege/{eid}/bearbeiten", data=daten)
+        with db.db() as con:
+            return con.execute("SELECT * FROM eintrag WHERE id=?",
+                               (eid,)).fetchone()
+
+    # ⚠️ Der eigentliche Fehler: die Dauer stand vorbelegt im Feld und
+    # gewann deshalb IMMER - wer nur die Uhrzeiten korrigierte, behielt
+    # die alte Dauer.
+    zeile = speichern(ende="11:30")
+    pruefe(zeile["dauer_min"] == 150,
+           "eine geänderte Endzeit zieht die Dauer mit (ohne Skript)")
+    zeile = speichern(start="08:00", ende="11:30", dauer="02:30",
+                      dauer_alt="02:30")
+    pruefe(zeile["dauer_min"] == 210,
+           "eine geänderte Anfangszeit ebenso")
+    # Eine von Hand gesetzte Dauer gewinnt weiterhin - der Weg für einen
+    # Zettel ohne Uhrzeiten.
+    zeile = speichern(start="08:00", ende="11:30", dauer="00:45",
+                      dauer_alt="03:30")
+    pruefe(zeile["dauer_min"] == 45,
+           "eine selbst eingetragene Dauer gewinnt gegen die Spanne")
+    zeile = speichern(start="", ende="", dauer="02:15", dauer_alt="00:45")
+    pruefe(zeile["dauer_min"] == 135 and not zeile["start"],
+           "ohne Uhrzeiten zählt weiterhin allein die Dauer")
+    # Über Mitternacht bleibt die Rechnung dieselbe wie in der Erfassung.
+    zeile = speichern(start="23:00", ende="01:00", dauer="02:15",
+                      dauer_alt="02:15")
+    pruefe(zeile["dauer_min"] == 120, "über Mitternacht wird richtig gerechnet")
+
+    # --- die aufgeräumte Maske ---------------------------------------------
+    stil = client.get("/static/style.css").text
+    pruefe('class="bearbeitenkopf"' in seite and "bearbeiten-dauer" in seite,
+           "oben stehen Bezug und Dauer als Plakette")
+    pruefe(seite.count('class="formblock"') == 2
+           and "Wann" in seite and "Wer und was" in seite,
+           "die Felder stehen in zwei beschrifteten Blöcken")
+    pruefe('class="bearbeiten-fuss"' in seite
+           and ".bearbeiten-fuss {" in stil,
+           "die Knöpfe stehen in einer getönten Fußleiste")
+    links = stil.split(".bearbeitenzeiten input[name=start]")[1].split("}")[0]
+    pruefe("text-align: left" in links,
+           "Beginn, Ende und Dauer stehen linksbündig")
+    pruefe(".dauer-marke {" in stil and 'id="dauermarke"' in seite,
+           "die Marke „berechnet“ steht neben der Beschriftung")
+
+    with db.db() as con:
+        con.execute("DELETE FROM eintrag WHERE id=?", (eid,))
+
+
 def test_umbau_1_48(client: TestClient) -> None:
     """Zentrierte Zeiten und die Fußleiste der Erfassung (seit 1.48)."""
     abschnitt("Zeiterfassung: mittige Zeiten, Fußleiste")
     stil = client.get("/static/style.css").text
     # Timos Wunsch: getippte Zeiten stehen mittig - in der Erfassung und
     # beim Bearbeiten, beide Felder tragen .zeitfeld.
-    pruefe("input.zeitfeld { text-align: center; }" in stil,
-           "getippte Uhrzeiten stehen mittig")
-    pruefe(".bearbeitenzeiten input[name=dauer] { text-align: center; }" in stil,
-           "beim Bearbeiten auch die Dauer")
+    pruefe(".erfasszeile input.zeitfeld { text-align: center; }" in stil,
+           "getippte Uhrzeiten stehen in der Erfassung mittig")
+    # ⚠️ In „Eintrag bearbeiten" gilt das seit 1.49.1 NICHT mehr (Timos
+    # Wunsch) - siehe test_bearbeiten_dauer.
+    pruefe(".bearbeitenzeiten input[name=dauer] { text-align: center; }"
+           not in stil,
+           "beim Bearbeiten stehen sie wieder linksbündig")
 
     seite = client.get("/").text
     fuss = seite.split('class="erfass-fuss"')[1].split("</div>\n\n")[0]
@@ -9596,6 +9673,7 @@ def _durchlauf(client: TestClient) -> None:
         test_logo_umzug()
         test_umbau_1_48(client)
         test_passwort_vergessen(client)
+        test_bearbeiten_dauer(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

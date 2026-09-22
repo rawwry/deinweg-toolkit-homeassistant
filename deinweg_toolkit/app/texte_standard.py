@@ -158,6 +158,15 @@ TEXTE_STANDARD["auswertung.verdienst_hinweis"] = (
     "Rechnerischer Wert der bisher erfassten Zeiten. Keine Abrechnung.")
 TEXTE_STANDARD["bearbeiten.dauer_hinweis"] = (
     "Leer gelassene Dauer wird aus Beginn und Ende berechnet. Eine eingetragene Dauer gewinnt gegenüber der Zeitspanne – praktisch für Zettel ohne Uhrzeiten.")
+# ⚠️ Seit 1.49.1 gilt die umgekehrte Regel: die Zeitspanne zieht die Dauer
+# mit, sobald sie sich aendert. Der alte Wortlaut (dauer_hinweis) ist damit
+# inhaltlich falsch und steht in UNGENUTZT - unter DEMSELBEN Schluessel
+# waere die Berichtigung bei einer eigenen Formulierung nie angekommen
+# (Abschnitt 8).
+TEXTE_STANDARD["bearbeiten.dauer_regel"] = (
+    "Beginn und Ende rechnen die Dauer aus – änderst du eine Uhrzeit, "
+    "zieht die Dauer mit. Wer sie selbst einträgt, behält den eigenen "
+    "Wert: der Weg für einen Zettel ohne Uhrzeiten.")
 TEXTE_STANDARD["bearbeiten.lead"] = (
     "Ursprünglich eingelesen am {zeitpunkt}. Änderungen wirken sich sofort auf Auswertung und Export aus.")
 TEXTE_STANDARD["ideen.bearbeiten_hinweis"] = (
@@ -1049,6 +1058,10 @@ TEXTE_STANDARD["footer.text"] = (
 # wird ein Schluessel wieder gebraucht oder faellt ein neuer weg, schlaegt
 # sie an. Ohne das verrottete diese Notiz binnen zweier Versionen.
 UNGENUTZT = frozenset({
+    # seit 1.49.1: die Regel ist umgekehrt - die Zeitspanne gewinnt,
+    # solange niemand die Dauer selbst anfasst. Ersetzt durch
+    # bearbeiten.dauer_regel.
+    "bearbeiten.dauer_hinweis",
     # seit 1.44: der Abschnitt heisst "Branding" und traegt auch Favicon
     # und App-Symbol; der alte Wortlaut nannte die erklaerenden Texte,
     # die dort seit 1.37 nicht mehr stehen. Ersetzt durch

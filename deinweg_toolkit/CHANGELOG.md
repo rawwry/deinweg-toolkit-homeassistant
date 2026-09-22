@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.49.1
+
+- „Eintrag bearbeiten“: eine geänderte Uhrzeit zieht die Dauer wieder mit
+  (eine selbst eingetragene Dauer gilt weiterhin)
+- Die Maske ist aufgeräumt, die Werte stehen wieder linksbündig
+- Prüfung von 2206 auf 2218 Einzelprüfungen erweitert
+
 ## 1.49
 
 - Neu: „Passwort vergessen?“ auf dem Anmeldebildschirm – Link per E-Mail,

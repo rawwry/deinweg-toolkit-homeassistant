@@ -47,7 +47,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.49"
+VERSION = "1.49.1"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1357,6 +1357,7 @@ def zeit_lesen(text: str):
 def eintrag_speichern(request: Request, eintrag_id: int,
                       datum: str = Form(...), start: str = Form(""),
                       ende: str = Form(""), dauer: str = Form(""),
+                      dauer_alt: str = Form(""),
                       klient: str = Form(...), beschreibung: str = Form(""),
                       mitarbeiter: str = Form(...), abrechenbar: str = Form(""),
                       zurueck: str = Form("/eintraege")):
@@ -1380,9 +1381,17 @@ def eintrag_speichern(request: Request, eintrag_id: int,
             "Eine Uhrzeit ist nicht lesbar. Bitte als Stunden:Minuten "
             "eintragen, zum Beispiel 09:30.")
 
-    minuten = parse_dauer(dauer) if dauer.strip() else None
-    if minuten is None:
-        minuten = dauer_aus_spanne(beginn, schluss)
+    # ⚠️ Beginn und Ende gewinnen, solange die Dauer unveraendert im Feld
+    # steht (seit 1.49.1, Timos Meldung). Bis dahin gewann IMMER das
+    # Dauerfeld - es kommt ja vorbelegt aus der Datenbank -, und wer nur
+    # die Uhrzeiten korrigierte, behielt stillschweigend die alte Dauer.
+    # Eine von Hand geaenderte Dauer gewinnt weiterhin: das ist der Weg
+    # fuer einen Zettel ohne Uhrzeiten.
+    getippt = dauer.strip()
+    minuten = parse_dauer(getippt) if getippt else None
+    spanne = dauer_aus_spanne(beginn, schluss)
+    if spanne is not None and (minuten is None or getippt == dauer_alt.strip()):
+        minuten = spanne
     if minuten is None:
         return zurueck_mit_fehler(
             "Die Dauer fehlt. Trag sie als Stunden:Minuten ein, "

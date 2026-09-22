@@ -1136,7 +1136,7 @@ input[type=date], input[type=time] { min-width: 0; }
    `.zeitfeld`. Die Dauer daneben steht in der Erfassung ohnehin mittig;
    linksbündige Zeiten wirkten neben ihr schief. Der Platzhalter „HH:MM"
    folgt von selbst. */
-input.zeitfeld { text-align: center; }
+.erfasszeile input.zeitfeld { text-align: center; }
 
 /* --- Eintrag bearbeiten: Datum und Zeiten (seit 1.46) ----------------
    Gestapelt ist der Ausgangszustand - Datum über die volle Breite,
@@ -1146,9 +1146,24 @@ input.zeitfeld { text-align: center; }
 .bearbeitenform { container-type: inline-size; container-name: bearbeiten; }
 .feldreihe.bearbeitenzeiten { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
 .bearbeitenzeiten .b-datum { grid-column: 1 / -1; }
-/* Getippte Zeiten stehen mittig (seit 1.48, Timos Wunsch) - hier auch die
-   Dauer, sie ist genauso eine Uhrzeitangabe. */
-.bearbeitenzeiten input[name=dauer] { text-align: center; }
+/* ⚠️ In „Eintrag bearbeiten" stehen die Werte seit 1.49.1 wieder
+   LINKSBUENDIG (Timos Wunsch). Mittig war es von 1.48 bis 1.49 - dort
+   ist es eine Tabelle aus vielen gleichen Zeilen, hier ein Formular, in
+   dem jedes Feld unter seiner Beschriftung beginnt. Die Regel fuer die
+   Erfassung steht deshalb auf `.erfasszeile input.zeitfeld`. */
+.bearbeitenzeiten input[name=start], .bearbeitenzeiten input[name=ende],
+.bearbeitenzeiten input[name=dauer] { text-align: left; }
+
+/* Die Marke „berechnet" neben der Beschriftung der Dauer: sie erscheint,
+   sobald das Skript sie aus Beginn und Ende gefuellt hat, und geht weg,
+   sobald jemand selbst hineintippt. */
+.dauer-marke {
+  display: inline-block; margin-left: 6px; padding: 1px 7px;
+  border-radius: 999px; background: var(--akzent-weich); color: var(--akzent);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; vertical-align: 1px;
+}
+.dauer-marke[hidden] { display: none; }
 @container bearbeiten (min-width: 520px) {
   .feldreihe.bearbeitenzeiten { grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 16px; }
   .bearbeitenzeiten .b-datum { grid-column: auto; }
@@ -1157,6 +1172,37 @@ input.zeitfeld { text-align: center; }
    mit 240px Mindestbreite passt dort ohnehin nur eine hinein - ohne die
    `min()` erzwang es aber 240px auch in einer schmaleren Karte. */
 .bearbeitenform .feldreihe.zwei { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+
+/* --- Eintrag bearbeiten: Kopf und Fuss (seit 1.49.1) ------------------
+   Die Maske war eine Reihe aus acht Feldern unter einer Ueberschrift, mit
+   zwei nackten Knoepfen darunter. Jetzt: oben worum es geht und die Dauer
+   als Plakette (sie zaehlt beim Tippen mit), darunter zwei beschriftete
+   Bloecke, unten eine getoente Leiste wie in der Erfassung. */
+.bearbeitenkopf {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.bearbeitenkopf h1 { margin: 0; }
+.bearbeiten-bezug { margin: 3px 0 0; font-size: 13.5px; color: var(--leise); }
+.bearbeiten-dauer {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 7px 14px; border-radius: 999px;
+  background: var(--akzent-weich); color: var(--akzent);
+  font-size: 19px; font-weight: 700; line-height: 1.1;
+}
+.bearbeiten-dauer .kmass { color: inherit; opacity: .75; }
+/* Ohne lesbare Dauer ist dort kein Wert, sondern eine Luecke - dann
+   traegt die Plakette auch keine Akzentfarbe. */
+.bearbeiten-dauer.leer { background: var(--flaeche-2); color: var(--leise); }
+.bearbeiten-fuss {
+  margin: 22px calc(var(--kartenluft) * -1) -22px;
+  padding: 13px var(--kartenluft);
+  border-top: 1px solid var(--linie);
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--flaeche-2);
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 10px; flex-wrap: wrap;
+}
 
 [data-thema="dunkel"] input[type=date]::-webkit-calendar-picker-indicator,
 [data-thema="dunkel"] input[type=time]::-webkit-calendar-picker-indicator {
