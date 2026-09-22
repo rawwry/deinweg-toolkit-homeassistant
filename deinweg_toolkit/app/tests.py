@@ -6949,6 +6949,130 @@ def test_passwort_vergessen(client: TestClient) -> None:
         mail.konfig_schreiben(con, vorher_k)
 
 
+def test_htmx(client: TestClient) -> None:
+    """Drei Stellen tauschen ihren Bereich, statt die Seite neu zu bauen (1.50)."""
+    abschnitt("htmx: Austausch statt Seitenaufbau")
+    vorlagen = os.path.join(os.path.dirname(__file__), "templates")
+
+    def quelle(name):
+        return open(os.path.join(vorlagen, name), encoding="utf-8").read()
+
+    # --- Die Datei liegt im Haus, nicht im Netz ----------------------------
+    antwort = client.get("/static/htmx.min.js")
+    pruefe(antwort.status_code == 200 and len(antwort.content) > 20000,
+           "htmx wird aus dem eigenen Ordner ausgeliefert")
+    basis = quelle("base.html")
+    pruefe('src="/static/htmx.min.js?v=' in basis,
+           "und aus base.html mit Versionsanhang eingebunden")
+    # ⚠️ Abschnitt 13 ist nur für die MITGELIEFERTE Datei gelockert - ein
+    # Aufruf ins Netz bleibt verboten.
+    fremd = [n for n in os.listdir(vorlagen)
+             if n.endswith(".html")
+             and ("unpkg.com" in quelle(n) or "cdn." in quelle(n)
+                  or "jsdelivr" in quelle(n))]
+    pruefe(not fremd, "keine Vorlage lädt etwas aus dem Netz nach")
+
+    # --- Der Nachrüst-Haken -----------------------------------------------
+    # ⚠️ Er MUSS vor dem Inhalt stehen: die Skripte der einzelnen Seiten
+    # stehen mitten im Inhalt und laufen früher als alles am Seitenende.
+    pruefe(basis.index("window.dwt") < basis.index("{% block inhalt %}"),
+           "der Nachrüst-Haken steht vor dem Inhalt")
+    pruefe('document.addEventListener("htmx:afterSwap"' in basis,
+           "nach jedem Austausch wird nachgerüstet")
+    # ⚠️⚠️ Die Zurück-Taste war die böseste Falle: htmx legt den Bereich
+    # ANGEREICHERT in seinen Verlauf - die Marken `data-fertig` kommen
+    # zurück, die Horcher nicht. Der Bereich sah danach heil aus und war
+    # tot (gemessen: der Ansichtsumschalter ließ sich nicht mehr umlegen).
+    # Deshalb wird nichts zwischengespeichert, und der Verlauf holt die
+    # Seite frisch vom Server.
+    pruefe('document.addEventListener("htmx:historyRestore"' in basis,
+           "nach der Zurück-Taste ebenso")
+    for datei in ("vorgaenge.html", "eintraege.html"):
+        pruefe('hx-history="false"' in quelle(datei),
+               f"{datei} legt keinen angereicherten Bereich in den Verlauf")
+    pruefe(basis.count("window.dwt.nachruesten.push(") == 3,
+           "Schalter, Namenslisten und Zeitraum-Picker hängen am Haken")
+    pruefe('if (k.dataset.fertig) { return; }' in basis
+           and 'if (liste.dataset.fertig) { return; }' in basis
+           and "wurzel.dataset.fertig" in basis,
+           "und verkabeln nichts doppelt (data-fertig)")
+    # ⚠️ Ein Skript IM getauschten Bereich läuft ohnehin erneut - es darf
+    # sich nicht zusätzlich eintragen, sonst sammeln sich Anmeldungen.
+    pruefe("nachruesten.push" not in quelle("eintraege.html")
+           and "nachruesten.push" not in quelle("vorgaenge.html"),
+           "Skripte im getauschten Bereich tragen sich nicht am Haken ein")
+
+    # --- 1. Status auf einer Aufgabenkarte ---------------------------------
+    seite = client.get("/vorgaenge").text
+    bereich = seite.split('id="aufgabenbereich"')[1].split(">")[0]
+    for stueck in ('hx-target="#aufgabenbereich"', 'hx-select="#aufgabenbereich"',
+                   'hx-swap="outerHTML"', 'hx-push-url="true"'):
+        pruefe(stueck in bereich, f"die Hülle der Aufgaben trägt {stueck}")
+    form = seite.split('class="vk-statusform"')[1].split("</form>")[0]
+    pruefe('hx-post="/vorgaenge/' in form and 'hx-push-url="false"' in form,
+           "die Status-Schnellwahl tauscht nur den Bereich")
+    # ⚠️ Ohne Skript muss dasselbe Formular weiterhin ganz normal
+    # abschicken - `action` und `method` bleiben deshalb stehen.
+    pruefe('method="post"' in form and 'action="/vorgaenge/' in form,
+           "und bleibt ohne Skript ein gewöhnliches Formular")
+    pruefe("form.requestSubmit()" in quelle("vorgaenge.html"),
+           "die Auswahl schickt über requestSubmit ab, nicht über submit")
+    # ⚠️ Das Blättern steht erst ab der zweiten Seite im Markup - hier
+    # zählt deshalb die Vorlage, nicht die gerade gerenderte Seite.
+    pruefe('class="kennzahlen" hx-boost="true"' in seite,
+           "die Kennzahlen tauschen ebenfalls nur den Bereich")
+    pruefe('class="blaettern" aria-label="Seiten" hx-boost="true"'
+           in quelle("vorgaenge.html"),
+           "das Blättern der Aufgaben ebenso")
+    pruefe('hx-trigger="dwt:laden"' in seite,
+           "das Auge „Erledigte ausblenden“ hängt am eigenen Auslöser")
+
+    # --- 2. Zeit speichern, nur das Protokoll nachladen --------------------
+    seite = client.get("/").text
+    form = seite.split('id="erfassung"')[1].split(">")[0]
+    pruefe('hx-post="/erfassung"' in form
+           and 'hx-target="#protokollkarte"' in form
+           and 'hx-select="#protokollkarte"' in form,
+           "das Erfassungsformular tauscht die Protokollkarte")
+    # ⚠️ Meldung, Bestand und Abgaben ändern sich beim Speichern mit -
+    # ohne Nebentausch stünden dort sofort veraltete Zahlen.
+    pruefe('hx-select-oob="#erfassen,#bestandkarte,#abgabenkarte"' in form,
+           "Meldung, Bestand und Abgaben kommen als Nebentausch mit")
+    for kennung in ('id="protokollkarte"', 'id="bestandkarte"',
+                    'id="abgabenkarte"', 'id="erfassen"'):
+        pruefe(kennung in seite, f"die Seite trägt {kennung}")
+    pruefe('action="/erfassung" method="post"' in seite,
+           "ohne Skript bleibt es ein gewöhnliches Formular")
+    # Auch hier die Vorlage: das Protokoll zeigt nur, was am gewählten
+    # Tag erfasst ist - an einem leeren Tag steht dort keine Zeile.
+    loeschen = quelle("index.html").split('class="tp-aktionen"')[1].split("</form>")[0]
+    pruefe('hx-post="/eintraege/' in loeschen
+           and 'hx-target="#protokollkarte"' in loeschen,
+           "Löschen im Protokoll tauscht dieselbe Karte")
+
+    # --- 3. Filter und Blättern in der Übersicht ---------------------------
+    seite = client.get("/eintraege").text
+    bereich = seite.split('id="eintragsbereich"')[1].split(">")[0]
+    pruefe('hx-select="#eintragsbereich"' in bereich
+           and 'hx-push-url="true"' in bereich,
+           "die Hülle der Übersicht trägt ihre Regeln")
+    pruefe('<form class="filter" method="get" action="/eintraege" hx-boost="true">'
+           in seite, "der Filter der Übersicht tauscht nur den Bereich")
+    # ⚠️ Dasselbe Partial baut auch den Filter der Auswertung - dort lädt
+    # die Seite weiter ganz neu (Diagramm und Monatsblöcke).
+    pruefe('hx-boost' not in client.get("/auswertung").text,
+           "die Auswertung bleibt beim gewöhnlichen Seitenaufbau")
+    # Der Bereich muss die Werkzeuge der Liste umschließen, aber NICHT die
+    # Reiterleiste - die führt auf andere Seiten.
+    pruefe(seite.index('id="eintragsbereich"') > seite.index('unternavigation'),
+           "die Reiterleiste steht außerhalb des getauschten Bereichs")
+
+    stil = client.get("/static/style.css").text
+    pruefe("#aufgabenbereich.htmx-request" in stil
+           and "opacity: .55" in stil,
+           "ein Bereich, der gerade geholt wird, tritt zurück")
+
+
 def test_bearbeiten_dauer(client: TestClient) -> None:
     """Die Dauer folgt den Uhrzeiten, und die Maske ist aufgeräumt (1.49.1)."""
     abschnitt("Eintrag bearbeiten: Dauer und Maske")
@@ -7836,8 +7960,11 @@ def test_erledigte_standard(client: TestClient) -> None:
     pruefe("Noch offen" in standard, "die offene Aufgabe steht da")
     pruefe("/vorgaenge/9380" not in standard, "die erledigte nicht")
     # Das Auge in der Werkzeugleiste zeigt den Zustand: schon umgelegt.
-    pruefe('id="erledigte-aus" class="erledigt-kaestchen"\n           checked'
-           in standard or 'class="erledigt-kaestchen"\n           checked' in standard,
+    # ⚠️ Seit 1.50 steht zwischen Klasse und „checked" noch der
+    # htmx-Auslöser - deshalb wird das Kästchen als Ganzes geschnitten
+    # und nicht mehr buchstabengleich verglichen.
+    kaestchen = standard.split('id="erledigte-aus"')[1].split(">")[0]
+    pruefe("erledigt-kaestchen" in kaestchen and "checked" in kaestchen,
            "das Kästchen „Erledigte ausblenden“ steht angehakt da")
 
     # ⚠️ Auf die beiden Titel gefiltert: erledigte Vorgänge sinken in jeder
@@ -9674,6 +9801,7 @@ def _durchlauf(client: TestClient) -> None:
         test_umbau_1_48(client)
         test_passwort_vergessen(client)
         test_bearbeiten_dauer(client)
+        test_htmx(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

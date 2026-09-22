@@ -42,6 +42,42 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script>
+  // ⚠️⚠️ Der Nachrüst-Haken steht GANZ OBEN im Kopf und nicht unten bei
+  // den übrigen Skripten (seit 1.50): die Skripte der einzelnen Seiten
+  // stehen mitten im Inhalt und laufen damit FRÜHER als alles am
+  // Seitenende. Stünde `dwt` dort, bekäme jede Seite, die sich hier
+  // einträgt, beim Laden ein „dwt is undefined" - genau das ist beim
+  // Einbau passiert.
+  //
+  // Wozu der Haken da ist: die Skripte verkabeln die Elemente, die sie
+  // beim Laden vorfinden. Tauscht htmx einen Bereich aus, sind dessen
+  // Elemente neu - ohne Nachrüsten wäre jede Verbesserung daran still
+  // weg (Namenslisten, Zeitraum-Picker, Ansichtsumschalter,
+  // Mehrfachauswahl). Wer sich einträgt, muss mehrfach laufen können und
+  // darf nichts doppelt verkabeln; dafür trägt jedes erledigte Element
+  // `data-fertig`.
+  window.dwt = {
+    nachruesten: [],
+    bauen: function () {
+      window.dwt.nachruesten.forEach(function (f) {
+        // Ein Fehler in einer Verbesserung darf die übrigen nicht mitreißen.
+        try { f(); } catch (e) { console.error(e); }
+      });
+    }
+  };
+  document.addEventListener("htmx:afterSwap", function () { window.dwt.bauen(); });
+  // ⚠️⚠️ Und nach der Zurück-Taste ebenso. htmx legt den Bereich
+  // ANGEREICHERT in seinen Verlauf - mit den Marken `data-fertig`, aber
+  // ohne die Horcher, die nur im Arbeitsspeicher leben. Ein Bereich aus
+  // dem Verlauf sähe deshalb heil aus und wäre tot (nachgemessen: der
+  // Ansichtsumschalter ließ sich nach „Zurück" nicht mehr umlegen).
+  // Deshalb steht an beiden Bereichen `hx-history="false"`: htmx holt die
+  // Seite beim Zurückgehen frisch vom Server, also unangereichert - und
+  // hier wird sie wieder verkabelt.
+  document.addEventListener("htmx:historyRestore", function () { window.dwt.bauen(); });
+</script>
+
+<script>
   // vor dem ersten Rendern setzen, damit es nicht kurz aufblitzt
   (function () {
     try {
@@ -203,6 +239,13 @@
 </div>
 {% endif %}
 
+{# ⚠️⚠️ htmx wird AUS DEM EIGENEN ORDNER geladen, nie von einem CDN
+   (seit 1.50). Abschnitt 13 verbietet externe Skripte zur Laufzeit; Timo
+   hat die Regel ausdrücklich für diesen einen Fall gelockert, und zwar
+   für eine mitgelieferte Datei - nicht für einen Aufruf ins Netz. `defer`,
+   damit das Laden das Rendern nicht aufhält. #}
+<script src="/static/htmx.min.js?v={{ VERSION }}" defer></script>
+
 <script>
   (function () {
     var wurzel = document.documentElement;
@@ -235,6 +278,11 @@
       }
 
       knoepfe.forEach(function (k) {
+        // ⚠️ Nur einmal je Knopf: nach einem Austausch läuft das hier
+        // erneut, und ein zweiter Klick-Horcher am selben Knopf würde
+        // den Schalter zweimal umlegen - also gar nicht.
+        if (k.dataset.fertig) { return; }
+        k.dataset.fertig = "1";
         k.addEventListener("click", function () {
           var jetzt = wurzel.dataset[speicher] || standard;
           wurzel.dataset[speicher] = k.dataset.wert
@@ -250,6 +298,7 @@
       anzeigen();
     }
 
+    function schalterBauen() {
     aufbauen("thema", "thema", "dunkel", "hell", function (w) {
       return w === "hell" ? "Hell" : "Dunkel";
     });
@@ -281,6 +330,11 @@
     aufbauen("leerzellen", "leerzellen", "leer", "strich", function (w) {
       return w === "strich" ? "Mit Strich" : "Leer";
     });
+    }
+    // Der Ansichtsumschalter der Aufgaben steht IN der Liste und wird
+    // dort mit ausgetauscht - deshalb hängt das Bauen am Haken.
+    window.dwt.nachruesten.push(schalterBauen);
+    schalterBauen();
 
     // ⚠️ Die Kopfzeile wird durchscheinend, sobald gescrollt wird - der
     // Weichzeichner läuft also nicht dauerhaft, sondern nur, wenn wirklich
@@ -376,7 +430,11 @@
   // ohne Skript bleibt die Liste offen stehen und der Text im Feld ist
   // erst nach dem Filtern aktuell - bedienbar ist sie so wie so.
   (function () {
+    function listenBauen() {
     document.querySelectorAll("details.wahlliste").forEach(function (liste) {
+      // Schon verkabelt? Dann in Ruhe lassen (siehe dwt.nachruesten).
+      if (liste.dataset.fertig) { return; }
+      liste.dataset.fertig = "1";
       var text    = liste.querySelector(".wahlliste-text"),
           feld    = liste.querySelector(".wahlliste-feld"),
           leer    = liste.querySelector(".wahlliste-leer"),
@@ -430,7 +488,13 @@
       }
     });
 
-    // 3. Klick daneben klappt zu.
+    }
+    window.dwt.nachruesten.push(listenBauen);
+    listenBauen();
+
+    // 3. Klick daneben klappt zu. ⚠️ Steht AUSSERHALB von listenBauen():
+    // der Horcher hängt am Dokument, nicht an einer Liste - zweimal
+    // registriert liefe er auch zweimal.
     document.addEventListener("click", function (e) {
       document.querySelectorAll("details.wahlliste[open]").forEach(function (d) {
         if (!d.contains(e.target)) { d.open = false; }
@@ -451,8 +515,14 @@
   // stellt man links den Anfang und rechts das Ende ein, unabhängig
   // voneinander.
   (function () {
+    window.dwt.nachruesten.push(zeitwahlBauen);
+    zeitwahlBauen();
+
+    function zeitwahlBauen() {
     var wurzel = document.querySelector(".zeitwahl");
-    if (!wurzel) { return; }
+    // Nichts da oder schon gebaut - dann ist hier nichts zu tun.
+    if (!wurzel || wurzel.dataset.fertig) { return; }
+    wurzel.dataset.fertig = "1";
 
     var form  = wurzel.closest("form"),
         felder = {
@@ -898,6 +968,7 @@
       vorschau = null;
       zeichnen(true);
     });
+    }
   })();
 </script>
 

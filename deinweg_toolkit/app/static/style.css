@@ -256,6 +256,7 @@ main > * { min-width: 0; }
   }
 }
 @media (prefers-reduced-motion: no-preference) {
+  #aufgabenbereich, #eintragsbereich, #protokollkarte { transition: opacity .12s ease; }
   .kopf { transition: background .25s ease, border-color .25s ease; }
 }
 
@@ -1172,6 +1173,16 @@ input[type=date], input[type=time] { min-width: 0; }
    mit 240px Mindestbreite passt dort ohnehin nur eine hinein - ohne die
    `min()` erzwang es aber 240px auch in einer schmaleren Karte. */
 .bearbeitenform .feldreihe.zwei { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+
+/* --- htmx: ein Bereich wird gerade geholt (seit 1.50) -----------------
+   htmx hängt `htmx-request` an das Element aus `hx-indicator` - bei uns
+   an den Bereich, der gleich getauscht wird. Er tritt solange leicht
+   zurück; mehr braucht es nicht, im lokalen Netz ist die Antwort nach
+   wenigen Hundertstel da. ⚠️ Bewusst nur ein Zurücktreten und kein
+   Drehkreisel: der erschiene und verschwände im selben Wimpernschlag. */
+#aufgabenbereich.htmx-request,
+#eintragsbereich.htmx-request,
+#protokollkarte.htmx-request { opacity: .55; }
 
 /* --- Eintrag bearbeiten: Kopf und Fuss (seit 1.49.1) ------------------
    Die Maske war eine Reihe aus acht Feldern unter einer Ueberschrift, mit

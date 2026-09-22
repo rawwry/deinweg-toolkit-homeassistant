@@ -4,6 +4,23 @@
 {% block titel %} – Aufgaben{% endblock %}
 {% block inhalt %}
 
+{# ⚠️⚠️ Seit 1.50 tauscht htmx diesen Bereich aus, statt die Seite neu
+   aufzubauen (Timos Auftrag, Punkt 1: „Status auf einer Aufgabenkarte
+   umstellen"). Die Regeln stehen EINMAL hier an der Hülle - jedes
+   `hx-get`/`hx-post` darin erbt Ziel, Ausschnitt und Austauschart. Wer
+   eine neue Stelle ergänzt, braucht deshalb nur noch `hx-get` bzw.
+   `hx-post`.
+   ⚠️ `hx-select` holt aus der gewöhnlichen Antwort des Servers genau
+   diesen Bereich heraus. Der Server rendert also weiter die ganze Seite
+   (eine Route, eine Vorlage, ein Weg ohne Skript) - der Browser baut nur
+   nicht mehr alles neu auf. Das ist der Gewinn: kein Sprung an den
+   Seitenanfang, kein Flackern, keine neu geladenen Stylesheets.
+   ⚠️ `hx-push-url` hält die Adresse ehrlich: Lesezeichen und
+   Zurück-Taste führen danach genau auf diese Liste. #}
+<div id="aufgabenbereich" hx-target="#aufgabenbereich" hx-select="#aufgabenbereich"
+     hx-swap="outerHTML" hx-push-url="true" hx-indicator="#aufgabenbereich"
+     hx-history="false">
+
 {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
 {% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
 
@@ -14,7 +31,11 @@
   </div>
   <p class="lead">{{ t("vorgaenge.lead") }}</p>
 
-  <div class="kennzahlen">
+  {# Die vier Kacheln sind Verweise auf dieselbe Seite mit einem Filter -
+     sie dürfen deshalb den Bereich tauschen statt die Seite neu zu bauen.
+     `hx-boost` nimmt dafür die vorhandenen `href`, es steht also nichts
+     doppelt da; ohne Skript bleiben es gewöhnliche Links. #}
+  <div class="kennzahlen" hx-boost="true">
     <a class="kennzahl {{ 'hat' if zahlen.ueberfaellig }} k-ueberfaellig"
        href="/vorgaenge?faellig=ueberfaellig">
       <span class="kzahl">{{ zahlen.ueberfaellig }}</span>
@@ -143,7 +164,7 @@
 {% endif %}
 
 <section class="karte">
-  <form class="filter" method="get" action="/vorgaenge">
+  <form class="filter" method="get" action="/vorgaenge" hx-boost="true">
     <label><span>Betreute Person</span>
       <select name="klient">
         <option value="">alle</option>
@@ -192,7 +213,7 @@
   </form>
 
   {% if aktive_filter %}
-  <div class="filterstand">
+  <div class="filterstand" hx-boost="true">
     <span class="filterstand-marke">Aktiv</span>
     {% for feld, wert in aktive_filter %}
       <span class="filterchip"><span class="leise">{{ feld }}:</span> {{ wert }}</span>
@@ -226,8 +247,12 @@
        und kein <button>: so bleibt der Zustand ein Kästchen (per Tastatur
        erreichbar, mit Leertaste bedienbar), und ohne Skript ändert sich
        nur nichts - der Zustandsfilter darüber tut dasselbe. #}
+    {# ⚠️ `hx-trigger` steht hier, `hx-get` setzt das Skript unten erst
+       beim Umlegen - die Zieladresse hängt am aktuellen Filter und am
+       Zustand des Kästchens. Ohne Skript bleibt beides wirkungslos, und
+       der Zustandsfilter darüber tut dasselbe. #}
     <input type="checkbox" id="erledigte-aus" class="erledigt-kaestchen"
-           {{ 'checked' if f.zustand == 'offen' }}>
+           hx-trigger="dwt:laden" {{ 'checked' if f.zustand == 'offen' }}>
     <label class="knopf-icon erledigt-schalter" for="erledigte-aus"
            title="Erledigte ausblenden" aria-label="Erledigte ausblenden">
       <svg class="nur-mit" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -296,6 +321,7 @@
              wird das mit derselben Funktion, die auch die Route prüft. #}
           {% if darf_vorgang_loeschen(request, z.v) %}
           <form class="inline" action="/vorgaenge/{{ z.v.id }}/loeschen" method="post"
+                hx-post="/vorgaenge/{{ z.v.id }}/loeschen" hx-push-url="false"
                 onsubmit="return confirm('Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
             <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
             <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
@@ -326,8 +352,13 @@
            „ändern"-Knopf sichtbar und tut dasselbe; mit Skript schickt
            schon die Auswahl ab. Der versteckte „zurueck"-Wert hält die
            gefilterte Liste. #}
+        {# ⚠️ Ziel und Ausschnitt erbt das Formular von der Hülle;
+           `hx-push-url="false"` ist hier wichtig - die Liste bleibt
+           dieselbe Adresse, und eine POST-Adresse gehört nie in den
+           Verlauf. Ohne Skript schickt dasselbe Formular ab wie bisher. #}
         <form class="vk-statusform" method="post"
-              action="/vorgaenge/{{ z.v.id }}/status">
+              action="/vorgaenge/{{ z.v.id }}/status"
+              hx-post="/vorgaenge/{{ z.v.id }}/status" hx-push-url="false">
           <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
           <select name="status" class="vk-statuswahl {{ V_STATUS_KLASSE.get(z.v.status, 'weg') }}"
                   aria-label="Status von „{{ z.v.titel }}“ ändern">
@@ -406,7 +437,8 @@
         <span class="vz-frist zahlen">{{ frist(z.v, z.lage) }}</span>
 
         <form class="vz-statusform vk-statusform" method="post"
-              action="/vorgaenge/{{ z.v.id }}/status">
+              action="/vorgaenge/{{ z.v.id }}/status"
+              hx-post="/vorgaenge/{{ z.v.id }}/status" hx-push-url="false">
           <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
           <select name="status" class="vk-statuswahl {{ V_STATUS_KLASSE.get(z.v.status, 'weg') }}"
                   aria-label="Status von „{{ z.v.titel }}“ ändern">
@@ -470,6 +502,7 @@
              Knopf ganz - man musste die Aufgabe erst öffnen. #}
           {% if darf_vorgang_loeschen(request, z.v) %}
           <form class="inline" action="/vorgaenge/{{ z.v.id }}/loeschen" method="post"
+                hx-post="/vorgaenge/{{ z.v.id }}/loeschen" hx-push-url="false"
                 onsubmit="return confirm('Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
             <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
             <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
@@ -488,7 +521,7 @@
   </div>
 
   {% if seiten_gesamt > 1 %}
-  <nav class="blaettern" aria-label="Seiten">
+  <nav class="blaettern" aria-label="Seiten" hx-boost="true">
     <span class="blaettern-stand">
       <strong>{{ erste_nr }}–{{ letzte_nr }}</strong> von {{ gesamt_treffer }} Vorgängen
     </span>
@@ -537,7 +570,16 @@
       var adresse = new URL(window.location.href);
       adresse.searchParams.set("zustand", schalter.checked ? "offen" : "alle");
       adresse.searchParams.delete("seite_nr");
-      window.location.href = adresse.toString();
+      // Mit htmx nur die Liste tauschen (seit 1.50), sonst wie bisher die
+      // ganze Seite holen. Der Auslöser hängt am Kästchen selbst, damit
+      // Ziel, Ausschnitt und Adresse von der Hülle geerbt werden.
+      if (window.htmx) {
+        schalter.setAttribute("hx-get", adresse.pathname + adresse.search);
+        window.htmx.process(schalter);
+        window.htmx.trigger(schalter, "dwt:laden");
+      } else {
+        window.location.href = adresse.toString();
+      }
     });
   })();
 
@@ -550,8 +592,16 @@
           knopf = form.querySelector(".vk-statussenden");
       if (!wahl) { return; }
       if (knopf) { knopf.hidden = true; }
-      wahl.addEventListener("change", function () { form.submit(); });
+      // ⚠️ requestSubmit() und NICHT submit(): nur das löst das
+      // submit-Ereignis aus, und genau daran hängt htmx. Mit submit()
+      // ginge die Seite still am Austausch vorbei und würde komplett neu
+      // aufgebaut - der Fehler ist beim Einbau prompt passiert.
+      // Ältere Browser ohne requestSubmit bekommen den alten Weg.
+      wahl.addEventListener("change", function () {
+        if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+      });
     });
   })();
 </script>
+</div>
 {% endblock %}

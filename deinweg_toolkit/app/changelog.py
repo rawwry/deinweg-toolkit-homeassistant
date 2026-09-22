@@ -2503,4 +2503,20 @@ CHANGELOG = [
         "linksbündig",
         "Prüfung von 2206 auf 2218 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.50", "titel": "Ohne Seitenaufbau", "punkte": [
+        "Drei Handgriffe bauen die Seite nicht mehr neu auf, sondern "
+        "tauschen nur den Teil, der sich ändert: der Status auf einer "
+        "Aufgabenkarte, das Speichern einer Zeit (dort kommt nur das "
+        "Tagesprotokoll zurück) sowie Filter und Blättern in der Übersicht",
+        "Die Seite springt dabei nicht mehr an den Anfang, und die "
+        "Adresse bleibt richtig – Lesezeichen und Zurück-Taste führen "
+        "weiterhin genau dorthin",
+        "Speichern: bleibt eine Zeile stehen, weil etwas fehlt, ist jetzt "
+        "nichts Getipptes mehr weg – bisher war beim Neuaufbau alles hin",
+        "Dafür liegt htmx (eine Datei, 50 KB) im Programm. Sie wird aus "
+        "dem eigenen Ordner geladen, nie aus dem Netz",
+        "Ohne Skript ändert sich nichts: jedes Formular schickt ab wie "
+        "bisher, jeder Verweis führt wie bisher",
+        "Prüfung von 2218 auf 2252 Einzelprüfungen erweitert",
+    ]},
 ]

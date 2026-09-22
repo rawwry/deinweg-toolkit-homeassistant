@@ -1,6 +1,6 @@
 {# Gemeinsamer Filter für Auswertung und Übersicht.
    Erwartet: ziel (Formularadresse), f, jahre, monatsnamen, leute, klienten,
-   aktive_filter und optional abrechenbar_zeigen / suche_zeigen. #}
+   aktive_filter und optional abrechenbar_zeigen / suche_zeigen / hx_tausch. #}
 
 {# Ein Auswahlfeld für mehrere Namen. Bewusst <details> mit Kästchen und
    kein <select multiple>: das verlangt Strg-Klick und weiß niemand.
@@ -8,7 +8,11 @@
    beim Anklicken sofort aktuell, ohne dass man erst filtern muss. #}
 {% from "_mehrfachwahl.html" import mehrfachwahl with context %}
 
-<form class="filter" method="get" action="{{ ziel }}">
+{# ⚠️ `hx_tausch` setzt nur die Übersicht (seit 1.50): dort liegt der
+   Filter in einem Bereich, den htmx austauscht. Die Auswertung ruft
+   dasselbe Partial ohne diesen Schalter auf und lädt weiter ganz neu -
+   sie baut nebenbei ein Diagramm und mehrere Monatsblöcke auf. #}
+<form class="filter" method="get" action="{{ ziel }}"{% if hx_tausch %} hx-boost="true"{% endif %}>
   {# --- Zeitraum ---------------------------------------------------------
      Die vier Auswahlfelder bleiben im HTML und sind die Bedienung ohne
      Skript - dasselbe Muster wie beim <select> unter der Suchwahl. Mit

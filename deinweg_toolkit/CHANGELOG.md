@@ -3,6 +3,16 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.50
+
+- Status auf einer Aufgabenkarte, Speichern einer Zeit sowie Filter und
+  Blättern in der Übersicht bauen die Seite nicht mehr neu auf – es
+  wechselt nur der Teil, der sich ändert
+- Beim Speichern bleibt nach einem Fehler alles Getippte stehen
+- Neu im Programm: `app/static/htmx.min.js` (aus dem eigenen Ordner
+  geladen, nie aus dem Netz). Ohne Skript verhält sich alles wie bisher
+- Prüfung von 2218 auf 2252 Einzelprüfungen erweitert
+
 ## 1.49.1
 
 - „Eintrag bearbeiten“: eine geänderte Uhrzeit zieht die Dauer wieder mit

@@ -5,6 +5,20 @@
 
 {{ arbeitszeit('eintraege') }}
 
+{# ⚠️⚠️ Seit 1.50 tauscht htmx diesen Bereich aus, statt die Seite neu
+   aufzubauen (Timos Auftrag, Punkt 3: Filter und Blättern in der
+   Übersicht). Die Regeln stehen einmal an der Hülle, jedes `hx-get`
+   darin erbt sie - die ausführliche Begründung steht in vorgaenge.html.
+   ⚠️ Die Reiterleiste bleibt ABSICHTLICH draußen: sie führt auf andere
+   Seiten, und dort gibt es diesen Bereich nicht.
+   ⚠️ Ebenso draußen bleiben Export und Bearbeiten: das eine liefert eine
+   Datei, das andere eine andere Seite. Beides über den Austausch zu
+   schicken hieße, `hx-select` fände seinen Bereich nicht - und tauschte
+   ihn gegen nichts. #}
+<div id="eintragsbereich" hx-target="#eintragsbereich" hx-select="#eintragsbereich"
+     hx-swap="outerHTML" hx-push-url="true" hx-indicator="#eintragsbereich"
+     hx-history="false">
+
 {% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
 
 <section class="karte">
@@ -13,7 +27,7 @@
     <p class="summe">{{ kopf.n }} Einträge <span>· {{ kopf.m | gesamtstunden }} · {{ zeitraum_wort }}</span></p>
   </div>
 
-  {% with ziel = "/eintraege", abrechenbar_zeigen = true, suche_zeigen = true %}{% include "_filter.html" %}{% endwith %}
+  {% with ziel = "/eintraege", abrechenbar_zeigen = true, suche_zeigen = true, hx_tausch = true %}{% include "_filter.html" %}{% endwith %}
 </section>
 
 <section class="karte">
@@ -170,7 +184,7 @@
   </table>
 
   {% if seiten_gesamt > 1 %}
-  <nav class="blaettern" aria-label="Seiten">
+  <nav class="blaettern" aria-label="Seiten" hx-boost="true">
     <span class="blaettern-stand">
       <strong>{{ erste_nr }}–{{ letzte_nr }}</strong> von {{ kopf.n }} Einträgen
     </span>
@@ -217,7 +231,7 @@
   // Mehrfachauswahl in der Datensatzliste. Die Sicherheitsabfrage sitzt
   // bewusst hier und nicht auf einer Zwischenseite - dieselbe Handhabung
   // wie beim Löschen einer einzelnen Zeile.
-  (function () {
+  function bauen() {
     var alle    = document.getElementById("alle-waehlen"),
         stand   = document.getElementById("massenstand"),
         knopf   = document.getElementById("massenknopf"),
@@ -270,7 +284,15 @@
     };
 
     anzeigen();
-  })();
+  }
+  // ⚠️ KEIN Eintrag in dwt.nachruesten: dieses Skript steht selbst im
+  // getauschten Bereich und läuft nach jedem Austausch ohnehin erneut -
+  // auf frischen Elementen. Trüge es sich zusätzlich ein, käme bei jedem
+  // Austausch eine weitere Anmeldung dazu, und die Kästchen bekämen nach
+  // und nach mehrere Horcher. Am Haken hängt nur, was AUSSERHALB des
+  // Bereichs liegt (base.html).
+  bauen();
 </script>
 
+</div>
 {% endblock %}

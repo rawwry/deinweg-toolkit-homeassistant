@@ -79,7 +79,23 @@
    ueber form="erfassung" darauf. So liegt es nicht um die Karten herum und
    kann das Upload-Formular daneben nicht verschachteln - verschachtelte
    Formulare sind ungueltiges HTML und werden vom Browser aufgetrennt. #}
-{% if darf_erfassen %}<form action="/erfassung" method="post" id="erfassung"></form>{% endif %}
+{# ⚠️⚠️ Seit 1.50 schickt das Formular über htmx ab, WENN es ein
+   Tagesprotokoll gibt (Timos Auftrag: „eine Zeit speichern und nur das
+   Tagesprotokoll nachladen"). Getauscht wird nur die Protokollkarte;
+   Meldung, Bestand und Abgaben kommen als Nebentausch (`hx-select-oob`)
+   aus derselben Antwort mit - sonst stünden dort gleich veraltete Zahlen.
+   ⚠️ Das FORMULAR selbst bleibt stehen. Das ist der eigentliche Gewinn:
+   nach einem Fehler behält man alles Getippte, statt es wie bisher beim
+   Neuaufbau zu verlieren. Nach dem Speichern räumt das Skript unten die
+   Zeilen ab - aber nur, wenn wirklich gespeichert wurde.
+   ⚠️ Ohne Skript bleibt es ein gewöhnliches Formular: `action` und
+   `method` stehen unverändert da, der Server antwortet wie immer mit
+   einer Umleitung. #}
+{% if darf_erfassen %}<form action="/erfassung" method="post" id="erfassung"
+  {%- if mitarbeiter %} hx-post="/erfassung" hx-target="#protokollkarte"
+  hx-select="#protokollkarte" hx-swap="outerHTML"
+  hx-select-oob="#erfassen,#bestandkarte,#abgabenkarte"
+  hx-indicator="#protokollkarte"{% endif %}></form>{% endif %}
 
 <section class="raster buendig">
   <div class="spalte">
@@ -403,7 +419,9 @@
        ist, und rechnet niemandem vor, wo im Tag nichts eingetragen wurde.
        Nicht ungefragt ergänzen. #}
     {% if darf_erfassen and mitarbeiter %}
-    <section class="karte protokollkarte">
+    {# ⚠️ Die Kennung ist das Ziel des Austauschs (siehe Formular oben).
+       Wer sie umbenennt, muss die vier Verweise dort mitziehen. #}
+    <section class="karte protokollkarte" id="protokollkarte">
       <div class="kopfzeile">
         <h2>{{ t("erfassung.titel.protokoll") }}</h2>
         {# Eine Zahlenzusammenfassung, kein Erklärtext – sie gehört
@@ -460,6 +478,9 @@
                des Rasters, die Felder hängen über form="erfassung"
                daran - dieses hier ist davon unberührt. #}
             <form class="inline" action="/eintraege/{{ z.id }}/loeschen" method="post"
+                  hx-post="/eintraege/{{ z.id }}/loeschen" hx-target="#protokollkarte"
+                  hx-select="#protokollkarte" hx-swap="outerHTML"
+                  hx-select-oob="#erfassen,#bestandkarte,#abgabenkarte"
                   onsubmit="return confirm('Diesen Eintrag löschen?')">
               <input type="hidden" name="zurueck" value="/?mitarbeiter={{ mitarbeiter | urlencode }}&datum={{ datum | urlencode }}">
               <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Eintrag löschen">
@@ -579,7 +600,7 @@
   </div>
 
   <div class="spalte">
-    <div class="karte schmal">
+    <div class="karte schmal" id="bestandkarte">
       <h2>Bestand</h2>
       <p class="zahl">{{ summe.n }}<span class="einheit">Einträge</span></p>
       <p class="zahl-label">{{ summe.m | gesamtstunden }} insgesamt</p>
@@ -590,7 +611,7 @@
       {% endif %}
     </div>
 
-    <div class="karte schmal">
+    <div class="karte schmal" id="abgabenkarte">
       <div class="kastenkopf">
         <h2>Abgaben</h2>
         <span class="monatswechsel">
@@ -1287,6 +1308,43 @@
     });
 
     nummerieren();
+
+    // --- Nach dem Speichern über htmx (seit 1.50) ---------------------
+    //
+    // Getauscht wird nur die Protokollkarte; das Formular bleibt stehen.
+    // Nach einem ERFOLG muss es also hier abgeräumt werden - vorher
+    // erledigte das der Neuaufbau der Seite.
+    //
+    // ⚠️ Nach einem FEHLER bleibt alles stehen, und das ist der Gewinn:
+    // bisher war jede getippte Zeile weg, sobald eine davon nicht
+    // stimmte. Erkannt wird der Fall an der Meldung, die der Server
+    // mitschickt (die Karte `#erfassen` wird nebenher mitgetauscht).
+    document.body.addEventListener("htmx:afterSwap", function (e) {
+      if (e.detail && e.detail.requestConfig
+          && e.detail.requestConfig.elt !== formular) { return; }
+      var meldung = document.querySelector("#erfassen .meldung.fehler");
+      if (meldung) { return; }
+      // Alle Zeilen bis auf die erste weg, die erste leeren - Datum und
+      // „Erfasst für" bleiben, die ändern sich beim nächsten Eintrag
+      // fast nie.
+      var alle = zeilen();
+      alle.slice(1).forEach(function (z) { z.remove(); });
+      var erste = alle[0];
+      if (erste) {
+        erste.querySelectorAll("input, select").forEach(function (f) {
+          if (f.name === "datum") { return; }
+          if (f.tagName === "SELECT") { f.selectedIndex = 0; } else { f.value = ""; }
+          if (f.setCustomValidity) { f.setCustomValidity(""); }
+        });
+        // Die durchsuchbaren Felder zeigen den Wert ihres <select> an -
+        // ohne diesen Anstoß stünde dort weiter der alte Name.
+        erste.querySelectorAll("select.suchwahl").forEach(function (s) {
+          s.dispatchEvent(new Event("change", {bubbles: true}));
+        });
+        rechnen(erste);
+      }
+      nummerieren();
+    });
   })();
 </script>
 
