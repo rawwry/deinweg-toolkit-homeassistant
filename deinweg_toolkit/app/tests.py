@@ -7068,9 +7068,15 @@ def test_htmx(client: TestClient) -> None:
            "die Reiterleiste steht außerhalb des getauschten Bereichs")
 
     stil = client.get("/static/style.css").text
-    pruefe("#aufgabenbereich.htmx-request" in stil
-           and "opacity: .55" in stil,
-           "ein Bereich, der gerade geholt wird, tritt zurück")
+    # ⚠️⚠️ KEINE Ladeanzeige (seit 1.52.1, Timos Meldung). Bis 1.52 trat
+    # der Bereich beim Holen auf `opacity: .55` zurück und blendete
+    # danach wieder auf - gemessen 270ms im Wiki, also bei jedem Klick
+    # sichtbar. Weg ist sie überall, nicht nur an den beiden gemeldeten
+    # Stellen: es ist derselbe Effekt.
+    pruefe("htmx-request" not in stil, "kein Bereich blendet beim Holen ab")
+    pruefe(all("hx-indicator" not in quelle(n) for n in os.listdir(vorlagen)
+               if n.endswith(".html")),
+           "und keine Vorlage verlangt noch eine Ladeanzeige")
 
     # --- 4. „Abbrechen" muss auch htmx abbrechen (1.50.1) ------------------
     # ⚠️⚠️ Der teuerste Fund dieser Reihe: htmx hängt am `submit`-Ereignis
@@ -7158,9 +7164,9 @@ def test_htmx(client: TestClient) -> None:
     # ⚠️ Am Zeilenende gezählt - sonst zählt der Kommentar darüber mit.
     pruefe(quelle("dateien.html").count('hx-boost="false"\n') == 2,
            "beide Verweise auf eine Datei ebenso")
-    pruefe("#wikibereich.htmx-request" in stil
-           and "#dateienbereich.htmx-request" in stil,
-           "beide Bereiche treten zurück, während sie geholt werden")
+    pruefe("#wikibereich, #dateienbereich {" in stil
+           and "display: flex" in stil.split("#wikibereich, #dateienbereich {")[1][:80],
+           "beide Hüllen setzen den Takt von main fort")
 
 
 def test_bearbeiten_dauer(client: TestClient) -> None:

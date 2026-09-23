@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.52.1
+
+- Das leichte Abblenden bei jedem Klick (Wiki, Dateien, Aufgaben,
+  Übersicht) ist entfernt
+- Prüfung von 2305 auf 2306 Einzelprüfungen erweitert
+
 ## 1.52
 
 - Die Seite baut sich beim Laden nicht mehr auf – keine gestaffelten

@@ -2562,4 +2562,13 @@ CHANGELOG = [
         "Überfahren oder Bedienen reagiert",
         "Prüfung von 2285 auf 2305 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.52.1", "titel": "Auch das Abblenden ist weg", "punkte": [
+        "Im Wiki und in den Dateien blendete die Seite bei jedem Klick "
+        "noch leicht ab und wieder auf – das war die Ladeanzeige, die "
+        "den gerade geholten Bereich auf 55 Prozent zurücktreten ließ",
+        "Sie ist überall weg, nicht nur an den beiden gemeldeten "
+        "Stellen: in den Aufgaben, in der Übersicht und beim Speichern "
+        "einer Zeit ebenso",
+        "Prüfung von 2305 auf 2306 Einzelprüfungen erweitert",
+    ]},
 ]

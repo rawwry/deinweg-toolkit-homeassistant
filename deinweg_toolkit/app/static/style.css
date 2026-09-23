@@ -256,8 +256,6 @@ main > * { min-width: 0; }
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  #aufgabenbereich, #eintragsbereich, #wikibereich, #dateienbereich,
-  #protokollkarte { transition: opacity .12s ease; }
   .kopf { transition: background .25s ease, border-color .25s ease; }
 }
 
@@ -1175,12 +1173,17 @@ input[type=date], input[type=time] { min-width: 0; }
    `min()` erzwang es aber 240px auch in einer schmaleren Karte. */
 .bearbeitenform .feldreihe.zwei { grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
 
-/* --- htmx: ein Bereich wird gerade geholt (seit 1.50) -----------------
-   htmx hängt `htmx-request` an das Element aus `hx-indicator` - bei uns
-   an den Bereich, der gleich getauscht wird. Er tritt solange leicht
-   zurück; mehr braucht es nicht, im lokalen Netz ist die Antwort nach
-   wenigen Hundertstel da. ⚠️ Bewusst nur ein Zurücktreten und kein
-   Drehkreisel: der erschiene und verschwände im selben Wimpernschlag. */
+/* ⚠️⚠️ KEINE Ladeanzeige beim Austausch (seit 1.52.1, Timos Meldung
+   „im Wikibereich und im Dateienbereich passieren bei jedem Klick noch
+   so leichte Fade-ins"). Bis 1.52 trat der Bereich während des Holens
+   auf `opacity: .55` zurück und blendete danach wieder auf - gemessen
+   270ms im Wiki, also lange genug, um bei jedem Klick aufzufallen. Im
+   Wiki und in den Dateien wechselt der GANZE Inhalt, damit blendete die
+   halbe Seite. Weg ist es überall, nicht nur an den beiden gemeldeten
+   Stellen: es ist derselbe Effekt, und eine halb zurückgebaute Regel
+   fällt beim nächsten Mal an der anderen Stelle auf. Auch `hx-indicator`
+   steht deshalb in keiner Vorlage mehr. **Nicht wieder einbauen** - im
+   lokalen Netz ist die Antwort ohnehin nach Hundertsteln da. */
 /* ⚠️⚠️ Die Hülle eines getauschten Bereichs muss den Takt von `main`
    fortsetzen (seit 1.51). `main` ist eine Flexspalte mit `gap`; legt man
    alles in EIN Kind, fällt jeder Abstand zwischen Meldung, Pfadzeile und
@@ -1191,12 +1194,6 @@ input[type=date], input[type=time] { min-width: 0; }
 #wikibereich, #dateienbereich {
   display: flex; flex-direction: column; gap: var(--abstand); min-width: 0;
 }
-
-#aufgabenbereich.htmx-request,
-#eintragsbereich.htmx-request,
-#wikibereich.htmx-request,
-#dateienbereich.htmx-request,
-#protokollkarte.htmx-request { opacity: .55; }
 
 /* --- Eintrag bearbeiten: Kopf und Fuss (seit 1.49.1) ------------------
    Die Maske war eine Reihe aus acht Feldern unter einer Ueberschrift, mit

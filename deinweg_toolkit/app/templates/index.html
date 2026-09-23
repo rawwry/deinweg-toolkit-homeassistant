@@ -94,8 +94,7 @@
 {% if darf_erfassen %}<form action="/erfassung" method="post" id="erfassung"
   {%- if mitarbeiter %} hx-post="/erfassung" hx-target="#protokollkarte"
   hx-select="#protokollkarte" hx-swap="outerHTML"
-  hx-select-oob="#erfassen,#bestandkarte,#abgabenkarte"
-  hx-indicator="#protokollkarte"{% endif %}></form>{% endif %}
+  hx-select-oob="#erfassen,#bestandkarte,#abgabenkarte"{% endif %}></form>{% endif %}
 
 <section class="raster buendig">
   <div class="spalte">
