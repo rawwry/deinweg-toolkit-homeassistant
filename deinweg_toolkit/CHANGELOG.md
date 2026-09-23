@@ -3,6 +3,21 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.54
+
+- Neues Modul **Privatauslagen**: was man für die Einrichtung aus
+  eigener Tasche vorlegt, lässt sich festhalten, bis es erstattet ist –
+  Betrag, Datum, eine Notiz und wahlweise ein Foto vom Bon
+- Oben steht immer die Summe, die gerade offen ist
+- Drei Zustände: offen · abgegeben · erstattet. Ein abgegebener Block
+  zählt die Tage bis zur Erstattung und färbt nach 14 und nach 30
+- ⚠️ Jedes Konto sieht ausschließlich seine eigenen Auslagen, auch
+  Administratoren
+- ⚠️ Neues Volume `/auslagen` für die Belegfotos (in `run.sh` angelegt).
+  Bewusst nicht unter `/files`: dort wäre jede Datei über ihren Link für
+  jeden Angemeldeten abrufbar
+- Prüfung von 2333 auf 2437 Einzelprüfungen erweitert
+
 ## 1.53
 
 - Beim Seitenwechsel blitzen keine Bedienelemente mehr auf: welche

@@ -179,6 +179,43 @@ TEXTE_STANDARD["ideen.lead"] = (
     "Was fehlt, was nervt, was ist kaputt? Hier rein damit. Jede Rückmeldung wird gelesen und landet auf der Liste für die nächsten Versionen. Wer mag, trägt seinen Namen ein – nötig ist das nicht.")
 TEXTE_STANDARD["ideen.leer"] = (
     "Noch nichts eingegangen. Du darfst der Erste sein.")
+# --- Privatauslagen (seit 1.54) ---------------------------------------------
+#
+# ⚠️ Die Kartenueberschriften laufen ueber t() nach dem Schema
+# <bereich>.titel.<name> - so stehen sie im Editor oben in ihrer Gruppe
+# und sind umbenennbar (Abschnitt 8).
+TEXTE_STANDARD["auslagen.titel.offen"] = (
+    "Aktuell ausgelegt")
+TEXTE_STANDARD["auslagen.titel.erfassen"] = (
+    "Neue Auslage")
+TEXTE_STANDARD["auslagen.titel.liste"] = (
+    "Im laufenden Block")
+TEXTE_STANDARD["auslagen.titel.wartet"] = (
+    "Wartet auf Erstattung")
+TEXTE_STANDARD["auslagen.titel.jahr"] = (
+    "Dieses Jahr")
+TEXTE_STANDARD["auslagen.titel.archiv"] = (
+    "Erledigt")
+# ⚠️ Kurz halten: am Telefon steht dieser Absatz zwischen der Summe und
+# dem Betragsfeld, also genau im Weg. Fuenf Zeilen waren zu viel.
+TEXTE_STANDARD["auslagen.lead"] = (
+    "Betrag eintippen, fertig – das Datum steht auf heute, alles andere "
+    "darf leer bleiben. Wer den Bon gleich abfotografiert, weiß später "
+    "noch, wofür er war.")
+TEXTE_STANDARD["auslagen.liste_lead"] = (
+    "Was hier steht, liegt noch bei dir. Ein Klick auf eine Zeile öffnet "
+    "sie zum Ändern – solange der Block offen ist.")
+TEXTE_STANDARD["auslagen.leer"] = (
+    "Noch nichts ausgelegt. Sobald du oben etwas einträgst, beginnt ein "
+    "neuer Block von selbst.")
+TEXTE_STANDARD["auslagen.nochnichts"] = (
+    "Hier sammelt sich, was du vorgestreckt hast.")
+TEXTE_STANDARD["auslagen.wartet_lead"] = (
+    "Bons sind abgegeben, das Geld ist noch nicht da. Sobald es ankommt, "
+    "hier abhaken.")
+TEXTE_STANDARD["auslagen.belege_hinweis"] = (
+    "Erstattete Mappen bleiben als Nachweis stehen. Die Belegfotos darin "
+    "lassen sich wegräumen – die Beträge bleiben davon unberührt.")
 TEXTE_STANDARD["changelog.lead"] = (
     "Was sich von Version zu Version geändert hat. Hier läuft gerade <strong>{version}</strong> – die Nummer steht auch unten auf jeder Seite.")
 TEXTE_STANDARD["einst.ansicht"] = (

@@ -42,6 +42,7 @@ TEXTGRUPPEN = {
     "wiki": "Wiki",
     "dateien": "Dateien",
     "ideen": "Ideen",
+    "auslagen": "Privatauslagen",
     "datenpflege": "Datenpflege",
     "einst": "Einstellungen",
     "login": "Anmeldung",

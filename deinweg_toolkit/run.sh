@@ -48,11 +48,16 @@ export SPRUCH_DATEI="${BASIS}/texte/quotes.txt"
 export IDEEN_DATEI="${BASIS}/texte/ideen.txt"
 export STRINGS_DATEI="${BASIS}/texte/strings.txt"
 export SICHERUNG_PFAD="${BASIS}/sicherungen"
+# Belegfotos der Privatauslagen (seit 1.54). Eigener Ordner,
+# ausdruecklich NICHT unter files: die Dateiverwaltung liefert
+# jede Datei darin an jeden Angemeldeten aus, ein Bon geht aber
+# nur seinen Eigentuemer etwas an.
+export AUSLAGEN_PFAD="${BASIS}/auslagen"
 export PYTHONUNBUFFERED=1
 export PYTHONPATH="${PROGRAMM}"
 
 mkdir -p "${BASIS}/db" "${BASIS}/texte" "${BASIS}/wiki" "${BASIS}/files" \
-         "${BASIS}/sicherungen"
+         "${BASIS}/sicherungen" "${BASIS}/auslagen"
 
 echo "[addon] Programm:    ${PROGRAMM} (im Abbild)"
 echo "[addon] Datenordner: ${BASIS} (bleibt bei Updates unberührt)"

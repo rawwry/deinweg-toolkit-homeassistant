@@ -47,7 +47,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.53"
+VERSION = "1.54"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -65,6 +65,14 @@ SICHERUNG_PFAD = os.environ.get("SICHERUNG_PFAD", "/sicherungen")
 SICHERUNGEN_BEHALTEN = 5
 WIKI_PFAD = os.environ.get("WIKI_PFAD", "/wiki")
 FILES_PFAD = os.environ.get("FILES_PFAD", "/files")
+# Ablageort der Belegfotos aus den Privatauslagen (seit 1.54).
+# ⚠️⚠️ Ein EIGENER Ordner, ausdruecklich NICHT /files: ein Bon ist
+# eine persoenliche Unterlage, und in der Dateiverwaltung ist jede
+# Datei ueber /dateien/holen/ fuer jeden Angemeldeten abrufbar -
+# auch aus einem "versteckten" Ordner (Abschnitt 10). Hier liefert
+# sie ausschliesslich auslagen.beleg_holen() aus, und das prueft
+# vorher, wem die Zeile gehoert.
+AUSLAGEN_PFAD = os.environ.get("AUSLAGEN_PFAD", "/auslagen")
 # Sekunden zwischen zwei Pruefungen auf faellige E-Mail-Erinnerungen.
 # 0 = Wecker aus. Standard: einmal pro Stunde.
 WECKER_INTERVALL = int(os.environ.get("WECKER_INTERVALL", "3600"))
@@ -1799,6 +1807,20 @@ from . import ideen as _ideen  # noqa: E402
 
 _ideen.setup(templates, {"IDEEN_DATEI": IDEEN_DATEI})
 app.include_router(_ideen.router)
+
+
+# --- Privatauslagen ----------------------------------------------------------
+#
+# Was jemand fuer die Einrichtung aus eigener Tasche vorlegt, bis es
+# erstattet ist. Eigenstaendiges Modul ohne Verbindung zu den uebrigen
+# Daten (Timos Vorgabe); es braucht von hier nur den Ablageort der
+# Belegfotos und die Obergrenze fuer Uploads.
+
+from . import auslagen as _auslagen  # noqa: E402
+
+_auslagen.setup(templates, {"AUSLAGEN_PFAD": AUSLAGEN_PFAD,
+                            "MAX_UPLOAD_MB": MAX_UPLOAD_MB})
+app.include_router(_auslagen.router)
 
 
 # --- Export -----------------------------------------------------------------

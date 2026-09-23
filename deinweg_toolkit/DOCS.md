@@ -63,8 +63,15 @@ share/deinweg-toolkit/
 ├── db/      die Datenbank (zeiten.db)
 ├── texte/   quotes.txt, ideen.txt, strings.txt
 ├── wiki/    die Wiki-Seiten als Markdown
-└── files/   die Dateiverwaltung
+├── files/   die Dateiverwaltung
+├── auslagen/  die Belegfotos der Privatauslagen
+└── sicherungen/  die wöchentliche Kopie der Datenbank
 ```
+
+Die Belegfotos liegen bewusst in einem **eigenen** Ordner und nicht in
+der Dateiverwaltung: dort ist jede Datei über ihren Link für jeden
+Angemeldeten abrufbar. Ein Bon bekommt nur das Konto zu sehen, dem er
+gehört.
 
 Der Ordner liegt in der Samba-Freigabe **share**. Wiki-Seiten und Dateien
 lassen sich damit im Browser *und* im Finder bearbeiten — was du dort

@@ -2592,4 +2592,27 @@ CHANGELOG = [
         "schlichten Fassungen",
         "Prüfung von 2306 auf 2333 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.54", "titel": "Privatauslagen", "punkte": [
+        "Neuer Menüpunkt: was man für die Einrichtung aus eigener "
+        "Tasche vorlegt – Tanken, Einkäufe, ausgelegtes Bargeld, ein "
+        "Essen – lässt sich festhalten, bis es erstattet ist",
+        "Betrag eintippen, fertig. Datum steht auf heute, die Notiz darf "
+        "leer bleiben, und der Bon lässt sich gleich abfotografieren",
+        "Oben steht immer die eine Zahl, um die es geht: wie viel gerade "
+        "ausgelegt ist. Die kann man seiner Chefin sagen, ohne fünfzig "
+        "Zettel zusammenzuzählen",
+        "Drei Zustände statt zweier: offen · abgegeben · erstattet. "
+        "„Abgegeben“ ist genau der Zustand, in dem man sonst hinter dem "
+        "Geld herläuft – die Karte zählt die Tage und färbt nach 14 und "
+        "nach 30",
+        "Ein neuer Block beginnt von selbst, sobald nach der Abgabe die "
+        "nächste Auslage eingetragen wird",
+        "⚠️ Es sind persönliche Zahlen: jedes Konto sieht ausschließlich "
+        "seine eigenen Auslagen – auch Administratoren",
+        "⚠️ Die Belegfotos liegen in einem eigenen Ordner, nicht in der "
+        "Dateiverwaltung. Dort wäre jede Datei über ihren Link für jeden "
+        "Angemeldeten abrufbar; ein Bon geht nur seinen Eigentümer etwas "
+        "an",
+        "Prüfung von 2333 auf 2437 Einzelprüfungen erweitert",
+    ]},
 ]

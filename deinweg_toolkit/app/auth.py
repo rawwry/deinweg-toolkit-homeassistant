@@ -92,6 +92,7 @@ BEREICHE = {
     "fuhrpark": "Fuhrpark",
     "wiki": "Wiki",
     "dateien": "Dateien",
+    "privatauslagen": "Privatauslagen",
     "ideen": "Ideen",
     "einstellungen": "Einstellungen",
 }
@@ -115,6 +116,7 @@ BEREICH_PFADE = [
     ("/fuhrpark", "fuhrpark"),
     ("/wiki", "wiki"),
     ("/dateien", "dateien"),
+    ("/privatauslagen", "privatauslagen"),
     ("/eintraege", "datensaetze"),
     ("/export", "datensaetze"),
     ("/erfassung", "manuelle_eintraege"),

@@ -427,6 +427,56 @@ CREATE INDEX IF NOT EXISTS idx_ereignis_faellig  ON fahrzeug_ereignis(faellig_da
 -- den Watchfolder, mit dem ist die Abfrage entfallen und der Vermerk
 -- blieb stehen. Was wann eingelesen wurde, steht ohnehin vollstaendig in
 -- "import". Die Migration weiter unten wirft sie weg.
+
+
+-- === Privatauslagen (seit 1.54) ===========================================
+--
+-- Wer fuer die Einrichtung Geld auslegt - Tanken, Einkauf, ein Essen mit
+-- einer betreuten Person - sammelt bis zur Erstattung Bons. Das bildet
+-- ein "Block" ab: eine Mappe, in der Auslagen liegen, bis sie abgegeben
+-- und erstattet sind.
+--
+-- ⚠️ Das Modul haengt an NICHTS sonst im Toolkit (Timos Vorgabe). Der
+-- einzige Fremdschluessel geht auf das Konto, dem der Block gehoert -
+-- und der ist noetig: es sind persoenliche Zahlen, jedes Konto sieht
+-- ausschliesslich seine eigenen. Wird ein Konto geloescht, gehen seine
+-- Bloecke mit (CASCADE); sie waeren danach niemandem mehr zuzuordnen.
+CREATE TABLE IF NOT EXISTS auslage_block (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id   INTEGER NOT NULL REFERENCES benutzer(id) ON DELETE CASCADE,
+    -- offen | abgegeben | erstattet. Je Konto gibt es hoechstens EINEN
+    -- offenen Block; neue Auslagen landen immer dort, und fehlt er, legt
+    -- das Erfassen ihn selbst an. Genau deshalb braucht es keinen Knopf
+    -- "neuen Block starten".
+    zustand       TEXT NOT NULL DEFAULT 'offen',
+    begonnen_am   TEXT NOT NULL,
+    abgegeben_am  TEXT,
+    erstattet_am  TEXT,
+    notiz         TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_block_benutzer ON auslage_block(benutzer_id);
+CREATE INDEX IF NOT EXISTS idx_block_zustand  ON auslage_block(zustand);
+
+-- ⚠️ Der Betrag steht in CENT als ganze Zahl, nicht als Kommazahl.
+-- Gerechnet wird hier Summe fuer Summe ueber bis zu fuenfzig Bons, und
+-- am Ende sagt jemand seiner Chefin einen Betrag. Ein halber Cent
+-- Rundungsfehler je Zeile waere genau an dieser Stelle peinlich.
+CREATE TABLE IF NOT EXISTS auslage (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    block_id    INTEGER NOT NULL REFERENCES auslage_block(id) ON DELETE CASCADE,
+    datum       TEXT NOT NULL,
+    cent        INTEGER NOT NULL,
+    notiz       TEXT,
+    -- Nur die ENDUNG des Belegfotos ("jpg"), nicht sein Pfad. Der Pfad
+    -- wird aus Konto- und Zeilennummer gebaut - so kann aus dieser
+    -- Spalte strukturell kein Dateipfad werden, egal was drinsteht.
+    beleg       TEXT,
+    angelegt_am TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auslage_block ON auslage(block_id);
+CREATE INDEX IF NOT EXISTS idx_auslage_datum ON auslage(datum);
 """
 
 

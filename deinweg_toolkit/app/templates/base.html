@@ -262,6 +262,11 @@
     {% if hat_zugriff(request.state.benutzer, "wiki") %}
     <a href="/wiki" class="{{ 'aktiv' if seite=='wiki' }}">Wiki</a>
     {% endif %}
+    {# Privatauslagen stehen ganz hinten: es ist der kleinste der sechs
+       Punkte und der einzige, der nur die eigenen Zahlen zeigt. #}
+    {% if hat_zugriff(request.state.benutzer, "privatauslagen") %}
+    <a href="/privatauslagen" class="{{ 'aktiv' if seite=='privatauslagen' }}">Privatauslagen</a>
+    {% endif %}
   </nav>
 
   <div class="werkzeuge">

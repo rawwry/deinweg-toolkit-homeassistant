@@ -32,7 +32,7 @@ import traceback
 # --- Umgebung vorbereiten, bevor die Anwendung geladen wird ------------------
 
 _ORDNER = tempfile.mkdtemp(prefix="toolkit-test-")
-for unter in ("db", "texte", "wiki", "files", "sicherungen"):
+for unter in ("db", "texte", "wiki", "files", "sicherungen", "auslagen"):
     os.makedirs(os.path.join(_ORDNER, unter), exist_ok=True)
 
 os.environ.update({
@@ -43,6 +43,7 @@ os.environ.update({
     "WIKI_PFAD": os.path.join(_ORDNER, "wiki"),
     "FILES_PFAD": os.path.join(_ORDNER, "files"),
     "SICHERUNG_PFAD": os.path.join(_ORDNER, "sicherungen"),
+    "AUSLAGEN_PFAD": os.path.join(_ORDNER, "auslagen"),
     "WECKER_INTERVALL": "0",
     "ADMIN_BENUTZERNAME": "pruefer",
     "ADMIN_PASSWORT": "pruefpasswort",
@@ -7391,6 +7392,314 @@ def test_kein_blitzen(client: TestClient) -> None:
            "ein misslungener Aufbau holt die vier Auswahlfelder zurück")
 
 
+def test_privatauslagen(client: TestClient) -> None:
+    """Das Modul Privatauslagen (1.54).
+
+    Die beiden Punkte, an denen hier wirklich etwas kaputtgehen kann:
+    die Trennung zwischen zwei Konten (es sind persoenliche Zahlen) und
+    die Betragsrechnung (am Ende nennt jemand seiner Chefin eine Summe).
+    """
+    abschnitt("Privatauslagen")
+    from . import auslagen as a
+
+    # --- Betraege: gerechnet wird in Cent, nicht in Fliesskomma --------
+    for eingabe, erwartet in (("12,40", 1240), ("12.40", 1240), ("12", 1200),
+                              ("1.234,56", 123456), ("1234.56", 123456),
+                              (" 9,99 € ", 999), ("0,05", 5)):
+        pruefe(a.betrag_lesen(eingabe) == erwartet,
+               f"„{eingabe.strip()}“ wird zu {erwartet} Cent")
+    for daneben in ("", "abc", "0", "-5", "12,405", "1.234"):
+        pruefe(a.betrag_lesen(daneben) is None,
+               f"„{daneben}“ wird abgewiesen statt geraten")
+    # ⚠️ "1.234" ist zweideutig (1.234 € oder 1,23 €) und faellt deshalb
+    # durch, statt dass eine der beiden Lesarten geraten wird.
+    pruefe(a.euro(123456) == "1.234,56 €", "1.234,56 € wird richtig gesetzt")
+    pruefe(a.euro(5) == "0,05 €", "und fünf Cent auch")
+    summe = sum(a.betrag_lesen(x) for x in ["0,10", "0,20"])
+    pruefe(summe == 30, "zwei Zehntel ergeben genau 30 Cent, nicht 30,000004")
+
+    # --- Die Seite und der Bereich -------------------------------------
+    seite = client.get("/privatauslagen").text
+    pruefe("Privatauslagen" in seite.split("</nav>")[0],
+           "der Menüpunkt steht im Hauptmenü")
+    pruefe('id="auslagenbereich"' in seite, "die Seite lädt")
+    from .auth import BEREICHE, BEREICH_PFADE
+    pruefe("privatauslagen" in BEREICHE, "es gibt einen eigenen Bereich")
+    pruefe(("/privatauslagen", "privatauslagen") in BEREICH_PFADE,
+           "und der Pfad hängt daran")
+
+    ohne = _konto(client, "ohneauslagen", "ohnepasswort", ["wiki"])
+    pruefe(ohne.get("/privatauslagen").status_code == 403,
+           "ohne den Bereich gibt es 403 – auch über die Adresse")
+    pruefe("Privatauslagen" not in ohne.get("/wiki").text.split("</nav>")[0],
+           "und der Menüpunkt fehlt")
+
+    # --- Erfassen ------------------------------------------------------
+    antwort = client.post("/privatauslagen/erfassen",
+                          data={"betrag": "47,90", "datum": "2026-09-20",
+                                "notiz": "Einkauf"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "eine Auslage lässt sich festhalten")
+    client.post("/privatauslagen/erfassen",
+                data={"betrag": "12.40", "datum": "2026-09-21", "notiz": ""})
+    client.post("/privatauslagen/erfassen",
+                data={"betrag": "85", "datum": "2026-09-21",
+                      "notiz": "Bargeld ausgelegt"})
+    seite = client.get("/privatauslagen").text
+    pruefe("145,30 €" in seite, "die Summe steht oben: 47,90 + 12,40 + 85,00")
+    pruefe("3 Auslagen" in seite, "und die Anzahl daneben")
+    pruefe("Einkauf" in seite and "Bargeld ausgelegt" in seite,
+           "die Notizen stehen in der Liste")
+    pruefe("ohne Angabe" in seite,
+           "eine Zeile ohne Notiz sagt das, statt leer dazustehen")
+
+    with db.db() as con:
+        bloecke = con.execute("SELECT * FROM auslage_block").fetchall()
+        pruefe(len(bloecke) == 1,
+               "drei Auslagen haben genau EINEN Block angelegt")
+        pruefe(bloecke[0]["zustand"] == "offen", "und der ist offen")
+        block_id = bloecke[0]["id"]
+        zeilen = a.zeilen(con, block_id)
+        pruefe([z["cent"] for z in zeilen] == [8500, 1240, 4790],
+               "die Liste steht absteigend nach Datum, jüngste oben")
+
+    # --- Was nicht durchgeht -------------------------------------------
+    vorher = _auslagen_zahl()
+    for betrag, warum in (("", "ohne Betrag"), ("abc", "mit Buchstaben"),
+                          ("0", "mit null Euro")):
+        client.post("/privatauslagen/erfassen", data={"betrag": betrag})
+        pruefe(_auslagen_zahl() == vorher, f"{warum} wird nichts gespeichert")
+    client.post("/privatauslagen/erfassen",
+                data={"betrag": "10", "datum": "2099-01-01"})
+    pruefe(_auslagen_zahl() == vorher,
+           "und ein Datum in der Zukunft ebenfalls nicht")
+    pruefe("nicht lesbar" in client.get("/privatauslagen?fehler=Der+Betrag+"
+                                        "ist+nicht+lesbar.").text,
+           "die Meldung erscheint auf der Seite")
+
+    # --- Ändern und Entfernen ------------------------------------------
+    with db.db() as con:
+        eine = a.zeilen(con, block_id)[0]["id"]
+    client.post(f"/privatauslagen/{eine}/aendern",
+                data={"betrag": "90,50", "datum": "2026-09-21",
+                      "notiz": "Bargeld, berichtigt"})
+    seite = client.get("/privatauslagen").text
+    pruefe("150,80 €" in seite, "eine geänderte Auslage zieht die Summe mit")
+    pruefe("Bargeld, berichtigt" in seite, "und die Notiz steht neu da")
+    client.post(f"/privatauslagen/{eine}/loeschen")
+    pruefe("60,30 €" in client.get("/privatauslagen").text,
+           "eine entfernte Auslage fällt aus der Summe")
+
+    # --- Belege --------------------------------------------------------
+    png = (b"\x89PNG\r\n\x1a\n" + b"\x00" * 40)
+    antwort = client.post("/privatauslagen/erfassen",
+                          data={"betrag": "23,55", "notiz": "mit Bon"},
+                          files={"beleg": ("bon.png", png, "image/png")},
+                          follow_redirects=False)
+    pruefe(antwort.status_code == 303, "eine Auslage mit Beleg geht durch")
+    with db.db() as con:
+        mit_beleg = con.execute(
+            "SELECT * FROM auslage WHERE beleg IS NOT NULL").fetchone()
+    pruefe(mit_beleg is not None, "der Beleg ist vermerkt")
+    pruefe(mit_beleg["beleg"] == "png",
+           "in der Spalte steht nur die Endung, kein Pfad")
+    pfad = os.path.join(_ORDNER, "auslagen", "1", f"{mit_beleg['id']}.png")
+    pruefe(os.path.isfile(pfad),
+           "die Datei liegt unter Kontonummer und Zeilennummer")
+
+    antwort = client.get(f"/privatauslagen/beleg/{mit_beleg['id']}")
+    pruefe(antwort.status_code == 200, "der Beleg lässt sich abrufen")
+    pruefe(antwort.content == png, "und kommt byteweise unverändert zurück")
+    pruefe(antwort.headers["content-type"].startswith("image/png"),
+           "der Inhaltstyp kommt aus der festen Liste")
+    pruefe(antwort.headers.get("x-content-type-options") == "nosniff",
+           "mit nosniff daneben")
+    pruefe("inline" in antwort.headers.get("content-disposition", ""),
+           "ein Bild geht inline hinaus")
+    pruefe("no-store" in antwort.headers.get("cache-control", ""),
+           "und landet in keinem Zwischenspeicher")
+
+    vorher = _auslagen_zahl()
+    client.post("/privatauslagen/erfassen",
+                data={"betrag": "5"},
+                files={"beleg": ("schad.exe", b"MZ", "application/exe")})
+    pruefe(_auslagen_zahl() == vorher,
+           "eine nicht erlaubte Dateiart wird abgewiesen, ohne zu speichern")
+    pruefe("heic" in a.BELEGARTEN and not a.BELEGARTEN["heic"][1],
+           "HEIC ist erlaubt, geht aber als Download statt inline hinaus")
+    pruefe(a.belegpfad(1, 1, "../../etc/passwd") is None,
+           "eine erfundene Endung ergibt gar keinen Pfad")
+
+    # --- ⚠️⚠️ Die Grenze zwischen zwei Konten -------------------------
+    # Das ist der Punkt, an dem dieses Modul von allen uebrigen abweicht:
+    # hier sieht auch ein Administrator nichts Fremdes.
+    kollege = _konto(client, "auslagenkollege", "kollegepasswort",
+                     ["privatauslagen"])
+    seite = kollege.get("/privatauslagen").text
+    pruefe("0,00 €" in seite, "ein zweites Konto beginnt bei null")
+    # ⚠️ Nicht nach „Einkauf" suchen: das Wort steht im Platzhalter des
+    # Notizfeldes und stünde damit auf jeder leeren Seite. Gefragt sind
+    # Beträge und Notizen, die es sonst nirgends gibt.
+    pruefe("mit Bon" not in seite and "47,90" not in seite
+           and "Bargeld, berichtigt" not in seite,
+           "und sieht keine einzige fremde Auslage")
+    pruefe(kollege.get(f"/privatauslagen/beleg/{mit_beleg['id']}")
+           .status_code == 403,
+           "einen fremden Beleg bekommt es nicht")
+    pruefe(kollege.post(f"/privatauslagen/{mit_beleg['id']}/aendern",
+                        data={"betrag": "1"}).status_code == 403,
+           "eine fremde Auslage kann es nicht ändern")
+    pruefe(kollege.post(f"/privatauslagen/{mit_beleg['id']}/loeschen")
+           .status_code == 403, "und nicht löschen")
+    pruefe(kollege.post(f"/privatauslagen/block/{block_id}/zustand",
+                        data={"ziel": "erstattet"}).status_code == 403,
+           "einen fremden Block kann es nicht abhaken")
+    with db.db() as con:
+        pruefe(con.execute("SELECT zustand FROM auslage_block WHERE id=?",
+                           (block_id,)).fetchone()["zustand"] == "offen",
+               "der fremde Block steht danach unverändert auf offen")
+
+    kollege.post("/privatauslagen/erfassen", data={"betrag": "7,50"})
+    pruefe("7,50 €" in kollege.get("/privatauslagen").text,
+           "seine eigene Auslage sieht es sehr wohl")
+    pruefe("7,50 €" not in client.get("/privatauslagen").text,
+           "und umgekehrt sieht der Administrator sie nicht")
+
+    # --- Der Weg des Blocks --------------------------------------------
+    antwort = client.post(f"/privatauslagen/block/{block_id}/zustand",
+                          data={"ziel": "abgegeben"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "der Block lässt sich abgeben")
+    seite = client.get("/privatauslagen").text
+    pruefe("Wartet auf Erstattung" in seite,
+           "und steht danach unter „Wartet auf Erstattung“")
+    pruefe(seite.split("pa-summe")[1].split("</strong>")[0].endswith("0,00 €"),
+           "oben steht wieder null – es ist nichts mehr offen")
+    with db.db() as con:
+        zeile = con.execute("SELECT * FROM auslage_block WHERE id=?",
+                            (block_id,)).fetchone()
+        pruefe(zeile["abgegeben_am"], "das Abgabedatum ist vermerkt")
+        pruefe(zeile["erstattet_am"] is None, "ein Erstattungsdatum noch nicht")
+
+    # ⚠️ Solange die Bons bei der Chefin liegen, aendert sich an der
+    # Liste nichts mehr - sonst waere sie kein Nachweis.
+    with db.db() as con:
+        gesperrt = a.zeilen(con, block_id)[0]["id"]
+    client.post(f"/privatauslagen/{gesperrt}/aendern",
+                data={"betrag": "999", "datum": "2026-09-21"})
+    with db.db() as con:
+        pruefe(con.execute("SELECT cent FROM auslage WHERE id=?",
+                           (gesperrt,)).fetchone()["cent"] != 99900,
+               "in einem abgegebenen Block lässt sich nichts mehr ändern")
+    client.post(f"/privatauslagen/{gesperrt}/loeschen")
+    with db.db() as con:
+        pruefe(con.execute("SELECT COUNT(*) c FROM auslage WHERE id=?",
+                           (gesperrt,)).fetchone()["c"] == 1,
+               "und nichts mehr löschen")
+
+    # Ein neuer Block entsteht von selbst.
+    client.post("/privatauslagen/erfassen", data={"betrag": "20", "notiz": "neu"})
+    with db.db() as con:
+        offene = con.execute("SELECT * FROM auslage_block WHERE benutzer_id=1 "
+                             "AND zustand='offen'").fetchall()
+        pruefe(len(offene) == 1,
+               "die nächste Auslage beginnt von selbst einen neuen Block")
+        pruefe(offene[0]["id"] != block_id, "und zwar einen anderen als vorher")
+        neuer = offene[0]["id"]
+
+    # ⚠️ Es darf nur EINEN offenen Block geben.
+    client.post(f"/privatauslagen/block/{block_id}/zustand",
+                data={"ziel": "offen"})
+    with db.db() as con:
+        pruefe(con.execute("SELECT zustand FROM auslage_block WHERE id=?",
+                           (block_id,)).fetchone()["zustand"] == "abgegeben",
+               "ein zweiter offener Block wird abgelehnt")
+
+    # Leerer Block: nichts abzugeben.
+    with db.db() as con:
+        con.execute("DELETE FROM auslage WHERE block_id=?", (neuer,))
+    client.post(f"/privatauslagen/block/{neuer}/zustand",
+                data={"ziel": "abgegeben"})
+    with db.db() as con:
+        pruefe(con.execute("SELECT zustand FROM auslage_block WHERE id=?",
+                           (neuer,)).fetchone()["zustand"] == "offen",
+               "ein leerer Block lässt sich nicht abgeben")
+
+    # Belege wegraeumen erst nach dem Geld.
+    client.post(f"/privatauslagen/block/{block_id}/belege-loeschen")
+    pruefe(os.path.isfile(pfad),
+           "Belege lassen sich nicht wegräumen, solange das Geld fehlt")
+
+    antwort = client.post(f"/privatauslagen/block/{block_id}/zustand",
+                          data={"ziel": "erstattet"}, follow_redirects=False)
+    pruefe(antwort.status_code == 303, "der Block lässt sich abhaken")
+    seite = client.get("/privatauslagen").text
+    pruefe("Wartet auf Erstattung" not in seite,
+           "danach wartet nichts mehr")
+    pruefe("erstattete Mappe" in seite, "und er steht im Archiv")
+    with db.db() as con:
+        zeile = con.execute("SELECT * FROM auslage_block WHERE id=?",
+                            (block_id,)).fetchone()
+        pruefe(zeile["erstattet_am"], "mit Erstattungsdatum")
+        pruefe(zeile["abgegeben_am"],
+               "und das Abgabedatum bleibt daneben stehen")
+
+    client.post(f"/privatauslagen/block/{block_id}/belege-loeschen")
+    pruefe(not os.path.isfile(pfad), "jetzt sind die Belegfotos weg")
+    with db.db() as con:
+        pruefe(con.execute("SELECT COUNT(*) c FROM auslage WHERE block_id=? "
+                           "AND beleg IS NOT NULL",
+                           (block_id,)).fetchone()["c"] == 0,
+               "und auch der Vermerk in der Datenbank")
+        pruefe(con.execute("SELECT COUNT(*) c FROM auslage WHERE block_id=?",
+                           (block_id,)).fetchone()["c"] > 0,
+               "⚠️ die Beträge stehen weiterhin da")
+    pruefe(client.get(f"/privatauslagen/beleg/{mit_beleg['id']}")
+           .status_code == 403, "ein weggeräumter Beleg ist nicht mehr abrufbar")
+
+    # --- Die Vorlage ---------------------------------------------------
+    vorlage = open(os.path.join(os.path.dirname(__file__), "templates",
+                                "auslagen.html"), encoding="utf-8").read()
+    for stueck in ('hx-boost="true"', 'hx-target="#auslagenbereich"',
+                   'hx-select="#auslagenbereich"', 'hx-swap="outerHTML"',
+                   'hx-push-url="false"',
+                   'hx-encoding="multipart/form-data"'):
+        pruefe(stueck in vorlage, f"die Hülle trägt {stueck}")
+    pruefe(vorlage.count('hx-boost="false"') >= 1,
+           "der Verweis auf einen Beleg ist vom Austausch ausgenommen")
+    pruefe('enctype="multipart/form-data"' in vorlage,
+           "und das Formular funktioniert auch ohne Skript")
+    pruefe('action="/privatauslagen/erfassen" method="post"' in vorlage,
+           "es behält Adresse und Methode")
+    # ⚠️ Die Lehre aus 1.53: nichts wird per Skript weggeschaltet.
+    pruefe(" hidden" not in vorlage and ".hidden" not in vorlage,
+           "kein Element wird per hidden oder Skript weggeschaltet")
+    # ⚠️ Die Lehre aus 1.50.1: jede Sicherheitsabfrage über dwt.frage.
+    for treffer in re.findall(r'onsubmit="([^"]+)"', vorlage):
+        pruefe("dwt.frage" in treffer,
+               f"die Sicherheitsabfrage läuft über dwt.frage ({treffer[:34]}…)")
+    # ⚠️ Im Skript selbst suchen, nicht in der ganzen Datei: der
+    # Kommentar darüber erklärt gerade, WARUM es hier kein dwt.loesen()
+    # braucht, und würde jede Suche über den Quelltext auslösen.
+    skript = vorlage.split("<script>")[1].split("</script>")[0]
+    pruefe("dwt.loesen" not in skript and "addEventListener" in skript,
+           "das Skript hängt nichts ans Dokument und räumt deshalb nichts weg")
+    pruefe("document.addEventListener" not in skript
+           and "window.addEventListener" not in skript,
+           "und hängt wirklich nichts an Dokument oder Fenster")
+
+    stil = client.get("/static/style.css").text
+    for regel in (".pa-erfassen { container-type: inline-size",
+                  "@container auslagen (min-width: 620px)",
+                  ".feld > .pa-betragfeld", ".pa-mahnt", ".pa-draengt"):
+        pruefe(regel in stil, f"das Stylesheet kennt „{regel}“")
+    pruefe(a.MAHNT_AB == 14 and a.DRAENGT_AB == 30,
+           "gemahnt wird nach 14 Tagen, gedrängt nach 30")
+
+
+def _auslagen_zahl() -> int:
+    with db.db() as con:
+        return con.execute("SELECT COUNT(*) c FROM auslage").fetchone()["c"]
+
+
 def test_texte_tot() -> None:
     """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
 
@@ -9733,7 +10042,8 @@ def test_menue_reihenfolge(client: TestClient) -> None:
     seite = client.get("/").text
     nav = seite.split("<nav>")[1].split("</nav>")[0]
     punkte = re.findall(r">([^<>]+)</a>", nav)
-    pruefe(punkte == ["Arbeitszeit", "Aufgaben", "Fuhrpark", "Dateien", "Wiki"],
+    pruefe(punkte == ["Arbeitszeit", "Aufgaben", "Fuhrpark", "Dateien", "Wiki",
+                      "Privatauslagen"],
            f"das Menü steht in der erwarteten Reihenfolge (ist: {punkte})")
     pruefe("Verwaltungsvorgänge" not in nav,
            "„Verwaltungsvorgänge“ steht nicht mehr im Menü")
@@ -10018,6 +10328,7 @@ def _durchlauf(client: TestClient) -> None:
         test_htmx(client)
         test_kein_aufbau(client)
         test_kein_blitzen(client)
+        test_privatauslagen(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

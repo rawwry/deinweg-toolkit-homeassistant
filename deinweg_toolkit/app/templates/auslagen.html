@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block titel %} – Privatauslagen{% endblock %}
+{% block inhalt %}
+
+{#  ⚠️ Alles steht in EINER Hülle, die htmx austauscht - wie im Wiki und
+    in den Dateien. Der Gewinn ist hier besonders greifbar: wer zehn Bons
+    hintereinander eintippt, soll nach jedem Speichern wieder im
+    Betragsfeld stehen, statt auf einen Seitenaufbau zu warten.
+
+    ⚠️ `hx-push-url="false"`: von hier geht ausschließlich POST hinaus,
+    und eine POST-Adresse gehört nie in den Verlauf. Weil damit gar
+    nichts gespeichert wird, braucht es auch kein `hx-history="false"`
+    wie bei Wiki und Dateien - es gibt nichts wiederherzustellen. #}
+<div id="auslagenbereich" hx-boost="true" hx-target="#auslagenbereich"
+     hx-select="#auslagenbereich" hx-swap="outerHTML" hx-push-url="false">
+
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+{# ---- Was gerade aussteht ------------------------------------------- #}
+<section class="karte pa-stand{{ ' pa-leer' if not offen_summe }}">
+  <div class="pa-stand-text">
+    <h2>{{ t("auslagen.titel.offen") }}</h2>
+    <strong class="pa-summe">{{ betrag(offen_summe) }}</strong>
+    {% if laufend %}
+    <p class="pa-stand-bei">
+      {{ laufend | length }} {{ "Auslage" if laufend | length == 1 else "Auslagen" }}
+      · gesammelt seit {{ block.begonnen_am | deutsch }}
+    </p>
+    {% else %}
+    <p class="pa-stand-bei">{{ t("auslagen.nochnichts") }}</p>
+    {% endif %}
+  </div>
+
+  {% if offen_summe %}
+  <form action="/privatauslagen/block/{{ block.id }}/zustand" method="post"
+        class="pa-stand-tat" hx-push-url="false"
+        onsubmit="return dwt.frage(event, '{{ betrag(offen_summe) }} an deine Chefin abgegeben?\n\nDer Block wartet danach auf die Erstattung, und ein neuer beginnt von selbst, sobald du die nächste Auslage einträgst.')">
+    <input type="hidden" name="ziel" value="abgegeben">
+    <button class="knopf haupt" type="submit">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="knopfzeichen">
+        <path d="M4 12h13M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Bons abgegeben
+    </button>
+  </form>
+  {% endif %}
+</section>
+
+<div class="raster">
+  <div class="spalte">
+
+    {# ---- Schnellerfassung ------------------------------------------ #}
+    <section class="karte pa-erfassen">
+      <h2>{{ t("auslagen.titel.erfassen") }}</h2>
+      <p class="lead">{{ t("auslagen.lead") }}</p>
+
+      {# ⚠️ `hx-encoding` muss ans Formular: ohne das schickt htmx die
+         Felder als gewöhnliche Formulardaten, und das Belegfoto bliebe
+         auf der Strecke. `enctype` daneben ist der Weg ohne Skript. #}
+      <form class="pa-form" action="/privatauslagen/erfassen" method="post"
+            enctype="multipart/form-data" hx-encoding="multipart/form-data"
+            hx-push-url="false">
+        <div class="pa-neu">
+          <label class="feld pa-f-betrag">
+            <span>Betrag</span>
+            <span class="pa-betragfeld">
+              <input type="text" name="betrag" id="pa-betrag" inputmode="decimal"
+                     autocomplete="off" placeholder="0,00" required
+                     aria-describedby="pa-betrag-hilfe">
+              <span class="pa-waehrung" aria-hidden="true">€</span>
+            </span>
+          </label>
+
+          <label class="feld pa-f-datum">
+            <span>Datum</span>
+            <input type="date" name="datum" value="{{ datum }}" max="{{ heute }}">
+          </label>
+
+          <label class="feld pa-f-notiz">
+            <span>Wofür? <span class="leise">– darf leer bleiben</span></span>
+            <input type="text" name="notiz" maxlength="200" autocomplete="off"
+                   placeholder="Tanken · Einkauf für … · Essen · ausgelegtes Bargeld">
+          </label>
+
+          {# Das echte Dateifeld liegt unsichtbar im Label - so sieht der
+             Knopf überall gleich aus, bleibt aber per Tastatur
+             erreichbar. Dieselbe Technik wie beim Hochladen in den
+             Dateien. #}
+          <div class="feld pa-f-beleg">
+            <span>Beleg</span>
+            <label class="pa-belegknopf">
+              <input type="file" name="beleg" id="pa-beleg"
+                     accept="image/*,application/pdf,.heic,.heif">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h2L10 4h4l1.5 2h2A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-8Z"
+                      stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                <circle cx="12" cy="12.5" r="3.2" stroke="currentColor" stroke-width="1.7"/>
+              </svg>
+              <span class="pa-belegwort">Foto</span>
+              <span class="pa-belegname" id="pa-belegname"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="pa-fuss">
+          <span class="pa-fuss-hilfe" id="pa-betrag-hilfe">
+            Bis {{ max_mb }} MB je Beleg · Foto oder PDF
+          </span>
+          <button class="knopf haupt" type="submit">Auslage festhalten</button>
+        </div>
+      </form>
+    </section>
+
+    {# ---- Der laufende Block ---------------------------------------- #}
+    <section class="karte pa-liste">
+      <h2>{{ t("auslagen.titel.liste") }}</h2>
+      {% if laufend %}
+      <p class="lead">{{ t("auslagen.liste_lead") }}</p>
+      <div class="pa-zeilen">
+        {% for z in laufend %}
+        <details class="pa-zeile">
+          <summary>
+            <span class="pa-z-betrag">{{ betrag(z.cent) }}</span>
+            <span class="pa-z-datum">{{ z.datum | deutsch }}</span>
+            <span class="pa-z-notiz">{{ z.notiz or "ohne Angabe" }}</span>
+            {% if z.beleg %}
+            <span class="pa-z-beleg" title="Beleg liegt dabei">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M8 7.5v8a3.5 3.5 0 0 0 7 0V6a2.25 2.25 0 0 0-4.5 0v9a1 1 0 0 0 2 0V7.5"
+                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+              <span class="pa-vorlese">Beleg liegt dabei</span>
+            </span>
+            {% endif %}
+            <span class="pa-z-pfeil" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </summary>
+
+          <div class="pa-z-inhalt">
+            {% if z.beleg %}
+            {# ⚠️ `hx-boost="false"`: dahinter liegt eine Datei, keine
+               Seite - ein Austausch träfe ins Leere. Dieselbe Regel wie
+               bei /dateien/holen/. #}
+            <a class="pa-belegbild" href="/privatauslagen/beleg/{{ z.id }}"
+               target="_blank" rel="noopener" hx-boost="false">
+              {% if z.beleg in ("jpg", "jpeg", "png", "webp", "gif") %}
+              <img src="/privatauslagen/beleg/{{ z.id }}" alt="Beleg zu {{ betrag(z.cent) }}" loading="lazy">
+              {% else %}
+              <span class="pa-belegkuerzel">{{ z.beleg | upper }}</span>
+              {% endif %}
+              <span class="pa-belegoeffnen">Beleg öffnen</span>
+            </a>
+            {% endif %}
+
+            <form class="pa-aendern" action="/privatauslagen/{{ z.id }}/aendern"
+                  method="post" hx-push-url="false">
+              <div class="feldreihe">
+                <label class="feld">
+                  <span>Betrag</span>
+                  <input type="text" name="betrag" inputmode="decimal"
+                         value="{{ '%d,%02d' | format(z.cent // 100, z.cent % 100) }}" required>
+                </label>
+                <label class="feld">
+                  <span>Datum</span>
+                  <input type="date" name="datum" value="{{ z.datum }}" max="{{ heute }}">
+                </label>
+                <label class="feld">
+                  <span>Wofür?</span>
+                  <input type="text" name="notiz" maxlength="200" value="{{ z.notiz or '' }}">
+                </label>
+              </div>
+              <div class="knopfreihe">
+                <button class="knopf klein" type="submit">Speichern</button>
+              </div>
+            </form>
+
+            <form action="/privatauslagen/{{ z.id }}/loeschen" method="post"
+                  class="pa-weg" hx-push-url="false"
+                  onsubmit="return dwt.frage(event, '{{ betrag(z.cent) }} vom {{ z.datum | deutsch }} entfernen?')">
+              <button class="knopf warn klein" type="submit">
+                Auslage entfernen
+              </button>
+            </form>
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="leer">{{ t("auslagen.leer") }}</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="spalte">
+
+    {# ---- Wartet auf Geld -------------------------------------------- #}
+    {% if wartend %}
+    <section class="karte pa-wartet">
+      <h2>{{ t("auslagen.titel.wartet") }}</h2>
+      <p class="lead">{{ t("auslagen.wartet_lead") }}</p>
+      {% for w in wartend %}
+      <article class="pa-block pa-{{ w.lage }}">
+        <div class="pa-block-kopf">
+          <strong class="pa-block-summe">{{ betrag(w.summe) }}</strong>
+          <span class="pa-block-lage">
+            {% if w.tage == 0 %}heute abgegeben
+            {% elif w.tage == 1 %}seit gestern
+            {% else %}seit {{ w.tage }} Tagen{% endif %}
+          </span>
+        </div>
+        <p class="pa-block-bei">
+          {{ w.anzahl }} {{ "Auslage" if w.anzahl == 1 else "Auslagen" }}
+          · abgegeben am {{ w.b.abgegeben_am | deutsch }}
+        </p>
+
+        <details class="pa-block-liste">
+          <summary>Was drin liegt</summary>
+          <ul>
+            {% for z in w.zeilen %}
+            <li>
+              <span class="pa-z-betrag">{{ betrag(z.cent) }}</span>
+              <span class="pa-z-datum">{{ z.datum | deutsch }}</span>
+              <span class="pa-z-notiz">{{ z.notiz or "ohne Angabe" }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </details>
+
+        <div class="pa-block-tat">
+          <form action="/privatauslagen/block/{{ w.b.id }}/zustand" method="post"
+                hx-push-url="false">
+            <input type="hidden" name="ziel" value="erstattet">
+            <button class="knopf haupt klein" type="submit">Geld erhalten</button>
+          </form>
+          <form action="/privatauslagen/block/{{ w.b.id }}/zustand" method="post"
+                hx-push-url="false"
+                onsubmit="return dwt.frage(event, 'Diesen Block wieder auf „offen“ stellen?\n\nDas geht nur, solange kein anderer offen ist.')">
+            <input type="hidden" name="ziel" value="offen">
+            <button class="knopf leise klein" type="submit">zurück auf offen</button>
+          </form>
+        </div>
+      </article>
+      {% endfor %}
+    </section>
+    {% endif %}
+
+    {# ---- Jahresbilanz ------------------------------------------------ #}
+    <section class="karte pa-jahr">
+      <h2>{{ t("auslagen.titel.jahr") }}</h2>
+      <p class="pa-jahr-zahl">{{ betrag(jahr_summe) }}</p>
+      <p class="pa-jahr-bei">
+        {{ jahr_anzahl }} {{ "Auslage" if jahr_anzahl == 1 else "Auslagen" }} in {{ jahr }}
+        {%- if wartend_summe %} · davon {{ betrag(wartend_summe) }} noch nicht zurück{% endif %}
+      </p>
+    </section>
+
+    {# ---- Archiv ------------------------------------------------------ #}
+    {% if erledigt %}
+    <section class="karte pa-archiv">
+      <h2>{{ t("auslagen.titel.archiv") }}</h2>
+      <details class="hinweise">
+        <summary>{{ erledigt | length }} erstattete {{ "Mappe" if erledigt | length == 1 else "Mappen" }}</summary>
+        <div class="hinweise-inhalt">
+          <p class="klein leise">{{ t("auslagen.belege_hinweis") }}</p>
+          {% for e in erledigt %}
+          <article class="pa-block pa-zu">
+            <div class="pa-block-kopf">
+              <strong class="pa-block-summe">{{ betrag(e.summe) }}</strong>
+              <span class="pa-block-lage">{{ e.b.erstattet_am | deutsch }}</span>
+            </div>
+            <p class="pa-block-bei">
+              {{ e.anzahl }} {{ "Auslage" if e.anzahl == 1 else "Auslagen" }}
+              {%- if e.belege %} · {{ e.belege }} {{ "Beleg liegt" if e.belege == 1 else "Belege liegen" }} noch{% endif %}
+            </p>
+            {% if e.belege %}
+            <form action="/privatauslagen/block/{{ e.b.id }}/belege-loeschen"
+                  method="post" hx-push-url="false"
+                  onsubmit="return dwt.frage(event, '{{ e.belege }} Belegfotos dieser Mappe löschen?\n\nDie Beträge bleiben stehen, nur die Bilder gehen.')">
+              <button class="knopf leise klein" type="submit">Belege wegräumen</button>
+            </form>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+      </details>
+    </section>
+    {% endif %}
+  </div>
+</div>
+
+{# ⚠️ Das Skript steht INNERHALB der Hülle und läuft damit nach jedem
+   Austausch erneut - nur so verkabelt es das frische Dateifeld. Es
+   trägt sich deshalb NICHT am Nachrüst-Haken ein (Abschnitt 10).
+
+   Es hängt bewusst nichts ans Dokument oder ans Fenster, braucht also
+   auch kein `dwt.loesen()` wie Wiki und Dateien: alles, was es anfasst,
+   liegt in der Hülle und geht beim nächsten Austausch mit. #}
+<script>
+(function () {
+  var wurzel = document.getElementById("auslagenbereich");
+  if (!wurzel) return;
+
+  // Der Name der gewählten Datei neben dem Kameraknopf. Das Feld ist
+  // leer im Markup und fällt über :empty weg - kein `hidden`, das erst
+  // ein Skript wegnimmt (das wäre genau der Sprung aus 1.53).
+  var feld = wurzel.querySelector("#pa-beleg");
+  var name = wurzel.querySelector("#pa-belegname");
+  if (feld && name) {
+    feld.addEventListener("change", function () {
+      var d = feld.files && feld.files[0];
+      name.textContent = d ? d.name : "";
+      feld.closest(".pa-belegknopf").classList.toggle("hat", !!d);
+    });
+  }
+
+  // Nach einem gespeicherten Eintrag zurück ins Betragsfeld. Nur dann -
+  // beim ersten Aufruf der Seite würde ein Fokus am Telefon die
+  // Tastatur aufziehen und die Seite wegrollen.
+  if (wurzel.querySelector(".meldung.hinweis")) {
+    var b = wurzel.querySelector("#pa-betrag");
+    if (b) b.focus({ preventScroll: true });
+  }
+})();
+</script>
+</div>
+{% endblock %}
