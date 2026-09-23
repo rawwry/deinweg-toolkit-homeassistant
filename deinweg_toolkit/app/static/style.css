@@ -621,6 +621,52 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
    !important-Regel schlägt display: contents.
 */
 .zeitwahl, .zeitwahl-klassisch { display: contents; }
+
+/* --- Zwei Fassungen: mit Skript und ohne (seit 1.53) ------------------
+   ⚠️⚠️ Mehrere Bedienelemente gibt es doppelt: eine schlichte Fassung,
+   die ohne Skript funktioniert, und eine bessere daneben. Welche gilt,
+   entscheidet die Klasse `mit-skript` am <html> — gesetzt ganz oben im
+   Kopf, also VOR dem ersten Bild.
+   Bis 1.52.1 schaltete das Skript am Seitenende die schlichte Fassung
+   weg; bis dahin stand sie aber schon auf dem Schirm und verschwand dann
+   vor den Augen (Timos Meldung „da blitzen immer Elemente für
+   Millisekunden auf"). Gemessen: Übersicht und Auswertung sprangen um
+   79px, die Zeiterfassung um 42px.
+   ⚠️ Wer eine neue solche Stelle baut, trägt sie HIER ein und nimmt
+   kein `hidden` im Markup — sonst blitzt sie wieder. */
+
+/* Nur ohne Skript: die vier Auswahlfelder des Zeitraums. Mit Skript
+   steht an ihrer Stelle der Picker, bis er gebaut ist der Platzhalter. */
+.mit-skript .zeitwahl-klassisch { display: none; }
+html:not(.mit-skript) .zeitwahl-platz { display: none; }
+/* Der Platzhalter ist nur ein Bild des zugeklappten Feldes: keine Maus,
+   kein Tabstopp, keine Bedienung — er lebt nur, bis der Picker steht. */
+.zeitwahl-platz { pointer-events: none; }
+/* ⚠️ Geht der Aufbau des Pickers schief, kommen die vier Felder
+   zurück - sonst wäre der Zeitraum gar nicht mehr einzustellen. */
+.mit-skript .zeitwahl.zw-kaputt .zeitwahl-klassisch { display: contents; }
+.zeitwahl.zw-kaputt .zeitwahl-platz { display: none; }
+
+/* Nur MIT Skript sinnvoll: „Weitere Zeile" (ohne Skript bleibt es bei
+   der einen Zeile) und die Symbolknöpfe in den Seitenleisten von Wiki
+   und Dateien, die ein Formular im Hauptfenster aufklappen. */
+html:not(.mit-skript) .erfass-mehr,
+html:not(.mit-skript) .wiki-baumknopf,
+html:not(.mit-skript) .wiki-neu-knopf,
+html:not(.mit-skript) #wiki-falten { display: none; }
+
+/* Nur OHNE Skript nötig: der Absendeknopf neben dem Dateifeld (mit
+   Skript schickt die Auswahl selbst ab) und der Knopf neben der
+   Status-Schnellwahl einer Aufgabe. */
+.mit-skript #hochladeknopf,
+.mit-skript .vk-statussenden { display: none; }
+
+/* Das Ordnerformular klappt mit Skript über den Knopf auf; ohne Skript
+   steht es offen da, sonst käme man nicht an das Feld.
+   ⚠️ Der Zustand hängt an einer Klasse und nicht mehr an `hidden`: das
+   Attribut hätte erst das Skript setzen können, also nach dem ersten
+   Bild — genau der Sprung, um den es hier geht. */
+.mit-skript .ordnerform:not(.offen) { display: none; }
 .zeitwahl-feld { flex: 1 1 240px; }
 /* Das Feld trägt einen längeren Text als die Namenslisten daneben
    ("September 2025 bis Juni 2026") und darf ihn nicht abschneiden. */

@@ -7321,6 +7321,76 @@ def test_kein_aufbau(client: TestClient) -> None:
            "Knöpfe federn beim Überfahren weiter nach")
 
 
+def test_kein_blitzen(client: TestClient) -> None:
+    """Das erste Bild zeigt schon die fertige Seite (1.53)."""
+    abschnitt("Nichts blitzt beim Laden auf")
+    vorlagen = os.path.join(os.path.dirname(__file__), "templates")
+
+    def quelle(name):
+        return open(os.path.join(vorlagen, name), encoding="utf-8").read()
+
+    basis = quelle("base.html")
+    stil = client.get("/static/style.css").text
+
+    # ⚠️⚠️ Die Marke muss VOR dem ersten Bild stehen, also im Kopf und
+    # nicht bei den Skripten am Seitenende. Sonst entscheidet sie zu
+    # spät - genau der Fehler, um den es geht.
+    pruefe('classList.add("mit-skript")' in basis,
+           "base.html setzt die Marke „mit-skript“")
+    pruefe(basis.index('classList.add("mit-skript")') < basis.index("</head>"),
+           "und zwar im Kopf, vor dem ersten Bild")
+
+    # Welche Fassung gilt, entscheidet jetzt das Stylesheet.
+    for regel in (".mit-skript .zeitwahl-klassisch",
+                  "html:not(.mit-skript) .zeitwahl-platz",
+                  "html:not(.mit-skript) .erfass-mehr",
+                  ".mit-skript #hochladeknopf",
+                  ".mit-skript .vk-statussenden",
+                  ".mit-skript .ordnerform:not(.offen)"):
+        pruefe(regel in stil, f"das Stylesheet kennt „{regel}“")
+
+    # ⚠️ Und NICHT mehr das Skript: ein `hidden`, das erst dort gesetzt
+    # wird, kommt nach dem ersten Bild - das ist der Sprung.
+    for datei, stueck in (("index.html", "knopfreihe.hidden"),
+                          ("wiki.html", "baumknopf.hidden"),
+                          ("wiki.html", "neuknopf.hidden"),
+                          ("wiki.html", "faltknopf.hidden"),
+                          ("dateien.html", "seitenneu.hidden"),
+                          ("dateien.html", "ordnerform.hidden"),
+                          ("vorgaenge.html", "knopf.hidden")):
+        pruefe(stueck not in quelle(datei),
+               f"{datei} schaltet „{stueck}“ nicht mehr per Skript")
+    for datei, stueck in (("index.html", 'id="zeilenknopf" hidden'),
+                          ("wiki.html", 'id="wiki-neu" hidden'),
+                          ("wiki.html", 'id="wiki-falten" hidden'),
+                          ("dateien.html", 'id="datei-neu" hidden')):
+        pruefe(stueck not in quelle(datei),
+               f"{datei} liefert „{stueck.split(chr(34))[1]}“ ohne hidden aus")
+
+    # --- Der Platzhalter des Zeitraum-Feldes ---------------------------
+    # ⚠️⚠️ Gemessen: ohne ihn stand die Filterkarte am Telefon im ersten
+    # Bild 673px hoch und fiel dann auf 594px zusammen - die Tabelle
+    # darunter sprang um 79px. Mit ihm ist das erste Bild so hoch wie
+    # das fertige.
+    for seite in ("/eintraege", "/auswertung"):
+        text = client.get(seite).text
+        pruefe('class="filterwahl zeitwahl-feld zeitwahl-platz' in text,
+               f"{seite} liefert den Platzhalter mit")
+        platz = text.split("zeitwahl-platz")[1].split("</div>")[0]
+        pruefe('aria-hidden="true"' in platz and 'tabindex="-1"' in platz,
+               f"{seite}: er ist weder anklickbar noch antabbar")
+        pruefe('class="zeitwahl-text"' in platz,
+               f"{seite}: und trägt den Zeitraum im Klartext")
+    # Er verschwindet, sobald der echte Picker steht.
+    pruefe('.zeitwahl-platz");' in basis and "platz.remove()" in basis,
+           "das Skript räumt ihn weg, wenn der Picker steht")
+    # ⚠️ Geht der Aufbau schief, kommen die vier Felder zurück - ohne sie
+    # wäre der Zeitraum gar nicht mehr einzustellen.
+    pruefe('classList.add("zw-kaputt")' in basis
+           and ".zeitwahl.zw-kaputt .zeitwahl-klassisch" in stil,
+           "ein misslungener Aufbau holt die vier Auswahlfelder zurück")
+
+
 def test_texte_tot() -> None:
     """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
 
@@ -9947,6 +10017,7 @@ def _durchlauf(client: TestClient) -> None:
         test_bearbeiten_dauer(client)
         test_htmx(client)
         test_kein_aufbau(client)
+        test_kein_blitzen(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

@@ -57,7 +57,7 @@
       <span>Ordner</span>
       <span class="wiki-baumwerkzeuge">
         <button type="button" class="knopf-icon wiki-baumknopf"
-                id="datei-neu" hidden
+                id="datei-neu"
                 title="Neuen Ordner anlegen" aria-label="Neuen Ordner anlegen">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M3.5 7.5c0-1.1.9-2 2-2h3.2l1.8 2h8c1.1 0 2 .9 2 2v8.5c0 1.1-.9 2-2 2H5.5c-1.1 0-2-.9-2-2v-10.5Z"
@@ -350,7 +350,6 @@
       formular = document.getElementById("hochladeform"),
       knopf = document.getElementById("hochladeknopf");
   if (feld && formular && knopf) {
-    knopf.hidden = true;              // mit Skript reicht das Symbol
     feld.addEventListener("change", function () {
       // ⚠️ `requestSubmit` und nicht `submit`: nur das löst das
       // `submit`-Ereignis aus, an dem htmx hängt (seit 1.51).
@@ -362,18 +361,19 @@
   var ordnerknopf = document.getElementById("ordnerknopf"),
       ordnerform  = document.getElementById("ordnerform");
   if (ordnerknopf && ordnerform) {
-    ordnerform.hidden = true;
+    // ⚠️ Der Zustand hängt an der Klasse `offen`, nicht an `hidden`:
+    // das Stylesheet versteckt das Formular schon vor dem ersten Bild
+    // (siehe „Zwei Fassungen"), sonst stand es kurz offen da.
     ordnerknopf.addEventListener("click", function () {
-      ordnerform.hidden = !ordnerform.hidden;
-      ordnerknopf.setAttribute("aria-expanded", ordnerform.hidden ? "false" : "true");
-      if (!ordnerform.hidden) ordnerform.querySelector("input[name=name]").focus();
+      var auf = ordnerform.classList.toggle("offen");
+      ordnerknopf.setAttribute("aria-expanded", auf ? "true" : "false");
+      if (auf) ordnerform.querySelector("input[name=name]").focus();
     });
     // Derselbe Handgriff aus der Seitenleiste - wie das Zeichen im Wiki.
     // Ohne Skript bleibt er versteckt; der Knopf im Hauptfenster ist dann
     // weiterhin die Bedienung.
     var seitenneu = document.getElementById("datei-neu");
     if (seitenneu) {
-      seitenneu.hidden = false;
       seitenneu.addEventListener("click", function () { ordnerknopf.click(); });
     }
   }

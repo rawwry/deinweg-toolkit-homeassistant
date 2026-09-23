@@ -347,7 +347,11 @@
          hineingerutscht; als leiser Knopf war er außerdem kaum zu sehen.
          Jetzt liegt er als gestrichelte Zeile genau dort, wo die nächste
          Zeile entsteht - er sieht aus wie das, was er tut. #}
-      <div class="erfass-mehr" id="zeilenknopf" hidden>
+      {# ⚠️ Kein `hidden`: die Sichtbarkeit regelt das Stylesheet über
+         `mit-skript` (siehe „Zwei Fassungen"). Per Skript eingeblendet
+         stand der Knopf erst nach dem ersten Bild da und schob alles
+         darunter um 42px nach unten. #}
+      <div class="erfass-mehr" id="zeilenknopf">
         <button class="zeile-mehr" type="button" id="zeile-mehr">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
@@ -1150,7 +1154,6 @@
     }
 
     zeilen().forEach(function (z) { entfernenknopf(z); verkabeln(z); });
-    knopfreihe.hidden = false;
 
     // ⚠️ Eine neue Zeile übernimmt das Datum der vorigen, und ihre
     // Startzeit ist die Endzeit der Zeile darüber. Das ist der

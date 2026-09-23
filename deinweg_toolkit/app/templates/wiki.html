@@ -65,7 +65,7 @@
            Zeichen hier oben; das Formular selbst bleibt im Hauptfenster,
            weil es in dem Ordner anlegt, den man gerade ansieht. #}
         <button type="button" class="knopf-icon wiki-baumknopf"
-                id="wiki-neu" hidden
+                id="wiki-neu"
                 title="Neue Seite oder neuen Ordner anlegen"
                 aria-label="Neue Seite oder neuen Ordner anlegen">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -76,7 +76,7 @@
           </svg>
         </button>
         <button type="button" class="knopf-icon wiki-baumknopf"
-                id="wiki-baum-falten" hidden
+                id="wiki-baum-falten"
                 title="Alle Ordner ausklappen" aria-label="Alle Ordner ausklappen">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="m7 10 5 5 5-5M7 4l5 5 5-5" stroke="currentColor"
@@ -139,7 +139,7 @@
           {# Nur mit Skript sinnvoll, deshalb versteckt ausgeliefert und
              dort eingeblendet - und wieder entfernt, wenn die Seite gar
              keine Abschnitte hat. #}
-          <button type="button" class="knopf leise klein" id="wiki-falten" hidden>
+          <button type="button" class="knopf leise klein" id="wiki-falten">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8"
                     stroke-linecap="round" stroke-linejoin="round"/>
@@ -697,7 +697,6 @@
     var ordner = document.querySelectorAll(".wiki-baum details.wiki-ordner");
     if (!ordner.length) { baumknopf.remove(); }
     else {
-      baumknopf.hidden = false;
       baumknopf.addEventListener("click", function () {
         var auf = baumknopf.dataset.stand !== "auf";
         ordner.forEach(function (d) { d.open = auf; });
@@ -768,7 +767,6 @@
   if (neuknopf) {
     if (!neublock) { neuknopf.remove(); }
     else {
-      neuknopf.hidden = false;
       neuknopf.addEventListener("click", function () { neuOeffnen("", neuknopf); });
     }
   }
@@ -780,7 +778,6 @@
     var abschnitte = document.querySelectorAll("details.wiki-falt");
     if (!abschnitte.length) { faltknopf.remove(); }
     else {
-      faltknopf.hidden = false;
       faltknopf.addEventListener("click", function () {
         var zu = faltknopf.dataset.stand !== "zu";
         abschnitte.forEach(function (d) { d.open = !zu; });

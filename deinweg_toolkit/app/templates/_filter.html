@@ -29,6 +29,29 @@
   <div class="zeitwahl" data-jahre="{{ jahre | join(',') }}"
        data-heute="{{ heute_monat }}"
        data-monate="{{ monate_mit_daten | join(',') }}">
+    {# ⚠️⚠️ Der Platzhalter (seit 1.53): ein Bild des zugeklappten
+       Zeitraum-Feldes, in genau seiner Größe und mit dem Text, den auch
+       der Picker zeigt. Er steht nur da, bis das Skript am Seitenende
+       den echten Picker gebaut hat — und schließt damit die Lücke, in der
+       vorher die vier Auswahlfelder standen und dann zusammenfielen
+       (gemessen 79px, die Tabelle darunter sprang mit). Ohne Skript ist
+       er ausgeblendet, dann gelten die vier Felder darunter. #}
+    <div class="filterwahl zeitwahl-feld zeitwahl-platz{{ ' gesetzt' if zeitraum_wort and zeitraum_wort != 'alle Zeiten' }}"
+         aria-hidden="true">
+      <span class="filterwahl-titel">Zeitraum</span>
+      <details class="wahlliste zeitwahl-block">
+        <summary tabindex="-1">
+          <svg class="zw-kalender" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3.2" y="5" width="17.6" height="15.5" rx="2.6"
+                  stroke="currentColor" stroke-width="1.6"/>
+            <path d="M3.2 9.7h17.6M8 3.4v3.2M16 3.4v3.2" stroke="currentColor"
+                  stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span class="zeitwahl-text">{{ zeitraum_wort | default("alle Zeiten") }}</span>
+        </summary>
+      </details>
+    </div>
+
     <div class="zeitwahl-klassisch">
       <label><span>Von Jahr</span>
         <select name="von_jahr">

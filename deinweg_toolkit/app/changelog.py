@@ -2571,4 +2571,25 @@ CHANGELOG = [
         "einer Zeit ebenso",
         "Prüfung von 2305 auf 2306 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.53", "titel": "Nichts blitzt mehr auf", "punkte": [
+        "Beim Wechsel zwischen Zeiterfassung, Übersicht und Auswertung "
+        "blitzten Bedienelemente kurz auf und verschwanden wieder – "
+        "besonders am Handy",
+        "Ursache: manche Felder gibt es doppelt – eine schlichte "
+        "Fassung, die ohne Skript funktioniert, und eine bessere "
+        "daneben. Die schlichte stand sichtbar da und wurde erst vom "
+        "Skript am Seitenende weggeschaltet; bis dahin hatte der Browser "
+        "sie längst gezeichnet",
+        "Jetzt entscheidet das Stylesheet, welche Fassung gilt – und das "
+        "steht vor dem ersten Bild fest",
+        "Der Zeitraum-Filter bekommt zusätzlich einen Platzhalter in "
+        "genau seiner Größe. Gemessen: die Filterkarte war am Handy "
+        "erst 673px hoch und fiel dann auf 594px zusammen, die Tabelle "
+        "darunter sprang um 79px. Jetzt ist das erste Bild so hoch wie "
+        "das fertige",
+        "Dasselbe in den Aufgaben, im Wiki und in den Dateien",
+        "Ohne Skript ändert sich nichts: dort gelten weiterhin die "
+        "schlichten Fassungen",
+        "Prüfung von 2306 auf 2333 Einzelprüfungen erweitert",
+    ]},
 ]

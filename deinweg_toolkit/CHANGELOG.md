@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.53
+
+- Beim Seitenwechsel blitzen keine Bedienelemente mehr auf: welche
+  Fassung eines Feldes gilt, entscheidet jetzt das Stylesheet vor dem
+  ersten Bild statt ein Skript am Seitenende
+- Der Zeitraum-Filter springt nicht mehr um 79px zusammen
+- Prüfung von 2306 auf 2333 Einzelprüfungen erweitert
+
 ## 1.52.1
 
 - Das leichte Abblenden bei jedem Klick (Wiki, Dateien, Aufgaben,

@@ -162,6 +162,26 @@
 </script>
 
 <script>
+  // ⚠️⚠️ Die Marke „hier läuft ein Skript" — gesetzt VOR dem ersten Bild
+  // (seit 1.53, Timos Meldung: „da blitzen immer Elemente für
+  // Millisekunden auf und es sieht nicht sauber aus").
+  //
+  // Der Grund: mehrere Bedienelemente gibt es in zwei Fassungen — eine,
+  // die ohne Skript funktioniert, und eine bessere daneben. Bisher stand
+  // die einfache Fassung sichtbar im HTML und wurde vom Skript am
+  // SEITENENDE weggeschaltet. Bis dahin hatte der Browser sie aber
+  // längst gezeichnet: auf der Übersicht standen vier Auswahlfelder da,
+  // die dann auf eines zusammenfielen (gemessen 79px, die Tabelle
+  // darunter sprang mit), auf der Zeiterfassung kam „Weitere Zeile"
+  // nachträglich dazu (42px).
+  //
+  // Mit dieser Marke entscheidet das STYLESHEET, welche Fassung gilt —
+  // und das steht vor dem ersten Bild fest. ⚠️ Deshalb gehört sie hier
+  // nach oben und nicht ans Seitenende. Wer eine neue Stelle baut, an
+  // der ein Skript etwas versteckt oder einblendet, nimmt nicht
+  // `hidden`, sondern eine Regel unter „Zwei Fassungen" im Stylesheet.
+  document.documentElement.classList.add("mit-skript");
+
   // vor dem ersten Rendern setzen, damit es nicht kurz aufblitzt
   (function () {
     try {
@@ -599,8 +619,24 @@
   // stellt man links den Anfang und rechts das Ende ein, unabhängig
   // voneinander.
   (function () {
-    window.dwt.nachruesten.push(zeitwahlBauen);
-    zeitwahlBauen();
+    window.dwt.nachruesten.push(bauenVersuchen);
+    bauenVersuchen();
+
+    // ⚠️⚠️ Geht beim Aufbau etwas schief, kommen die vier
+    // Auswahlfelder zurück (`zw-kaputt`). Bis 1.52.1 sorgte dafür die
+    // Reihenfolge - die Felder wurden erst ganz am Ende versteckt -, und
+    // genau das war der sichtbare Sprung. Jetzt entscheidet das
+    // Stylesheet vor dem ersten Bild, also braucht es diesen Rettungsweg
+    // ausdrücklich.
+    function bauenVersuchen() {
+      try {
+        zeitwahlBauen();
+      } catch (e) {
+        var w = document.querySelector(".zeitwahl");
+        if (w) { w.classList.add("zw-kaputt"); }
+        console.error(e);
+      }
+    }
 
     function zeitwahlBauen() {
     var wurzel = document.querySelector(".zeitwahl");
@@ -736,6 +772,11 @@
       '</details>';
     wurzel.insertBefore(huelle, wurzel.firstChild);
     wurzel.classList.add("mit-picker");
+    // ⚠️ Der Platzhalter hat seine Arbeit getan: er stand nur da, damit
+    // in der Zeit bis hierher nichts aufblitzt (siehe „Zwei Fassungen"
+    // im Stylesheet).
+    var platz = wurzel.querySelector(".zeitwahl-platz");
+    if (platz) { platz.remove(); }
 
     var block       = huelle.querySelector("details"),
         text        = huelle.querySelector(".zeitwahl-text"),

@@ -591,7 +591,6 @@
       var wahl = form.querySelector(".vk-statuswahl"),
           knopf = form.querySelector(".vk-statussenden");
       if (!wahl) { return; }
-      if (knopf) { knopf.hidden = true; }
       // ⚠️ requestSubmit() und NICHT submit(): nur das löst das
       // submit-Ereignis aus, und genau daran hängt htmx. Mit submit()
       // ginge die Seite still am Austausch vorbei und würde komplett neu
