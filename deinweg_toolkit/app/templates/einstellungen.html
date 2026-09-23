@@ -1369,7 +1369,7 @@
       <p class="klein leise felderklaerung">{{ t("einst.benutzer_mitarbeiter_hinweis") }}</p>
       <fieldset class="feld bereichsfeld">
         <span>Bereiche</span>
-        <p class="klein leise felderklaerung">{{ t("einst.benutzer_bereiche_hinweis") }}</p>
+        <p class="klein leise felderklaerung">{{ t("einst.benutzer_bereiche_regel") }}</p>
         <div class="bereichsraster">
           {% for schluessel, name in BEREICHE.items() %}
           {% set ausdruecklich = schluessel in NUR_AUSDRUECKLICH %}
@@ -1555,26 +1555,40 @@
       </div>
     </div>
 
-    <div class="konto-block {{ 'ohne-wirkung' if b.rolle == 'admin' }}">
+    <div class="konto-block">
       <span class="konto-blocktitel">Rechte</span>
+      {# ⚠️ Die stille Marke sagt der Route „die Kästchen waren dabei“.
+         Ohne sie kann sie „kein Haken gesetzt“ nicht von „das Formular
+         kennt die Kästchen gar nicht“ unterscheiden und räumte im
+         zweiten Fall still alle Bereiche weg. #}
+      <input type="hidden" name="rechte_dabei" value="1" form="bn-{{ b.id }}">
       {% if b.rolle == "admin" %}
-      <p class="klein leise felderklaerung">{{ t("einst.benutzer_admin_hinweis") }}</p>
+      <p class="klein leise felderklaerung">{{ t("einst.benutzer_admin_regel") }}</p>
       {% endif %}
 
       <fieldset class="feld bereichsfeld">
         <span>Bereiche</span>
         <div class="bereichsraster">
-          {# ⚠️ „Kein Haken bei allen“ heißt sonst „alles erlaubt“. Für die
-             Datenpflege gilt das ausdrücklich nicht (auth.NUR_AUSDRUECKLICH):
-             sie ändert Werte quer durch die Datenbank und muss einzeln
-             erteilt werden. Der Haken kommt hier also nur, wenn der Bereich
-             wirklich in der Liste steht. #}
+          {# ⚠️⚠️ Der Haken zeigt, was `hat_zugriff()` tatsächlich
+             antwortet - und zwar absichtlich über genau diese Funktion,
+             nicht über eine zweite, nachgebaute Bedingung. Sonst laufen
+             Anzeige und Durchsetzung früher oder später auseinander;
+             dieselbe Überlegung wie bei „loeschbar“ in der Übersicht.
+
+             Für die Rolle „Administrator“ ist das seit 1.55 nicht mehr
+             nur Kosmetik: ein Konto mit leerem Feld hat auch die
+             Datenpflege, und stünde der Haken dort nicht, nähme ihm das
+             nächste Speichern sie still weg (Arbeitsregel 11). Bei einem
+             normalen Konto bleibt die Datenpflege wie bisher leer - sie
+             muss ausdrücklich erteilt werden (auth.NUR_AUSDRUECKLICH).
+
+             ⚠️ „Einstellungen“ steht bei einem Administrator immer
+             angehakt da und kommt nach dem Speichern wieder - er kann
+             den Bereich nicht verlieren (auth.ADMIN_IMMER). #}
           {% for schluessel, name in BEREICHE.items() %}
-          {% set ausdruecklich = schluessel in NUR_AUSDRUECKLICH %}
-          <label class="bereich-kachel {{ 'heikel' if ausdruecklich }}">
+          <label class="bereich-kachel {{ 'heikel' if schluessel in NUR_AUSDRUECKLICH }}">
             <input type="checkbox" name="bereiche" value="{{ schluessel }}" form="bn-{{ b.id }}"
-                   {{ 'checked' if (not erlaubt and not ausdruecklich)
-                                    or (erlaubt and schluessel in erlaubt) }}> {{ name }}
+                   {{ 'checked' if hat_zugriff(b, schluessel) }}> {{ name }}
           </label>
           {% endfor %}
         </div>

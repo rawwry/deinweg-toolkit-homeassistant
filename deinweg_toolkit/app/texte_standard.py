@@ -199,9 +199,12 @@ TEXTE_STANDARD["auslagen.titel.archiv"] = (
 # ⚠️ Kurz halten: am Telefon steht dieser Absatz zwischen der Summe und
 # dem Betragsfeld, also genau im Weg. Fuenf Zeilen waren zu viel.
 TEXTE_STANDARD["auslagen.lead"] = (
-    "Betrag eintippen, fertig – das Datum steht auf heute, alles andere "
-    "darf leer bleiben. Wer den Bon gleich abfotografiert, weiß später "
-    "noch, wofür er war.")
+    "Betrag eintippen, fertig. Das Datum steht auf heute, alles andere "
+    "darf leer bleiben.")
+# ⚠️ Steht in UNGENUTZT: seit 1.55 sagen Stift und Muelleimer an der
+# Zeile, dass sich dort etwas aendern laesst. Der Schluessel bleibt
+# stehen, damit ein zurueckkehrender Text nicht neu geschrieben
+# werden muss.
 TEXTE_STANDARD["auslagen.liste_lead"] = (
     "Was hier steht, liegt noch bei dir. Ein Klick auf eine Zeile öffnet "
     "sie zum Ändern – solange der Block offen ist.")
@@ -478,6 +481,14 @@ TEXTE_STANDARD["einst.benutzer_lead"] = (
     "„Mitarbeiter“ gepflegten Namen für die Abgabeübersicht – ein "
     "Mitarbeiter braucht keinen Login, ein Login muss keinem Mitarbeiter "
     "entsprechen.")
+TEXTE_STANDARD["einst.benutzer_bereiche_regel"] = (
+    "Alle angehakten Bereiche darf das Konto nutzen. Sind alle angehakt, "
+    "gilt das als voller Zugriff und schließt auch später neu "
+    "hinzukommende Bereiche automatisch mit ein – mit einer Ausnahme: "
+    "<strong>die Datenpflege</strong> muss immer ausdrücklich angehakt "
+    "werden, sie ändert viele Einträge auf einmal. Seit Version 1.55 "
+    "gilt die Auswahl <strong>auch für Administratoren</strong>; nur die "
+    "Einstellungen bleiben ihnen in jedem Fall erhalten.")
 TEXTE_STANDARD["einst.benutzer_bereiche_hinweis"] = (
     "Alle angehakten Bereiche darf das Konto nutzen. Sind alle angehakt, "
     "gilt das als voller Zugriff und schließt auch später neu "
@@ -491,6 +502,17 @@ TEXTE_STANDARD["einst.benutzer_einstpunkte_hinweis"] = (
     "schließt später hinzukommende Punkte mit ein. „Oberfläche“ bleibt "
     "immer sichtbar – dort stehen nur Darkmode, Breite und die "
     "Ansichtsschalter, die jeder für sich selbst einstellt.")
+# ⚠️ Seit 1.55 gelten die Haken auch fuer Administratoren. Die beiden
+# alten Schluessel (einst.benutzer_admin_hinweis,
+# einst.benutzer_bereiche_hinweis) behaupteten das Gegenteil und sind
+# damit inhaltlich falsch - unter DEMSELBEN Schluessel waere die
+# Berichtigung bei einer eigenen Formulierung nie angekommen
+# (Abschnitt 8). Sie stehen jetzt in UNGENUTZT.
+TEXTE_STANDARD["einst.benutzer_admin_regel"] = (
+    "Die Rolle ist „Administrator“ – die Auswahl unten gilt trotzdem. "
+    "Wer ein Modul nicht braucht, kann es sich hier wegblenden. "
+    "<strong>Die Einstellungen bleiben immer erreichbar</strong>, sonst "
+    "käme niemand mehr an diese Seite zurück.")
 TEXTE_STANDARD["einst.benutzer_admin_hinweis"] = (
     "Die Rolle ist „Administrator“ – dieses Konto hat damit ohnehin "
     "vollen Zugriff. Die Auswahl unten wird trotzdem gespeichert und "
@@ -1118,6 +1140,16 @@ UNGENUTZT = frozenset({
     # unter einem NEUEN Schluessel (einst.benutzer_rechte) - eine
     # vorhandene strings.txt gewinnt sonst gegen die Aenderung.
     "einst.benutzer_rechte_hinweis",
+    # seit 1.55: beide behaupteten, die Bereichsauswahl habe bei der
+    # Rolle "Administrator" keine Wirkung. Genau das stimmt nicht mehr.
+    # Ersetzt durch einst.benutzer_bereiche_regel bzw.
+    # einst.benutzer_admin_regel.
+    "einst.benutzer_bereiche_hinweis",
+    "einst.benutzer_admin_hinweis",
+    # seit 1.55: der Satz erklaerte, dass ein Klick auf die Zeile sie
+    # zum Aendern oeffnet. Das sagt jetzt der Stift an der Zeile, und
+    # zwar kuerzer.
+    "auslagen.liste_lead",
     # seit 1.33: beide nennen "Abgebrochen", den Status gibt es nicht
     # mehr. Ersetzt durch vorgaenge.loeschen bzw. einst.erledigtmail_wozu.
     "einst.erledigtmail_lead",

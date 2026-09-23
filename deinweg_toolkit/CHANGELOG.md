@@ -3,6 +3,23 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.55
+
+- Die Bereichshaken in der Benutzerverwaltung gelten jetzt auch für
+  **Administratoren** – wer ein Modul nicht braucht, blendet es sich
+  selbst aus
+- ⚠️ Die Einstellungen bleiben Administratoren immer erhalten, sonst
+  gäbe es keinen Weg zurück an die Haken
+- ⚠️ Wer bisher nichts eingestellt hat, verliert nichts
+- Behoben: ein Formular ohne die Bereichskästchen räumte sie still weg
+- Privatauslagen stehen im Menü hinter „Aufgaben"
+- Die Seite ist neu aufgebaut: eine Spalte, Stand und Erfassung in einer
+  Karte, Stift und Mülleimer an jeder Zeile, Jahreszahlen als leise
+  Fußleiste
+- Behoben: am Telefon wurde die Jahreszahl im Datumsfeld abgeschnitten
+  und die Listenzeile brach nicht um
+- Prüfung von 2437 auf 2521 Einzelprüfungen erweitert
+
 ## 1.54
 
 - Neues Modul **Privatauslagen**: was man für die Einrichtung aus

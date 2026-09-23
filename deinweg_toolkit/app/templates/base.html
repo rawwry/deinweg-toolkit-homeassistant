@@ -253,6 +253,12 @@
     {% if hat_zugriff(request.state.benutzer, "verwaltungsvorgaenge") %}
     <a href="/vorgaenge" class="{{ 'aktiv' if seite=='vorgaenge' }}">Aufgaben</a>
     {% endif %}
+    {# ⚠️ Hinter „Aufgaben“ und nicht am Ende (Timos Wunsch, 1.55): die
+       Privatauslagen sind das, was zwischendurch am Handy aufgerufen
+       wird, und stehen damit im Daumenbereich der Menüschublade. #}
+    {% if hat_zugriff(request.state.benutzer, "privatauslagen") %}
+    <a href="/privatauslagen" class="{{ 'aktiv' if seite=='privatauslagen' }}">Privatauslagen</a>
+    {% endif %}
     {% if hat_zugriff(request.state.benutzer, "fuhrpark") %}
     <a href="/fuhrpark" class="{{ 'aktiv' if seite=='fuhrpark' }}">Fuhrpark</a>
     {% endif %}
@@ -261,11 +267,6 @@
     {% endif %}
     {% if hat_zugriff(request.state.benutzer, "wiki") %}
     <a href="/wiki" class="{{ 'aktiv' if seite=='wiki' }}">Wiki</a>
-    {% endif %}
-    {# Privatauslagen stehen ganz hinten: es ist der kleinste der sechs
-       Punkte und der einzige, der nur die eigenen Zahlen zeigt. #}
-    {% if hat_zugriff(request.state.benutzer, "privatauslagen") %}
-    <a href="/privatauslagen" class="{{ 'aktiv' if seite=='privatauslagen' }}">Privatauslagen</a>
     {% endif %}
   </nav>
 

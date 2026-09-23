@@ -7687,17 +7687,268 @@ def test_privatauslagen(client: TestClient) -> None:
            "und hängt wirklich nichts an Dokument oder Fenster")
 
     stil = client.get("/static/style.css").text
-    for regel in (".pa-erfassen { container-type: inline-size",
-                  "@container auslagen (min-width: 620px)",
-                  ".feld > .pa-betragfeld", ".pa-mahnt", ".pa-draengt"):
+    for regel in ("container-name: paform",
+                  "@container paform (min-width: 330px)",
+                  "@container paform (min-width: 620px)",
+                  "container-name: paliste",
+                  "@container paliste (max-width: 520px)",
+                  ".pa-mahnt", ".pa-draengt", ".knopf.akzent"):
         pruefe(regel in stil, f"das Stylesheet kennt „{regel}“")
     pruefe(a.MAHNT_AB == 14 and a.DRAENGT_AB == 30,
            "gemahnt wird nach 14 Tagen, gedrängt nach 30")
+
+    # --- Der Umbau von 1.55 --------------------------------------------
+    # ⚠️ Der Block steht nach den Proben oben leer da - ohne eine Zeile
+    # gibt es weder Liste noch Abgabeknopf zu prüfen.
+    client.post("/privatauslagen/erfassen",
+                data={"betrag": "33,30", "notiz": "Probe für den Umbau"})
+    seite = client.get("/privatauslagen").text
+
+    # ⚠️ EINE Spalte. Das übliche `.raster` mit Seitenspalte ist weg -
+    # zwei Layouts liefen am Telefon und am Schreibtisch auseinander.
+    pruefe('class="raster"' not in seite.split('id="auslagenbereich"')[1]
+           .split("<footer")[0],
+           "die Seite hat keine zweite Spalte mehr")
+    pruefe("#auslagenbereich {" in stil and "max-width: 880px" in stil,
+           "die Spalte ist gedeckelt und steht mittig")
+
+    # ⚠️ Pink gezielt: genau EIN gefüllter Knopf auf der Seite.
+    inhalt = seite.split('id="auslagenbereich"')[1].split("<footer")[0]
+    pruefe(inhalt.count('class="knopf haupt"') == 1,
+           "es gibt genau einen gefüllten Knopf – „Auslage festhalten“")
+    pruefe('class="knopf akzent"' in inhalt,
+           "„Bons abgeben“ trägt den Akzent nur in Rand und Schrift")
+    pruefe(".knopf.akzent {" in stil,
+           "die Knopfstufe dazwischen steht im Stylesheet")
+
+    # ⚠️ Stift und Mülleimer stehen an JEDER Zeile und sind nicht erst
+    # nach dem Aufklappen da (Timos Wunsch).
+    zeilen_roh = inhalt.split('class="pa-zeile"')[1:]
+    pruefe(len(zeilen_roh) >= 1, "es stehen Zeilen in der Liste")
+    for nr, roh in enumerate(zeilen_roh, 1):
+        kopf = roh.split("</summary>")[0]
+        pruefe("pa-z-stift" in kopf,
+               f"Zeile {nr} zeigt den Stift schon zugeklappt")
+        pruefe("pa-z-betrag" in kopf and "pa-z-datum" in kopf
+               and "pa-z-zweck" in kopf,
+               f"Zeile {nr} zeigt Betrag, Datum und Verwendungszweck")
+    pruefe(inhalt.count("pa-z-weg") == len(zeilen_roh),
+           "und je Zeile genau einen Mülleimer")
+    pruefe('class="knopf-icon warn"' in inhalt,
+           "der Mülleimer ist der übliche rote Symbolknopf")
+
+    # ⚠️ Der Mülleimer liegt NEBEN dem <details>, nicht darin: ein
+    # <form> darf nicht in ein <summary>, und verschachtelte Formulare
+    # gibt es in HTML nicht.
+    erste = zeilen_roh[0]
+    pruefe(erste.index("</details>") < erste.index("pa-z-weg"),
+           "der Mülleimer steht hinter dem aufklappbaren Teil")
+
+    # ⚠️ Die Jahreszahlen sind keine Karte mehr (Timo: „kompakter und
+    # weniger dominant“).
+    pruefe('class="pa-bilanz"' in inhalt and "karte pa-bilanz" not in inhalt,
+           "die Jahresübersicht ist eine Leiste, keine Karte")
+
+    # Die vier umbenennbaren Überschriften stehen wirklich auf der Seite.
+    from .main import t as _t
+    for schluessel in ("auslagen.titel.offen", "auslagen.titel.erfassen",
+                       "auslagen.titel.liste", "auslagen.titel.jahr"):
+        pruefe(str(_t(schluessel)) in inhalt,
+               f"die Überschrift {schluessel} steht auf der Seite")
+
+    # ⚠️ Das Datumsfeld braucht gemessene 144px. Es steht deshalb erst ab
+    # 330px Formularbreite neben dem Betrag, darunter darunter.
+    pruefe("@container paform (min-width: 330px)" in stil,
+           "Betrag und Datum stehen erst nebeneinander, wenn Platz ist")
+    pruefe(stil.index(".pa-felder { display: grid")
+           < stil.index("@container paform (min-width: 330px)"),
+           "gestapelt ist der Ausgangszustand")
+    # ⚠️ Ohne den erzwungenen Umbruch sortiert die Zeile am Telefon nur
+    # neu, statt umzubrechen - dann bleibt vom Zweck ein Buchstabe.
+    pruefe("flex-basis: 100%; height: 0; order: 2" in stil,
+           "die Listenzeile bricht am Telefon wirklich um")
+
 
 
 def _auslagen_zahl() -> int:
     with db.db() as con:
         return con.execute("SELECT COUNT(*) c FROM auslage").fetchone()["c"]
+
+
+def test_admin_bereiche(client: TestClient) -> None:
+    """Seit 1.55 gelten die Bereichshaken auch fuer Administratoren.
+
+    Timos Wunsch: wer den Fuhrpark nicht braucht, blendet ihn sich selbst
+    aus. Die eine Ausnahme sind die Einstellungen - ohne sie gaebe es
+    keinen Weg zurueck an die Haken.
+    """
+    abschnitt("Bereiche gelten auch für Administratoren")
+
+    pruefe(auth.ADMIN_IMMER == ("einstellungen",),
+           "genau ein Bereich bleibt Administratoren in jedem Fall")
+
+    # Ein zweiter Administrator, damit der Prüfer unangetastet bleibt.
+    chef = _konto(client, "teilchef", "teilchefpasswort",
+                  ["verwaltungsvorgaenge", "wiki", "einstellungen"],
+                  rolle="admin")
+    with db.db() as con:
+        satz = con.execute("SELECT id, rolle, berechtigungen FROM benutzer "
+                           "WHERE benutzername='teilchef'").fetchone()
+    pruefe(satz["rolle"] == "admin", "das Konto ist Administrator")
+    pruefe("fuhrpark" not in (satz["berechtigungen"] or ""),
+           "und hat den Fuhrpark nicht angehakt")
+
+    # --- Was jetzt fehlt ----------------------------------------------
+    seite = chef.get("/vorgaenge").text
+    nav = seite.split("<nav>")[1].split("</nav>")[0]
+    for weg, pfad in (("Fuhrpark", "/fuhrpark"), ("Dateien", "/dateien"),
+                      ("Privatauslagen", "/privatauslagen")):
+        pruefe(weg not in nav,
+               f"„{weg}“ steht nicht mehr im Menü dieses Administrators")
+        pruefe(chef.get(pfad).status_code == 403,
+               f"und {pfad} antwortet auch über die Adresse mit 403")
+    pruefe("Aufgaben" in nav and "Wiki" in nav,
+           "die angehakten Bereiche bleiben")
+    pruefe(chef.get("/vorgaenge").status_code == 200,
+           "und sind weiterhin erreichbar")
+
+    # --- ⚠️ Die Einstellungen bleiben, sonst gibt es keinen Weg zurück -
+    pruefe(auth.hat_zugriff(satz, "einstellungen") is True,
+           "die Einstellungen bleiben für Administratoren immer offen")
+    pruefe(chef.get("/einstellungen").status_code == 200,
+           "die Seite ist erreichbar")
+    pruefe(chef.get("/einstellungen?bereich=benutzer").status_code == 200,
+           "und die Benutzerverwaltung darin auch")
+    # Gegenprobe: selbst ohne jeden Haken.
+    ganz_ohne = dict(satz)
+    ganz_ohne["berechtigungen"] = auth.KEINE
+    pruefe(auth.hat_zugriff(ganz_ohne, "einstellungen") is True,
+           "auch bei keinem einzigen Haken")
+    pruefe(auth.hat_zugriff(ganz_ohne, "wiki") is False,
+           "während alles andere dann wirklich zu ist")
+
+    # --- Er kann sich selbst wieder zuschalten -------------------------
+    alle = list(auth.BEREICHE)
+    client.post(f"/einstellungen/benutzer/{satz['id']}", data={
+        "benutzername": "teilchef", "rolle": "admin", "aktiv": "1",
+        "rechte_dabei": "1", "bereiche": alle})
+    pruefe(chef.get("/fuhrpark").status_code == 200,
+           "mit gesetztem Haken ist der Fuhrpark wieder da")
+
+    # --- Die Rolle regelt weiterhin etwas anderes ----------------------
+    # ADMIN_NUR_PFADE haengt an der Rolle, nicht an den Haken.
+    normal = _konto(client, "ganznormal", "normalpasswort", ["einstellungen"])
+    pruefe(normal.get("/einstellungen?bereich=benutzer").status_code == 200,
+           "ein normales Konto landet auf der Einstellungsseite")
+    pruefe("Benutzerverwaltung" not in normal.get("/einstellungen").text,
+           "sieht die Benutzerverwaltung aber nicht")
+    pruefe(normal.post("/einstellungen/benutzer",
+                       data={"benutzername": "x", "passwort": "xxxxxxxx"})
+           .status_code == 403,
+           "und kommt auch über die Route nicht an sie heran")
+
+    # --- ⚠️ Kein stiller Verlust beim Update ---------------------------
+    # Ein Administrator, an dessen Konto nie etwas eingestellt wurde, hat
+    # ein LEERES Feld. Das hiess bisher zusammen mit dem Sonderweg
+    # "alles, auch die Datenpflege" - und muss es weiterhin heissen,
+    # sonst nimmt das Update ihm still eine Funktion weg.
+    unberuehrt = {"rolle": "admin", "berechtigungen": None}
+    for bereich in auth.BEREICHE:
+        pruefe(auth.hat_zugriff(unberuehrt, bereich) is True,
+               f"ein unberührtes Administratorkonto behält „{bereich}“")
+    # Beim normalen Konto gilt die Datenpflege-Regel unverändert.
+    unberuehrt_normal = {"rolle": "benutzer", "berechtigungen": None}
+    pruefe(auth.hat_zugriff(unberuehrt_normal, "datenpflege") is False,
+           "bei einem normalen Konto bleibt die Datenpflege ausdrücklich")
+    pruefe(auth.hat_zugriff(unberuehrt_normal, "wiki") is True,
+           "während leer dort weiterhin „alles übrige“ heißt")
+
+    # --- ⚠️ Ein Formular ohne die Kästchen räumt nichts weg ------------
+    with db.db() as con:
+        vorher = con.execute("SELECT berechtigungen FROM benutzer WHERE id=?",
+                             (satz["id"],)).fetchone()["berechtigungen"]
+    client.post(f"/einstellungen/benutzer/{satz['id']}", data={
+        "benutzername": "teilchef", "rolle": "admin", "aktiv": "1"})
+    with db.db() as con:
+        nachher = con.execute("SELECT berechtigungen FROM benutzer WHERE id=?",
+                              (satz["id"],)).fetchone()["berechtigungen"]
+    pruefe(vorher == nachher,
+           "ein Formular ohne die Kästchen lässt die Bereiche unangetastet")
+    pruefe(chef.get("/fuhrpark").status_code == 200,
+           "und der Zugriff bleibt damit erhalten")
+    # Mit Marke und ohne einen einzigen Haken heisst es dagegen "nichts".
+    client.post(f"/einstellungen/benutzer/{satz['id']}", data={
+        "benutzername": "teilchef", "rolle": "admin", "aktiv": "1",
+        "rechte_dabei": "1"})
+    pruefe(chef.get("/fuhrpark").status_code == 403,
+           "mit Marke und ohne Haken ist alles zu")
+    pruefe(chef.get("/einstellungen").status_code == 200,
+           "⚠️ außer den Einstellungen – der Weg zurück bleibt immer offen")
+
+    # --- Die Oberfläche sagt die neue Regel ----------------------------
+    seite = client.get("/einstellungen?bereich=benutzer").text
+    pruefe('name="rechte_dabei"' in seite, "die stille Marke steht im Formular")
+    pruefe("auch für Administratoren" in seite,
+           "der Hinweis nennt die neue Regel")
+    pruefe("hat diese Auswahl keine Wirkung" not in seite,
+           "und behauptet nicht mehr das Gegenteil")
+    from . import texte_standard as ts
+    for tot in ("einst.benutzer_bereiche_hinweis", "einst.benutzer_admin_hinweis"):
+        pruefe(tot in ts.UNGENUTZT,
+               f"der inhaltlich falsch gewordene Text {tot} ist stillgelegt")
+
+    # --- ⚠️⚠️ Die Haken zeigen, was wirklich gilt ----------------------
+    # Sonst nähme das nächste Speichern dem Administrator die Datenpflege
+    # still weg: sein Feld ist leer, er HAT sie - und stünde der Haken
+    # nicht da, schriebe das Formular sie heraus (Arbeitsregel 11).
+    with db.db() as con:
+        pruefer = con.execute("SELECT * FROM benutzer "
+                              "WHERE benutzername='pruefer'").fetchone()
+    pruefe(not (pruefer["berechtigungen"] or "").strip(),
+           "das Prüferkonto ist ein Administrator mit unberührtem Feld")
+    # ⚠️ Die Kästchen über ihre FORMULARKENNUNG holen, nicht über den
+    # Kontonamen: der steht auch im Anlegeformular darüber (in der
+    # Mitarbeiterauswahl), und dessen Datenpflege ist regelgemäß nicht
+    # angehakt - genau daran ist der erste Anlauf hängengeblieben.
+    def _kaesten(bid):
+        return re.findall(
+            r'name="bereiche" value="([^"]+)"[^>]*form="bn-%d"([^>]*)>' % bid,
+            seite)
+    kaesten = _kaesten(pruefer["id"])
+    pruefe(len(kaesten) == len(auth.BEREICHE),
+           "im Formular steht je Bereich ein Kästchen")
+    for schluessel, rest in kaesten:
+        erwartet = auth.hat_zugriff(pruefer, schluessel)
+        pruefe(("checked" in rest) == erwartet,
+               f"„{schluessel}“ steht angehakt da, wie hat_zugriff() es sagt")
+    pruefe(all("checked" in rest for _, rest in kaesten),
+           "beim unberührten Administrator sind es alle – auch die Datenpflege")
+
+    # Und das Speichern dieses Formulars ändert dann auch nichts.
+    client.post(f"/einstellungen/benutzer/{pruefer['id']}", data={
+        "benutzername": "pruefer", "rolle": "admin", "aktiv": "1",
+        "sprueche_sehen": "1", "rechte_dabei": "1",
+        "bereiche": [k for k, _ in kaesten]})
+    with db.db() as con:
+        danach = con.execute("SELECT berechtigungen FROM benutzer WHERE id=?",
+                             (pruefer["id"],)).fetchone()["berechtigungen"]
+    pruefe(not (danach or "").strip(),
+           "ein Speichern ohne Änderung lässt „voller Zugriff“ stehen")
+    pruefe(client.get("/einstellungen/datenpflege").status_code == 200,
+           "die Datenpflege ist danach unverändert erreichbar")
+
+    # Beim normalen Konto bleibt die Datenpflege wie bisher ungehakt.
+    with db.db() as con:
+        normal_id = con.execute("SELECT id FROM benutzer "
+                                "WHERE benutzername='ganznormal'").fetchone()["id"]
+    pflege = dict(_kaesten(normal_id)).get("datenpflege")
+    pruefe(pflege is not None and "checked" not in pflege,
+           "bei einem normalen Konto steht die Datenpflege nicht angehakt")
+    # Dieses Konto hat ausdrücklich NUR die Einstellungen bekommen -
+    # also steht genau eine Kachel angehakt da.
+    gehakt = [k for k, r in _kaesten(normal_id) if "checked" in r]
+    pruefe(gehakt == ["einstellungen"],
+           "und genau die erteilten Bereiche stehen angehakt da")
 
 
 def test_texte_tot() -> None:
@@ -10042,8 +10293,8 @@ def test_menue_reihenfolge(client: TestClient) -> None:
     seite = client.get("/").text
     nav = seite.split("<nav>")[1].split("</nav>")[0]
     punkte = re.findall(r">([^<>]+)</a>", nav)
-    pruefe(punkte == ["Arbeitszeit", "Aufgaben", "Fuhrpark", "Dateien", "Wiki",
-                      "Privatauslagen"],
+    pruefe(punkte == ["Arbeitszeit", "Aufgaben", "Privatauslagen", "Fuhrpark",
+                      "Dateien", "Wiki"],
            f"das Menü steht in der erwarteten Reihenfolge (ist: {punkte})")
     pruefe("Verwaltungsvorgänge" not in nav,
            "„Verwaltungsvorgänge“ steht nicht mehr im Menü")
@@ -10329,6 +10580,7 @@ def _durchlauf(client: TestClient) -> None:
         test_kein_aufbau(client)
         test_kein_blitzen(client)
         test_privatauslagen(client)
+        test_admin_bereiche(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

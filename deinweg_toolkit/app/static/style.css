@@ -959,6 +959,15 @@ html:not(.mit-skript) #wiki-falten { display: none; }
 .knopf.haupt:hover { background: var(--akzent-satt); border-color: var(--akzent-satt); color: #1a1113; }
 [data-thema="hell"] .knopf.haupt { color: #fff; }
 [data-thema="hell"] .knopf.haupt:hover { color: #fff; }
+/* ⚠️ Die dritte Stufe zwischen „haupt" (gefüllt) und „leise" (grau):
+   betont, aber nicht gefüllt. Sie fehlte bis 1.55, und deshalb standen
+   auf einer Seite mehrere gefüllte Knöpfe nebeneinander, von denen nur
+   einer die primäre Handlung war. Gefüllt bleibt je Karte genau einer. */
+.knopf.akzent { border-color: var(--akzent); color: var(--akzent); }
+.knopf.akzent:hover {
+  background: var(--akzent-weich); border-color: var(--akzent-satt);
+  color: var(--akzent-satt);
+}
 .knopf.leise { color: var(--leise); }
 .knopf.klein { padding: 5px 10px; font-size: 12.5px; font-weight: 500; }
 .knopf.warn { color: var(--dopp); }
@@ -3373,7 +3382,6 @@ body.anmeldeseite {
 }
 /* Bei der Rolle „Administrator“ greift die Auswahl nicht – sie bleibt
    bedienbar, tritt aber zurück. */
-.konto-block.ohne-wirkung .bereichsraster { opacity: .55; }
 .konto-fuss { padding-top: 14px; border-top: 1px solid var(--linie); margin-top: 4px; }
 /* Innerhalb eines aufgeklappten Blocks brauchen die drei Lagen Luft
    voneinander: Felder, dann die Schalter, dann die Knöpfe. Ohne das
@@ -6822,10 +6830,21 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 [data-leerzellen="leer"] .platzhalter { display: none; }
 .platzhalter { color: var(--leise); }
 
-/* === Privatauslagen (seit 1.54) ==========================================
-   Ein kleines Modul mit genau einer Frage im Mittelpunkt: wie viel habe
-   ich gerade vorgestreckt? Deshalb steht die Summe oben als einzige
-   grosse Zahl der Seite, und alles andere ordnet sich darunter. */
+/* === Privatauslagen ======================================================
+   Eine Seite, eine Aufgabe: wie viel habe ich gerade vorgestreckt, eine
+   neue Auslage eintragen, Bons abgeben. Alles ordnet sich dem unter.
+
+   ⚠️⚠️ EINE Spalte, gedeckelt und mittig (seit 1.55). Bis 1.54 stand
+   hier das übliche `.raster` mit 340px-Seitenspalte — also zwei
+   Layouts, die am Telefon und am Schreibtisch auseinanderlaufen
+   konnten. Genau darüber hat Timo sich beschwert („viele Probleme mit
+   Abständen"). Mit einer Spalte gibt es nur noch einen Satz Abstände.
+   Der Deckel ist nötig, weil `main` bis 1800px breit wird und eine
+   Betragszeile über 1.7 Bildschirmmeter niemand lesen will. */
+#auslagenbereich {
+  display: flex; flex-direction: column; gap: var(--abstand);
+  width: 100%; max-width: 880px; align-self: center; min-width: 0;
+}
 
 .pa-vorlese {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -6834,222 +6853,312 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 .knopfzeichen { width: 16px; height: 16px; flex: none; }
 .knopf .knopfzeichen { margin-right: -2px; }
 
-/* --- Was gerade aussteht ------------------------------------------------ */
+/* --- 1. Stand und Erfassen in EINER Karte ------------------------------
+   ⚠️ Die Karte endet unten ohne Polsterung: die getönte Fußleiste zieht
+   selbst bis an die Kante (dieselbe Bauart wie `.erfass-fuss`). */
+.pa-kopf { padding-bottom: 0; }
+
 .pa-stand {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 18px; flex-wrap: wrap;
+  gap: 14px 18px; flex-wrap: wrap;
 }
 .pa-stand-text { min-width: 0; }
-.pa-stand h2 { margin: 0 0 4px; }
+.pa-stand-titel {
+  font-size: 11.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--leise); margin: 0 0 3px;
+}
+/* Die einzige große Zahl der Seite - und die einzige Stelle, an der das
+   Pink für eine Zahl steht. Überall sonst trägt es die primäre Aktion
+   und den offenen Zustand. */
 .pa-summe {
-  display: block; font-size: 38px; font-weight: 700; line-height: 1.05;
-  letter-spacing: -0.5px; color: var(--akzent);
+  display: block; font-size: 36px; font-weight: 700; line-height: 1.02;
+  letter-spacing: -0.6px; color: var(--akzent);
   font-variant-numeric: tabular-nums;
 }
-/* Ohne offene Auslagen ist die Null keine Nachricht, sondern ein
-   Zustand - sie wirbt dann nicht in der Akzentfarbe. */
-.pa-stand.pa-leer .pa-summe { color: var(--leise); }
-.pa-stand-bei { margin: 6px 0 0; font-size: 12.5px; color: var(--leise); }
-.pa-stand-tat { flex: none; }
+/* Ohne offene Auslagen ist die Null kein Ergebnis, sondern ein Zustand -
+   sie wirbt dann nicht. */
+.pa-null .pa-summe { color: var(--leise); }
+.pa-stand-bei { margin: 5px 0 0; font-size: 12.5px; color: var(--leise); }
+.pa-stand-tat { flex: none; margin: 0; }
+/* ⚠️⚠️ „Bons abgeben" traegt `.akzent`, nicht `.haupt` (seit 1.55,
+   Timos Vorgabe: „Auslage festhalten soll klar als primaere Aktion
+   erkennbar sein"). In 1.54 standen beide gefuellt in Pink, und am
+   Telefon war der seltenere von beiden der auffaelligere - eine
+   Handlung, die man einmal im Monat braucht, ueber der, die man
+   zwanzigmal am Tag macht. */
 .pa-stand-tat .knopf { display: inline-flex; align-items: center; gap: 8px; }
 
-/* --- Schnellerfassung ---------------------------------------------------
-   ⚠️ Die Container-Abfrage hängt an der KARTE, nicht am Fenster:
-   daneben steht eine 340px breite Spalte, und im Modus „begrenzte
-   Breite" bleibt noch weniger übrig. Dieselbe Lehre wie bei der
-   manuellen Zeiterfassung. Gestapelt ist der Ausgangszustand - ein
-   Browser ohne Container-Abfragen bleibt damit bedienbar. */
-.pa-erfassen { container-type: inline-size; container-name: auslagen; }
-.pa-neu { display: grid; gap: 14px; grid-template-columns: 1fr; }
-.pa-neu .feld { margin-bottom: 0; }
-@container auslagen (min-width: 620px) {
-  .pa-neu {
-    grid-template-columns: 140px 165px minmax(120px, 1fr) auto;
-    align-items: end; gap: 12px;
-  }
+/* ⚠️ Die Erfassung trägt ihre eigene Überschrift, abgesetzt durch eine
+   feine Linie: die Karte hat zwei Hälften — oben was aussteht, unten
+   was man einträgt — und ohne die Linie liefen sie ineinander. Der
+   Titel läuft über t() und ist damit umbenennbar (Abschnitt 8). */
+.pa-form { margin: 0; container-type: inline-size; container-name: paform; }
+.pa-form-titel {
+  margin: 18px calc(var(--kartenluft) * -1) 12px;
+  padding: 15px var(--kartenluft) 0;
+  border-top: 1px solid var(--linie);
 }
+.pa-lead { margin: 0 0 11px; }
 
-/* ⚠️ Alle vier Felder sind gleich hoch (48px statt der üblichen 43px).
-   Das Betragsfeld trägt 19px Schrift und wäre sonst als einziges sechs
-   Pixel höher - nebeneinander sieht eine Reihe mit einem Ausreißer
-   kaputt aus. Nebenbei sind 48px am Telefon das angenehmere Ziel. */
-.pa-neu input, .pa-neu .pa-belegknopf { min-height: 48px; }
-
-/* Das Eurozeichen sitzt IM Feld, nicht daneben: als eigenes Element
-   verschöbe es die Spaltenbreite und stünde je nach Zahl woanders. */
-/* ⚠️ `margin-bottom: 0` ist noetig, nicht kosmetisch: die Huelle ist
-   ein <span> direkt in einem .feld, und `.feld > span` ist die Regel
-   fuer die Beschriftung darueber - sie gab ihr 5px Abstand nach
-   unten. Gemessen stand das Betragsfeld damit 5px hoeher als seine
-   drei Nachbarn, obwohl die Zelle buendig abschloss.
-   `font-weight: normal` aus demselben Grund: das Eurozeichen darin
-   haette sonst die Fettung einer Beschriftung.
-   ⚠️ Der Selektor muss dabei `.feld >` davor tragen: `.feld > span`
-   ist (0,1,1), ein nacktes `.pa-betragfeld` nur (0,1,0) und verliert.
-   Dieselbe Falle wie bei der Namensspalte der Auswertung. */
-.feld > .pa-betragfeld { position: relative; display: block;
-                         margin-bottom: 0; font-weight: normal;
-                         font-size: inherit; }
-/* ⚠️ `display: block` am Feld selbst: als Inline-Element hängt unter
-   ihm die Unterlänge seiner Zeile, und das Feld stand damit gemessene
-   5px höher als seine drei Nachbarn. */
-.pa-betragfeld input {
-  display: block; width: 100%;
-  font-size: 19px; font-weight: 600; padding-right: 32px;
+/* ⚠️⚠️ Drei Stufen, und die Schwellen sind GEMESSEN, nicht geraten.
+   Ein `<input type=date>` braucht in der deutschen Schreibweise samt
+   Kalenderknopf **144px**; darunter schneidet der Browser die
+   Jahreszahl ab (nachgemessen, genau das war der erste Anlauf). Die
+   Karte hat am Telefon 295px Innenbreite - fuer Betrag UND Datum
+   nebeneinander reicht das nicht.
+   * gestapelt (Ausgangszustand, unter 330px): jedes Feld ueber die
+     volle Breite - am Telefon ohnehin das bessere Ziel
+   * ab 330px: Betrag und Datum nebeneinander, Zweck darunter
+   * ab 620px: alle drei in einer Zeile
+   ⚠️ Gestapelt ist der Ausgangszustand: ein Browser ohne
+   Container-Abfragen bleibt damit bedienbar. Nicht umdrehen.
+   ⚠️ `minmax(0, …)` ist Pflicht - eine Rasterzelle schrumpft sonst nie
+   unter die Mindestbreite, die iOS einem Datumsfeld mitgibt, und
+   sprengte die Zeile (Abschnitt 12). */
+.pa-felder { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+@container paform (min-width: 330px) {
+  .pa-felder { grid-template-columns: minmax(0, 1fr) 160px; }
+  .pa-f-zweck { grid-column: 1 / -1; }
+}
+@container paform (min-width: 620px) {
+  .pa-felder { grid-template-columns: minmax(0, 1fr) 170px minmax(0, 1.6fr); }
+  .pa-f-zweck { grid-column: auto; }
+}
+.pa-feld { position: relative; display: block; min-width: 0; margin: 0; }
+.pa-feld input { width: 100%; min-height: 48px; }
+.pa-f-betrag input {
+  font-size: 20px; font-weight: 600; padding-right: 34px;
   font-variant-numeric: tabular-nums;
-  /* ⚠️ Knappere Zeilenhöhe, damit die 48px oben greifen: 19px mal der
-     üblichen 1.55 ergäben 49px, und min-height macht nichts kleiner.
-     Der Wert steht im Feld trotzdem mittig - das macht ein <input>
+  /* Knappere Zeilenhöhe, damit die 48px oben greifen: 20px mal der
+     üblichen 1.55 ergäben 51px, und min-height macht nichts kleiner.
+     Der Wert steht im Feld trotzdem mittig, das macht ein <input>
      von sich aus. */
   line-height: 1.2;
 }
+/* Das Eurozeichen sitzt IM Feld. Als eigenes Element verschöbe es die
+   Spaltenbreite und stünde je nach Zahl woanders. */
 .pa-waehrung {
-  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
   color: var(--leise); font-size: 15px; pointer-events: none;
 }
 
-/* Der Kameraknopf ist das Label seines eigenen, unsichtbaren
-   Dateifeldes - dieselbe Technik wie beim Hochladen in den Dateien.
-   `opacity: 0` statt `display: none`, damit es per Tastatur erreichbar
-   bleibt. */
-.pa-belegknopf {
-  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-  min-height: 43px; padding: 0 14px; border-radius: 9px;
-  border: 1px dashed var(--linie-stark); background: var(--flaeche-2);
-  color: var(--leise); font-size: 13px; max-width: 100%;
-}
-.pa-belegknopf:hover { border-color: var(--akzent); color: var(--tinte); }
-.pa-belegknopf:has(input:focus-visible) { outline: 2px solid var(--akzent); outline-offset: 2px; }
-.pa-belegknopf.hat { border-style: solid; border-color: var(--akzent); color: var(--akzent); }
-.pa-belegknopf svg { width: 18px; height: 18px; flex: none; }
-.pa-belegknopf input[type=file] {
-  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
-}
-/* Leer im Markup und über :empty weg - kein `hidden`, das erst ein
-   Skript wegnimmt (das wäre der Sprung aus 1.53). */
-.pa-belegname { max-width: 150px; overflow: hidden; text-overflow: ellipsis;
-                white-space: nowrap; }
-.pa-belegname:empty { display: none; }
-.pa-belegknopf.hat .pa-belegwort { display: none; }
-
-.pa-fuss {
-  margin: 20px calc(var(--kartenluft) * -1) -22px;
-  padding: 13px var(--kartenluft);
+/* Beleg und Speichern stehen zusammen - die optionale Beigabe direkt
+   neben der Handlung, zu der sie gehört. Spart gegenüber 1.54 eine
+   ganze Feldzeile. */
+.pa-form-fuss {
+  margin: 16px calc(var(--kartenluft) * -1) 0;
+  padding: 12px var(--kartenluft);
   border-top: 1px solid var(--linie);
   border-radius: 0 0 var(--radius) var(--radius);
   background: var(--flaeche-2);
   display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap;
+  gap: 10px; flex-wrap: wrap;
 }
-.pa-fuss-hilfe { font-size: 11.5px; color: var(--leise); }
-.pa-fuss .knopf { margin-left: auto; }
+.pa-form-fuss .knopf { margin-left: auto; }
 
-/* --- Die Zeilen des laufenden Blocks ------------------------------------
-   Jede Auslage ist eine Zeile, die sich zum Formular aufklappt - dieselbe
-   Form wie die Stammdatenlisten der Einstellungen. Damit braucht die
-   Zeile keine Symbolspalte: Ändern, Löschen und der Beleg liegen darin. */
-.pa-zeilen { display: flex; flex-direction: column; gap: 6px; }
+/* Das echte Dateifeld liegt unsichtbar im Label - so sieht der Knopf
+   überall gleich aus, bleibt aber per Tastatur erreichbar. */
+.pa-beleg {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  min-height: 42px; padding: 0 14px; border-radius: 10px;
+  border: 1px solid var(--linie-stark); background: var(--flaeche);
+  color: var(--tinte-2); font-size: 13px; max-width: 100%; min-width: 0;
+}
+.pa-beleg:hover { border-color: var(--akzent); color: var(--tinte); }
+.pa-beleg:has(input:focus-visible) {
+  outline: 2px solid var(--akzent); outline-offset: 2px;
+}
+/* Liegt ein Beleg dabei, sagt das Pink das - ein aktiver Zustand. */
+.pa-beleg.hat { border-color: var(--akzent); color: var(--akzent); }
+.pa-beleg svg { width: 18px; height: 18px; flex: none; }
+.pa-beleg input[type=file] {
+  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+}
+/* Leer im Markup und über :empty weg - kein `hidden`, das erst ein
+   Skript wegnimmt (das wäre der Sprung aus 1.53). */
+.pa-beleg-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pa-beleg-name:empty { display: none; }
+.pa-beleg.hat .pa-beleg-wort { display: none; }
+
+/* --- 2. Mappen: wartend und erstattet ---------------------------------
+   ⚠️ Dieselben drei Töne wie die Ampel der Aufgabenkarten - zwei
+   Stellen, die „das dauert zu lange" meinen, müssen gleich aussehen. */
+.pa-mappe {
+  border-left: 3px solid var(--linie-stark); border-radius: 10px;
+  background: var(--flaeche-2); padding: 12px 14px; margin-bottom: 8px;
+}
+.pa-mappe:last-child { margin-bottom: 0; }
+.pa-mahnt   { border-left-color: var(--warn); background: var(--warn-weich); }
+.pa-draengt { border-left-color: var(--dopp); background: var(--dopp-weich); }
+.pa-zu      { border-left-color: var(--gut);  background: var(--gut-weich); }
+.pa-mappe-kopf {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px 12px; flex-wrap: wrap;
+}
+.pa-mappe-summe {
+  font-size: 19px; font-weight: 700; letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+}
+.pa-mappe-lage { font-size: 12px; color: var(--leise); }
+.pa-mahnt   .pa-mappe-lage { color: var(--warn); }
+.pa-draengt .pa-mappe-lage { color: var(--dopp); }
+.pa-mappe-bei { margin: 3px 0 0; font-size: 12px; color: var(--leise); }
+.pa-mappe-liste { margin-top: 9px; }
+.pa-mappe-liste > summary { font-size: 12px; color: var(--leise); cursor: pointer; }
+.pa-mappe-liste > summary:hover { color: var(--akzent); }
+.pa-mappe-liste ul {
+  list-style: none; margin: 8px 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.pa-mappe-liste li { display: flex; gap: 10px; font-size: 12.5px; min-width: 0; }
+.pa-mappe-liste .pa-z-betrag { min-width: 74px; font-size: 12.5px; }
+.pa-mappe-tat { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 11px; }
+.pa-mappe-tat form { margin: 0; }
+
+/* --- 3. Die Zeilen des laufenden Blocks -------------------------------
+   Eine Zeile ist ein <details>, das sich zum Formular aufklappt; der
+   Stift rechts sagt das an, der Mülleimer daneben ist ein eigenes
+   Formular und liegt deshalb NEBEN dem <details>. Beide stehen immer
+   da - Timos Wunsch, und dieselbe Lehre wie beim Tagesprotokoll in
+   1.46: erst beim Überfahren sah die Liste unfertig aus. */
+.pa-anzahl {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 19px; padding: 0 6px; margin-left: 5px;
+  border-radius: 999px; background: var(--akzent-weich); color: var(--akzent);
+  font-size: 11px; font-weight: 700; letter-spacing: 0;
+}
+.pa-zeilen { display: flex; flex-direction: column; gap: 4px;
+             container-type: inline-size; container-name: paliste; }
+/* ⚠️ Der Rahmen ist durchsichtig statt weg: sonst springt die Zeile
+   beim Überfahren um zwei Pixel. */
 .pa-zeile {
-  border: 1px solid var(--linie); border-radius: 10px;
-  background: var(--flaeche-2); overflow: hidden;
+  position: relative; border-radius: 10px; background: var(--flaeche-2);
+  border: 1px solid transparent;
 }
-.pa-zeile > summary {
-  display: flex; align-items: center; gap: 12px; padding: 11px 13px;
-  cursor: pointer; list-style: none; min-width: 0;
+.pa-zeile:hover { border-color: var(--linie-stark); }
+.pa-zeile:has(> details[open]) {
+  border-color: var(--akzent); background: var(--flaeche);
 }
-.pa-zeile > summary::-webkit-details-marker { display: none; }
-.pa-zeile > summary:hover { background: var(--flaeche); }
+.pa-z-auf > summary {
+  display: flex; align-items: center; gap: 12px; min-height: 46px;
+  /* rechts Platz für den Mülleimer, der darüber liegt */
+  padding: 8px 48px 8px 13px; cursor: pointer; list-style: none; min-width: 0;
+}
+.pa-z-auf > summary::-webkit-details-marker { display: none; }
+.pa-z-auf > summary:focus-visible {
+  outline: 2px solid var(--akzent); outline-offset: -2px; border-radius: 9px;
+}
+/* ⚠️ Der Betrag steht NICHT in Pink. Vierzig pinke Zeilen entwerten die
+   eine große Zahl oben - Timos Vorgabe war „Pink gezielt". Gescannt
+   wird die Spalte über Fettung und gleich breite Ziffern. */
 .pa-z-betrag {
-  flex: none; min-width: 84px; font-weight: 700; font-size: 15px;
-  color: var(--akzent); font-variant-numeric: tabular-nums;
+  flex: none; min-width: 88px; font-weight: 700; font-size: 15px;
+  font-variant-numeric: tabular-nums;
 }
-.pa-z-datum { flex: none; font-size: 12.5px; color: var(--leise);
-              font-variant-numeric: tabular-nums; }
-.pa-z-notiz {
-  flex: 1 1 auto; min-width: 0; font-size: 13.5px;
+/* ⚠️ Gekürzt wird in JEDER Breite, auch am Telefon - dieselbe
+   Entscheidung wie beim Tagesprotokoll (1.44): eine lange Erläuterung,
+   die eine Zeile auf drei aufzieht, macht die Liste unscannbar. Der
+   volle Text steht im aufgeklappten Feld. */
+.pa-z-zweck {
+  flex: 1 1 0; min-width: 0; font-size: 13.5px; color: var(--tinte-2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.pa-zeile summary .pa-z-notiz:not(:has(*)) { color: var(--tinte-2); }
-.pa-z-beleg { flex: none; color: var(--leise); display: inline-flex; }
-.pa-z-beleg svg { width: 16px; height: 16px; }
-.pa-z-pfeil { flex: none; color: var(--leise); display: inline-flex;
-              transition: transform .15s ease; }
-.pa-z-pfeil svg { width: 18px; height: 18px; }
-.pa-zeile[open] > summary .pa-z-pfeil { transform: rotate(180deg); }
-.pa-z-inhalt { padding: 4px 13px 14px; border-top: 1px solid var(--linie); }
-.pa-z-inhalt .feldreihe { margin-top: 14px; margin-bottom: 12px; }
+.pa-z-datum {
+  flex: none; font-size: 12.5px; color: var(--leise);
+  font-variant-numeric: tabular-nums;
+}
+.pa-z-clip { flex: none; color: var(--leise); display: inline-flex; }
+.pa-z-clip svg { width: 16px; height: 16px; }
+.pa-zeile:has(> details[open]) .pa-z-clip { color: var(--akzent); }
+/* Der Stift ist Anzeige, kein eigener Knopf: geklickt wird die ganze
+   Zeile. Deshalb ohne eigenen Fokusrahmen und ohne Zeigerereignisse. */
+.pa-z-stift { flex: none; pointer-events: none; }
+.pa-zeile:hover .pa-z-stift { border-color: var(--akzent); color: var(--akzent); }
+.pa-zeile:has(> details[open]) .pa-z-stift {
+  border-color: var(--akzent); background: var(--akzent); color: #1a1113;
+}
+/* ⚠️ Fest 8px von oben, nicht mittig: aufgeklappt wäre die Zeile sonst
+   hoch und der Mülleimer stünde irgendwo in ihrer Mitte.
+   (46px Zeilenhöhe − 30px Knopf) / 2 = 8. */
+.pa-z-weg { position: absolute; right: 9px; top: 8px; margin: 0; }
+
+.pa-z-inhalt { padding: 2px 13px 13px; }
+.pa-z-inhalt .pa-felder { margin-top: 10px; }
 .pa-aendern { margin: 0; }
-.pa-weg { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--linie-fein); }
+.pa-aendern .knopfreihe { margin-top: 11px; }
 
 /* Die Vorschau des Belegs. Kein eigenes Vorschaubild - der Browser
    skaliert das Original, wie in der Dateiverwaltung auch. */
 .pa-belegbild {
-  display: flex; align-items: center; gap: 12px; margin-top: 14px;
-  padding: 8px; border-radius: 9px; border: 1px solid var(--linie);
-  background: var(--flaeche); text-decoration: none; color: var(--leise);
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px; border-radius: 10px; border: 1px solid var(--linie);
+  background: var(--flaeche-2); text-decoration: none; color: var(--leise);
   font-size: 12.5px;
 }
 .pa-belegbild:hover { border-color: var(--akzent); color: var(--akzent); }
 .pa-belegbild img {
-  width: 76px; height: 76px; object-fit: cover; border-radius: 6px;
-  background: var(--flaeche-2); flex: none;
+  width: 72px; height: 72px; object-fit: cover; border-radius: 7px;
+  background: var(--flaeche); flex: none;
 }
 .pa-belegkuerzel {
-  width: 76px; height: 76px; flex: none; border-radius: 6px;
+  width: 72px; height: 72px; flex: none; border-radius: 7px;
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--flaeche-2); color: var(--tinte-2);
+  background: var(--flaeche); color: var(--tinte-2);
   font-size: 12px; font-weight: 700; letter-spacing: .06em;
 }
 
-/* --- Abgegebene und erstattete Mappen ----------------------------------
-   ⚠️ Dieselben drei Töne wie die Ampel der Aufgabenkarten - zwei
-   Stellen, die „das dauert zu lange" meinen, müssen gleich aussehen. */
-.pa-block {
-  border: 1px solid var(--linie); border-left: 3px solid var(--linie-stark);
-  border-radius: 10px; background: var(--flaeche-2);
-  padding: 13px 14px; margin-bottom: 10px;
+/* --- 4. Jahr und Archiv ----------------------------------------------
+   ⚠️ Bewusst KEINE Karten (Timos Wunsch: „kompakter und weniger
+   dominant"). Eine feine Linie und zwei Zeilen - dieselbe Form wie die
+   Vorjahre in der Urlaubskarte. */
+.pa-bilanz {
+  border-top: 1px solid var(--linie); padding-top: 13px;
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px 18px; flex-wrap: wrap;
 }
-.pa-block:last-child { margin-bottom: 0; }
-.pa-mahnt  { border-left-color: var(--warn); background: var(--warn-weich); }
-.pa-draengt{ border-left-color: var(--dopp); background: var(--dopp-weich); }
-.pa-zu     { border-left-color: var(--gut); background: var(--gut-weich); opacity: .85; }
-.pa-block-kopf { display: flex; align-items: baseline; justify-content: space-between;
-                 gap: 10px; flex-wrap: wrap; }
-.pa-block-summe { font-size: 20px; font-weight: 700; letter-spacing: -0.3px;
-                  font-variant-numeric: tabular-nums; }
-.pa-block-lage { font-size: 12px; color: var(--leise); }
-.pa-mahnt  .pa-block-lage { color: var(--warn); }
-.pa-draengt .pa-block-lage { color: var(--dopp); }
-.pa-block-bei { margin: 4px 0 0; font-size: 12px; color: var(--leise); }
-.pa-block-liste { margin-top: 10px; }
-.pa-block-liste > summary { font-size: 12px; color: var(--leise); cursor: pointer; }
-.pa-block-liste > summary:hover { color: var(--akzent); }
-.pa-block-liste ul { list-style: none; margin: 8px 0 0; padding: 0;
-                     display: flex; flex-direction: column; gap: 5px; }
-.pa-block-liste li { display: flex; gap: 9px; font-size: 12.5px; min-width: 0; }
-.pa-block-liste .pa-z-betrag { min-width: 72px; font-size: 12.5px; }
-.pa-block-tat { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.pa-block-tat form { margin: 0; }
+.pa-bilanz-jahr { margin: 0; font-size: 12.5px; color: var(--leise); }
+.pa-bilanz-jahr strong { color: var(--tinte-2); font-weight: 700;
+                         font-variant-numeric: tabular-nums; }
+.pa-bilanz-titel {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; margin-right: 5px;
+}
+.pa-archiv > summary { font-size: 12.5px; color: var(--leise); cursor: pointer; }
+.pa-archiv > summary:hover { color: var(--akzent); }
+.pa-archiv[open] { flex-basis: 100%; }
+.pa-archiv-inhalt { margin-top: 11px; }
+.pa-archiv-inhalt > p { margin: 0 0 10px; }
 
-/* --- Jahresbilanz -------------------------------------------------------- */
-.pa-jahr-zahl { margin: 0; font-size: 22px; font-weight: 700;
-                letter-spacing: -0.3px; font-variant-numeric: tabular-nums; }
-.pa-jahr-bei { margin: 4px 0 0; font-size: 12px; color: var(--leise); }
-
-.pa-archiv .pa-block { margin-top: 10px; }
+/* --- Schmal ------------------------------------------------------------
+   ⚠️ Die Abfrage hängt an der Zeilenliste, nicht am Fenster: die Karte
+   ist zwar gedeckelt, aber in der Einstellung „begrenzte Breite" und
+   auf einem geteilten Bildschirm bleibt weniger übrig. Breit ist hier
+   der Zusatz, schmal der Ausgangszustand - ein Browser ohne
+   Container-Abfragen bleibt damit bedienbar. */
+@container paliste (max-width: 520px) {
+  /* Zeile 1: Betrag, rechts Büroklammer und Stift.
+     Zeile 2: Datum und Zweck.
+     ⚠️⚠️ `order` allein reicht NICHT: eine Flexzeile bricht erst um,
+     wenn der Inhalt nicht mehr hineinpasst - und alle Teile zusammen
+     passen. Ohne den erzwungenen Umbruch standen sie in der neuen
+     Reihenfolge weiter nebeneinander, und vom Zweck blieb genau ein
+     Buchstabe übrig (nachgemessen). Der Umbruch ist ein leeres
+     Pseudoelement über die volle Breite mit `order: 2` - alles davor
+     bleibt oben, alles danach rutscht hinunter. */
+  .pa-z-auf > summary { flex-wrap: wrap; gap: 3px 10px; padding-top: 7px;
+                        padding-bottom: 7px; }
+  .pa-z-auf > summary::after {
+    content: ""; flex-basis: 100%; height: 0; order: 2;
+  }
+  .pa-z-betrag { flex: 1 1 auto; }
+  .pa-z-datum { order: 3; }
+  .pa-z-zweck { order: 4; }
+}
 
 @media (max-width: 560px) {
-  .pa-summe { font-size: 32px; }
-  .pa-stand-tat { width: 100%; }
-  .pa-stand-tat .knopf { width: 100%; justify-content: center; }
-  /* Am Telefon bricht die Zeile um: oben Betrag und Datum, darunter die
-     Notiz in voller Breite - dort darf sie umbrechen statt abgeschnitten
-     zu werden.
-     ⚠️ Die Notiz braucht dafür `order: 3`, sonst schiebt sie den Pfeil
-     und das Beleg-Symbol auf eine dritte Zeile, wo beide verloren
-     herumstehen. Das wachsende Datum drückt sie stattdessen an den
-     rechten Rand der ersten Zeile. */
-  .pa-zeile > summary { flex-wrap: wrap; gap: 4px 10px; }
-  .pa-z-notiz { flex-basis: 100%; white-space: normal; order: 3; }
-  .pa-z-datum { flex: 1 1 auto; }
+  .pa-summe { font-size: 31px; }
+  .pa-felder { gap: 8px; }
+  /* Der Speichernknopf fuellt die Restbreite - er ist die Handlung,
+     wegen der man hier ist. */
+  .pa-form-fuss .knopf { flex: 1 1 auto; }
 }

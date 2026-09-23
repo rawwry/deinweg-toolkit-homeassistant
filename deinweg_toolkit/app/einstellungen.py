@@ -1047,6 +1047,7 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                        bewilligungen_sehen: str = Form(""),
                        bereiche: list[str] = Form([]),
                        einst_bereiche: list[str] = Form([]),
+                       rechte_dabei: str = Form(""),
                        wiki_ordner: list[str] = Form([]),
                        dateien_ordner: list[str] = Form([])):
     benutzername = benutzername.strip()
@@ -1082,12 +1083,24 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                   "wiki_schreiben": 1 if wiki_schreiben else 0,
                   "bewilligungen_sehen": 1 if bewilligungen_sehen else 0,
                   "sprueche_sehen": 1 if sprueche_sehen else 0,
-                  "berechtigungen": auth.berechtigungen_speichern(bereiche),
-                  "einst_bereiche": auth.einst_bereiche_speichern(einst_bereiche),
                   "wiki_ordner": auth.wiki_ordner_speichern(
                       wiki_ordner, auth.geschuetzte_ordner(con)),
                   "dateien_ordner": auth.wiki_ordner_speichern(
                       dateien_ordner, auth.geschuetzte_dateiordner(con))}
+        # ⚠️⚠️ Kein Haken heisst "nichts" - aber ein Formular OHNE die
+        # Kaestchen heisst "war nicht dabei" und darf nichts anfassen.
+        # Die beiden sind von aussen nicht zu unterscheiden, deshalb
+        # schickt der Rechteblock eine stille Marke mit. Ohne sie raeumte
+        # ein Formular, das nur einen Schalter kennt, still saemtliche
+        # Bereiche weg - dieselbe Falle wie bei den E-Mail-Vorlagen in
+        # 1.38 (Arbeitsregel 11).
+        #
+        # ⚠️ Bis 1.54 fiel das nicht auf: fuer Administratoren war die
+        # Liste ohne Wirkung, und nur die bearbeitet man im Alltag.
+        if rechte_dabei:
+            felder["berechtigungen"] = auth.berechtigungen_speichern(bereiche)
+            felder["einst_bereiche"] = auth.einst_bereiche_speichern(
+                einst_bereiche)
         if neues_passwort:
             felder["passwort_hash"] = db.passwort_hashen(neues_passwort)
         # Ein vorher angeforderter Link darf das, was die Verwaltung eben

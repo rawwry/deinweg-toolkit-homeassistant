@@ -295,20 +295,55 @@ def bereich_fuer_pfad(pfad: str) -> str | None:
 NUR_AUSDRUECKLICH = ("datenpflege",)
 
 
+# ⚠️⚠️ Bereiche, die einem Administrator NIE fehlen duerfen (seit 1.55).
+#
+# Seit 1.55 gelten die Haken in der Benutzerverwaltung auch fuer
+# Administratoren - wer den Fuhrpark nicht braucht, blendet ihn sich
+# selbst aus (Timos Wunsch). Genau eine Ausnahme muss es dabei geben:
+# ohne die Einstellungen kaeme niemand mehr an die Benutzerverwaltung
+# und damit auch nicht mehr an die Haken, die er gerade gesetzt hat.
+# Das waere eine Sackgasse, aus der nur noch ein Eingriff in die
+# Datenbank herausfuehrt.
+#
+# ⚠️ Die Liste bleibt so kurz wie moeglich. Jeder weitere Eintrag ist
+# ein Bereich, den sich niemand mehr ausblenden kann.
+ADMIN_IMMER = ("einstellungen",)
+
+
 def hat_zugriff(benutzer, bereich: str) -> bool:
     """True, wenn der Benutzer den angegebenen Bereich nutzen darf.
 
     Nimmt bewusst auch None entgegen (z.B. wenn in einem Template aus
     Versehen ohne Anmeldung gerendert wuerde) und verweigert dann - sicherer
     Rueckfall statt eines Fehlers.
+
+    ⚠️⚠️ **Seit 1.55 gilt die Auswahl auch fuer Administratoren.** Bis
+    dahin stand hier ganz oben ein `if rolle == "admin": return True`,
+    und die Haken in der Benutzerverwaltung waren fuer sie wirkungslos.
+    Timos Wunsch: auch ein Administrator soll sich Module wegblenden
+    koennen, die er nicht braucht. Die Rolle entscheidet weiterhin ueber
+    die ADMIN_NUR_PFADE (Benutzerverwaltung, E-Mail, System) - das ist
+    eine andere Frage als "welche Module sehe ich".
     """
     if not benutzer:
         return False
-    if benutzer["rolle"] == "admin":
+    ist_admin = benutzer["rolle"] == "admin"
+    # Die Einstellungen bleiben offen, sonst gibt es keinen Weg zurueck.
+    if ist_admin and bereich in ADMIN_IMMER:
         return True
     erlaubt = {b.strip() for b in (benutzer["berechtigungen"] or "").split(",")
                if b.strip()}
     if bereich in NUR_AUSDRUECKLICH:
+        # ⚠️ Ein Administrator, an dessen Konto noch nie etwas eingestellt
+        # wurde, hat ein LEERES Feld - und das hiess bisher zusammen mit
+        # dem Sonderweg oben "alles, auch die Datenpflege". Ohne diese
+        # Zeile naehme das Update ihm die Datenpflege still weg, und zwar
+        # ohne dass irgendwo stuende, warum (Arbeitsregel 4). Sobald er
+        # einmal Haken setzt, zaehlen nur noch sie: ein Formular ohne
+        # einen einzigen Haken speichert KEINE = "-", nicht den leeren
+        # String, das Feld ist danach also nie mehr leer.
+        if ist_admin and not erlaubt:
+            return True
         return bereich in erlaubt
     if not erlaubt:
         return True

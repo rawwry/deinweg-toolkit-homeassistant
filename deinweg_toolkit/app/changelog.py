@@ -2615,4 +2615,33 @@ CHANGELOG = [
         "an",
         "Prüfung von 2333 auf 2437 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.55", "titel": "Bereiche auch für Administratoren · Auslagen aufgeräumt", "punkte": [
+        "Die Bereichshaken in der Benutzerverwaltung gelten jetzt auch "
+        "für Administratoren (Timos Wunsch): wer ein Modul nicht "
+        "braucht, blendet es sich selbst aus",
+        "⚠️ Die Einstellungen bleiben Administratoren in jedem Fall "
+        "erhalten – sonst käme niemand mehr an die Haken zurück, die er "
+        "gerade gesetzt hat",
+        "⚠️ Wer bisher nichts eingestellt hat, verliert nichts: ein "
+        "Konto mit leerem Feld behält alles, auch die Datenpflege. Erst "
+        "wer Haken setzt, schaltet damit um",
+        "⚠️ Dabei eine Lücke gefunden und geschlossen: ein Formular ohne "
+        "die Bereichskästchen räumte sie still weg. Jetzt lässt es sie "
+        "unangetastet – dieselbe Falle wie bei den E-Mail-Vorlagen",
+        "Privatauslagen stehen im Menü jetzt direkt hinter „Aufgaben“",
+        "Die Seite ist neu aufgebaut: eine Spalte statt zweier, Stand "
+        "und Erfassung in einer Karte, und die Jahreszahlen als eine "
+        "leise Zeile am Fuß statt als eigene Karten",
+        "Jede Zeile zeigt Stift und Mülleimer, dazu eine Büroklammer, "
+        "wenn ein Beleg dabei liegt",
+        "⚠️ Nur noch ein gefüllter Knopf je Karte: „Auslage festhalten“. "
+        "„Bons abgeben“ und „Geld erhalten“ tragen den Akzent jetzt nur "
+        "in Rand und Schrift – vorher stach die seltenere Handlung die "
+        "häufigere aus",
+        "⚠️ Gemessen und behoben: das Datumsfeld braucht 144px und wurde "
+        "am Telefon abgeschnitten; die Listenzeile brach dort nicht um, "
+        "sondern sortierte nur neu, und vom Verwendungszweck blieb ein "
+        "Buchstabe übrig",
+        "Prüfung von 2437 auf 2521 Einzelprüfungen erweitert",
+    ]},
 ]
