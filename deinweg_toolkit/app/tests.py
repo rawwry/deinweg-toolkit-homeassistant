@@ -7267,6 +7267,54 @@ def test_umbau_1_48(client: TestClient) -> None:
     pruefe(">1 Eintrag<" not in fuss, "das alte „1 Eintrag“ ist weg")
 
 
+def test_kein_aufbau(client: TestClient) -> None:
+    """Die Seite baut sich nicht mehr auf, sie steht einfach da (1.52)."""
+    abschnitt("Kein Aufbau beim Laden")
+    stil = client.get("/static/style.css").text
+
+    # ⚠️⚠️ Timos Wunsch: „das passiert aktuell auf jeder Seite … ich
+    # möchte, dass du dieses Verhalten entfernst". Vollständiger Rückbau,
+    # kein Schalter - deshalb darf keiner dieser Takte zurückkommen.
+    for takt in ("auftauchen", "zahl-rein", "meldung-rein", "fuss-rein",
+                 "spruch-rein", "dauer-auf"):
+        pruefe(takt not in stil, f"der Takt „{takt}“ ist weg")
+    pruefe("@keyframes wachsen" not in stil,
+           "und der wachsende Balken der Auswertung ebenso")
+
+    # Kein Element bekommt beim Laden noch eine Animation mit auf den Weg.
+    block = bewegungsbloecke(stil)
+    for regel in ("main > *", "footer {", ".meldung {", ".spruch {",
+                  ".zahl {"):
+        teil = block.split(regel)[1].split("}")[0] if regel in block else ""
+        pruefe("animation" not in teil,
+               f"„{regel}“ trägt keine Animation mehr")
+    # ⚠️ `backwards` ist die Handschrift einer Einblendung beim Laden:
+    # sie steht nur noch dort, wo sie bleiben soll.
+    erlaubt = ("anmelde", "dia-", "zw-")
+    # ⚠️ „animation:" mit Doppelpunkt - sonst trifft der Kommentar mit
+    # „animation-fill-mode: backwards" die Prüfung.
+    zeilen = [z.strip() for z in stil.split("\n")
+              if "backwards" in z and "animation:" in z
+              and not any(w in z for w in erlaubt)]
+    pruefe(not zeilen, "kein weiteres Element blendet sich beim Laden ein "
+                       + ("" if not zeilen else str(zeilen[:3])))
+
+    # --- Die Gegenprobe: was bleiben soll, ist noch da ------------------
+    # Der Anmeldebildschirm sieht man einmal am Tag (ausdrückliche
+    # Ausnahme seit 1.31), der Panda steht dort, wo nichts zu tun ist,
+    # das Diagramm erzählt seinen Verlauf, und der Picker ist Bedienung.
+    for takt, wofuer in (("anmelde-logo", "der Auftritt der Anmeldeseite"),
+                         ("panda-wippen", "der Panda"),
+                         ("dia-wachsen", "das Verlaufsdiagramm"),
+                         ("zw-auf", "der Zeitraum-Picker"),
+                         ("neuheiten-auf", "der Hinweis auf Neuerungen"),
+                         ("fuss-purzel", "das Osterei der Fußzeile")):
+        pruefe(takt in stil, f"{wofuer} bewegt sich weiterhin")
+    # Und was beim Überfahren reagiert, bleibt ebenfalls.
+    pruefe(".knopf:hover { transform: translateY(-2px); }" in stil,
+           "Knöpfe federn beim Überfahren weiter nach")
+
+
 def test_texte_tot() -> None:
     """Die Liste der Textschlüssel ohne Abnehmer stimmt noch.
 
@@ -9892,6 +9940,7 @@ def _durchlauf(client: TestClient) -> None:
         test_passwort_vergessen(client)
         test_bearbeiten_dauer(client)
         test_htmx(client)
+        test_kein_aufbau(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

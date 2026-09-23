@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.52
+
+- Die Seite baut sich beim Laden nicht mehr auf – keine gestaffelten
+  Karten, keine hereinkippenden Meldungen, keine wachsenden Balken
+- Bewegung gibt es weiterhin dort, wo sie kein Seitenaufbau ist
+  (Anmeldeseite, Panda, Verlaufsdiagramm, Bedienelemente)
+- Prüfung von 2285 auf 2305 Einzelprüfungen erweitert
+
 ## 1.51
 
 - Wiki und Dateien bauen die Seite nicht mehr bei jedem Klick neu auf –

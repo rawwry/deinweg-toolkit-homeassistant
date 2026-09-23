@@ -2547,4 +2547,19 @@ CHANGELOG = [
         "Formular schickt ab wie bisher",
         "Prüfung von 2256 auf 2285 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.52", "titel": "Die Seite steht einfach da", "punkte": [
+        "Der Aufbau beim Laden ist weg: die Karten kommen nicht mehr "
+        "gestaffelt hoch, die Meldung kippt nicht mehr herein, die "
+        "Bestandszahl wippt nicht mehr, die Balken wachsen nicht mehr, "
+        "das Zitat blendet nicht mehr auf und die Fußzeile rückt nicht "
+        "mehr nach – die Seite steht einfach da",
+        "Das galt auf jeder Seite und lief seit 1.50 zusätzlich bei "
+        "jedem Filtern, jedem Ordnerwechsel und jedem gespeicherten "
+        "Eintrag wieder los",
+        "Stehen geblieben ist, was kein Seitenaufbau ist: der Auftritt "
+        "der Anmeldeseite, der Panda, das Verlaufsdiagramm, der "
+        "Zeitraum-Picker, dieser Hinweis hier – und alles, was beim "
+        "Überfahren oder Bedienen reagiert",
+        "Prüfung von 2285 auf 2305 Einzelprüfungen erweitert",
+    ]},
 ]
