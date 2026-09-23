@@ -7096,6 +7096,72 @@ def test_htmx(client: TestClient) -> None:
                and "dwt.abbrechen(ereignis)" in quelle(datei),
                f"die Sammelauswahl in {datei} hält auch htmx auf")
 
+    # --- 5. Wiki und Dateien tauschen ihren Bereich (1.51) ----------------
+    pruefe("window.dwt.horchen" in basis and "window.dwt.loesen" in basis
+           and "window.dwt.hin" in basis,
+           "base.html kennt horchen, loesen und hin")
+    # ⚠️⚠️ Geräumt wird VOR dem Anmelden: nach der Zurück-Taste setzt htmx
+    # den Inhalt ein, ohne dass `htmx:beforeSwap` fällt - gemessen standen
+    # danach zwanzig Horcher statt zehn, und ein Ziehen hätte zweimal
+    # nachgefragt.
+    # ⚠️ `htmx:beforeSwap` gibt es hier zwar (siehe unten), aber das
+    # Abmelden hängt ausdrücklich NICHT daran.
+    vor_swap = basis.split('addEventListener("htmx:beforeSwap"')[1].split("});")[0]
+    pruefe("dwt.loesen" not in vor_swap and "removeEventListener" not in vor_swap,
+           "das Abmelden hängt nicht an htmx:beforeSwap")
+    # ⚠️⚠️ Fehlt der Bereich in der Antwort (abgelaufene Sitzung, Fehler),
+    # wird die Seite ganz geladen - sonst tauscht htmx ins Leere.
+    pruefe("d.shouldSwap = false" in vor_swap
+           and "window.location.href" in vor_swap,
+           "eine Antwort ohne den Bereich lädt die Seite ganz")
+
+    for name, bereich, seite in (("wiki.html", "wikibereich", "/wiki"),
+                                 ("dateien.html", "dateienbereich", "/dateien")):
+        text = quelle(name)
+        huelle = text.split(f'id="{bereich}"')[1].split(">")[0]
+        for stueck in (f'hx-target="#{bereich}"', f'hx-select="#{bereich}"',
+                       'hx-swap="outerHTML"', 'hx-push-url="true"',
+                       'hx-boost="true"', 'hx-history="false"'):
+            pruefe(stueck in huelle, f"{name}: die Hülle trägt {stueck}")
+        # ⚠️ Das Skript MUSS im Bereich stehen - es verkabelt die frischen
+        # Elemente. Also: erst das Skriptende, dann das Ende der Hülle.
+        pruefe(text.rindex("</script>") < text.rindex(f"/#{bereich}"),
+               f"{name}: das Skript steht innerhalb des Bereichs")
+        pruefe("dwt.loesen();" in text,
+               f"{name}: meldet die Horcher der vorigen Runde ab")
+        # Nichts darf mehr unmittelbar am Dokument oder am Fenster hängen.
+        offen = [z.strip()[:46] for z in text.split("\n")
+                 if "document.addEventListener(" in z
+                 or "window.addEventListener(" in z]
+        pruefe(not offen, f"{name}: jeder globale Horcher läuft über dwt "
+                          + ("" if not offen else str(offen)))
+        # Ein Skript-Absenden muss das submit-Ereignis auslösen.
+        roh = [z.strip()[:46] for z in text.split("\n")
+               if ".submit();" in z and "requestSubmit" not in z
+               and "else " not in z]
+        pruefe(not roh, f"{name}: kein nacktes submit() "
+                        + ("" if not roh else str(roh)))
+        pruefe('hx-boost' in client.get(seite).text,
+               f"{seite} liefert den Bereich aus")
+
+    # ⚠️ Der Wiki-INHALT bleibt außen vor: dort stehen selbst geschriebene
+    # Verweise, die irgendwohin führen dürfen - auch auf eine Datei oder
+    # nach draußen. Ein Bereichstausch fände dort nichts.
+    wiki_quelle = quelle("wiki.html")
+    pruefe(wiki_quelle.count('class="wiki-inhalt" hx-disable') == 1
+           and 'wiki-einleitung" hx-disable' in wiki_quelle,
+           "der Wiki-Inhalt ist vom Austausch ausgenommen")
+    # Dasselbe für alles, was eine Datei liefert statt einer Seite.
+    pruefe('hx-boost="false"' in wiki_quelle
+           and 'hx-boost="false"' in quelle("_wiki_teile.html"),
+           "die Download-Verweise des Wikis bleiben gewöhnliche Verweise")
+    # ⚠️ Am Zeilenende gezählt - sonst zählt der Kommentar darüber mit.
+    pruefe(quelle("dateien.html").count('hx-boost="false"\n') == 2,
+           "beide Verweise auf eine Datei ebenso")
+    pruefe("#wikibereich.htmx-request" in stil
+           and "#dateienbereich.htmx-request" in stil,
+           "beide Bereiche treten zurück, während sie geholt werden")
+
 
 def test_bearbeiten_dauer(client: TestClient) -> None:
     """Die Dauer folgt den Uhrzeiten, und die Maske ist aufgeräumt (1.49.1)."""

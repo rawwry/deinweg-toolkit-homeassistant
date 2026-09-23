@@ -80,8 +80,10 @@
   </svg>
 </a>
 {% endif %}
+{# ⚠️ `hx-boost="false"`: die Antwort ist eine Datei, keine Seite - ein
+   Bereichstausch fände darin nichts und liefe ins Leere. #}
 <a class="knopf-icon" href="/wiki/aktion/herunterladen?pfad={{ pfad | urlencode }}"
-   title="Als Markdown-Datei herunterladen" aria-label="„{{ titel }}“ herunterladen">
+   hx-boost="false" title="Als Markdown-Datei herunterladen" aria-label="„{{ titel }}“ herunterladen">
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path d="M12 4v11m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.7"
           stroke-linecap="round" stroke-linejoin="round"/>

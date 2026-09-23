@@ -7,6 +7,21 @@
    abgewiesen würde. #}
 {% set darf_schreiben = darf_wiki_schreiben(request.state.benutzer) %}
 
+{# ⚠️⚠️ Der ganze Wiki-Bereich wird ausgetauscht statt die Seite neu
+   gebaut (seit 1.51, Timos Meldung „am meisten nervt mich das Neuladen
+   im Wiki und im Dateien-Abschnitt“). Die Regeln stehen EINMAL hier an
+   der Hülle; `hx-boost` nimmt damit jeden Verweis und jedes Formular
+   darin mit - auch die, die es morgen erst gibt.
+   ⚠️ Zwei Ausnahmen sind ausdrücklich nötig, beide weiter unten:
+   der Wiki-INHALT (dort stehen selbst geschriebene Verweise, die
+   irgendwohin führen dürfen) und die Download-Verweise.
+   ⚠️ `hx-history="false"`: htmx legte sonst den angereicherten Bereich
+   in seinen Verlauf und die Zurück-Taste brächte ihn ohne seine Horcher
+   zurück - dieselbe Falle wie in 1.50. #}
+<div id="wikibereich" hx-boost="true"
+     hx-target="#wikibereich" hx-select="#wikibereich" hx-swap="outerHTML"
+     hx-push-url="true" hx-indicator="#wikibereich" hx-history="false">
+
 {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
 {% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
 
@@ -135,7 +150,12 @@
         </div>
         <span class="klein leise">Zuletzt geändert {{ geaendert }}</span>
       </div>
-      <div class="wiki-inhalt">{{ html }}</div>
+      {# ⚠️⚠️ `hx-disable`: hier steht, was jemand selbst geschrieben hat -
+         Verweise ins Dateiarchiv, auf einen Download, nach draußen. Die
+         dürfen NICHT in den Bereichstausch geraten, sonst suchte htmx in
+         einer fremden Antwort nach `#wikibereich` und täuschte am Ende
+         eine leere Seite vor. #}
+      <div class="wiki-inhalt" hx-disable>{{ html }}</div>
       <p class="klein leise wiki-fuss">
         Datei <code>{{ aktuell }}</code> · {{ zeichen }} Zeichen
       </p>
@@ -157,7 +177,9 @@
       <div class="wiki-werkzeugleiste">
         <h1>Seite bearbeiten</h1>
         <div class="wiki-aktionen">
+          {# ⚠️ Kein Austausch: die Antwort ist eine Datei, keine Seite. #}
           <a class="knopf-icon" href="/wiki/aktion/herunterladen?pfad={{ aktuell | urlencode }}"
+             hx-boost="false"
              title="Als Markdown-Datei herunterladen" aria-label="Herunterladen">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 4v11m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.7"
@@ -304,7 +326,7 @@
       </div>
 
       {% if einleitung %}
-      <div class="wiki-inhalt wiki-einleitung">{{ einleitung }}</div>
+      <div class="wiki-inhalt wiki-einleitung" hx-disable>{{ einleitung }}</div>
       <p class="klein leise">
         Aus <code>{{ start_datei }}</code>{% if darf_schreiben %} ·
         <a href="{{ start_adresse }}?bearbeiten=1">bearbeiten</a>{% endif %}
@@ -443,6 +465,11 @@
 
 <script>
 (function () {
+  // ⚠️ Zuerst die Horcher der vorigen Runde abmelden: dieses Skript
+  // läuft nach jedem Bereichstausch und nach der Zurück-Taste erneut
+  // (siehe `dwt.loesen` in base.html).
+  dwt.loesen();
+
   // --- Rechtsklick auf Seiten und Ordner ----------------------------------
   // Dieselben Aktionen wie über die Symbolknöpfe, nur dort erreichbar, wo
   // man gerade steht. Umschalt+Rechtsklick lässt weiterhin das Menü des
@@ -452,10 +479,14 @@
       darfSchreiben = {{ 'true' if darf_schreiben else 'false' }};
   if (menue && haupt) {
     var zu = function () { menue.hidden = true; };
-    document.addEventListener("click", zu);
-    document.addEventListener("scroll", zu, true);
-    window.addEventListener("resize", zu);
-    document.addEventListener("keydown", function (e) {
+    // ⚠️ Alles, was am Dokument oder am Fenster hängt, läuft über
+    // `dwt.horchen` (seit 1.51): dieses Skript läuft nach jedem
+    // Bereichstausch erneut, und ohne das Abmelden zeigten die alten
+    // Horcher danach auf ein Menü, das es nicht mehr gibt.
+    dwt.horchen(document, "click", zu);
+    dwt.horchen(document, "scroll", zu, true);
+    dwt.horchen(window, "resize", zu);
+    dwt.horchen(document, "keydown", function (e) {
       if (e.key === "Escape") zu();
     });
 
@@ -494,15 +525,17 @@
       function knopf(auswahl) { return ziel.querySelector(auswahl); }
 
       punkt(istOrdner ? "Ordner öffnen" : "Seite öffnen", "", function () {
-        window.location.href = adresse;
+        dwt.hin(adresse, "wikibereich");
       });
       if (!istOrdner) {
         {% if darf_schreiben %}
         punkt("Bearbeiten", "", function () {
-          window.location.href = adresse + "?bearbeiten=1";
+          dwt.hin(adresse + "?bearbeiten=1", "wikibereich");
         });
         {% endif %}
         punkt("Als .md herunterladen", "", function () {
+          // ⚠️ Hier bleibt es bei einer gewöhnlichen Navigation: was
+          // zurückkommt, ist eine Datei und keine Seite.
           window.location.href = "/wiki/aktion/herunterladen?pfad="
             + encodeURIComponent(adresse.replace(/^\/wiki\/?/, ""));
         });
@@ -590,7 +623,11 @@
       if (!confirm("„" + name + "“ nach " + wohin + " verschieben?")) return;
       document.getElementById("wiki-quelle").value = quelle;
       document.getElementById("wiki-ziel").value = ziel.dataset.ziel;
-      verschieben.submit();
+      // ⚠️ `requestSubmit` und nicht `submit`: nur das löst das
+      // `submit`-Ereignis aus, an dem htmx hängt - sonst baute der
+      // Browser die Seite still komplett neu auf.
+      if (verschieben.requestSubmit) verschieben.requestSubmit();
+      else verschieben.submit();
     });
   }
 
@@ -633,8 +670,8 @@
     }
 
     if (reihe.length) {
-      window.addEventListener("scroll", planen, {passive: true});
-      window.addEventListener("resize", planen);
+      dwt.horchen(window, "scroll", planen, {passive: true});
+      dwt.horchen(window, "resize", planen);
       anzeigen();
     }
 
@@ -759,10 +796,11 @@
   var text = document.getElementById("wiki-text");
   if (text) {
     var formular = document.getElementById("wiki-editor");
-    document.addEventListener("keydown", function (e) {
+    dwt.horchen(document, "keydown", function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        formular.submit();
+        if (formular.requestSubmit) formular.requestSubmit();
+        else formular.submit();
       }
     });
     text.addEventListener("keydown", function (e) {
@@ -775,5 +813,10 @@
   }
 })();
 </script>
+{# ⚠️⚠️ Das Skript steht INNERHALB des getauschten Bereichs und läuft
+   nach jedem Austausch erneut - nur so verkabelt es die frischen
+   Elemente (Baum, Rechtsklickmenü, Editor). Was es am Dokument oder am
+   Fenster aufhängt, gehört deshalb durch `dwt.horchen`. #}
+</div>{# /#wikibereich #}
 
 {% endblock %}

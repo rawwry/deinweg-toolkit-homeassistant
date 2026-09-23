@@ -2528,4 +2528,23 @@ CHANGELOG = [
         "im Programm, auch für jede künftige",
         "Prüfung von 2252 auf 2256 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.51", "titel": "Wiki und Dateien ohne Neuaufbau", "punkte": [
+        "Im Wiki und in den Dateien baut sich die Seite nicht mehr neu "
+        "auf: Baum, Pfadzeile, Ordner, Suche, Anlegen, Umbenennen, "
+        "Löschen, Verschieben und das Hochladen tauschen nur noch den "
+        "Bereich, der sich ändert – die Seitenleiste bleibt stehen, "
+        "nichts springt, nichts flackert",
+        "Auch der Editor: Öffnen und Speichern (auch mit Strg+S) laufen "
+        "auf demselben Weg",
+        "Verweise IM Wiki-Text bleiben gewöhnliche Verweise – dort steht, "
+        "was jemand selbst geschrieben hat, und das darf überallhin "
+        "führen. Ebenso jeder Verweis auf eine Datei: was von dort kommt, "
+        "ist eine Datei und keine Seite",
+        "Kommt der Bereich in der Antwort nicht vor (etwa nach einer "
+        "abgelaufenen Anmeldung), lädt die Seite wieder ganz – statt "
+        "einen Klick zu schlucken",
+        "Ohne Skript ändert sich nichts: jeder Verweis führt und jedes "
+        "Formular schickt ab wie bisher",
+        "Prüfung von 2256 auf 2285 Einzelprüfungen erweitert",
+    ]},
 ]

@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.51
+
+- Wiki und Dateien bauen die Seite nicht mehr bei jedem Klick neu auf –
+  es wechselt nur der Teil, der sich ändert (Timos Meldung)
+- Verweise im Wiki-Text und auf Dateien bleiben unverändert
+- Prüfung von 2256 auf 2285 Einzelprüfungen erweitert
+
 ## 1.50.1
 
 - Behoben: seit 1.50 wurde in den Aufgaben und im Tagesprotokoll auch dann

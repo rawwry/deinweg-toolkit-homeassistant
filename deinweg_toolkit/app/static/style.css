@@ -256,7 +256,8 @@ main > * { min-width: 0; }
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  #aufgabenbereich, #eintragsbereich, #protokollkarte { transition: opacity .12s ease; }
+  #aufgabenbereich, #eintragsbereich, #wikibereich, #dateienbereich,
+  #protokollkarte { transition: opacity .12s ease; }
   .kopf { transition: background .25s ease, border-color .25s ease; }
 }
 
@@ -1180,8 +1181,21 @@ input[type=date], input[type=time] { min-width: 0; }
    zurück; mehr braucht es nicht, im lokalen Netz ist die Antwort nach
    wenigen Hundertstel da. ⚠️ Bewusst nur ein Zurücktreten und kein
    Drehkreisel: der erschiene und verschwände im selben Wimpernschlag. */
+/* ⚠️⚠️ Die Hülle eines getauschten Bereichs muss den Takt von `main`
+   fortsetzen (seit 1.51). `main` ist eine Flexspalte mit `gap`; legt man
+   alles in EIN Kind, fällt jeder Abstand zwischen Meldung, Pfadzeile und
+   Inhalt weg - gemessen standen zwischen Brotkrumen und Wiki statt 9px
+   noch -9px, die Kante lag also unter der Zeile. `display: contents`
+   wäre der kürzere Weg, nimmt aber die Box weg, an der `opacity` beim
+   Holen hängt. Deshalb dieselbe Flexspalte noch einmal. */
+#wikibereich, #dateienbereich {
+  display: flex; flex-direction: column; gap: var(--abstand); min-width: 0;
+}
+
 #aufgabenbereich.htmx-request,
 #eintragsbereich.htmx-request,
+#wikibereich.htmx-request,
+#dateienbereich.htmx-request,
 #protokollkarte.htmx-request { opacity: .55; }
 
 /* --- Eintrag bearbeiten: Kopf und Fuss (seit 1.49.1) ------------------

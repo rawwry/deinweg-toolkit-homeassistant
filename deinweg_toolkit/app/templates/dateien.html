@@ -4,6 +4,15 @@
 {% block titel %} – Dateien{% endblock %}
 {% block inhalt %}
 
+{# ⚠️⚠️ Derselbe Bereichstausch wie im Wiki (seit 1.51): die Regeln
+   stehen EINMAL an der Hülle, `hx-boost` nimmt jeden Verweis und jedes
+   Formular darin mit. Ausnahme sind die Verweise auf die Dateien selbst
+   (`/dateien/holen/…`) - was von dort kommt, ist eine Datei und keine
+   Seite; sie tragen deshalb einzeln `hx-boost="false"`. #}
+<div id="dateienbereich" hx-boost="true"
+     hx-target="#dateienbereich" hx-select="#dateienbereich" hx-swap="outerHTML"
+     hx-push-url="true" hx-indicator="#dateienbereich" hx-history="false">
+
 {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
 {% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
 
@@ -228,6 +237,7 @@
               <td>
                 {% if d.bekannt %}
                 <a class="stark" href="{{ d.adresse }}" target="_blank" rel="noopener"
+                   hx-boost="false"
                    {% if d.art == "bild" %}data-bild="{{ d.name }}"{% endif %}>{{ d.name }}</a>
                 {% else %}<span class="stark">{{ d.name }}</span>{% endif %}
               </td>
@@ -262,7 +272,8 @@
         {% for d in dateien %}
         <li class="dateikachel k-{{ d.art }}" draggable="true"
             data-pfad="{{ d.pfad }}" data-art="datei">
-          <a class="dateikachel-flaeche" {% if d.bekannt %}href="{{ d.adresse }}"
+          <a class="dateikachel-flaeche" hx-boost="false"
+             {% if d.bekannt %}href="{{ d.adresse }}"
              target="_blank" rel="noopener"
              {% if d.art == "bild" %}data-bild="{{ d.name }}"{% endif %}{% endif %}>
             {% if d.art == "video" %}
@@ -320,6 +331,20 @@
 
 <script>
 (function () {
+  // ⚠️ Zuerst die Horcher der vorigen Runde abmelden (siehe
+  // `dwt.loesen` in base.html) - sonst zieht nach der Zurück-Taste
+  // jede Runde mit.
+  dwt.loesen();
+
+  // ⚠️ Ein Formular, das ein Skript abschickt, muss über
+  // `requestSubmit` gehen: `submit()` löst kein `submit`-Ereignis aus,
+  // und genau daran hängt htmx - die Seite baute sich sonst still
+  // komplett neu auf (seit 1.51).
+  function absenden(f) {
+    if (f.requestSubmit) f.requestSubmit();
+    else f.submit();
+  }
+
   // --- Hochladen: Knopf statt Dateifeld ------------------------------------
   var feld = document.getElementById("dateifeld"),
       formular = document.getElementById("hochladeform"),
@@ -327,7 +352,9 @@
   if (feld && formular && knopf) {
     knopf.hidden = true;              // mit Skript reicht das Symbol
     feld.addEventListener("change", function () {
-      if (feld.files && feld.files.length) formular.submit();
+      // ⚠️ `requestSubmit` und nicht `submit`: nur das löst das
+      // `submit`-Ereignis aus, an dem htmx hängt (seit 1.51).
+      if (feld.files && feld.files.length) absenden(formular);
     });
   }
 
@@ -398,20 +425,20 @@
     return t;
   }
 
-  document.addEventListener("dragstart", function (e) {
+  dwt.horchen(document, "dragstart", function (e) {
     var knoten = e.target.closest("[data-pfad]");
     if (!knoten) return;
     gezogen = knoten;
     e.dataTransfer.effectAllowed = "move";
     try { e.dataTransfer.setData("text/plain", knoten.dataset.pfad); } catch (x) {}
   });
-  document.addEventListener("dragend", function () {
+  dwt.horchen(document, "dragend", function () {
     gezogen = null;
     document.querySelectorAll(".ziel-aktiv").forEach(function (n) {
       n.classList.remove("ziel-aktiv");
     });
   });
-  document.addEventListener("dragover", function (e) {
+  dwt.horchen(document, "dragover", function (e) {
     if (!gezogen) return;
     var ziel = zielVon(e);
     if (!ziel) return;
@@ -419,11 +446,11 @@
     e.dataTransfer.dropEffect = "move";
     ziel.classList.add("ziel-aktiv");
   });
-  document.addEventListener("dragleave", function (e) {
+  dwt.horchen(document, "dragleave", function (e) {
     var ziel = zielVon(e);
     if (ziel) ziel.classList.remove("ziel-aktiv");
   });
-  document.addEventListener("drop", function (e) {
+  dwt.horchen(document, "drop", function (e) {
     if (!gezogen) return;
     var ziel = zielVon(e);
     if (!ziel) return;
@@ -436,7 +463,7 @@
     if (!confirm("„" + name + "“ nach " + wohin + " verschieben?")) return;
     document.getElementById("datei-quelle").value = quelle;
     document.getElementById("datei-ziel").value = ziel.dataset.ziel;
-    verschieben.submit();
+    absenden(verschieben);
   });
 
   // --- Dateien vom Rechner hereinziehen -------------------------------------
@@ -491,7 +518,7 @@
       var behaelter = new DataTransfer();
       for (var i = 0; i < dateien.length; i++) behaelter.items.add(dateien[i]);
       feld.files = behaelter.files;
-      formular.submit();
+      absenden(formular);
     });
   }
 
@@ -503,10 +530,14 @@
   var menue = document.getElementById("kontextmenue");
   if (menue) {
     function schliessen() { menue.hidden = true; }
-    document.addEventListener("click", schliessen);
-    document.addEventListener("scroll", schliessen, true);
-    window.addEventListener("resize", schliessen);
-    document.addEventListener("keydown", function (e) {
+    // ⚠️ Alles, was am Dokument oder am Fenster hängt, läuft über
+    // `dwt.horchen` (seit 1.51): dieses Skript läuft nach jedem
+    // Bereichstausch erneut, und ohne das Abmelden zeigten die alten
+    // Horcher danach auf Elemente, die es nicht mehr gibt.
+    dwt.horchen(document, "click", schliessen);
+    dwt.horchen(document, "scroll", schliessen, true);
+    dwt.horchen(window, "resize", schliessen);
+    dwt.horchen(document, "keydown", function (e) {
       if (e.key === "Escape") schliessen();
     });
 
@@ -547,7 +578,7 @@
 
       if (istOrdner) {
         punkt("Öffnen", "", function () {
-          window.location.href = "/dateien?ordner=" + encodeURIComponent(pfad);
+          dwt.hin("/dateien?ordner=" + encodeURIComponent(pfad), "dateienbereich");
         });
       } else {
         var verweis = zeile.querySelector("a[href^='/dateien/holen/']");
@@ -601,7 +632,7 @@
     lupe.addEventListener("click", function (e) {
       if (e.target === lupe || e.target.closest(".bildfenster-zu")) schliesseBild();
     });
-    document.addEventListener("keydown", function (e) {
+    dwt.horchen(document, "keydown", function (e) {
       if (e.key === "Escape" && !lupe.hidden) schliesseBild();
     });
     document.querySelectorAll("[data-bild]").forEach(function (a) {
@@ -614,5 +645,9 @@
   }
 })();
 </script>
+{# ⚠️ Das Skript steht INNERHALB des getauschten Bereichs und läuft nach
+   jedem Austausch erneut - nur so verkabelt es die frischen Elemente.
+   Was es am Dokument oder am Fenster aufhängt, geht durch `dwt.horchen`. #}
+</div>{# /#dateienbereich #}
 
 {% endblock %}

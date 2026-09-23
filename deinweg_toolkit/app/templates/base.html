@@ -101,6 +101,64 @@
   window.dwt.frage = function (ereignis, text) {
     return confirm(text) ? true : window.dwt.abbrechen(ereignis);
   };
+
+  // ⚠️⚠️ Horcher am Dokument und am Fenster (seit 1.51). Wiki und
+  // Dateien hängen einiges dort auf, was gar nicht dorthin gehört,
+  // sondern zum ausgetauschten Bereich: das Rechtsklickmenü schließen,
+  // Strg+S im Editor, das Ziehen, die Abschnittsliste beim Rollen. Solche
+  // Horcher zeigen auf Elemente, die es nach einem Austausch nicht mehr
+  // gibt - ohne Abmelden häuften sie sich mit jedem Klick und zeigten
+  // dabei auf Leichen. Gemessen im Dateibereich: nach der Zurück-Taste
+  // standen zwanzig statt zehn, und ein Ziehen hätte danach ZWEIMAL
+  // nachgefragt und in ein verwaistes Formular geschrieben.
+  //
+  // ⚠️⚠️ **Geräumt wird VOR dem Anmelden, nicht nach dem Austausch.**
+  // Der naheliegende Weg (`htmx:beforeSwap`) deckt die Zurück-Taste
+  // nicht ab: dort setzt htmx den Inhalt ein, ohne dass dieses Ereignis
+  // fällt. Deshalb ruft jedes Skript, das `dwt.horchen` benutzt, als
+  // erste Zeile `dwt.loesen()` - dann ist es gleich, auf welchem Weg
+  // sein Bereich gerade neu entstanden ist.
+  // ⚠️ Das setzt voraus, dass es je Seite genau EINEN solchen Bereich
+  // gibt; zwei würden sich gegenseitig abmelden.
+  window.dwt.horcher = [];
+  window.dwt.horchen = function (ziel, art, fn, wahl) {
+    ziel.addEventListener(art, fn, wahl);
+    window.dwt.horcher.push([ziel, art, fn, wahl]);
+  };
+  window.dwt.loesen = function () {
+    var bisher = window.dwt.horcher;
+    window.dwt.horcher = [];
+    bisher.forEach(function (h) { h[0].removeEventListener(h[1], h[2], h[3]); });
+  };
+
+  // ⚠️⚠️ Kommt der Bereich in der Antwort gar nicht vor, wird die Seite
+  // GANZ geladen (seit 1.51). Sonst täuschte ein Austausch eine leere
+  // Seite vor: wer sich in einem zweiten Fenster abmeldet und hier
+  // weiterklickt, bekommt die Anmeldeseite zurück - und in der steht
+  // kein `#wikibereich`. htmx setzt dann nichts ein, der Bereich
+  // verschwände. Dasselbe bei einem Fehler des Servers: lieber die
+  // Fehlerseite zeigen als einen Klick, der nichts tut.
+  document.addEventListener("htmx:beforeSwap", function (e) {
+    var d = e.detail, ziel = d.target && d.target.id,
+        stand = d.xhr ? d.xhr.status : 0;
+    if (!ziel) return;
+    var fehlt = !d.serverResponse
+             || d.serverResponse.indexOf('id="' + ziel + '"') < 0;
+    if (stand < 400 && !fehlt) return;
+    d.shouldSwap = false;
+    window.location.href = (d.xhr && d.xhr.responseURL) || window.location.href;
+  });
+
+  // Eine Adresse anspringen, ohne die Seite neu zu bauen - für die
+  // Stellen, an denen kein Verweis steht, den man anklicken könnte
+  // (das Rechtsklickmenü in Wiki und Dateien). Ohne htmx wird daraus
+  // wieder eine gewöhnliche Navigation.
+  window.dwt.hin = function (adresse, bereich) {
+    var wurzel = document.getElementById(bereich);
+    if (!window.htmx || !wurzel) { window.location.href = adresse; return; }
+    htmx.ajax("GET", adresse, {source: wurzel, target: "#" + bereich,
+                               select: "#" + bereich, swap: "outerHTML"});
+  };
 </script>
 
 <script>
