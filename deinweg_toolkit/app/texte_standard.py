@@ -496,12 +496,21 @@ TEXTE_STANDARD["einst.benutzer_bereiche_hinweis"] = (
     "<strong>die Datenpflege</strong> muss immer ausdrücklich angehakt "
     "werden, sie ändert viele Einträge auf einmal. Bei der Rolle "
     "„Administrator“ hat diese Auswahl keine Wirkung.")
+# ⚠️ Seit 1.56 gilt diese Auswahl auch fuer Administratoren (Timos
+# Wunsch, "welcher Nutzer Zugang zum Menuepunkt Einstellungen ->
+# Sprueche hat"). Der Satz dazu ist hier ERGAENZT und nicht unter einem
+# neuen Schluessel abgelegt: der alte Wortlaut war unvollstaendig, nicht
+# falsch - die Regel aus Abschnitt 8 meint Texte, die inhaltlich falsch
+# geworden sind.
 TEXTE_STANDARD["einst.benutzer_einstpunkte_hinweis"] = (
     "Eine Ebene unter dem Bereich „Einstellungen“: welche Punkte darin "
     "sichtbar sind. Sind alle angehakt, gilt das als voller Zugriff und "
     "schließt später hinzukommende Punkte mit ein. „Oberfläche“ bleibt "
     "immer sichtbar – dort stehen nur Darkmode, Breite und die "
-    "Ansichtsschalter, die jeder für sich selbst einstellt.")
+    "Ansichtsschalter, die jeder für sich selbst einstellt. "
+    "<strong>Die Auswahl gilt auch für Administratoren</strong>; "
+    "Benutzerverwaltung, E-Mail sowie System und Sicherung hängen "
+    "dagegen an der Rolle und stehen deshalb gar nicht erst zur Wahl.")
 # ⚠️ Seit 1.55 gelten die Haken auch fuer Administratoren. Die beiden
 # alten Schluessel (einst.benutzer_admin_hinweis,
 # einst.benutzer_bereiche_hinweis) behaupteten das Gegenteil und sind
@@ -517,6 +526,18 @@ TEXTE_STANDARD["einst.benutzer_admin_hinweis"] = (
     "Die Rolle ist „Administrator“ – dieses Konto hat damit ohnehin "
     "vollen Zugriff. Die Auswahl unten wird trotzdem gespeichert und "
     "greift wieder, sobald die Rolle auf „Benutzer“ zurückgestellt wird.")
+TEXTE_STANDARD["einst.auslagenmail_wozu"] = (
+    "Reicht jemand seine Privatauslagen ein, entsteht in der "
+    "Aufgabenverwaltung ein Vorgang für die Person, die die "
+    "Auslagenabrechnung verwaltet – und diese Nachricht geht an sie "
+    "hinaus. <strong>Wer das ist, steht unter Einstellungen → "
+    "Mitarbeiter</strong>; ist dort niemand angehakt, passiert beides "
+    "nicht.")
+TEXTE_STANDARD["einst.auslagenmail_hinweis"] = (
+    "Kein Sammelverzug: die Nachricht geht mit dem nächsten Durchlauf "
+    "hinaus, also innerhalb weniger Minuten. Sobald der Vorgang auf "
+    "„Erledigt“ steht, gilt der Auslagenblock als erstattet – das kann "
+    "die verwaltende Person tun oder die, die eingereicht hat.")
 TEXTE_STANDARD["einst.wiki_geschuetzt_lead"] = (
     "Ein geschützter Ordner verschwindet für alle, die ihn nicht "
     "ausdrücklich zugeteilt bekommen: aus dem Navigationsbaum, aus der "

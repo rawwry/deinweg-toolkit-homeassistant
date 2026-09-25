@@ -452,7 +452,18 @@ CREATE TABLE IF NOT EXISTS auslage_block (
     begonnen_am   TEXT NOT NULL,
     abgegeben_am  TEXT,
     erstattet_am  TEXT,
-    notiz         TEXT
+    notiz         TEXT,
+    -- Die Aufgabe, die beim Abgeben in der Aufgabenverwaltung entsteht
+    -- (seit 1.56). ⚠️ BEWUSST kein Fremdschluessel: wird die Aufgabe
+    -- geloescht, soll der Block stehen bleiben und nicht mitgehen - er
+    -- ist die Buchhaltung, sie war nur die Erinnerung. Dieselbe
+    -- Ueberlegung wie bei eintrag_log.eintrag_id.
+    vorgang_id    INTEGER,
+    -- Ist die Mail an die verwaltende Person hinaus? Haengt wie bei
+    -- vorgang.zuweis_gemeldet an der ZEILE und nicht in
+    -- "benachrichtigung": nur so laesst sich in einem Rutsch abfragen,
+    -- was noch aussteht.
+    gemeldet      INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_block_benutzer ON auslage_block(benutzer_id);
@@ -702,6 +713,17 @@ def init() -> dict | None:
         # Groessenangabe stehen, statt eine zu erfinden.
         spalte_ergaenzen(con, "symbol", "breite", "INTEGER NOT NULL DEFAULT 0")
         spalte_ergaenzen(con, "symbol", "hoehe", "INTEGER NOT NULL DEFAULT 0")
+        # Privatauslagen: Verknuepfung zur Aufgabe und Melde-Vermerk
+        # (seit 1.56).
+        spalte_ergaenzen(con, "auslage_block", "vorgang_id", "INTEGER")
+        spalte_ergaenzen(con, "auslage_block", "gemeldet",
+                         "INTEGER NOT NULL DEFAULT 0")
+        # ⚠️ Wer die Auslagenabrechnung verwaltet. Standard 0 fuer
+        # alle: ohne ausdrueckliche Wahl entsteht keine Aufgabe und
+        # geht keine Mail hinaus - ein Update darf niemandem
+        # ungefragt Post schicken.
+        spalte_ergaenzen(con, "mitarbeiter", "auslagen_verwalter",
+                         "INTEGER NOT NULL DEFAULT 0")
 
         # ⚠️⚠️ Die eigenen Schriftzuege ziehen aus konfig in symbol um
         # (seit 1.47). In konfig las mail.konfig_lesen() sie bei JEDEM

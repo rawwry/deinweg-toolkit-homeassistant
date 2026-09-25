@@ -4959,6 +4959,44 @@ a.vgk-wert:hover { text-decoration: underline; }
 .zustaendigwahl { display: flex; flex-direction: column; }
 .zustaendigwahl .filterwahl { flex: 1 1 auto; min-width: 0; }
 .zustaendigwahl .filterwahl-titel { display: none; }
+/* ⚠️ Die vier Felder von „Wer kümmert sich, bis wann?" in einer Zeile
+   (seit 1.56). Die Zuständigen bekommen den meisten Platz, die Frist
+   feste 170px — ein `<input type=date>` braucht in deutscher
+   Schreibweise samt Kalenderknopf gemessene 144px, darunter schneidet
+   der Browser die Jahreszahl ab (dieselbe Messung wie bei den
+   Privatauslagen). Unter 720px stapelt sich alles. */
+/* ⚠️⚠️ Die vier Felder „Zuständige Personen / Status / Priorität /
+   Frist" stehen seit 1.56 in EINER Zeile (Timos Meldung: die Zuständigen
+   nahmen die ganze Breite für einen Inhalt, der sie nicht braucht).
+
+   ⚠️ Ob sie nebeneinander passen, entscheidet die Breite des FORMULARS,
+   nicht die des Fensters — dieselbe Lehre wie bei der manuellen
+   Erfassung und der Aufgabenliste. Gestapelt ist deshalb der
+   Ausgangszustand, die Zeile kommt dazu; ein Browser ohne
+   Container-Abfragen bleibt damit bedienbar. Nicht umdrehen.
+
+   ⚠️ Die 620px sind gerechnet: die Fristspalte ist fest 170px (ein
+   `<input type=date>` braucht in deutscher Schreibweise samt
+   Kalenderknopf gemessene 144px, dazu die Polsterung), plus 3 × 14px
+   Abstand = 212px. Bleiben 408px, die sich 1,5 / 1 / 0,9 teilen —
+   176 / 117 / 106px. Wer eine Spalte verbreitert, zieht die Zahl mit. */
+.vorgang-formular { container-type: inline-size; container-name: vorgangform; }
+.vorgangszeile {
+  display: grid; gap: 12px; margin-bottom: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+}
+.vorgangszeile > .feld { margin-bottom: 0; min-width: 0; }
+/* Die Beschriftungen sind sonst verschieden groß: `.feld > span` ist
+   13px, `.filterwahl-titel` 12px. In einer Reihe fällt das auf. */
+.vorgangszeile .feldtitel-block { font-size: 13px; }
+@container vorgangform (min-width: 620px) {
+  .vorgangszeile {
+    gap: 14px;
+    grid-template-columns:
+      minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, .9fr) 170px;
+  }
+}
 .feldtitel-block {
   display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px;
 }
@@ -6988,30 +7026,66 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
   background: var(--flaeche-2); padding: 12px 14px; margin-bottom: 8px;
 }
 .pa-mappe:last-child { margin-bottom: 0; }
+/* ⚠️⚠️ Gelb heißt „abgegeben, Geld fehlt noch", grün „bezahlt" (Timos
+   Vorgabe). Der frische Zustand trug bis 1.55 gar keinen Ton und sah
+   damit aus wie erledigt — genau das sollte er nicht. Die beiden
+   Stufen darüber sind eine Verschärfung desselben Gelbs: nach 14 Tagen
+   bleibt es warnend, nach 30 wird es rot. Dieselben Töne wie die Ampel
+   der Aufgabenkarten. */
+.pa-frisch,
 .pa-mahnt   { border-left-color: var(--warn); background: var(--warn-weich); }
 .pa-draengt { border-left-color: var(--dopp); background: var(--dopp-weich); }
 .pa-zu      { border-left-color: var(--gut);  background: var(--gut-weich); }
 .pa-mappe-kopf {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 8px 12px; flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 6px 12px; flex-wrap: wrap; margin-bottom: 6px;
 }
+/* Die Marke sagt den Zustand im Klartext — die Farbe allein ist eine
+   Verabredung, das Wort ist keine. */
+.pa-marke {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--warn);
+}
+.pa-marke-punkt {
+  width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: currentColor;
+}
+.pa-draengt .pa-marke { color: var(--dopp); }
+.pa-zu      .pa-marke { color: var(--gut); }
 .pa-mappe-summe {
-  font-size: 19px; font-weight: 700; letter-spacing: -0.3px;
-  font-variant-numeric: tabular-nums;
+  display: block; font-size: 22px; font-weight: 700; letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums; line-height: 1.1;
 }
 .pa-mappe-lage { font-size: 12px; color: var(--leise); }
 .pa-mahnt   .pa-mappe-lage { color: var(--warn); }
-.pa-draengt .pa-mappe-lage { color: var(--dopp); }
-.pa-mappe-bei { margin: 3px 0 0; font-size: 12px; color: var(--leise); }
-.pa-mappe-liste { margin-top: 9px; }
+.pa-draengt .pa-mappe-lage { color: var(--dopp); font-weight: 600; }
+.pa-mappe-bei { margin: 4px 0 0; font-size: 12px; color: var(--leise); }
+.pa-mappe-bei a { color: var(--akzent); }
+.pa-mappe-liste { margin-top: 10px; }
 .pa-mappe-liste > summary { font-size: 12px; color: var(--leise); cursor: pointer; }
 .pa-mappe-liste > summary:hover { color: var(--akzent); }
-.pa-mappe-liste ul {
-  list-style: none; margin: 8px 0 0; padding: 0;
-  display: flex; flex-direction: column; gap: 5px;
+
+/* Die Posten einer Mappe: Datum, Betrag, Zweck — als Raster, damit die
+   drei Spalten über alle Zeilen hinweg untereinander stehen. Als
+   Flexzeile wanderten die Beträge je nach Länge des Datums hin und her. */
+.pa-posten { list-style: none; margin: 9px 0 0; padding: 0; }
+.pa-posten li {
+  display: grid; gap: 4px 12px; align-items: baseline; padding: 4px 0;
+  grid-template-columns: 78px 84px minmax(0, 1fr);
+  font-size: 12.5px; border-top: 1px solid var(--linie-fein);
 }
-.pa-mappe-liste li { display: flex; gap: 10px; font-size: 12.5px; min-width: 0; }
-.pa-mappe-liste .pa-z-betrag { min-width: 74px; font-size: 12.5px; }
+.pa-posten li:first-child { border-top: 0; }
+.pa-p-datum  { color: var(--leise); font-variant-numeric: tabular-nums; }
+.pa-p-betrag { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pa-p-zweck  { color: var(--tinte-2); overflow: hidden;
+               text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) {
+  /* Am Telefon Datum und Betrag oben, der Zweck darunter über die
+     volle Breite - drei Spalten sind dort nicht zu lesen. */
+  .pa-posten li { grid-template-columns: 78px minmax(0, 1fr); }
+  .pa-p-zweck { grid-column: 1 / -1; }
+}
 .pa-mappe-tat { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 11px; }
 .pa-mappe-tat form { margin: 0; }
 
@@ -7051,8 +7125,12 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 /* ⚠️ Der Betrag steht NICHT in Pink. Vierzig pinke Zeilen entwerten die
    eine große Zahl oben - Timos Vorgabe war „Pink gezielt". Gescannt
    wird die Spalte über Fettung und gleich breite Ziffern. */
+.pa-z-datum {
+  flex: none; min-width: 78px; font-size: 12.5px; color: var(--leise);
+  font-variant-numeric: tabular-nums;
+}
 .pa-z-betrag {
-  flex: none; min-width: 88px; font-weight: 700; font-size: 15px;
+  flex: none; min-width: 92px; font-weight: 700; font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 /* ⚠️ Gekürzt wird in JEDER Breite, auch am Telefon - dieselbe
@@ -7062,10 +7140,6 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 .pa-z-zweck {
   flex: 1 1 0; min-width: 0; font-size: 13.5px; color: var(--tinte-2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.pa-z-datum {
-  flex: none; font-size: 12.5px; color: var(--leise);
-  font-variant-numeric: tabular-nums;
 }
 .pa-z-clip { flex: none; color: var(--leise); display: inline-flex; }
 .pa-z-clip svg { width: 16px; height: 16px; }
@@ -7150,9 +7224,10 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
   .pa-z-auf > summary::after {
     content: ""; flex-basis: 100%; height: 0; order: 2;
   }
+  /* Zeile 1: Datum und Betrag, rechts Büroklammer und Stift.
+     Zeile 2: der Zweck über die volle Breite. */
   .pa-z-betrag { flex: 1 1 auto; }
-  .pa-z-datum { order: 3; }
-  .pa-z-zweck { order: 4; }
+  .pa-z-zweck { order: 3; }
 }
 
 @media (max-width: 560px) {

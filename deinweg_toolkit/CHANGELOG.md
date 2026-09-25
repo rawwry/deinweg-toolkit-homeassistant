@@ -3,6 +3,22 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.56
+
+- Privatauslagen: eingereichte Bons legen von selbst eine **Aufgabe** für
+  die verwaltende Person an (anzuhaken unter Einstellungen → Mitarbeiter),
+  samt E-Mail mit eigener Vorlage
+- ⚠️ Wird die Aufgabe auf „Erledigt“ gesetzt, gilt die Mappe als
+  erstattet – von beiden Seiten aus
+- Aufgaben → Neuen Vorgang anlegen: Zuständige, Status, Priorität und
+  Frist stehen nebeneinander; „Betreff“ statt „Titel“, „Detaillierte
+  Beschreibung“ statt „Beschreibung der Notiz“, betreute Person als
+  Auswahlfeld
+- Die Punkte innerhalb der Einstellungen gelten jetzt auch für
+  Administratoren – „Sprüche“ lässt sich damit wegblenden
+- Privatauslagen: farbige Marken für wartende und erstattete Mappen,
+  beide Listen beginnen mit dem Datum, „Gesammelte Bons einreichen“
+
 ## 1.55
 
 - Die Bereichshaken in der Benutzerverwaltung gelten jetzt auch für

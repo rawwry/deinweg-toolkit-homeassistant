@@ -46,7 +46,15 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from . import db
+from . import vorgaenge as _vorgaenge
 from .parser import parse_datum
+from .rechnen import deutsch
+
+# ⚠️ `vorgaenge` importiert ausschliesslich `db` - der Import hier ist
+# also kein Ringschluss. Die Gegenrichtung (eine erledigte Aufgabe
+# schliesst ihren Block) laeuft NICHT ueber einen Import, sondern ueber
+# den Modulhaken `vorgaenge.auslagen_abschliessen`, den main.py setzt -
+# dieselbe Bauart wie `mail.bewilligungen_holen`.
 
 router = APIRouter()
 
@@ -54,6 +62,21 @@ router = APIRouter()
 _u: dict = {}
 
 ZUSTAENDE = ("offen", "abgegeben", "erstattet")
+
+# --- Die Aufgabe, die beim Einreichen entsteht (seit 1.56) -----------
+#
+# Timos Auftrag: "Sobald die Bons abgegeben werden, soll in der
+# Aufgabenverwaltung eine neue Aufgabe erscheinen fuer die zustaendige
+# Person, die die Auszahlungen verwaltet."
+#
+# ⚠️ Die drei Werte stehen hier als Klartext und nicht in `konfig`: sie
+# sind Timos Vorgabe, nicht eine Einstellung. Wer sie aendert, aendert
+# sie hier - und traegt die Vorgangsart dann auch unter Einstellungen
+# -> Aufgabenarten ein.
+AUFGABE_ART = "Auslagenabrechnung"
+AUFGABE_KLIENT = "Sonstige"
+AUFGABE_PRIO = "Niedrig"
+AUFGABE_FRIST_TAGE = 7
 
 # Wie lange ein abgegebener Block still warten darf, bevor die Karte
 # faerbt. Dieselben Toene wie die Ampel der Aufgaben, und aus demselben
@@ -292,6 +315,115 @@ def beleg_entfernen(benutzer_id: int, auslage_id: int, endung: str) -> None:
             pass
 
 
+# --- Die Aufgabe beim Einreichen ---------------------------------------
+
+def verwalter(con) -> list[str]:
+    """Wer die Auslagenabrechnung verwaltet - gepflegt unter
+    Einstellungen -> Mitarbeiter.
+
+    ⚠️ Es duerfen mehrere sein. Eine Aufgabe kann seit 1.30 mehreren
+    Personen gehoeren, also braucht es hier keine Regel "genau einer" -
+    und ein Haken, der beim Setzen still einen anderen wegnimmt, waere
+    genau die Art Ueberraschung, die niemand erwartet.
+    """
+    try:
+        return [r["name"] for r in con.execute(
+            "SELECT name FROM mitarbeiter WHERE auslagen_verwalter = 1 "
+            "AND aktiv = 1 ORDER BY name COLLATE NOCASE")]
+    except Exception:
+        # Spalte noch nicht da (Sitzung von vor der Migration): dann eben
+        # keine Aufgabe. Ein Fehler hier darf das Einreichen nicht
+        # verhindern - die Zahlen sind das Wichtige.
+        return []
+
+
+def postenliste(zeilen) -> str:
+    """Die Bons als Klartext fuer die Beschreibung der Aufgabe und fuer
+    die E-Mail. Datum, Betrag, Zweck - dieselbe Folge wie unter
+    „Was drin liegt"."""
+    teile = []
+    for z in zeilen:
+        d = parse_datum(z["datum"])
+        tag = d.strftime("%d.%m.%Y") if d else (z["datum"] or "")
+        teile.append(f"• {tag} · {euro(z['cent'])} · "
+                     f"{(z['notiz'] or 'ohne Angabe')}")
+    return "\n".join(teile)
+
+
+def aufgabe_anlegen(con, block_id: int, wer: str, zeilen_, summe_cent: int):
+    """Legt die Aufgabe fuer die verwaltende Person an und verknuepft sie
+    mit dem Block. Gibt ihre Nummer zurueck, oder None.
+
+    ⚠️ Bewusst still: ist niemand als Verwalter eingetragen, passiert
+    nichts. Das Einreichen selbst muss auch ohne die Aufgabe
+    funktionieren - es ist die Hauptsache, die Aufgabe ist die
+    Erinnerung.
+    """
+    namen = verwalter(con)
+    if not namen:
+        return None
+
+    frist = (dt.date.today() + dt.timedelta(days=AUFGABE_FRIST_TAGE)).isoformat()
+    titel = f"Auslagenabrechnung {wer}: {euro(summe_cent)}"[:160]
+    beschreibung = (
+        f"{len(zeilen_)} Auslage{'n' if len(zeilen_) != 1 else ''}, "
+        f"zusammen {euro(summe_cent)}.\n\n{postenliste(zeilen_)}")
+
+    # ⚠️ Die Vorgangsart muss es geben, sonst steht auf der Karte eine
+    # Bezeichnung, die in keiner Auswahl vorkommt. Sie wird hier angelegt,
+    # falls sie fehlt - das ist der einzige Ort im Programm, an dem das
+    # passiert, und der Grund ist, dass diese Aufgabe von selbst entsteht
+    # und nicht von Hand.
+    if not con.execute("SELECT 1 FROM vorgangsart WHERE name = ?",
+                       (AUFGABE_ART,)).fetchone():
+        con.execute("INSERT INTO vorgangsart (name, aktiv, angelegt_am) "
+                    "VALUES (?, 1, ?)", (AUFGABE_ART, _jetzt()))
+
+    # ⚠️ `zuweis_gemeldet = 1`: die verwaltende Person bekommt ihre
+    # eigene Nachricht (mail.pruefe_auslagen). Ohne diese Zeile ginge
+    # zusaetzlich die allgemeine Zuweisungsmail hinaus, und sie haette
+    # zweimal dasselbe im Postfach.
+    c = con.execute(
+        "INSERT INTO vorgang (klient, art, titel, beschreibung, zustaendig, "
+        "status, prioritaet, frist, angelegt_am, geaendert_am, angelegt_von, "
+        "zuweis_gemeldet, erledigt_gemeldet) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,1,0)",
+        (AUFGABE_KLIENT, AUFGABE_ART, titel, beschreibung,
+         _vorgaenge.namen_text(namen), "Offen", AUFGABE_PRIO, frist,
+         _jetzt(), _jetzt(), wer))
+    vorgang_id = c.lastrowid
+    _vorgaenge.protokoll(
+        con, vorgang_id, AUFGABE_KLIENT, wer, "Vorgang angelegt",
+        f"Automatisch aus den Privatauslagen · zuständig: "
+        f"{_vorgaenge.namen_text(namen)} · Frist: {deutsch(frist)}")
+    con.execute("UPDATE auslage_block SET vorgang_id = ?, gemeldet = 0 "
+                "WHERE id = ?", (vorgang_id, block_id))
+    return vorgang_id
+
+
+def block_erledigt(con, vorgang_id: int, wer: str = "") -> int:
+    """Eine erledigte Aufgabe schliesst ihren Block: das Geld ist da.
+
+    Wird ueber den Modulhaken `vorgaenge.auslagen_abschliessen`
+    aufgerufen, den main.py setzt - `vorgaenge` darf dieses Modul nicht
+    importieren (Ringschluss).
+
+    ⚠️ Nur in DIESE Richtung. Wird die Aufgabe spaeter wieder auf
+    „Offen" gestellt, bleibt der Block erstattet: „erstattet" heisst,
+    dass Geld geflossen ist, und das nimmt kein Statuswechsel zurueck.
+    Wer sich vertan hat, holt den Block in den Privatauslagen selbst
+    zurueck.
+    """
+    zeile = con.execute(
+        "SELECT id FROM auslage_block WHERE vorgang_id = ? "
+        "AND zustand = 'abgegeben'", (vorgang_id,)).fetchone()
+    if not zeile:
+        return 0
+    con.execute("UPDATE auslage_block SET zustand = 'erstattet', "
+                "erstattet_am = ? WHERE id = ?", (_heute(), zeile["id"]))
+    return zeile["id"]
+
+
 # --- Seite -------------------------------------------------------------------
 
 def _bild(con, request: Request, hinweis: str = "", fehler: str = "",
@@ -520,15 +652,28 @@ def zustand_setzen(request: Request, block_id: int, ziel: str = Form("")):
             "WHERE id=?",
             (ziel, ziel, _heute(), ziel, ziel, _heute(), block_id))
 
-        # ⚠️ Hier waere die Stelle fuer Timos naechsten Schritt: beim
-        # Wechsel auf "abgegeben" eine Aufgabe in der Aufgabenverwaltung
-        # anlegen ("Erstattung 247,80 EUR", zustaendig die Chefin). Sie
-        # ist ausdruecklich NOCH NICHT gebaut - erst besprechen, an wen
-        # sie geht und was in der Frist steht.
+        # ⚠️⚠️ Beim Einreichen entsteht die Aufgabe fuer die verwaltende
+        # Person (seit 1.56, Timos Auftrag). Sie wird bewusst HIER
+        # angelegt und nicht im Wecker: die Aufgabe soll dastehen, sobald
+        # der Knopf gedrueckt ist. Die MAIL dazu laeuft dagegen ueber die
+        # schnelle Schleife (mail.pruefe_auslagen) - ein SMTP-Versand
+        # dauert Sekunden, und solange duerfte hier niemand warten.
+        aufgabe = None
+        if ziel == "abgegeben":
+            aufgabe = aufgabe_anlegen(
+                con, block_id, _vorgaenge.handelnde_person(request),
+                zeilen(con, block_id), betrag)
+        # Zurueck auf "offen": die Verknuepfung loesen, sonst zeigte der
+        # Block auf eine Aufgabe, die ihn nicht mehr meint.
+        if ziel == "offen":
+            con.execute("UPDATE auslage_block SET vorgang_id = NULL, "
+                        "gemeldet = 0 WHERE id = ?", (block_id,))
 
     meldungen = {
-        "abgegeben": f"{euro(betrag)} als abgegeben vermerkt. "
-                     f"Der Block wartet jetzt auf die Erstattung.",
+        "abgegeben": f"{euro(betrag)} als eingereicht vermerkt. "
+                     f"Der Block wartet jetzt auf die Erstattung."
+                     + (" Eine Aufgabe für die Abrechnung steht bereit."
+                        if aufgabe else ""),
         "erstattet": f"{euro(betrag)} erstattet. Erledigt.",
         "offen": "Der Block ist wieder offen.",
     }

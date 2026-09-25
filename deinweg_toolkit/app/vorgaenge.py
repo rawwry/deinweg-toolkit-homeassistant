@@ -26,6 +26,13 @@ from . import db
 
 router = APIRouter(prefix="/vorgaenge")
 
+# ⚠️ Modulhaken, von main.py gesetzt (seit 1.56): eine erledigte
+# Aufgabe schliesst ihren Block in den Privatauslagen. Bewusst ein
+# Haken und kein Import - `auslagen` importiert dieses Modul, und
+# umgekehrt gaebe es einen Ringschluss. Dieselbe Bauart wie
+# `mail.bewilligungen_holen`.
+auslagen_abschliessen = None
+
 # von setup() gefuellt, damit dieses Modul main.py nicht importieren muss
 _umgebung: dict = {}
 
@@ -974,6 +981,24 @@ def status_aendern(request: Request, vorgang_id: int, status: str = Form(""),
         else:
             aktion = "Vorgang bearbeitet"
         protokoll(con, vorgang_id, v["klient"], wer, aktion, text)
+
+        # ⚠️⚠️ Gehoert diese Aufgabe zu einem eingereichten Auslagenblock,
+        # gilt der mit ihr als erstattet (seit 1.56, Timos Auftrag): "wenn
+        # der verwaltende oder der einreichende Mitarbeiter den Vorgang
+        # als erledigt markiert, soll der Block auch als abgeschlossen
+        # gelten". Ueber einen Modulhaken, weil `auslagen` dieses Modul
+        # importiert und der Import sonst im Kreis liefe.
+        if (status in ABGESCHLOSSEN and alt_status != status
+                and auslagen_abschliessen):
+            try:
+                if auslagen_abschliessen(con, vorgang_id, wer):
+                    protokoll(con, vorgang_id, v["klient"], wer, "Notiz",
+                              "Der zugehörige Auslagenblock gilt damit als "
+                              "erstattet.")
+            except Exception:
+                # Ein Fehler dort darf den Statuswechsel nicht mitreissen -
+                # die Aufgabe ist erledigt, das ist die Hauptsache.
+                pass
 
     return zurueck_zu(zurueck or f"/vorgaenge/{vorgang_id}",
                       hinweis="Vorgang aktualisiert.")

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_vorgang_teile.html" import statusmarke, priomarke, frist with context %}
-{% from "_mehrfachwahl.html" import mehrfachwahl with context %}
+{% from "_mehrfachwahl.html" import mehrfachwahl, einfachwahl with context %}
 {% block titel %} – Aufgaben{% endblock %}
 {% block inhalt %}
 
@@ -84,15 +84,13 @@
       <div class="formblock">
       <span class="formblock-titel">Worum geht es?</span>
       <div class="feldreihe zwei">
-        <label class="feld">
-          <span>Betreute Person <span class="leise">– aus den vorhandenen Daten</span></span>
-          <select name="klient" required>
-            <option value="">bitte wählen</option>
-            {% for k in klienten %}
-            <option value="{{ k }}" {{ 'selected' if vorbelegt_klient == k }}>{{ k }}</option>
-            {% endfor %}
-          </select>
-        </label>
+        {# ⚠️ Seit 1.56 dasselbe Aufklappfeld wie bei den Zuständigen
+           (Timos Wunsch), nur mit Radioknöpfen: eine Aufgabe gehört
+           genau einer betreuten Person. #}
+        <div class="feld">
+          <span class="feldtitel-block">Betreute Person</span>
+          {{ einfachwahl("", "klient", klienten, vorbelegt_klient, "bitte wählen") }}
+        </div>
         <label class="feld">
           <span>Vorgangsart</span>
           <select name="art">
@@ -102,13 +100,13 @@
       </div>
 
       <label class="feld">
-        <span>Titel / kurze Bezeichnung</span>
+        <span>Betreff</span>
         <input type="text" name="titel" required maxlength="160"
                placeholder="z. B. Fortschreibung 2026/27 beim LWL">
       </label>
 
       <label class="feld">
-        <span>Beschreibung oder Notiz <span class="leise">– darf leer bleiben</span></span>
+        <span>Detaillierte Beschreibung <span class="leise">– darf leer bleiben</span></span>
         <textarea name="beschreibung" rows="3"
                   placeholder="Was ist der Stand, was wurde vereinbart, was fehlt noch?"></textarea>
       </label>
@@ -122,16 +120,19 @@
          damit weg: es war ein Freitext, an dem nichts hing - keine Mail,
          kein Filter, keine Liste. Wer beteiligt ist, ist jetzt zuständig
          und bekommt seine Nachricht. #}
-      <div class="feld zustaendigwahl">
-        <span class="feldtitel-block">Zuständige Personen
-          <span class="leise">– alle Gewählten bearbeiten die Aufgabe</span></span>
-        {{ mehrfachwahl("", "zustaendig", leute,
-                        [eigener_name] if eigener_name else [],
-                        "Person", "Personen") }}
-      </div>
-      <p class="klein leise felderklaerung">{{ t("vorgaenge.zustaendig_mehrere") }}</p>
-
-      <div class="feldreihe">
+      {# ⚠️ Alle vier Felder in EINER Zeile (seit 1.56, Timos Meldung:
+         „das Feld Zuständige Person ist extrem lang für einen Inhalt,
+         der diese Fläche nicht benötigt"). Vorher stand es allein über
+         die volle Breite und die drei kurzen Felder darunter. Die
+         Frist bekommt feste 170px — ein Datumsfeld braucht gemessene
+         144px, sonst schneidet der Browser die Jahreszahl ab. #}
+      <div class="vorgangszeile">
+        <div class="feld zustaendigwahl">
+          <span class="feldtitel-block">Zuständige Personen</span>
+          {{ mehrfachwahl("", "zustaendig", leute,
+                          [eigener_name] if eigener_name else [],
+                          "Person", "Personen") }}
+        </div>
         <label class="feld">
           <span>Status</span>
           <select name="status">
@@ -140,8 +141,11 @@
         </label>
         <label class="feld">
           <span>Priorität</span>
+          {# ⚠️ „Mittel" ist die Vorgabe. Bis 1.55 stand hier „Normal" —
+             den Wert gibt es seit 1.32 nicht mehr, also griff die
+             Vorauswahl nie und es blieb bei „Niedrig". #}
           <select name="prioritaet">
-            {% for p in V_PRIO %}<option value="{{ p }}" {{ 'selected' if p == 'Normal' }}>{{ p }}</option>{% endfor %}
+            {% for p in V_PRIO %}<option value="{{ p }}" {{ 'selected' if p == 'Mittel' }}>{{ p }}</option>{% endfor %}
           </select>
         </label>
         <label class="feld">
@@ -149,6 +153,7 @@
           <input type="date" name="frist" min="2020-01-01">
         </label>
       </div>
+      <p class="klein leise felderklaerung">{{ t("vorgaenge.zustaendig_mehrere") }}</p>
       <p class="klein leise felderklaerung">{{ t("vorgaenge.protokoll_hinweis") }}</p>
       </div>
 

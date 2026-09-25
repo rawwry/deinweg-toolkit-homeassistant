@@ -192,8 +192,19 @@ def hat_einst_zugriff(benutzer, punkt: str) -> bool:
         return False
     if punkt == EINST_IMMER:
         return True
-    if benutzer["rolle"] == "admin":
-        return True
+    # ⚠️⚠️ Seit 1.56 gilt die Auswahl auch hier fuer Administratoren
+    # (Timos Wunsch: "hier soll konfiguriert werden koennen, welcher
+    # Nutzer Zugang zum Menuepunkt Einstellungen -> Sprueche hat").
+    # Bis 1.55 stand an dieser Stelle ein Sonderweg fuer die Rolle, und
+    # damit liess sich ausgerechnet fuer Timo kein einziger Punkt
+    # wegblenden - er ist Administrator. Dieselbe Umstellung wie bei
+    # hat_zugriff() in 1.55.
+    #
+    # ⚠️ Kein stiller Verlust: ein leeres Feld heisst weiterhin "alle",
+    # und die drei Punkte, die an der ROLLE haengen (Benutzerverwaltung,
+    # E-Mail, System und Sicherung), stehen gar nicht erst in
+    # EINST_BEREICHE - sie bleiben damit unberuehrt. "Oberflaeche" faengt
+    # der Sonderfall oben ab.
     try:
         roh = (benutzer["einst_bereiche"] or "").strip()
     except (IndexError, KeyError, TypeError):
@@ -241,12 +252,13 @@ ADMIN_NUR_PFADE = (# Das Logbuch der Datensaetze: wer hat was geaendert
                    # die Verwaltung - nicht wer die Einstellungen darf.
                    "/einstellungen/wiki-geschuetzt",
                    "/einstellungen/dateien-geschuetzt",
-                   # E-Mail-Versand samt SMTP-Zugang und den vier
+                   # E-Mail-Versand samt SMTP-Zugang und den sechs
                    # Erinnerungsanlaessen
                    "/einstellungen/email", "/einstellungen/abgabemail",
                    "/einstellungen/bewilligungsmail", "/einstellungen/fristmail",
                    "/einstellungen/zuweisungsmail",
                    "/einstellungen/erledigtmail",
+                   "/einstellungen/auslagenmail",
                    # „Passwort vergessen?" samt der Adresse, die in den
                    # Link kommt - wer sie aendert, lenkt jeden Link um.
                    "/einstellungen/passwortmail",

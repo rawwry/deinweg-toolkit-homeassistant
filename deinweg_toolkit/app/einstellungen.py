@@ -723,7 +723,8 @@ def team_zurueck(**werte):
 def mitarbeiter_anlegen(name: str = Form(""), notiz: str = Form(""),
                         monatsstunden: str = Form("0"),
                         urlaubstage: str = Form("0"),
-                        abgabepflicht: str = Form("1")):
+                        abgabepflicht: str = Form("1"),
+                        auslagen_verwalter: str = Form("")):
     name = re.sub(r"\s+", " ", name).strip()
     if not name:
         return team_zurueck(fehler="Ohne Namen geht es nicht.")
@@ -740,8 +741,10 @@ def mitarbeiter_anlegen(name: str = Form(""), notiz: str = Form(""),
             return team_zurueck(fehler=f"{name} steht bereits im Team.")
         con.execute(
             "INSERT INTO mitarbeiter (name, aktiv, abgabepflicht, monatsstunden, "
-            "urlaubstage, notiz, angelegt_am) VALUES (?,1,?,?,?,?,?)",
-            (name, 1 if abgabepflicht else 0, soll, urlaub, notiz.strip(), _u["jetzt"]()))
+            "urlaubstage, notiz, auslagen_verwalter, angelegt_am) "
+            "VALUES (?,1,?,?,?,?,?,?)",
+            (name, 1 if abgabepflicht else 0, soll, urlaub, notiz.strip(),
+             1 if auslagen_verwalter else 0, _u["jetzt"]()))
     return team_zurueck(hinweis=f"{name} ins Team aufgenommen.")
 
 
@@ -750,7 +753,8 @@ def mitarbeiter_speichern(person_id: int, name: str = Form(""),
                           notiz: str = Form(""), aktiv: str = Form(""),
                           monatsstunden: str = Form("0"),
                           urlaubstage: str = Form("0"),
-                          abgabepflicht: str = Form("")):
+                          abgabepflicht: str = Form(""),
+                          auslagen_verwalter: str = Form("")):
     name = re.sub(r"\s+", " ", name).strip()
     if not name:
         return team_zurueck(fehler="Ohne Namen geht es nicht.")
@@ -767,9 +771,10 @@ def mitarbeiter_speichern(person_id: int, name: str = Form(""),
             return team_zurueck(fehler=f"{name} steht bereits im Team.")
         con.execute(
             "UPDATE mitarbeiter SET name=?, notiz=?, aktiv=?, abgabepflicht=?, "
-            "monatsstunden=?, urlaubstage=? WHERE id=?",
+            "monatsstunden=?, urlaubstage=?, auslagen_verwalter=? WHERE id=?",
             (name, notiz.strip(), 1 if aktiv else 0,
-             1 if abgabepflicht else 0, soll, urlaub, person_id))
+             1 if abgabepflicht else 0, soll, urlaub,
+             1 if auslagen_verwalter else 0, person_id))
     return team_zurueck(hinweis=f"{name} gespeichert.")
 
 
@@ -1355,6 +1360,24 @@ def erledigtmail_speichern(erledigt_aktiv: str = Form(""),
     with db.db() as con:
         mail.konfig_schreiben(con, werte)
     return email_zurueck(hinweis="Meldung über erledigte Aufgaben gespeichert.")
+
+
+@router.post("/einstellungen/auslagenmail")
+def auslagenmail_speichern(auslagen_aktiv: str = Form(""),
+                           vorlage_auslagen_betreff: str = Form(""),
+                           vorlage_auslagen_text: str = Form("")):
+    """Mail an die verwaltende Person, sobald jemand Privatauslagen
+    einreicht (seit 1.56).
+
+    Kein Verzug und keine Sammlung: es ist ein einzelnes Ereignis, und
+    die Aufgabe dazu steht ohnehin schon in der Aufgabenverwaltung.
+    """
+    werte = {"auslagen_aktiv": "1" if auslagen_aktiv else "0"}
+    werte.update(vorlage_werte("auslagen", vorlage_auslagen_betreff,
+                               vorlage_auslagen_text))
+    with db.db() as con:
+        mail.konfig_schreiben(con, werte)
+    return email_zurueck(hinweis="Meldung über eingereichte Auslagen gespeichert.")
 
 
 @router.post("/einstellungen/email/test")

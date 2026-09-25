@@ -557,13 +557,19 @@
         var gewaehlt = zeilen.filter(function (z) {
           return z.querySelector("input").checked;
         });
-        if (!gewaehlt.length)        { text.textContent = "alle"; }
+        if (!gewaehlt.length)        { text.textContent = liste.dataset.leer || "alle"; }
         else if (gewaehlt.length === 1) {
           text.textContent = gewaehlt[0].querySelector("span").textContent;
         } else { text.textContent = gewaehlt.length + " " + viele; }
         liste.closest(".filterwahl").classList.toggle("gesetzt", gewaehlt.length > 0);
       }
-      liste.addEventListener("change", beschriften);
+      liste.addEventListener("change", function () {
+        beschriften();
+        // ⚠️ Nur bei der Einfachwahl (Radioknöpfe): dort ist nach dem
+        // Klick alles gesagt. Bei Kästchen wäre Zuklappen falsch — man
+        // hakt dort meist mehrere an.
+        if (liste.dataset.einfach) { liste.open = false; }
+      });
 
       // 2. Tippen springt zum Namen. Das Suchfeld bekommt beim Aufklappen
       //    den Fokus, ein Buchstabe filtert die Liste sofort.
@@ -587,8 +593,10 @@
           var erster = zeilen.filter(function (z) { return !z.hidden; })[0];
           if (erster) {
             var k = erster.querySelector("input");
-            k.checked = !k.checked;
+            // Ein Radioknopf wird gewählt, ein Kästchen umgeschaltet.
+            k.checked = liste.dataset.einfach ? true : !k.checked;
             beschriften();
+            if (liste.dataset.einfach) { liste.open = false; }
           }
         });
         liste.addEventListener("toggle", function () {

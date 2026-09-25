@@ -810,6 +810,11 @@
         <input type="checkbox" name="abgabepflicht" value="1" checked>
         <span>Gibt monatlich Zeiten ab</span>
       </label>
+      <label class="ankreuz">
+        <input type="checkbox" name="auslagen_verwalter" value="1">
+        <span>Verwaltet die Auslagenabrechnung
+          <span class="leise">– bekommt eingereichte Privatauslagen als Aufgabe</span></span>
+      </label>
       <div class="knopfreihe unten">
         <button class="knopf haupt" type="submit">Mitarbeiter aufnehmen</button>
       </div>
@@ -856,6 +861,14 @@
             <input type="checkbox" name="abgabepflicht" value="1"
                    {{ 'checked' if m.abgabepflicht }}>
             Gibt monatlich Zeiten ab
+          </label>
+          {# ⚠️ Wer das anhakt, bekommt jede eingereichte Auslagenmappe
+             als Aufgabe und eine E-Mail dazu. Mehrere sind erlaubt —
+             eine Aufgabe kann seit 1.30 mehreren Personen gehören. #}
+          <label class="bereich-kachel">
+            <input type="checkbox" name="auslagen_verwalter" value="1"
+                   {{ 'checked' if m.auslagen_verwalter }}>
+            Verwaltet die Auslagenabrechnung
           </label>
           <label class="bereich-kachel">
             <input type="checkbox" name="aktiv" value="1" {{ 'checked' if m.aktiv }}>
@@ -1603,8 +1616,12 @@
           </label>
           {% for schluessel, name in EINST_BEREICHE.items() %}
           <label class="bereich-kachel">
+            {# ⚠️ Über dieselbe Funktion wie die Durchsetzung, damit
+               Anzeige und Regel nicht auseinanderlaufen — genau wie bei
+               den Bereichen darüber. Seit 1.56 gilt sie auch für
+               Administratoren. #}
             <input type="checkbox" name="einst_bereiche" value="{{ schluessel }}" form="bn-{{ b.id }}"
-                   {{ 'checked' if not e_erlaubt or schluessel in e_erlaubt }}> {{ name }}
+                   {{ 'checked' if hat_einst_zugriff(b, schluessel) }}> {{ name }}
           </label>
           {% endfor %}
         </div>
@@ -2090,6 +2107,32 @@
     {% if mailkonfig.passwortlink_aktiv == '1' and not passwort_bereit %}
     <p class="meldung offen-hinweis">Eingeschaltet, aber noch nicht bereit: es fehlen Postausgangsserver, Absender oder die Adresse der Anwendung. Solange steht auf dem Anmeldebildschirm kein Verweis.</p>
     {% endif %}
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Speichern</button>
+    </div>
+  </form>
+</section>
+
+{# 6. Eingereichte Privatauslagen ---------------------------------------- #}
+{# Die Nachricht geht an die Person, die unter Einstellungen →
+   Mitarbeiter als Verwalterin der Auslagenabrechnung angehakt ist.
+   Ist dort niemand angehakt, entsteht weder Aufgabe noch Mail. #}
+<section class="karte anlasskarte">
+  {{ anlasskopf("Privatauslagen eingereicht", mailkonfig.auslagen_aktiv == '1') }}
+  <p class="lead">{{ t("einst.auslagenmail_wozu") }}</p>
+
+  <form action="/einstellungen/auslagenmail" method="post">
+    <label class="filter-umschalter" style="margin-bottom: 18px;">
+      <input type="checkbox" name="auslagen_aktiv" value="1"
+             {{ 'checked' if mailkonfig.auslagen_aktiv == '1' }}>
+      <span>Meldung verschicken</span>
+    </label>
+    <p class="klein leise felderklaerung">{{ t("einst.auslagenmail_hinweis") }}</p>
+
+    {{ vorlagenblock("auslagen", ["{name}", "{wer}", "{betrag}", "{anzahl}",
+                                  "{eingereicht}", "{frist}", "{liste}",
+                                  "{titel}"]) }}
 
     <div class="knopfreihe">
       <button class="knopf haupt" type="submit">Speichern</button>

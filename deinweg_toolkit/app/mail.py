@@ -110,6 +110,25 @@ STANDARD = {
         "Monate ohne Kontingent.\n\n"
         "Diese Nachricht wurde automatisch erstellt."
     ),
+    # Eingereichte Privatauslagen (seit 1.56). Standard AN: ohne
+    # eingetragene verwaltende Person entsteht ohnehin keine Aufgabe und
+    # geht keine Mail hinaus - der Schalter waere dann eine zweite
+    # Huerde vor derselben Tuer.
+    "auslagen_aktiv": "1",
+    "vorlage_auslagen_betreff": "Auslagenabrechnung {wer}: {betrag}",
+    "vorlage_auslagen_text": (
+        "Hallo {name},\n\n"
+        "{wer} hat Privatauslagen zur Erstattung eingereicht.\n\n"
+        "  Gesamtbetrag: {betrag}\n"
+        "  Belege:       {anzahl}\n"
+        "  Eingereicht:  {eingereicht}\n"
+        "  Frist:        {frist}\n\n"
+        "{liste}\n\n"
+        "In der Aufgabenverwaltung steht dazu der Vorgang "
+        "„{titel}“. Sobald du ihn auf „Erledigt“ setzt, gilt die "
+        "Abrechnung auch in den Privatauslagen als abgeschlossen.\n\n"
+        "Diese Nachricht wurde automatisch erstellt."
+    ),
     "vorlage_abgabe_betreff": "Erinnerung: Zeiten für {monat} noch offen",
     "vorlage_abgabe_text": (
         "Hallo {name},\n\n"
@@ -922,6 +941,106 @@ def _datum(iso: str | None) -> str:
         return iso or ""
 
 
+def pruefe_auslagen(con, k: dict) -> list[str]:
+    """Eingereichte Privatauslagen -> Mail an die verwaltende Person.
+
+    ⚠️ Der Vermerk haengt an der ZEILE (``auslage_block.gemeldet``), nicht
+    in ``benachrichtigung`` - dieselbe Bauart wie bei den Zuweisungen und
+    aus demselben Grund: nur so laesst sich in einem Rutsch abfragen, was
+    noch aussteht, und es gibt nur EINE Sperre je Anlass.
+
+    ⚠️ Die Aufgabe selbst entsteht sofort beim Einreichen
+    (``auslagen.aufgabe_anlegen``), nicht hier. Getrennt, weil ein
+    SMTP-Versand Sekunden dauert: auf die Aufgabe wartet der Knopfdruck,
+    auf die Mail nicht.
+
+    ⚠️ Empfaenger ist ``vorgang.zustaendig`` und nicht die Liste der
+    Verwalter aus den Einstellungen: massgeblich ist, wer im Moment des
+    Einreichens zustaendig WAR. Wer die Einstellung danach aendert,
+    aendert nicht rueckwirkend, an wen die Post geht.
+    """
+    if k.get("auslagen_aktiv") != "1":
+        return []
+
+    zeilen = con.execute(
+        "SELECT b.id, b.abgegeben_am, b.vorgang_id, v.titel, v.zustaendig, "
+        "v.frist, v.angelegt_von, "
+        "(SELECT COUNT(*) FROM auslage a WHERE a.block_id = b.id) AS anzahl, "
+        "(SELECT COALESCE(SUM(a.cent), 0) FROM auslage a "
+        " WHERE a.block_id = b.id) AS summe "
+        "FROM auslage_block b JOIN vorgang v ON v.id = b.vorgang_id "
+        "WHERE b.zustand = 'abgegeben' AND b.gemeldet = 0 "
+        "ORDER BY b.abgegeben_am, b.id").fetchall()
+
+    protokoll = []
+    for z in zeilen:
+        # ⚠️ Der Stand des Protokolls VOR diesem Block. Ohne ihn liesse
+        # sich unten nicht sagen, ob fuer diesen Block etwas notiert
+        # wurde - die Liste sammelt ueber alle Bloecke hinweg.
+        vorher = len(protokoll)
+        betrag = _euro_cent(z["summe"])
+        posten = con.execute(
+            "SELECT datum, cent, notiz FROM auslage WHERE block_id = ? "
+            "ORDER BY datum, id", (z["id"],)).fetchall()
+        liste = "\n".join(
+            f"  • {_datum(p['datum'])} · {_euro_cent(p['cent'])} · "
+            f"{p['notiz'] or 'ohne Angabe'}" for p in posten)
+
+        # ⚠️ Der Push haengt am selben Vermerk wie die Mail - zwei Sperren
+        # fuer denselben Anlass liefen auseinander. Abgehakt wird, sobald
+        # EIN Weg zugestellt hat.
+        push_ok = ntfy.senden(
+            k, f"Auslagen von {z['angelegt_von']}: {betrag}",
+            f"{z['anzahl']} Beleg(e) eingereicht.",
+            ntfy.PRIO_NORMAL, ("receipt",))[0] if ntfy.aktiv(k) else False
+
+        zugestellt = push_ok
+        if mail_an(k):
+            for name in empfaengerliste(z["zustaendig"]):
+                adresse = adresse_fuer(con, name)
+                if not adresse:
+                    # Kein Login mit E-Mail: nicht ewig wiederholen. Die
+                    # AUFGABE steht ohnehin da, die Mail ist der Zusatz.
+                    protokoll.append(
+                        f"Auslagen: kein Login mit E-Mail für „{name}“")
+                    continue
+                werte = {
+                    "name": name, "wer": z["angelegt_von"] or "",
+                    "betrag": betrag, "anzahl": z["anzahl"],
+                    "eingereicht": _datum(z["abgegeben_am"]),
+                    "frist": _datum(z["frist"]), "liste": liste,
+                    "titel": z["titel"],
+                }
+                erfolg, meldung = senden(
+                    adresse, fuellen(k["vorlage_auslagen_betreff"], werte),
+                    fuellen(k["vorlage_auslagen_text"], werte), k)
+                zugestellt = zugestellt or erfolg
+                protokoll.append(f"Auslagen ({betrag}) an {adresse}: "
+                                 f"{'ok' if erfolg else meldung}")
+
+        # ⚠️ Auch ohne einen einzigen erreichbaren Empfaenger abhaken -
+        # sonst versuchte es jeder Durchlauf erneut, und das Protokoll
+        # liefe voll mit derselben Zeile.
+        con.execute("UPDATE auslage_block SET gemeldet = 1 WHERE id = ?",
+                    (z["id"],))
+        if not zugestellt and len(protokoll) == vorher:
+            protokoll.append(f"Auslagen ({betrag}): niemand zu erreichen")
+    return protokoll
+
+
+def _euro_cent(cent) -> str:
+    """Cent als „1.234,50 €". ⚠️ Bewusst hier und nicht aus auslagen.py
+    importiert: `mail.py` darf kein Seitenmodul importieren (Ringschluss,
+    Abschnitt 3) - dieselbe Regel, aus der es auch seine eigene Kopie von
+    ABGESCHLOSSEN fuehrt."""
+    try:
+        cent = int(cent)
+    except (TypeError, ValueError):
+        cent = 0
+    text = f"{abs(cent) // 100:,}".replace(",", ".")
+    return f"{'-' if cent < 0 else ''}{text},{abs(cent) % 100:02d} €"
+
+
 def durchlauf(nur_fristen: bool = False, nur_abgaben: bool = False,
               nur_bewilligungen: bool = False,
               nur_zuweisungen: bool = False,
@@ -960,6 +1079,12 @@ def durchlauf(nur_fristen: bool = False, nur_abgaben: bool = False,
         # denselben Anlass und koennten ihn doppelt melden.
         if nur_zuweisungen or nur_erledigte:
             protokoll += pruefe_erledigte(con, k)
+        # ⚠️ Dieselbe Ueberlegung und dieselbe Schleife: eine eingereichte
+        # Auslagenmappe soll gleich gemeldet werden, nicht erst zur
+        # naechsten vollen Stunde. Und ausdruecklich NICHT im vollen Lauf,
+        # sonst pruefen zwei Stellen denselben Anlass.
+        if nur_zuweisungen or nur_erledigte:
+            protokoll += pruefe_auslagen(con, k)
         if nur_fristen or not einzeln:
             protokoll += pruefe_fristen(con, k)
         if nur_abgaben or not einzeln:

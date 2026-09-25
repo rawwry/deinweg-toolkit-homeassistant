@@ -61,7 +61,7 @@
           <path d="M4 12h13M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        Bons abgeben
+        Gesammelte Bons einreichen
       </button>
     </form>
     {% endif %}
@@ -129,26 +129,38 @@
   <p class="lead">{{ t("auslagen.wartet_lead") }}</p>
   {% for w in wartend %}
   <article class="pa-mappe pa-{{ w.lage }}">
+    {# ⚠️ Die Marke sagt den Zustand im Klartext, die Farbe sagt ihn auf
+       Entfernung (Timos Wunsch: „auf einen Blick sehen, was los ist").
+       Gelb heißt abgegeben und noch nicht bezahlt, grün bezahlt —
+       dieselbe Bedeutung wie die Ampel der Aufgabenkarten. #}
     <div class="pa-mappe-kopf">
-      <strong class="pa-mappe-summe">{{ betrag(w.summe) }}</strong>
+      <span class="pa-marke">
+        <span class="pa-marke-punkt" aria-hidden="true"></span>
+        Wartet auf Geld
+      </span>
       <span class="pa-mappe-lage">
-        {% if w.tage == 0 %}heute abgegeben
+        {% if w.tage == 0 %}heute eingereicht
         {% elif w.tage == 1 %}seit gestern
         {% else %}seit {{ w.tage }} Tagen{% endif %}
       </span>
     </div>
+    <strong class="pa-mappe-summe">{{ betrag(w.summe) }}</strong>
     <p class="pa-mappe-bei">
       {{ w.anzahl }} {{ "Auslage" if w.anzahl == 1 else "Auslagen" }}
-      · abgegeben am {{ w.b.abgegeben_am | deutsch }}
+      · eingereicht am {{ w.b.abgegeben_am | deutsch }}
+      {%- if w.b.vorgang_id %} · <a href="/vorgaenge/{{ w.b.vorgang_id }}">zur Aufgabe</a>{% endif %}
     </p>
     <details class="pa-mappe-liste">
       <summary>Was drin liegt</summary>
-      <ul>
+      {# ⚠️ Datum, Betrag, Zweck — in dieser Reihenfolge (Timos Wunsch).
+         So liest sich die Liste wie ein Kontoauszug und die Beträge
+         stehen als eigene Spalte untereinander. #}
+      <ul class="pa-posten">
         {% for z in w.zeilen %}
         <li>
-          <span class="pa-z-betrag">{{ betrag(z.cent) }}</span>
-          <span class="pa-z-datum">{{ z.datum | deutsch }}</span>
-          <span class="pa-z-zweck">{{ z.notiz or "ohne Angabe" }}</span>
+          <span class="pa-p-datum">{{ z.datum | deutsch }}</span>
+          <span class="pa-p-betrag">{{ betrag(z.cent) }}</span>
+          <span class="pa-p-zweck">{{ z.notiz or "ohne Angabe" }}</span>
         </li>
         {% endfor %}
       </ul>
@@ -188,10 +200,13 @@
        HTML nicht, und ein <form> darf nicht in ein <summary>. #}
     <div class="pa-zeile">
       <details class="pa-z-auf">
+        {# ⚠️ Datum zuerst, dann Betrag, dann Zweck (Timos Wunsch) —
+           dieselbe Folge wie unter „Was drin liegt". Die Zeile liest
+           sich damit wie ein Kontoauszug. #}
         <summary>
+          <span class="pa-z-datum">{{ z.datum | deutsch }}</span>
           <span class="pa-z-betrag">{{ betrag(z.cent) }}</span>
           <span class="pa-z-zweck">{{ z.notiz or "ohne Angabe" }}</span>
-          <span class="pa-z-datum">{{ z.datum | deutsch }}</span>
           {% if z.beleg %}
           <span class="pa-z-clip" title="Beleg liegt dabei">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -284,9 +299,13 @@
       {% for e in erledigt %}
       <article class="pa-mappe pa-zu">
         <div class="pa-mappe-kopf">
-          <strong class="pa-mappe-summe">{{ betrag(e.summe) }}</strong>
+          <span class="pa-marke">
+            <span class="pa-marke-punkt" aria-hidden="true"></span>
+            Erstattet
+          </span>
           <span class="pa-mappe-lage">{{ e.b.erstattet_am | deutsch }}</span>
         </div>
+        <strong class="pa-mappe-summe">{{ betrag(e.summe) }}</strong>
         <p class="pa-mappe-bei">
           {{ e.anzahl }} {{ "Auslage" if e.anzahl == 1 else "Auslagen" }}
           {%- if e.belege %} · {{ e.belege }} {{ "Beleg liegt" if e.belege == 1 else "Belege liegen" }} noch{% endif %}

@@ -2644,4 +2644,43 @@ CHANGELOG = [
         "Buchstabe übrig",
         "Prüfung von 2437 auf 2521 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.56", "titel": "Eingereichte Bons werden zur Aufgabe", "punkte": [
+        "Privatauslagen: wer seine Bons einreicht, löst damit von selbst "
+        "einen Vorgang in der Aufgabenverwaltung aus – für die Person, "
+        "die die Auslagenabrechnung verwaltet (Timos Auftrag). Wer das "
+        "ist, wird unter Einstellungen → Mitarbeiter angehakt",
+        "Der Vorgang trägt betreute Person „Sonstige“, die Vorgangsart "
+        "„Auslagenabrechnung“, als Betreff den Namen und die Gesamtsumme, "
+        "in der Beschreibung jeden Bon mit Datum und Zweck, Status "
+        "„Offen“, Priorität „Niedrig“ und eine Frist eine Woche später",
+        "Dazu geht eine E-Mail an die verwaltende Person – mit eigener "
+        "Vorlage unter Einstellungen → E-Mail",
+        "⚠️ Setzt die verwaltende ODER die einreichende Person den "
+        "Vorgang auf „Erledigt“, gilt die Mappe unter Privatauslagen als "
+        "erstattet. Nur in diese Richtung: „erstattet“ heißt, dass Geld "
+        "geflossen ist, und das nimmt kein Statuswechsel zurück",
+        "⚠️ Ist niemand als verwaltende Person angehakt, wird trotzdem "
+        "eingereicht – nur eben ohne Aufgabe und ohne Mail",
+        "Aufgaben → Neuen Vorgang anlegen: „Zuständige Personen“, "
+        "„Status“, „Priorität“ und „Frist“ stehen nebeneinander statt "
+        "untereinander (Timos Meldung)",
+        "„Titel / Kurze Bezeichnung“ heißt jetzt „Betreff“, "
+        "„Beschreibung der Notiz“ heißt „Detaillierte Beschreibung“, und "
+        "die beiden Infotexte hinter den Personenfeldern sind entfallen",
+        "„Betreute Person“ ist dasselbe Auswahlfeld wie die zuständigen "
+        "Personen – eine Einfachauswahl, mit Suchfeld ab sieben Namen",
+        "Einstellungen → Benutzerverwaltung: die Punkte innerhalb der "
+        "Einstellungen lassen sich jetzt auch Administratoren einzeln "
+        "geben oder nehmen. Damit ist „Sprüche“ wegblendbar (Timos "
+        "Wunsch). Benutzerverwaltung, E-Mail sowie System und Sicherung "
+        "hängen weiterhin an der Rolle",
+        "Privatauslagen: eine wartende Mappe trägt eine Marke im "
+        "Klartext samt farbigem Punkt – gelb heißt „abgegeben, Geld "
+        "fehlt noch“, grün „erstattet“. Dieselben Töne wie die Ampel der "
+        "Aufgaben",
+        "„Was drin liegt“ und der laufende Block beginnen mit dem Datum, "
+        "dann folgen Betrag und Zweck – in beiden Listen dieselbe Folge",
+        "Der Knopf heißt „Gesammelte Bons einreichen“",
+        "Prüfung von 2521 auf 2607 Einzelprüfungen erweitert",
+    ]},
 ]

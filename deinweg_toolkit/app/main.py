@@ -47,7 +47,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.55"
+VERSION = "1.56"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -1821,6 +1821,12 @@ from . import auslagen as _auslagen  # noqa: E402
 _auslagen.setup(templates, {"AUSLAGEN_PFAD": AUSLAGEN_PFAD,
                             "MAX_UPLOAD_MB": MAX_UPLOAD_MB})
 app.include_router(_auslagen.router)
+
+# ⚠️ Der Rueckweg: eine erledigte Aufgabe schliesst ihren Auslagenblock.
+# `auslagen` importiert `vorgaenge` (fuer namen_text und protokoll), die
+# Gegenrichtung laeuft deshalb ueber diesen Haken - sonst liefe der
+# Import im Kreis. Dieselbe Bauart wie mail.bewilligungen_holen.
+_vorgaenge.auslagen_abschliessen = _auslagen.block_erledigt
 
 
 # --- Export -----------------------------------------------------------------

@@ -44,3 +44,46 @@
   </details>
 </div>
 {% endmacro %}
+
+{# ⚠️ Dieselbe Bauart mit RADIOKNÖPFEN statt Kästchen (seit 1.56, Timos
+   Wunsch für „Betreute Person" im Aufgabenformular). Eine Aufgabe
+   gehört genau einer betreuten Person — das Datenmodell trägt einen
+   Namen, und Filter, Sortierung, Betreutenansicht und Logbuch rechnen
+   alle damit. Was Timo wollte, war das BEDIENFELD, nicht mehrere
+   Personen; deshalb hier nur der Widgettausch.
+
+   ⚠️⚠️ Die Radios tragen bewusst KEIN `required`. Sie stecken in einem
+   zugeklappten <details>, und ein Pflichtfeld, das der Browser nicht
+   anspringen kann, blockiert das Absenden mit einer Meldung, die
+   niemand sieht („not focusable"). Geprüft wird serverseitig in
+   `vorgaenge.anlegen` — dort stand die Prüfung ohnehin schon. #}
+{% macro einfachwahl(titel, feldname, werte, gewaehlt, leertext) %}
+<div class="filterwahl {{ 'gesetzt' if gewaehlt }}">
+  <span class="filterwahl-titel">{{ titel }}</span>
+  <details class="wahlliste" data-einfach="1" data-leer="{{ leertext }}">
+    <summary>
+      <span class="wahlliste-text">{{ gewaehlt or leertext }}</span>
+    </summary>
+    <div class="wahlliste-panel">
+      {% if werte | length > 6 %}
+      <div class="wahlliste-suche">
+        <input type="text" class="wahlliste-feld" placeholder="tippen zum Suchen"
+               autocomplete="off" aria-label="{{ titel or leertext }} durchsuchen">
+      </div>
+      {% endif %}
+      <div class="wahlliste-eintraege">
+        {% for w in werte %}
+        <label class="wahlzeile" data-name="{{ w | lower }}">
+          <input type="radio" name="{{ feldname }}" value="{{ w }}"
+                 {{ 'checked' if w == gewaehlt }}>
+          <span>{{ w }}</span>
+        </label>
+        {% else %}
+        <p class="klein leise" style="margin: 6px 8px;">Noch keine Namen erfasst.</p>
+        {% endfor %}
+      </div>
+      <p class="wahlliste-leer klein leise" hidden>Kein Treffer.</p>
+    </div>
+  </details>
+</div>
+{% endmacro %}

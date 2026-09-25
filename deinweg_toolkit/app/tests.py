@@ -2551,7 +2551,9 @@ def test_meinbereich_aufbau(client: TestClient) -> None:
 def test_vorgang_anlegen(client: TestClient) -> None:
     """Das Anlegeformular: ein Auslöser, drei Blöcke, erklärte Rollen."""
     abschnitt("Vorgang anlegen")
-    zu = client.get("/vorgaenge").text
+    # ⚠️ Am Hinweis auf Neuerungen abschneiden: er zitiert den Changelog,
+    # und dort steht die Beschriftung seit 1.56 ebenfalls.
+    zu = client.get("/vorgaenge").text.split('<div class="neuheiten"')[0]
     # Es gab einen Knopf „Neuen Vorgang anlegen" und direkt darunter noch
     # einmal dieselbe Beschriftung als Aufklapper - zwei Bedienelemente
     # für dieselbe Sache.
@@ -4078,7 +4080,15 @@ def test_neuigkeiten(client: TestClient) -> None:
            "und nennt die neue Versionsnummer")
     pruefe(CHANGELOG[-1]["titel"] in seite, "samt Überschrift des Eintrags")
     pruefe(CHANGELOG[-1]["punkte"][0] in seite, "und den einzelnen Punkten")
-    pruefe('href="/changelog"' in seite.split('class="neuheiten"')[1][:2600],
+    # ⚠️ Am Fuß des Dialogs schneiden statt auf eine Zeichenzahl zu
+    # setzen: ein langer Changelog-Eintrag schob den Verweis sonst über
+    # die 2600 Zeichen hinaus, und die Prüfung schlug an, ohne dass
+    # etwas fehlte. Ein Ausschnitt, der gar nicht schneidet, wäre
+    # allerdings genauso wertlos - deshalb steht die Marke fest.
+    pruefe('class="neuheiten-fuss"' in seite,
+           "der Hinweis hat einen Fuß")
+    fuss = seite.split('class="neuheiten-fuss"')[1].split("</form>")[0]
+    pruefe('href="/changelog"' in fuss,
            "mit einem Weg zum vollständigen Verlauf")
     # ⚠️ Auf jeder Seite, nicht nur direkt nach dem Login: wer ihn dort
     # wegklickt, bekäme ihn sonst nie wieder.
@@ -5496,7 +5506,8 @@ def test_email_zusammengelegt(client: TestClient) -> None:
                        ("frist", "Überfällige Frist"),
                        ("bewilligung", "Auslaufende Bewilligung"),
                        ("zuweisung", "Neue Aufgabe zugewiesen"),
-                       ("erledigt", "Aufgabe erledigt")):
+                       ("erledigt", "Aufgabe erledigt"),
+                       ("auslagen", "Privatauslagen eingereicht")):
         pruefe(titel in ohne_dialog, f"der Anlass „{titel}“ hat eine Karte")
         karte = ohne_dialog.split(titel)[1].split("</section>")[0]
         pruefe(f'name="vorlage_{art}_betreff"' in karte
@@ -5504,9 +5515,9 @@ def test_email_zusammengelegt(client: TestClient) -> None:
                f"und trägt seinen Wortlaut selbst")
         pruefe('class="anlass-stand' in karte,
                "die Karte sagt, ob der Anlass läuft")
-    pruefe(ohne_dialog.count('class="vorlagenblock"') == 5,
-           "fünf Anlässe, fünf zugeklappte Wortlaute")
-    # ⚠️ Zugeklappt: fünf offene Textfelder mit je zehn Zeilen wären
+    pruefe(ohne_dialog.count('class="vorlagenblock"') == 6,
+           "sechs Anlässe, sechs zugeklappte Wortlaute")
+    # ⚠️ Zugeklappt: sechs offene Textfelder mit je zehn Zeilen wären
     # wieder die Wand, die die alte Vorlagenseite war. Die Felder stecken
     # trotzdem im Formular und werden mitgeschickt.
     pruefe('<details class="vorlagenblock" open' not in ohne_dialog,
@@ -5514,6 +5525,21 @@ def test_email_zusammengelegt(client: TestClient) -> None:
     # Die Formathilfe steht einmal über allen, nicht fünfmal.
     pruefe(ohne_dialog.count("**fett**") == 1,
            "die Formathilfe steht genau einmal über den Anlässen")
+
+    # --- Der sechste Anlass speichert genauso (seit 1.56) -------------------
+    antwort = client.post("/einstellungen/auslagenmail", data={
+        "auslagen_aktiv": "1",
+        "vorlage_auslagen_betreff": "Auslagen von {wer}",
+        "vorlage_auslagen_text": "Hallo {name}, es sind {betrag}."},
+        follow_redirects=False)
+    pruefe(antwort.status_code == 303,
+           "die Auslagen-Meldung lässt sich speichern")
+    with db.db() as con:
+        k = mail.konfig_lesen(con)
+    pruefe(k["auslagen_aktiv"] == "1"
+           and k["vorlage_auslagen_betreff"] == "Auslagen von {wer}"
+           and "{betrag}" in k["vorlage_auslagen_text"],
+           "und Schalter wie Wortlaut kommen an")
 
     # --- Speichern sichert Schalter UND Wortlaut in einem Zug ---------------
     antwort = client.post("/einstellungen/erledigtmail", data={
@@ -7775,6 +7801,348 @@ def _auslagen_zahl() -> int:
         return con.execute("SELECT COUNT(*) c FROM auslage").fetchone()["c"]
 
 
+def test_umbau_1_56(client: TestClient) -> None:
+    """Der Umbau von 1.56.
+
+    Vier Dinge, und der Reihe nach: die Punkte INNERHALB der Einstellungen
+    gelten jetzt auch fuer Administratoren; das Anlegeformular der Aufgaben
+    steht in einer Zeile; eine eingereichte Auslagenmappe legt von selbst
+    eine Aufgabe an; und eine erledigte Aufgabe schliesst ihre Mappe.
+    """
+    abschnitt("Umbau 1.56: Punkte, Aufgabenformular, Auslagen-Aufgabe")
+
+    # === 1. Einstellungspunkte gelten auch fuer Administratoren ========
+    #
+    # Timos Wunsch war ausdruecklich "Einstellungen -> Sprueche" - und
+    # genau das ging bis 1.55 nicht, weil er Administrator ist und
+    # hat_einst_zugriff() oben einen Sonderweg fuer die Rolle hatte.
+    pruefe("quotes" in auth.EINST_BEREICHE,
+           "„Sprüche“ ist ein Punkt, der sich einzeln geben lässt")
+    chef = _konto(client, "punktchef", "punktchefpasswort",
+                  ["einstellungen", "privatauslagen", "verwaltungsvorgaenge"],
+                  rolle="admin",
+                  einst_bereiche=["mitarbeiter", "vorgangsarten"])
+    with db.db() as con:
+        satz = con.execute("SELECT * FROM benutzer WHERE "
+                           "benutzername='punktchef'").fetchone()
+    pruefe(satz["rolle"] == "admin" and "quotes" not in
+           (satz["einst_bereiche"] or ""),
+           "das Konto ist Administrator und hat die Sprüche nicht angehakt")
+    pruefe(not auth.hat_einst_zugriff(satz, "quotes"),
+           "hat_einst_zugriff sagt nein – auch für einen Administrator")
+    pruefe(auth.hat_einst_zugriff(satz, "mitarbeiter"),
+           "der angehakte Punkt bleibt erlaubt")
+    # ⚠️ „Oberflaeche" ist nie abschaltbar - sonst landete ein Konto in
+    # Einstellungen, in denen es nichts zu sehen gibt.
+    pruefe(auth.hat_einst_zugriff(satz, auth.EINST_IMMER),
+           "„Oberfläche“ bleibt in jedem Fall erreichbar")
+
+    seite = chef.get("/einstellungen?bereich=mitarbeiter").text
+    menue = seite.split('class="seitenmenue"')[1].split("</nav>")[0] \
+        if 'class="seitenmenue"' in seite else seite
+    pruefe("bereich=quotes" not in menue,
+           "der Punkt fehlt im Menü dieses Administrators")
+    pruefe("bereich=mitarbeiter" in menue, "der erlaubte steht darin")
+    # Die Ansicht faellt zurueck, der Aufruf per Adresse hilft also nicht.
+    pruefe('name="spruch_neu"' not in chef.get(
+        "/einstellungen?bereich=quotes").text,
+        "und der direkte Aufruf zeigt die Sprüche auch nicht")
+    pruefe(chef.post("/einstellungen/spruch",
+                     data={"text": "Reingerutscht"}).status_code == 403,
+           "die schreibende Route antwortet mit 403")
+    # Gegenprobe: mit dem Haken geht es.
+    client.post(f"/einstellungen/benutzer/{satz['id']}", data={
+        "benutzername": "punktchef", "rolle": "admin", "aktiv": "1",
+        "email": "", "mitarbeiter": "", "rechte_dabei": "1",
+        "bereiche": ["einstellungen", "privatauslagen",
+                     "verwaltungsvorgaenge"],
+        "einst_bereiche": ["mitarbeiter", "vorgangsarten", "quotes"]})
+    pruefe("bereich=quotes" in chef.get(
+        "/einstellungen?bereich=mitarbeiter").text,
+        "mit Haken ist der Punkt wieder da")
+    pruefe(chef.post("/einstellungen/spruch",
+                     data={"text": "Jetzt aber"}).status_code != 403,
+           "und die Route lässt ihn durch")
+
+    # === 2. Das Anlegeformular der Aufgaben ============================
+    seite = client.get("/vorgaenge?neu=1").text
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+    formular = ohne_dialog.split('action="/vorgaenge"')[1].split("</form>")[0]
+
+    pruefe("Betreff" in formular and "Kurze Bezeichnung" not in formular,
+           "das Titelfeld heißt „Betreff“")
+    pruefe("Detaillierte Beschreibung" in formular
+           and "Beschreibung der Notiz" not in formular,
+           "und das Textfeld „Detaillierte Beschreibung“")
+    # ⚠️ Die vier Felder stehen in EINER Zeile. Vorher nahm „Zuständige
+    # Person" die ganze Breite fuer einen Inhalt, der sie nicht braucht.
+    zeile = formular.split('class="vorgangszeile"')[1].split(
+        'class="klein leise felderklaerung"')[0]
+    pruefe('class="vorgangszeile"' in formular,
+           "die vier Felder stehen in einer eigenen Zeile")
+    for feld in ("zustaendig", "status", "prioritaet", "frist"):
+        pruefe(f'name="{feld}"' in zeile,
+               f"„{feld}“ steht in dieser Zeile")
+    # Die Infotexte hinter den beiden Personenfeldern sind entfallen.
+    pruefe("bekommt die Erinnerungen" not in formular
+           and "wird hier nie neu angelegt" not in formular,
+           "die beiden Infotexte sind weg")
+
+    # Die betreute Person ist dasselbe Bedienfeld wie die Zustaendigen -
+    # eine Einfachauswahl, also Radioknoepfe statt Kaestchen.
+    klientfeld = formular.split('name="klient"')[0]
+    pruefe('data-einfach="1"' in formular,
+           "die betreute Person ist eine Einfachauswahl im selben Widget")
+    pruefe('type="radio" name="klient"' in formular,
+           "und zwar mit Radioknöpfen, nicht mit Kästchen")
+    # ⚠️ KEIN required: ein Pflichtfeld in einem zugeklappten <details>
+    # kann der Browser nicht anspringen ("not focusable") und blockiert
+    # das Formular dann stillschweigend.
+    wahl = formular.split('type="radio" name="klient"')[1].split("</details>")[0]
+    pruefe("required" not in wahl,
+           "kein required im zugeklappten Aufklapper")
+    stil = client.get("/static/style.css").text
+    pruefe(".vorgangszeile {" in stil and "grid-template-columns" in
+           stil.split(".vorgangszeile {")[1].split("}")[0],
+           "die Zeile ist im Stylesheet ein Raster")
+    # ⚠️ Container-Abfrage, keine Fensterabfrage: neben dem Formular kann
+    # eine Seitenspalte stehen, und „begrenzte Breite" nimmt noch mehr
+    # weg. Dieselbe Lehre wie bei der manuellen Erfassung.
+    pruefe('class="vorgang-formular"' in formular
+           or "vorgang-formular" in ohne_dialog,
+           "das Formular spannt den Container auf")
+    pruefe("container-name: vorgangform" in stil,
+           "und trägt im Stylesheet den Containernamen")
+    pruefe("@container vorgangform (min-width: 620px)" in stil,
+           "die Zeile kommt ab 620px Formularbreite")
+    pruefe(stil.index(".vorgangszeile {")
+           < stil.index("@container vorgangform (min-width: 620px)"),
+           "gestapelt ist der Ausgangszustand")
+
+    # === 3. Einreichen legt eine Aufgabe an ============================
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, "
+                    "abgabepflicht, angelegt_am) VALUES "
+                    "('Kasse Krause', 1, 0, '2026-01-01 08:00')")
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, "
+                    "abgabepflicht, angelegt_am) VALUES "
+                    "('Bon Bringer', 1, 1, '2026-01-01 08:00')")
+        con.execute("UPDATE mitarbeiter SET auslagen_verwalter = 1 "
+                    "WHERE name = 'Kasse Krause'")
+        pruefe(_auslagen_modul().verwalter(con) == ["Kasse Krause"],
+               "die verwaltende Person kommt aus den Einstellungen")
+
+    # Der Haken steht in BEIDEN Mitarbeiterformularen.
+    seite = client.get("/einstellungen?bereich=mitarbeiter").text
+    pruefe(seite.count('name="auslagen_verwalter"') >= 2,
+           "der Haken steht im Anlege- und im Bearbeitungsformular")
+
+    bon = _konto(client, "bonbringer", "bonbringerpasswort",
+                 ["privatauslagen", "verwaltungsvorgaenge"],
+                 mitarbeiter="Bon Bringer")
+    for tag, wert, zweck in (("2026-09-18", "24,50", "Tanken"),
+                             ("2026-09-19", "8,20", "Brot und Butter"),
+                             ("2026-09-20", "60", "")):
+        bon.post("/privatauslagen/erfassen",
+                 data={"betrag": wert, "datum": tag, "notiz": zweck})
+    with db.db() as con:
+        block = con.execute(
+            "SELECT b.* FROM auslage_block b JOIN benutzer u ON "
+            "u.id = b.benutzer_id WHERE u.benutzername='bonbringer' "
+            "AND b.zustand='offen'").fetchone()
+    pruefe(block is not None, "der Block läuft")
+
+    bon.post(f"/privatauslagen/block/{block['id']}/zustand",
+             data={"ziel": "abgegeben"})
+    with db.db() as con:
+        block = con.execute("SELECT * FROM auslage_block WHERE id=?",
+                            (block["id"],)).fetchone()
+        pruefe(block["zustand"] == "abgegeben" and block["abgegeben_am"],
+               "die Mappe ist eingereicht")
+        pruefe(block["vorgang_id"], "und hängt an einer Aufgabe")
+        pruefe(block["gemeldet"] == 0,
+               "die Mail dazu steht noch aus")
+        v = con.execute("SELECT * FROM vorgang WHERE id=?",
+                        (block["vorgang_id"],)).fetchone()
+        art = con.execute("SELECT 1 FROM vorgangsart WHERE name=?",
+                          ("Auslagenabrechnung",)).fetchone()
+    pruefe(art is not None,
+           "die Vorgangsart „Auslagenabrechnung“ gibt es (notfalls neu)")
+    pruefe(v["klient"] == "Sonstige", "betreute Person: Sonstige")
+    pruefe(v["art"] == "Auslagenabrechnung", "Vorgangsart stimmt")
+    pruefe(v["titel"] == "Auslagenabrechnung Bon Bringer: 92,70 €",
+           f"der Betreff nennt Namen und Gesamtbetrag (ist: {v['titel']})")
+    pruefe(v["zustaendig"] == "Kasse Krause",
+           "zuständig ist die konfigurierte Person")
+    pruefe(v["status"] == "Offen" and v["prioritaet"] == "Niedrig",
+           "Status Offen, Priorität Niedrig")
+    soll = (dt.date.today() + dt.timedelta(days=7)).isoformat()
+    pruefe(v["frist"] == soll,
+           f"die Frist liegt eine Woche später ({soll})")
+    pruefe(v["angelegt_von"] == "Bon Bringer",
+           "angelegt hat sie die einreichende Person")
+    # ⚠️ Bewusst schon gemeldet: die verwaltende Person bekommt ihre
+    # eigene Nachricht. Ohne das ginge zusaetzlich die allgemeine
+    # Zuweisungsmail hinaus - zweimal dasselbe im Postfach.
+    pruefe(v["zuweis_gemeldet"] == 1,
+           "die allgemeine Zuweisungsmail bleibt aus")
+    # Jeder Bon steht mit Datum und Zweck in der Beschreibung.
+    for stueck in ("18.09.2026", "24,50 €", "Tanken", "Brot und Butter",
+                   "ohne Angabe", "92,70 €"):
+        pruefe(stueck in v["beschreibung"],
+               f"„{stueck}“ steht in der Detailbeschreibung")
+    with db.db() as con:
+        log = con.execute("SELECT * FROM vorgang_log WHERE vorgang_id=?",
+                          (v["id"],)).fetchall()
+    pruefe(any("Privatauslagen" in (z["beschreibung"] or "") for z in log),
+           "das Logbuch sagt, woher die Aufgabe kommt")
+
+    # === 4. Die Mail an die verwaltende Person ========================
+    gesendet = []
+    echt_senden, echt_adresse = mail.senden, mail.adresse_fuer
+    try:
+        mail.senden = lambda adr, betr, txt, kk=None: (
+            gesendet.append((adr, betr, txt)) or (True, "ok"))
+        mail.adresse_fuer = lambda con, name: (
+            "kasse@x" if name.strip() == "Kasse Krause" else None)
+        with db.db() as con:
+            k = mail.konfig_lesen(con)
+            k["mail_aktiv"] = "1"
+            k["auslagen_aktiv"] = "1"
+            k["vorlage_auslagen_betreff"] = "Auslagen {wer}: {betrag}"
+            k["vorlage_auslagen_text"] = ("{name} / {anzahl} / {frist} / "
+                                          "{eingereicht}\n{liste}\n{titel}")
+            zeilen = mail.pruefe_auslagen(con, k)
+        pruefe(len(gesendet) == 1 and gesendet[0][0] == "kasse@x",
+               "genau eine Mail, und zwar an die verwaltende Person")
+        pruefe(gesendet[0][1] == "Auslagen Bon Bringer: 92,70 €",
+               f"der Betreff ist gefüllt (ist: {gesendet[0][1]})")
+        text = gesendet[0][2]
+        for stueck in ("Kasse Krause", "3 ", "18.09.2026", "24,50 €",
+                       "Tanken", "Auslagenabrechnung Bon Bringer"):
+            pruefe(stueck in text, f"„{stueck}“ steht in der Mail")
+        pruefe(any("Auslagen" in z for z in zeilen),
+               "und im Versandprotokoll steht eine Zeile")
+        with db.db() as con:
+            pruefe(con.execute("SELECT gemeldet FROM auslage_block WHERE id=?",
+                               (block["id"],)).fetchone()["gemeldet"] == 1,
+                   "die Mappe ist abgehakt")
+        # Zweiter Lauf: nichts mehr.
+        gesendet.clear()
+        with db.db() as con:
+            mail.pruefe_auslagen(con, k)
+        pruefe(not gesendet, "ein zweiter Durchlauf schickt sie nicht erneut")
+        # Abgeschaltet geht gar nichts hinaus.
+        with db.db() as con:
+            con.execute("UPDATE auslage_block SET gemeldet = 0 WHERE id=?",
+                        (block["id"],))
+            k["auslagen_aktiv"] = "0"
+            pruefe(mail.pruefe_auslagen(con, k) == [],
+                   "abgeschaltet passiert nichts")
+            con.execute("UPDATE auslage_block SET gemeldet = 1 WHERE id=?",
+                        (block["id"],))
+        pruefe(not gesendet, "und es geht auch keine Mail hinaus")
+    finally:
+        mail.senden, mail.adresse_fuer = echt_senden, echt_adresse
+
+    # === 5. Erledigt heisst erstattet =================================
+    #
+    # Beide duerfen das: die verwaltende Person, weil sie gezahlt hat,
+    # und die einreichende, weil sie das Geld bekommen hat.
+    bon.post(f"/vorgaenge/{v['id']}/status", data={
+        "status": "Erledigt", "wer": "Bon Bringer", "zurueck": "/vorgaenge"})
+    with db.db() as con:
+        nachher = con.execute("SELECT * FROM auslage_block WHERE id=?",
+                              (block["id"],)).fetchone()
+        log = con.execute("SELECT * FROM vorgang_log WHERE vorgang_id=?",
+                          (v["id"],)).fetchall()
+    pruefe(nachher["zustand"] == "erstattet",
+           "die erledigte Aufgabe schließt die Mappe")
+    pruefe(nachher["erstattet_am"], "und trägt das Datum ein")
+    pruefe(any("Auslagenblock" in (z["beschreibung"] or "") for z in log),
+           "das Logbuch der Aufgabe sagt es auch")
+
+    # ⚠️ Nur in diese Richtung: wird die Aufgabe wieder geoeffnet, bleibt
+    # das Geld geflossen. „erstattet" nimmt kein Statuswechsel zurueck.
+    bon.post(f"/vorgaenge/{v['id']}/status", data={
+        "status": "Offen", "wer": "Bon Bringer", "zurueck": "/vorgaenge"})
+    with db.db() as con:
+        pruefe(con.execute("SELECT zustand FROM auslage_block WHERE id=?",
+                           (block["id"],)).fetchone()["zustand"] == "erstattet",
+               "ein Rückschritt der Aufgabe öffnet die Mappe nicht wieder")
+
+    # === 6. Ohne verwaltende Person passiert nichts ===================
+    with db.db() as con:
+        con.execute("UPDATE mitarbeiter SET auslagen_verwalter = 0 "
+                    "WHERE name = 'Kasse Krause'")
+    bon.post("/privatauslagen/erfassen",
+             data={"betrag": "5", "datum": "2026-09-22", "notiz": "Kaugummi"})
+    with db.db() as con:
+        zweiter = con.execute(
+            "SELECT b.id FROM auslage_block b JOIN benutzer u ON "
+            "u.id = b.benutzer_id WHERE u.benutzername='bonbringer' "
+            "AND b.zustand='offen'").fetchone()
+    bon.post(f"/privatauslagen/block/{zweiter['id']}/zustand",
+             data={"ziel": "abgegeben"})
+    with db.db() as con:
+        z = con.execute("SELECT * FROM auslage_block WHERE id=?",
+                        (zweiter["id"],)).fetchone()
+    pruefe(z["zustand"] == "abgegeben" and not z["vorgang_id"],
+           "ist niemand als Verwalter angehakt, wird trotzdem eingereicht – "
+           "nur ohne Aufgabe")
+
+    # Zurueck auf offen loest die Verknuepfung.
+    bon.post(f"/privatauslagen/block/{zweiter['id']}/zustand",
+             data={"ziel": "offen"})
+    with db.db() as con:
+        z = con.execute("SELECT * FROM auslage_block WHERE id=?",
+                        (zweiter["id"],)).fetchone()
+    pruefe(z["zustand"] == "offen" and not z["vorgang_id"]
+           and z["gemeldet"] == 0,
+           "zurück auf offen löst die Verknüpfung und den Vermerk")
+
+    # === 7. Die Oberflaeche der Privatauslagen ========================
+    seite = bon.get("/privatauslagen").text
+    pruefe("Gesammelte Bons einreichen" in seite
+           and "Bons abgeben" not in seite,
+           "der Knopf heißt „Gesammelte Bons einreichen“")
+    # Eine wartende Mappe herstellen, damit der Abschnitt dasteht.
+    bon.post(f"/privatauslagen/block/{zweiter['id']}/zustand",
+             data={"ziel": "abgegeben"})
+    seite = bon.get("/privatauslagen").text
+    inhalt = seite.split('id="auslagenbereich"')[1]
+    pruefe('class="pa-marke"' in inhalt and "Wartet auf Geld" in inhalt,
+           "die wartende Mappe trägt eine Marke im Klartext")
+    pruefe('class="pa-marke-punkt"' in inhalt,
+           "und einen Punkt in ihrer Farbe")
+    pruefe("pa-frisch" in inhalt,
+           "frisch eingereicht heißt gelb")
+    pruefe("heute eingereicht" in inhalt,
+           "die Wartezeit steht im Klartext")
+    # Datum, Betrag, Zweck - in dieser Folge, in beiden Listen.
+    posten = inhalt.split('class="pa-posten"')[1].split("</ul>")[0]
+    pruefe(posten.index("pa-p-datum") < posten.index("pa-p-betrag")
+           < posten.index("pa-p-zweck"),
+           "„Was drin liegt“ beginnt mit dem Datum, dann Betrag, dann Zweck")
+    for klasse in (".pa-marke", ".pa-marke-punkt", ".pa-posten", ".pa-frisch"):
+        pruefe(klasse + " " in stil or klasse + "," in stil
+               or klasse + "{" in stil or klasse + " {" in stil,
+               f"{klasse} steht im Stylesheet")
+    # Der laufende Block beginnt ebenfalls mit dem Datum.
+    bon.post("/privatauslagen/erfassen",
+             data={"betrag": "3", "datum": "2026-09-23", "notiz": "Kaffee"})
+    zeilen_html = bon.get("/privatauslagen").text.split(
+        'class="pa-zeilen"')[1].split("</div>")[0]
+    pruefe(zeilen_html.index("pa-z-datum") < zeilen_html.index("pa-z-betrag")
+           < zeilen_html.index("pa-z-zweck"),
+           "und die Zeile im laufenden Block auch")
+
+
+def _auslagen_modul():
+    from . import auslagen as a
+    return a
+
+
 def test_admin_bereiche(client: TestClient) -> None:
     """Seit 1.55 gelten die Bereichshaken auch fuer Administratoren.
 
@@ -7831,7 +8199,8 @@ def test_admin_bereiche(client: TestClient) -> None:
     alle = list(auth.BEREICHE)
     client.post(f"/einstellungen/benutzer/{satz['id']}", data={
         "benutzername": "teilchef", "rolle": "admin", "aktiv": "1",
-        "rechte_dabei": "1", "bereiche": alle})
+        "rechte_dabei": "1", "bereiche": alle,
+        "einst_bereiche": list(auth.EINST_BEREICHE)})
     pruefe(chef.get("/fuhrpark").status_code == 200,
            "mit gesetztem Haken ist der Fuhrpark wieder da")
 
@@ -7925,10 +8294,14 @@ def test_admin_bereiche(client: TestClient) -> None:
            "beim unberührten Administrator sind es alle – auch die Datenpflege")
 
     # Und das Speichern dieses Formulars ändert dann auch nichts.
+    # ⚠️ Beide Listen mitschicken - genau wie der Browser. Seit 1.56
+    # gelten auch die Einstellungspunkte fuer Administratoren, ein
+    # Formular ohne sie raeumte sie also weg.
     client.post(f"/einstellungen/benutzer/{pruefer['id']}", data={
         "benutzername": "pruefer", "rolle": "admin", "aktiv": "1",
         "sprueche_sehen": "1", "rechte_dabei": "1",
-        "bereiche": [k for k, _ in kaesten]})
+        "bereiche": [k for k, _ in kaesten],
+        "einst_bereiche": list(auth.EINST_BEREICHE)})
     with db.db() as con:
         danach = con.execute("SELECT berechtigungen FROM benutzer WHERE id=?",
                              (pruefer["id"],)).fetchone()["berechtigungen"]
@@ -10581,6 +10954,7 @@ def _durchlauf(client: TestClient) -> None:
         test_kein_blitzen(client)
         test_privatauslagen(client)
         test_admin_bereiche(client)
+        test_umbau_1_56(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()
