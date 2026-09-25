@@ -163,10 +163,17 @@ TEXTE_STANDARD["bearbeiten.dauer_hinweis"] = (
 # inhaltlich falsch und steht in UNGENUTZT - unter DEMSELBEN Schluessel
 # waere die Berichtigung bei einer eigenen Formulierung nie angekommen
 # (Abschnitt 8).
+# ⚠️ Seit 1.57 ebenfalls in UNGENUTZT: die Dauer laesst sich nicht mehr
+# von Hand eintragen (Timos Wunsch), der zweite Satz war damit falsch.
+# Neuer Schluessel: bearbeiten.dauer_rechnung.
 TEXTE_STANDARD["bearbeiten.dauer_regel"] = (
     "Beginn und Ende rechnen die Dauer aus – änderst du eine Uhrzeit, "
     "zieht die Dauer mit. Wer sie selbst einträgt, behält den eigenen "
     "Wert: der Weg für einen Zettel ohne Uhrzeiten.")
+TEXTE_STANDARD["bearbeiten.dauer_rechnung"] = (
+    "Die Dauer rechnet sich aus Beginn und Ende – änderst du eine "
+    "Uhrzeit, zieht sie mit. Steht keine Uhrzeit da (zum Beispiel bei "
+    "einer eingelesenen Zeile), bleibt die gespeicherte Dauer stehen.")
 TEXTE_STANDARD["bearbeiten.lead"] = (
     "Ursprünglich eingelesen am {zeitpunkt}. Änderungen wirken sich sofort auf Auswertung und Export aus.")
 TEXTE_STANDARD["ideen.bearbeiten_hinweis"] = (
@@ -194,8 +201,12 @@ TEXTE_STANDARD["auslagen.titel.wartet"] = (
     "Wartet auf Erstattung")
 TEXTE_STANDARD["auslagen.titel.jahr"] = (
     "Dieses Jahr")
+# ⚠️ Hiess bis 1.56 „Erledigt". Das stand als einzelnes Wort rechts
+# neben der Jahreszahl und sagte nicht, was sich dahinter verbirgt —
+# Timos Meldung war, dass man den Aufklapper uebersieht. Der Schluessel
+# bleibt; er ist nicht falsch geworden, nur zu leise.
 TEXTE_STANDARD["auslagen.titel.archiv"] = (
-    "Erledigt")
+    "Erstattete Mappen")
 # ⚠️ Kurz halten: am Telefon steht dieser Absatz zwischen der Summe und
 # dem Betragsfeld, also genau im Weg. Fuenf Zeilen waren zu viel.
 TEXTE_STANDARD["auslagen.lead"] = (
@@ -1142,6 +1153,10 @@ UNGENUTZT = frozenset({
     # solange niemand die Dauer selbst anfasst. Ersetzt durch
     # bearbeiten.dauer_regel.
     "bearbeiten.dauer_hinweis",
+    # seit 1.57: die Dauer ist eine Anzeige, kein Eingabefeld mehr - "wer
+    # sie selbst eintraegt" geht nicht mehr. Ersetzt durch
+    # bearbeiten.dauer_rechnung.
+    "bearbeiten.dauer_regel",
     # seit 1.44: der Abschnitt heisst "Branding" und traegt auch Favicon
     # und App-Symbol; der alte Wortlaut nannte die erklaerenden Texte,
     # die dort seit 1.37 nicht mehr stehen. Ersetzt durch

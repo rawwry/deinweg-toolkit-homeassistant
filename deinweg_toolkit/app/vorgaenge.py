@@ -332,6 +332,41 @@ def protokoll(con, vorgang_id: int | None, klient: str, wer: str,
         (vorgang_id, klient, jetzt(), wer, aktion, beschreibung or ""))
 
 
+def erledigt_setzen(con, vorgang_id: int, wer: str, grund: str = "") -> bool:
+    """Setzt einen Vorgang von AUSSEN auf „Erledigt". True, wenn sich
+    dadurch etwas geaendert hat.
+
+    Gebraucht von den Privatauslagen (seit 1.57, Timos Wunsch): wer dort
+    auf „Geld erhalten" drueckt, hat die Abrechnung hinter sich — dann
+    soll die Aufgabe bei der verwaltenden Person nicht noch wochenlang
+    offen stehen. Die Gegenrichtung (Aufgabe erledigt -> Mappe erstattet)
+    laeuft seit 1.56 ueber den Modulhaken `auslagen_abschliessen`.
+
+    ⚠️ Bewusst dieselben Schritte wie in `status_aendern`: Datum des
+    Abschlusses, Wiedervorlage raeumen, Logzeile. Sonst haette ein
+    Vorgang je nach Weg einen anderen Zustand.
+
+    ⚠️ Ruft **nicht** `auslagen_abschliessen` — der Aufrufer schliesst
+    seinen Block ja gerade selbst, und zwei Wege in dieselbe Richtung
+    liefen auseinander.
+    """
+    v = con.execute("SELECT * FROM vorgang WHERE id=?", (vorgang_id,)).fetchone()
+    if v is None or v["status"] in ABGESCHLOSSEN:
+        return False
+
+    werte = {"status": "Erledigt", "geaendert_am": jetzt()}
+    if not v["datum_erledigt"]:
+        werte["datum_erledigt"] = heute()
+    if v["frist"]:
+        werte["frist"] = ""
+    satz = ", ".join(f"{k}=?" for k in werte)
+    con.execute(f"UPDATE vorgang SET {satz} WHERE id=?",
+                [*werte.values(), vorgang_id])
+    protokoll(con, vorgang_id, v["klient"], wer, "Vorgang erledigt",
+              grund or f"Status von „{v['status']}“ auf „Erledigt“ geändert.")
+    return True
+
+
 def nach_tagen(zeilen) -> list[dict]:
     """Gruppiert Logzeilen nach Kalendertag, neueste Gruppe zuerst.
 

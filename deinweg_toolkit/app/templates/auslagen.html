@@ -291,40 +291,76 @@
     {%- if wartend_summe %} · davon {{ betrag(wartend_summe) }} noch nicht zurück{% endif %}
   </p>
 
-  {% if erledigt %}
-  <details class="pa-archiv">
-    <summary>{{ t("auslagen.titel.archiv") }} · {{ erledigt | length }} erstattete {{ "Mappe" if erledigt | length == 1 else "Mappen" }}</summary>
-    <div class="pa-archiv-inhalt">
-      <p class="klein leise">{{ t("auslagen.belege_hinweis") }}</p>
-      {% for e in erledigt %}
-      <article class="pa-mappe pa-zu">
-        <div class="pa-mappe-kopf">
-          <span class="pa-marke">
-            <span class="pa-marke-punkt" aria-hidden="true"></span>
-            Erstattet
-          </span>
-          <span class="pa-mappe-lage">{{ e.b.erstattet_am | deutsch }}</span>
-        </div>
-        <strong class="pa-mappe-summe">{{ betrag(e.summe) }}</strong>
-        <p class="pa-mappe-bei">
-          {{ e.anzahl }} {{ "Auslage" if e.anzahl == 1 else "Auslagen" }}
-          {%- if e.belege %} · {{ e.belege }} {{ "Beleg liegt" if e.belege == 1 else "Belege liegen" }} noch{% endif %}
-        </p>
-        {% if e.belege %}
-        <div class="pa-mappe-tat">
-          <form action="/privatauslagen/block/{{ e.b.id }}/belege-loeschen"
-                method="post" hx-push-url="false"
-                onsubmit="return dwt.frage(event, '{{ e.belege }} Belegfotos dieser Mappe löschen?\n\nDie Beträge bleiben stehen, nur die Bilder gehen.')">
-            <button class="knopf leise klein" type="submit">Belege wegräumen</button>
-          </form>
-        </div>
-        {% endif %}
-      </article>
-      {% endfor %}
-    </div>
-  </details>
-  {% endif %}
 </div>
+
+{# ---- 5. Erstattete Mappen ------------------------------------------
+   ⚠️⚠️ Eigene Zeile über die volle Breite, nicht mehr rechts neben der
+   Jahreszahl (seit 1.57, Timos Meldung: „der Button ist total schnell
+   zu übersehen, und beim Aufklappen springt er in die nächste Zeile").
+   Ursache war `.pa-bilanz`: eine Flexzeile mit `space-between`, in der
+   das `<details>` erst rechts stand und beim Öffnen über
+   `flex-basis: 100%` nach unten sprang. Dieselbe Falle und dieselbe
+   Lösung wie beim Band „Erfasst für" in 1.32 — ein Bedienelement, das
+   beim Anklicken den Platz wechselt, ist genau das, was man nicht will.
+
+   Das `<summary>` ist jetzt eine richtige Zeile mit Pfeil, Titel,
+   Anzahl und Summe: es nimmt immer die volle Breite ein und KANN nicht
+   mehr springen. #}
+{% if erledigt %}
+<details class="pa-archiv">
+  <summary>
+    <span class="pa-archiv-pfeil" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+    <span class="pa-archiv-titel">{{ t("auslagen.titel.archiv") }}</span>
+    <span class="pa-archiv-zahl">{{ erledigt | length }}</span>
+    <span class="pa-archiv-summe zahlen">{{ betrag(erledigt_summe) }}</span>
+  </summary>
+
+  <div class="pa-archiv-inhalt">
+    <p class="klein leise">{{ t("auslagen.belege_hinweis") }}</p>
+    {% for e in erledigt %}
+    <article class="pa-mappe pa-zu">
+      <div class="pa-mappe-kopf">
+        <span class="pa-marke">
+          <span class="pa-marke-punkt" aria-hidden="true"></span>
+          Erstattet
+        </span>
+        <span class="pa-mappe-lage">{{ e.b.erstattet_am | deutsch }}</span>
+      </div>
+      <strong class="pa-mappe-summe">{{ betrag(e.summe) }}</strong>
+      <p class="pa-mappe-bei">
+        {{ e.anzahl }} {{ "Auslage" if e.anzahl == 1 else "Auslagen" }}
+        {%- if e.belege %} · {{ e.belege }} {{ "Beleg liegt" if e.belege == 1 else "Belege liegen" }} noch{% endif %}
+      </p>
+      <div class="pa-mappe-tat">
+        {% if e.belege %}
+        <form action="/privatauslagen/block/{{ e.b.id }}/belege-loeschen"
+              method="post" hx-push-url="false"
+              onsubmit="return dwt.frage(event, '{{ e.belege }} Belegfotos dieser Mappe löschen?\n\nDie Beträge bleiben stehen, nur die Bilder gehen.')">
+          <button class="knopf leise klein" type="submit">Belege wegräumen</button>
+        </form>
+        {% endif %}
+        {# ⚠️ Nur hier, nicht bei einer wartenden Mappe: die liegt bei
+           der Chefin auf dem Tisch und ist der Nachweis. Wer sie
+           wirklich loswerden will, holt sie erst auf „offen" zurück. #}
+        <form action="/privatauslagen/block/{{ e.b.id }}/loeschen"
+              method="post" hx-push-url="false"
+              onsubmit="return dwt.frage(event, 'Diese Mappe über {{ betrag(e.summe) }} endgültig löschen?\n\n{{ e.anzahl }} {{ "Auslage" if e.anzahl == 1 else "Auslagen" }}{% if e.belege %} samt {{ e.belege }} {{ "Beleg" if e.belege == 1 else "Belegen" }}{% endif %} gehen mit. Das lässt sich nicht rückgängig machen.')">
+          <button class="knopf leise klein warn" type="submit">
+            {{ muellzeichen() }}
+            <span>Mappe löschen</span>
+          </button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
 
 {# ⚠️ Das Skript steht INNERHALB der Hülle und läuft damit nach jedem
    Austausch erneut — nur so verkabelt es das frische Dateifeld. Es

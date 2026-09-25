@@ -8,7 +8,7 @@
 # steigt "version", bietet der Store die neue Fassung an. Sie muss also
 # bei jeder Auslieferung mit main.py VERSION uebereinstimmen.
 name: Dein Weg Toolkit
-version: "1.56"
+version: "1.57"
 slug: deinweg_toolkit
 # Timos Wortlaut (seit 1.47). UTF-8 ist hier unproblematisch, der
 # Supervisor liest die Datei als YAML.

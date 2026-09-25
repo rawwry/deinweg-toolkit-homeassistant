@@ -3,6 +3,18 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.57
+
+- Privatauslagen: „Geld erhalten“ hakt jetzt auch die **Aufgabe** bei der
+  verwaltenden Person ab – bis 1.56 ging das nur andersherum
+- Eine **erstattete Mappe lässt sich löschen**, samt Auslagen und
+  Belegfotos. Die zugehörige Aufgabe bleibt stehen
+- Das Archiv ist eine eigene Zeile über die volle Breite mit Pfeil,
+  Anzahl und Summe und heißt „Erstattete Mappen“
+- „Eintrag bearbeiten“: die Dauer ist eine Anzeige wie in der manuellen
+  Zeiterfassung, nicht mehr tippbar; die Marke „berechnet“ ist weg
+- ⚠️ Eine Zeile ohne Uhrzeiten behält ihre gespeicherte Dauer
+
 ## 1.56
 
 - Privatauslagen: eingereichte Bons legen von selbst eine **Aufgabe** für

@@ -1206,19 +1206,21 @@ input[type=date], input[type=time] { min-width: 0; }
    ist es eine Tabelle aus vielen gleichen Zeilen, hier ein Formular, in
    dem jedes Feld unter seiner Beschriftung beginnt. Die Regel fuer die
    Erfassung steht deshalb auf `.erfasszeile input.zeitfeld`. */
-.bearbeitenzeiten input[name=start], .bearbeitenzeiten input[name=ende],
-.bearbeitenzeiten input[name=dauer] { text-align: left; }
+.bearbeitenzeiten input[name=start],
+.bearbeitenzeiten input[name=ende] { text-align: left; }
 
-/* Die Marke „berechnet" neben der Beschriftung der Dauer: sie erscheint,
-   sobald das Skript sie aus Beginn und Ende gefuellt hat, und geht weg,
-   sobald jemand selbst hineintippt. */
-.dauer-marke {
-  display: inline-block; margin-left: 6px; padding: 1px 7px;
-  border-radius: 999px; background: var(--akzent-weich); color: var(--akzent);
-  font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase; vertical-align: 1px;
-}
-.dauer-marke[hidden] { display: none; }
+/* ⚠️⚠️ Die Dauer ist seit 1.57 eine Anzeige, kein Eingabefeld — dasselbe
+   `.dauer-anzeige`/`<output>` wie in der manuellen Erfassung (Timos
+   Meldung: die Marke „berechnet" schob das Feld am Telefon beim Tippen
+   nach unten, und editierbar soll es gar nicht sein). Die Marke und ihre
+   Regel `.dauer-marke` sind damit ersatzlos weg.
+
+   ⚠️ Sie bekommt KEINE eigene Ausrichtung: die Regel von 1.49.1
+   („beim Bearbeiten linksbuendig") galt den Werten, die man tippt -
+   Beginn und Ende. Die Dauer tippt hier niemand mehr, sie ist dieselbe
+   Anzeige wie in der Erfassung und steht deshalb auch wie dort mittig.
+   Genau das war Timos Satz: „mach es so wie in der manuellen
+   Zeiterfassung". */
 @container bearbeiten (min-width: 520px) {
   .feldreihe.bearbeitenzeiten { grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 16px; }
   .bearbeitenzeiten .b-datum { grid-column: auto; }
@@ -7197,11 +7199,55 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
   font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .08em; margin-right: 5px;
 }
-.pa-archiv > summary { font-size: 12.5px; color: var(--leise); cursor: pointer; }
-.pa-archiv > summary:hover { color: var(--akzent); }
-.pa-archiv[open] { flex-basis: 100%; }
+/* ⚠️⚠️ Das Archiv ist seit 1.57 eine eigene Zeile UNTER der Bilanz und
+   nicht mehr deren rechte Haelfte (Timos Meldung: „total schnell zu
+   uebersehen", und „beim Aufklappen springt der in die naechste Zeile").
+   Ursache war `.pa-bilanz`: eine Flexzeile mit `space-between`, in der
+   `.pa-archiv[open] { flex-basis: 100% }` den Aufklapper beim Oeffnen
+   umbrechen liess. Als eigenes Geschwister nimmt das `<summary>` immer
+   die volle Breite ein und KANN nicht mehr springen — dieselbe Lehre
+   wie beim Band „Erfasst fuer" in 1.32. */
+.pa-archiv { margin-top: 12px; }
+.pa-archiv > summary {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+  list-style: none;
+}
+.pa-archiv > summary::-webkit-details-marker { display: none; }
+.pa-archiv > summary:hover { border-color: var(--akzent); }
+.pa-archiv > summary:hover .pa-archiv-titel,
+.pa-archiv > summary:hover .pa-archiv-pfeil { color: var(--akzent); }
+.pa-archiv-pfeil { display: flex; color: var(--leise); }
+.pa-archiv-pfeil svg { width: 15px; height: 15px; }
+.pa-archiv-titel {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--tinte-2);
+}
+/* Die Anzahl als Plakette - dieselbe Form wie `#zeilenzahl` in der
+   Fusszeile der Erfassung. */
+.pa-archiv-zahl {
+  min-width: 20px; padding: 1px 6px; border-radius: 999px;
+  background: var(--flaeche); border: 1px solid var(--linie);
+  font-size: 11.5px; font-weight: 700; color: var(--leise);
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+.pa-archiv-summe {
+  margin-left: auto; font-size: 13px; font-weight: 700; color: var(--leise);
+  font-variant-numeric: tabular-nums;
+}
 .pa-archiv-inhalt { margin-top: 11px; }
 .pa-archiv-inhalt > p { margin: 0 0 10px; }
+/* „Mappe loeschen" traegt den Muelleimer neben dem Wort. Die Reihe
+   selbst steht schon weiter oben (`.pa-mappe-tat`) - hier nur der Knopf,
+   sonst staende die Regel zweimal da (die Lehre aus 1.30.1). */
+.pa-mappe-tat .knopf { display: inline-flex; align-items: center; gap: 6px; }
+.pa-mappe-tat .knopf svg { width: 15px; height: 15px; flex: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .pa-archiv-pfeil svg { transition: transform .18s ease; }
+}
+.pa-archiv[open] .pa-archiv-pfeil svg { transform: rotate(90deg); }
 
 /* --- Schmal ------------------------------------------------------------
    ⚠️ Die Abfrage hängt an der Zeilenliste, nicht am Fenster: die Karte

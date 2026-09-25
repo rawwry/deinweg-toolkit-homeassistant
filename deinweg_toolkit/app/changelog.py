@@ -2683,4 +2683,28 @@ CHANGELOG = [
         "Der Knopf heißt „Gesammelte Bons einreichen“",
         "Prüfung von 2521 auf 2607 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.57", "titel": "Drei Handgriffe nachgezogen", "punkte": [
+        "Privatauslagen: „Geld erhalten“ hakt jetzt auch die Aufgabe bei "
+        "der verwaltenden Person ab (Timos Meldung). Bis 1.56 ging das "
+        "nur andersherum – wer den kurzen Weg nahm, ließ ihr eine "
+        "Karteileiche",
+        "Eine erstattete Mappe lässt sich löschen, samt ihren Auslagen "
+        "und Belegfotos. ⚠️ Nur im Zustand „erstattet“: ein abgegebener "
+        "Block liegt bei der Chefin auf dem Tisch und ist der Nachweis",
+        "⚠️ Die zugehörige Aufgabe bleibt dabei stehen – sie gehört der "
+        "verwaltenden Person, nicht der Mappe",
+        "Das Archiv der erstatteten Mappen ist eine eigene Zeile über die "
+        "volle Breite, mit Pfeil, Anzahl und Summe. Vorher stand der "
+        "Aufklapper klein rechts neben der Jahreszahl und sprang beim "
+        "Öffnen in die nächste Zeile (Timos Meldung)",
+        "Er heißt jetzt „Erstattete Mappen“ statt nur „Erledigt“",
+        "„Eintrag bearbeiten“: die Dauer ist eine Anzeige wie in der "
+        "manuellen Zeiterfassung und lässt sich nicht mehr von Hand "
+        "tippen (Timos Wunsch). Damit ist auch die Marke „berechnet“ weg, "
+        "die das Feld am Telefon beim Tippen nach unten schob",
+        "⚠️ Eine Zeile ohne Uhrzeiten – etwa aus einem Listenimport – "
+        "behält ihre gespeicherte Dauer. Ändern lässt sie sich dann nur "
+        "noch über Beginn und Ende",
+        "Prüfung von 2607 auf 2635 Einzelprüfungen erweitert",
+    ]},
 ]

@@ -7245,6 +7245,15 @@ def test_bearbeiten_dauer(client: TestClient) -> None:
     zeile = speichern(start="", ende="", dauer="02:15", dauer_alt="00:45")
     pruefe(zeile["dauer_min"] == 135 and not zeile["start"],
            "ohne Uhrzeiten zählt weiterhin allein die Dauer")
+    # ⚠️⚠️ Der Fall, der seit 1.57 zählt: die Dauer ist kein Eingabefeld
+    # mehr, sondern fährt als verstecktes Feld unverändert mit. Eine
+    # Zeile ohne Uhrzeiten (aus einem Listenimport) darf ihre Dauer beim
+    # Speichern NICHT verlieren, nur weil jemand den Text korrigiert.
+    zeile = speichern(start="", ende="", dauer="00:45", dauer_alt="00:45",
+                      beschreibung="Nur der Text geändert")
+    pruefe(zeile["dauer_min"] == 45
+           and zeile["beschreibung"] == "Nur der Text geändert",
+           "eine Zeile ohne Uhrzeiten behält ihre Dauer")
     # Über Mitternacht bleibt die Rechnung dieselbe wie in der Erfassung.
     zeile = speichern(start="23:00", ende="01:00", dauer="02:15",
                       dauer_alt="02:15")
@@ -7262,9 +7271,30 @@ def test_bearbeiten_dauer(client: TestClient) -> None:
            "die Knöpfe stehen in einer getönten Fußleiste")
     links = stil.split(".bearbeitenzeiten input[name=start]")[1].split("}")[0]
     pruefe("text-align: left" in links,
-           "Beginn, Ende und Dauer stehen linksbündig")
-    pruefe(".dauer-marke {" in stil and 'id="dauermarke"' in seite,
-           "die Marke „berechnet“ steht neben der Beschriftung")
+           "Beginn und Ende stehen linksbündig")
+    # ⚠️⚠️ Seit 1.57 ist die Dauer eine ANZEIGE wie in der manuellen
+    # Erfassung, kein Eingabefeld (Timos Meldung: die Marke „berechnet“
+    # schob das Feld am Telefon nach unten). Die Marke ist damit weg.
+    # ⚠️ Am Hinweis auf Neuerungen abschneiden: der Changelog von 1.49.1
+    # zitiert die Marke, und die steht damit auf jeder Seite.
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+    # ⚠️ Auf die REGEL prüfen, nicht auf das Wort: der Kommentar im
+    # Stylesheet nennt die gelöschte Klasse mit Absicht weiter.
+    pruefe(".dauer-marke {" not in stil and "dauermarke" not in ohne_dialog,
+           "die Marke „berechnet“ gibt es nicht mehr")
+    pruefe('class="dauer-ausgabe"' in seite
+           and 'class="feld b-dauer dauer-anzeige"' in seite,
+           "die Dauer steht als Anzeige da, wie in der Erfassung")
+    pruefe('<input type="hidden" name="dauer"' in seite,
+           "ihr Wert fährt als verstecktes Feld mit")
+    dauerteil = seite.split('class="feld b-dauer')[1].split("</div>")[0]
+    pruefe('type="text"' not in dauerteil,
+           "und lässt sich nicht mehr von Hand tippen")
+    # ⚠️ Keine eigene Ausrichtung: die Regel von 1.49.1 galt den Werten,
+    # die man tippt. Die Dauer tippt hier niemand mehr — sie steht wie in
+    # der Erfassung mittig, und genau das war Timos Satz.
+    pruefe(".bearbeitenzeiten .dauer-ausgabe" not in stil,
+           "sie sieht aus wie in der manuellen Erfassung")
 
     with db.db() as con:
         con.execute("DELETE FROM eintrag WHERE id=?", (eid,))
@@ -7660,7 +7690,17 @@ def test_privatauslagen(client: TestClient) -> None:
     seite = client.get("/privatauslagen").text
     pruefe("Wartet auf Erstattung" not in seite,
            "danach wartet nichts mehr")
-    pruefe("erstattete Mappe" in seite, "und er steht im Archiv")
+    # ⚠️⚠️ Das Archiv ist seit 1.57 eine eigene Zeile UNTER der Bilanz,
+    # nicht mehr deren rechte Hälfte: dort war der Aufklapper zu
+    # übersehen und sprang beim Öffnen um (Timos Meldung).
+    pruefe('<details class="pa-archiv">' in seite, "und er steht im Archiv")
+    kopf = seite.split('<details class="pa-archiv">')[1].split("</summary>")[0]
+    for stueck in ("pa-archiv-pfeil", "pa-archiv-titel",
+                   "pa-archiv-zahl", "pa-archiv-summe"):
+        pruefe(stueck in kopf, f"die Archivzeile trägt {stueck}")
+    bilanz = seite.split('class="pa-bilanz"')[1].split("</div>")[0]
+    pruefe("pa-archiv" not in bilanz,
+           "der Aufklapper steckt nicht mehr in der Jahreszeile")
     with db.db() as con:
         zeile = con.execute("SELECT * FROM auslage_block WHERE id=?",
                             (block_id,)).fetchone()
@@ -8136,6 +8176,144 @@ def test_umbau_1_56(client: TestClient) -> None:
     pruefe(zeilen_html.index("pa-z-datum") < zeilen_html.index("pa-z-betrag")
            < zeilen_html.index("pa-z-zweck"),
            "und die Zeile im laufenden Block auch")
+
+
+
+def test_umbau_1_57(client: TestClient) -> None:
+    """Der Umbau von 1.57.
+
+    Drei Meldungen von Timo: „Geld erhalten" liess die Aufgabe bei der
+    verwaltenden Person offen stehen, eine erstattete Mappe liess sich
+    nicht wegwerfen, und im Archiv war der Aufklapper zu uebersehen.
+    """
+    abschnitt("Umbau 1.57: Geld erhalten, Mappe löschen")
+
+    # Die verwaltende Person wieder anhaken (test_umbau_1_56 hat sie am
+    # Ende abgeräumt, um den Fall „niemand zuständig" zu prüfen).
+    with db.db() as con:
+        con.execute("UPDATE mitarbeiter SET auslagen_verwalter = 1 "
+                    "WHERE name = 'Kasse Krause'")
+
+    bon = TestClient(app)
+    bon.post("/login", data={"benutzername": "bonbringer",
+                             "passwort": "bonbringerpasswort"},
+             follow_redirects=False)
+
+    # --- Eine frische Mappe einreichen --------------------------------
+    bon.post("/privatauslagen/erfassen",
+             data={"betrag": "19,90", "datum": "2026-09-24",
+                   "notiz": "Zweiter Umschlag"})
+    with db.db() as con:
+        block = con.execute(
+            "SELECT b.id FROM auslage_block b JOIN benutzer u ON "
+            "u.id = b.benutzer_id WHERE u.benutzername='bonbringer' "
+            "AND b.zustand='offen'").fetchone()
+    bon.post(f"/privatauslagen/block/{block['id']}/zustand",
+             data={"ziel": "abgegeben"})
+    with db.db() as con:
+        z = con.execute("SELECT * FROM auslage_block WHERE id=?",
+                        (block["id"],)).fetchone()
+        v_id = z["vorgang_id"]
+        status_vorher = con.execute("SELECT status FROM vorgang WHERE id=?",
+                                    (v_id,)).fetchone()["status"]
+    pruefe(v_id and status_vorher == "Offen",
+           "die Aufgabe zur Abrechnung steht offen")
+
+    # --- „Geld erhalten" schließt sie mit -----------------------------
+    #
+    # ⚠️⚠️ Das ist der Rückweg. Bis 1.56 ging es nur andersherum
+    # (Aufgabe erledigt → Mappe erstattet), und wer den kurzen Weg nahm,
+    # ließ der verwaltenden Person eine Karteileiche.
+    bon.post(f"/privatauslagen/block/{block['id']}/zustand",
+             data={"ziel": "erstattet"})
+    with db.db() as con:
+        z = con.execute("SELECT * FROM auslage_block WHERE id=?",
+                        (block["id"],)).fetchone()
+        v = con.execute("SELECT * FROM vorgang WHERE id=?", (v_id,)).fetchone()
+        log = con.execute("SELECT * FROM vorgang_log WHERE vorgang_id=? "
+                          "ORDER BY id DESC", (v_id,)).fetchall()
+    pruefe(z["zustand"] == "erstattet", "die Mappe ist erstattet")
+    pruefe(v["status"] == "Erledigt",
+           "und die Aufgabe ist damit auch abgehakt")
+    pruefe(v["datum_erledigt"], "sie trägt ihr Abschlussdatum")
+    pruefe(not v["frist"],
+           "und keine Wiedervorlage mehr – wie über den normalen Weg")
+    pruefe(any("erstattet" in (l["beschreibung"] or "") for l in log),
+           "das Logbuch der Aufgabe sagt, woher der Abschluss kommt")
+    pruefe(log and log[0]["wer"] == "Bon Bringer",
+           "und wer ihn ausgelöst hat")
+
+    # ⚠️ Keine Erledigt-Mail: angelegt UND abgeschlossen hat dieselbe
+    # Person, und `pruefe_erledigte` schweigt genau dann.
+    gesendet = []
+    echt_senden = mail.senden
+    try:
+        mail.senden = lambda adr, betr, txt, kk=None: (
+            gesendet.append((adr, betr, txt)) or (True, "ok"))
+        with db.db() as con:
+            k = mail.konfig_lesen(con)
+            k["mail_aktiv"] = "1"
+            k["erledigt_aktiv"] = "1"
+            mail.pruefe_erledigte(con, k)
+    finally:
+        mail.senden = echt_senden
+    pruefe(not gesendet,
+           "wer selbst abschließt, bekommt keine Nachricht darüber")
+
+    # --- Eine erstattete Mappe wegwerfen ------------------------------
+    with db.db() as con:
+        vorher = con.execute("SELECT COUNT(*) c FROM auslage "
+                             "WHERE block_id=?", (block["id"],)).fetchone()["c"]
+    # ⚠️ Nicht auf „genau eine" prüfen: der offene Block dieses Kontos
+    # kann aus der Prüfung davor noch Zeilen tragen, und das Erfassen
+    # legt keinen neuen an, solange einer offen ist.
+    pruefe(vorher >= 1, f"in der Mappe liegen {vorher} Auslagen")
+    antwort = bon.post(f"/privatauslagen/block/{block['id']}/loeschen",
+                       follow_redirects=False)
+    pruefe(antwort.status_code == 303, "die Mappe lässt sich löschen")
+    with db.db() as con:
+        pruefe(con.execute("SELECT 1 FROM auslage_block WHERE id=?",
+                           (block["id"],)).fetchone() is None,
+               "sie ist weg")
+        pruefe(con.execute("SELECT COUNT(*) c FROM auslage WHERE block_id=?",
+                           (block["id"],)).fetchone()["c"] == 0,
+               "ihre Auslagen auch")
+        # ⚠️ Die AUFGABE bleibt: sie gehört der verwaltenden Person, und
+        # `vorgang_id` ist genau deshalb kein Fremdschlüssel.
+        pruefe(con.execute("SELECT 1 FROM vorgang WHERE id=?",
+                           (v_id,)).fetchone() is not None,
+               "die Aufgabe bleibt stehen")
+
+    # --- Nur im Zustand „erstattet" -----------------------------------
+    bon.post("/privatauslagen/erfassen",
+             data={"betrag": "4,00", "datum": "2026-09-25", "notiz": "Offen"})
+    with db.db() as con:
+        offen = con.execute(
+            "SELECT b.id FROM auslage_block b JOIN benutzer u ON "
+            "u.id = b.benutzer_id WHERE u.benutzername='bonbringer' "
+            "AND b.zustand='offen'").fetchone()
+    bon.post(f"/privatauslagen/block/{offen['id']}/loeschen")
+    with db.db() as con:
+        pruefe(con.execute("SELECT 1 FROM auslage_block WHERE id=?",
+                           (offen["id"],)).fetchone() is not None,
+               "ein offener Block lässt sich nicht wegwerfen")
+    bon.post(f"/privatauslagen/block/{offen['id']}/zustand",
+             data={"ziel": "abgegeben"})
+    bon.post(f"/privatauslagen/block/{offen['id']}/loeschen")
+    with db.db() as con:
+        pruefe(con.execute("SELECT zustand FROM auslage_block WHERE id=?",
+                           (offen["id"],)).fetchone()["zustand"] == "abgegeben",
+               "ein abgegebener auch nicht – er liegt bei der Chefin")
+
+    # --- Und nicht die Mappe eines anderen Kontos ---------------------
+    fremd = _konto(client, "fremdbon", "fremdbonpasswort", ["privatauslagen"])
+    pruefe(fremd.post(f"/privatauslagen/block/{offen['id']}/loeschen"
+                      ).status_code == 403,
+           "ein fremdes Konto bekommt 403")
+    with db.db() as con:
+        pruefe(con.execute("SELECT 1 FROM auslage_block WHERE id=?",
+                           (offen["id"],)).fetchone() is not None,
+               "und der Block steht unverändert da")
 
 
 def _auslagen_modul():
@@ -10955,6 +11133,7 @@ def _durchlauf(client: TestClient) -> None:
         test_privatauslagen(client)
         test_admin_bereiche(client)
         test_umbau_1_56(client)
+        test_umbau_1_57(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

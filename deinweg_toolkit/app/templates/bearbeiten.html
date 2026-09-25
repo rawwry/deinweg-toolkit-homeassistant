@@ -60,13 +60,27 @@
           <input type="text" name="ende" value="{{ z.ende or '' }}" class="zeitfeld"
                  inputmode="numeric" placeholder="HH:MM" maxlength="5" autocomplete="off">
         </label>
-        <label class="feld b-dauer">
-          <span>Dauer <span class="dauer-marke" id="dauermarke" hidden>berechnet</span></span>
-          <input type="text" name="dauer" value="{{ z.dauer_min | hhmm }}"
-                 inputmode="numeric" placeholder="01:30" autocomplete="off">
-        </label>
+        {# ⚠️⚠️ Die Dauer ist seit 1.57 eine ANZEIGE, kein Eingabefeld
+           (Timos Meldung vom Telefon: die Marke „berechnet" schob das
+           Feld beim Tippen nach unten, „das Feld soll tendenziell auch
+           gar nicht editierbar sein — mach es so wie in der manuellen
+           Zeiterfassung"). Genau dasselbe `.dauer-anzeige` mit `<output>`
+           wie dort; damit springt nichts mehr, und die Uhrzeiten sind
+           die eine Wahrheit.
+
+           ⚠️ Der Wert fährt als VERSTECKTES Feld mit. Ohne das bekäme
+           der Server keine Dauer mehr — und eine Zeile ohne Uhrzeiten
+           (aus einem Listenimport) verlöre sie beim nächsten Speichern
+           still. So steht dort unverändert der gespeicherte Wert, der
+           Server erkennt ihn an `dauer_alt` und lässt ihn stehen
+           (Arbeitsregel 11). #}
+        <div class="feld b-dauer dauer-anzeige">
+          <span>Dauer</span>
+          <output class="dauer-ausgabe" id="dauerausgabe">{{ z.dauer_min | hhmm }}</output>
+          <input type="hidden" name="dauer" value="{{ z.dauer_min | hhmm }}">
+        </div>
       </div>
-      <p class="klein leise felderklaerung">{{ t("bearbeiten.dauer_regel") }}</p>
+      <p class="klein leise felderklaerung">{{ t("bearbeiten.dauer_rechnung") }}</p>
     </div>
 
     <div class="formblock">
@@ -135,27 +149,36 @@
     if (!form) return;
     var felder  = form.querySelectorAll(".zeitfeld"),
         dauer   = form.querySelector("input[name=dauer]"),
-        marke   = document.getElementById("dauermarke"),
+        ausgabe = document.getElementById("dauerausgabe"),
         schild  = document.getElementById("dauerschild");
 
     // ⚠️ Die Dauer folgt den Uhrzeiten, sobald beide lesbar sind (seit
     // 1.49.1, Timos Meldung: „dann tragen Mitarbeiter andere Start- und
-    // Endzeiten ein und die Dauer bleibt erhalten"). Von Hand darf man
-    // sie weiterhin setzen - für Zettel ohne Uhrzeiten; dann steht bis
-    // zur nächsten Änderung an den Zeiten genau das da.
+    // Endzeiten ein und die Dauer bleibt erhalten"). Seit 1.57 ist sie
+    // nur noch eine Anzeige - von Hand gesetzt wird sie nicht mehr,
+    // genau wie in der manuellen Erfassung.
+    //
+    // ⚠️ Fehlt eine der beiden Uhrzeiten, bleibt der gespeicherte Wert
+    // stehen. Eine Zeile aus einem Listenimport hat oft keine Zeiten,
+    // und ihre Dauer darf beim Speichern nicht verschwinden.
     function rechnen() {
       var a = minuten(felder[0].value), b = minuten(felder[1].value);
-      if (a === null || b === null) { schildern(); return; }
+      if (a === null || b === null) { malen(); return; }
       var d = b - a;
       if (d < 0) d += 1440;             // über Mitternacht
       dauer.value = String(Math.floor(d / 60)).padStart(2, "0") + ":" +
                     String(d % 60).padStart(2, "0");
-      if (marke) marke.hidden = false;  // „berechnet" neben der Beschriftung
-      schildern();
+      malen();
     }
-    function schildern() {
-      if (!schild) return;
+    // Ausgabe und Plakette im Kopf tragen immer dasselbe.
+    function malen() {
       var d = minuten(dauer.value);
+      if (ausgabe) {
+        ausgabe.textContent = d === null ? "–" : dauer.value;
+        ausgabe.className = "dauer-ausgabe" +
+          (d === null || d === 0 ? "" : (d > 720 ? " achtung" : " gut"));
+      }
+      if (!schild) return;
       schild.firstChild.nodeValue = d === null ? "–" : dauer.value;
       schild.classList.toggle("leer", d === null || d === 0);
     }
@@ -168,17 +191,8 @@
       });
       feld.addEventListener("blur", function () { fuellen(feld); rechnen(); });
     });
-    if (dauer) {
-      dauer.addEventListener("input", function () {
-        var z = dauer.value.replace(/\D/g, "").slice(0, 4);
-        dauer.value = z.length > 2 ? z.slice(0, 2) + ":" + z.slice(2) : z;
-        if (marke) marke.hidden = true;   // jetzt steht dort ein eigener Wert
-        schildern();
-      });
-      dauer.addEventListener("blur", function () { fuellen(dauer); schildern(); });
-    }
     form.addEventListener("submit", function () { felder.forEach(fuellen); });
-    schildern();
+    malen();
   })();
 </script>
 

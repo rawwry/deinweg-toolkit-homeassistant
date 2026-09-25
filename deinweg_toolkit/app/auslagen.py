@@ -473,6 +473,7 @@ def _bild(con, request: Request, hinweis: str = "", fehler: str = "",
         "wartend": wartend,
         "wartend_summe": sum(w["summe"] for w in wartend),
         "erledigt": erledigt,
+        "erledigt_summe": sum(e["summe"] for e in erledigt),
         "jahr": jahr, "jahr_summe": int(bilanz["s"]), "jahr_anzahl": bilanz["n"],
         "datum": datum or _heute(),
         "heute": _heute(),
@@ -663,6 +664,27 @@ def zustand_setzen(request: Request, block_id: int, ziel: str = Form("")):
             aufgabe = aufgabe_anlegen(
                 con, block_id, _vorgaenge.handelnde_person(request),
                 zeilen(con, block_id), betrag)
+
+        # ⚠️⚠️ Der Rueckweg (seit 1.57, Timos Wunsch): wer hier „Geld
+        # erhalten" drueckt, hat die Abrechnung hinter sich - dann darf
+        # die Aufgabe bei der verwaltenden Person nicht noch offen
+        # stehen. Bis 1.56 ging es nur andersherum, und wer den kurzen
+        # Weg nahm, liess ihr eine Karteileiche.
+        #
+        # ⚠️ Der Erledigt-Mail bleibt das erspart: angelegt hat die
+        # Aufgabe dieselbe Person, die sie hier abschliesst, und
+        # `mail.pruefe_erledigte` schweigt genau dann.
+        aufgabe_zu = False
+        if ziel == "erstattet" and block["vorgang_id"]:
+            try:
+                aufgabe_zu = _vorgaenge.erledigt_setzen(
+                    con, block["vorgang_id"],
+                    _vorgaenge.handelnde_person(request),
+                    f"Die Auslagen über {euro(betrag)} sind erstattet.")
+            except Exception:
+                # Der Block ist das Wichtige - ein Fehler an der Aufgabe
+                # darf die Quittung nicht mitreissen.
+                aufgabe_zu = False
         # Zurueck auf "offen": die Verknuepfung loesen, sonst zeigte der
         # Block auf eine Aufgabe, die ihn nicht mehr meint.
         if ziel == "offen":
@@ -674,10 +696,48 @@ def zustand_setzen(request: Request, block_id: int, ziel: str = Form("")):
                      f"Der Block wartet jetzt auf die Erstattung."
                      + (" Eine Aufgabe für die Abrechnung steht bereit."
                         if aufgabe else ""),
-        "erstattet": f"{euro(betrag)} erstattet. Erledigt.",
+        "erstattet": f"{euro(betrag)} erstattet. Erledigt."
+                     + (" Die Aufgabe zur Abrechnung ist damit auch "
+                        "abgehakt." if aufgabe_zu else ""),
         "offen": "Der Block ist wieder offen.",
     }
     return _zurueck(hinweis=meldungen[ziel])
+
+
+@router.post("/privatauslagen/block/{block_id}/loeschen")
+def block_loeschen(request: Request, block_id: int):
+    """Wirft eine erstattete Mappe samt ihren Auslagen und Belegen weg
+    (seit 1.57, Timos Wunsch: „ich habe eine Testauslage in der Liste,
+    die die Rechnung verfälscht").
+
+    ⚠️ **Nur im Zustand `erstattet`.** Im offenen Block raeumt man
+    einzelne Zeilen weg; ein abgegebener liegt bei der Chefin auf dem
+    Tisch und ist der Nachweis — wer ihn wirklich loeswerden will, holt
+    ihn erst auf „offen" zurueck. Dieselbe Ueberlegung, aus der sich
+    eine abgegebene Zeile nicht aendern laesst.
+
+    ⚠️ Die zugehoerige AUFGABE bleibt stehen. Sie gehoert der
+    verwaltenden Person, nicht dem Block — und `auslage_block.vorgang_id`
+    ist genau deshalb kein Fremdschluessel.
+    """
+    konto = _konto(request)
+    with db.db() as con:
+        block = block_holen(con, block_id, konto["id"])
+        if block is None:
+            return _abgewiesen()
+        if block["zustand"] != "erstattet":
+            return _zurueck(fehler="Wegwerfen lässt sich nur eine Mappe, "
+                                   "die schon erstattet ist.")
+        st = zeilen(con, block_id)
+        summe_cent = sum(int(z["cent"]) for z in st)
+        for z in st:
+            if z["beleg"]:
+                beleg_entfernen(konto["id"], z["id"], z["beleg"])
+        con.execute("DELETE FROM auslage WHERE block_id=?", (block_id,))
+        con.execute("DELETE FROM auslage_block WHERE id=?", (block_id,))
+    wort = "Auslage" if len(st) == 1 else "Auslagen"
+    return _zurueck(hinweis=f"Mappe über {euro(summe_cent)} mit {len(st)} "
+                            f"{wort} gelöscht.")
 
 
 @router.post("/privatauslagen/block/{block_id}/belege-loeschen")
