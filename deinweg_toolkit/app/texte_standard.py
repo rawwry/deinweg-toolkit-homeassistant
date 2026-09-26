@@ -549,6 +549,17 @@ TEXTE_STANDARD["einst.auslagenmail_hinweis"] = (
     "hinaus, also innerhalb weniger Minuten. Sobald der Vorgang auf "
     "„Erledigt“ steht, gilt der Auslagenblock als erstattet – das kann "
     "die verwaltende Person tun oder die, die eingereicht hat.")
+# ⚠️ Steht in BEIDEN Mitarbeiterformularen. Der Satz muss den Kern
+# treffen: es wird nichts geloescht, es wird nur anders GEZAEHLT.
+TEXTE_STANDARD["einst.zeiterfassung_ab"] = (
+    "Ab diesem Tag gelten Soll und Saldo in „Mein Bereich“ – Diagramm, "
+    "Monatstabelle und Dreimonatstrend beginnen dort. Was vorher erfasst "
+    "wurde, <strong>bleibt unangetastet</strong> und steht weiterhin in "
+    "der Übersicht und im Export. Liegt der Tag mitten im Monat, zählt "
+    "erst der Folgemonat – das Soll ist eine Monatspauschale. Der "
+    "Übertrag ist der Über- oder Minusstundenstand, der an diesem Tag "
+    "schon dastand; er braucht ein Startdatum, sonst bezieht er sich auf "
+    "nichts.")
 TEXTE_STANDARD["einst.wiki_geschuetzt_lead"] = (
     "Ein geschützter Ordner verschwindet für alle, die ihn nicht "
     "ausdrücklich zugeteilt bekommen: aus dem Navigationsbaum, aus der "
@@ -728,6 +739,16 @@ TEXTE_STANDARD["mein.laufend_hinweis"] = (
     "man am Monatsanfang immer tief im Minus.")
 TEXTE_STANDARD["mein.kein_laufender"] = (
     "Für diesen Monat sind noch keine Zeiten erfasst.")
+# ⚠️ Der Satz, der die Sorge abraeumt: es wird nichts geloescht, nur
+# anders gezaehlt. Er steht unter dem Stundenkonto, also genau dort, wo
+# die Frage aufkommt.
+TEXTE_STANDARD["mein.erfassung_ab"] = (
+    "Ältere Zeiten bleiben erhalten und stehen weiterhin unter „Eintrag "
+    "für Eintrag“ – sie zählen nur nicht mehr in Soll und Saldo.")
+TEXTE_STANDARD["mein.erfassung_kuenftig"] = (
+    "Für dich beginnt die verbindliche Zeiterfassung am {datum}. Bis "
+    "dahin stehen hier noch keine Monatszahlen – erfassen kannst du "
+    "trotzdem schon, die Zeiten bleiben alle erhalten.")
 TEXTE_STANDARD["mein.kein_abgeschlossener"] = (
     "Noch kein abgeschlossener Monat vorhanden – die Auswertung beginnt, "
     "sobald der erste Monat vorbei ist.")

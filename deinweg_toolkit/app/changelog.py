@@ -2707,4 +2707,34 @@ CHANGELOG = [
         "noch über Beginn und Ende",
         "Prüfung von 2607 auf 2635 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.58", "titel": "Ab wann die Zeiterfassung verbindlich gilt", "punkte": [
+        "Einstellungen → Mitarbeiter: je Person lässt sich hinterlegen, "
+        "„ab wann die Zeiterfassung verbindlich gilt“ – "
+        "und welcher Über- oder Minusstundenstand an diesem Tag schon "
+        "dastand (Timos Auftrag: „wir führen die Zeiterfassung gerade "
+        "erst verbindlich für alle ein“)",
+        "⚠️⚠️ Es wird dabei kein einziger Zeiteintrag "
+        "angefasst. Es geht ausschließlich um den "
+        "Betrachtungszeitraum: in der Übersicht, im Export und unter "
+        "„Eintrag für Eintrag“ steht weiterhin alles",
+        "„Mein Bereich“ beginnt ab dem Startdatum zu zählen – Diagramm, "
+        "„Monat für Monat“, Dreimonatstrend, Schnitt, Saldo im Bild und "
+        "Spanne. Wer vorher aus Eigeninitiative getrackt hat, schleppt "
+        "seine lückenhaften Monate nicht mehr mit",
+        "Neue Kennzahl „Stundenkonto“: Übertrag plus alle "
+        "abgeschlossenen Monate seit dem Startdatum. Darunter steht im "
+        "Klartext, woraus sie sich zusammensetzt",
+        "⚠️ Sie erscheint nur, wo ein Startdatum gesetzt ist. Ohne eines "
+        "bleibt die Reihe bei vier Kacheln und die Seite rechnet wie "
+        "bisher – ein Update ändert für niemanden etwas",
+        "⚠️ Liegt das Startdatum mitten im Monat, zählt erst der "
+        "Folgemonat. Das Soll ist eine Monatspauschale; ein halbes "
+        "ließe sich daraus nicht ehrlich ableiten",
+        "Liegt das Startdatum in der Zukunft, sagt die Seite das – "
+        "erfassen kann man trotzdem schon",
+        "Urlaub bleibt unverändert: er zählt weiterhin über alle Jahre",
+        "⚠️ Abgaben-Box und Erinnerungsmails bleiben ebenfalls "
+        "unverändert (Timos Entscheidung)",
+        "Prüfung von 2635 auf 2674 Einzelprüfungen erweitert",
+    ]},
 ]

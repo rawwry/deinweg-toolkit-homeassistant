@@ -111,6 +111,14 @@ CREATE TABLE IF NOT EXISTS mitarbeiter (
     monatsstunden  REAL NOT NULL DEFAULT 0,
     urlaubstage    REAL NOT NULL DEFAULT 0,
     notiz          TEXT,
+    -- Ab wann die Zeiterfassung fuer diese Person verbindlich gilt
+    -- (seit 1.58). Leer = von Anfang an, also wie vor 1.58. Erst ab
+    -- diesem Tag zaehlt "Mein Bereich" Soll und Saldo; die Zeiten davor
+    -- bleiben unangetastet und stehen weiter in der Uebersicht.
+    zeiterfassung_ab TEXT,
+    -- Was an Ueber- oder Minusstunden schon dastand, als die Erfassung
+    -- verbindlich wurde. In MINUTEN, darf negativ sein.
+    saldo_uebertrag  INTEGER NOT NULL DEFAULT 0,
     angelegt_am    TEXT NOT NULL
 );
 
@@ -723,6 +731,15 @@ def init() -> dict | None:
         # geht keine Mail hinaus - ein Update darf niemandem
         # ungefragt Post schicken.
         spalte_ergaenzen(con, "mitarbeiter", "auslagen_verwalter",
+                         "INTEGER NOT NULL DEFAULT 0")
+        # ⚠️⚠️ Ab wann die Zeiterfassung verbindlich gilt, und was an
+        # Ueberstunden schon dastand (seit 1.58, Timos Auftrag: "wir
+        # fuehren die Zeiterfassung gerade erst verbindlich fuer alle
+        # ein"). LEER heisst "von Anfang an" - und damit verhaelt sich
+        # ein Update genau wie vorher. Ein Standarddatum waere ein
+        # stiller Eingriff in jede vorhandene Auswertung.
+        spalte_ergaenzen(con, "mitarbeiter", "zeiterfassung_ab", "TEXT")
+        spalte_ergaenzen(con, "mitarbeiter", "saldo_uebertrag",
                          "INTEGER NOT NULL DEFAULT 0")
 
         # ⚠️⚠️ Die eigenen Schriftzuege ziehen aus konfig in symbol um

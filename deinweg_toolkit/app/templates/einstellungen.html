@@ -806,6 +806,21 @@
                  autocomplete="off" placeholder="z. B. 30">
         </label>
       </div>
+      {# ⚠️⚠️ Die verbindliche Zeiterfassung (seit 1.58, Timos Auftrag).
+         Beide Felder dürfen leer bleiben — dann zählt „Mein Bereich"
+         wie vor 1.58 von der ersten erfassten Zeit an. #}
+      <div class="feldreihe zwei">
+        <label class="feld">
+          <span>Zeiterfassung verbindlich ab <span class="leise">– optional</span></span>
+          <input type="date" name="zeiterfassung_ab" min="2020-01-01">
+        </label>
+        <label class="feld">
+          <span>Übertrag Über-/Minusstunden <span class="leise">– z. B. 37:00 oder -12:30</span></span>
+          <input type="text" name="saldo_uebertrag" inputmode="text"
+                 autocomplete="off" placeholder="0:00">
+        </label>
+      </div>
+      <p class="klein leise felderklaerung">{{ t("einst.zeiterfassung_ab") }}</p>
       <label class="ankreuz">
         <input type="checkbox" name="abgabepflicht" value="1" checked>
         <span>Gibt monatlich Zeiten ab</span>
@@ -828,7 +843,8 @@
     {% set urlaub = m.urlaubstage | round(2) | string | replace('.0', '') | replace('.', ',') %}
     {% call eintragszeile(
          m.name,
-         daten=(std ~ " Std/Monat · " ~ urlaub ~ " Urlaubstage") if m.monatsstunden or m.urlaubstage else "kein Soll hinterlegt",
+         daten=((std ~ " Std/Monat · " ~ urlaub ~ " Urlaubstage") if m.monatsstunden or m.urlaubstage else "kein Soll hinterlegt")
+               ~ (" · verbindlich ab " ~ (m.zeiterfassung_ab | deutsch) if m.zeiterfassung_ab else ""),
          rechts=(m.eintraege ~ " Datensätze" ~ (" · zuletzt " ~ m.letzter_monat if m.letzter_monat else "")),
          aktiv=m.aktiv,
          marke="" if m.abgabepflicht else "ohne Abgabepflicht") %}
@@ -856,6 +872,24 @@
                    value="{{ urlaub }}" placeholder="0">
           </label>
         </div>
+        {# ⚠️⚠️ Ab wann gezählt wird, und was vorher schon dastand
+           (seit 1.58). ⚠️ Beide Felder MÜSSEN in beiden Formularen
+           stehen: ein Formular ohne sie räumte sie beim nächsten
+           Speichern still weg (Arbeitsregel 11). #}
+        <div class="feldreihe zwei">
+          <label class="feld">
+            <span>Zeiterfassung verbindlich ab <span class="leise">– leer = von Anfang an</span></span>
+            <input type="date" name="zeiterfassung_ab" min="2020-01-01"
+                   value="{{ m.zeiterfassung_ab or '' }}">
+          </label>
+          <label class="feld">
+            <span>Übertrag Über-/Minusstunden <span class="leise">– z. B. 37:00 oder -12:30</span></span>
+            <input type="text" name="saldo_uebertrag" inputmode="text"
+                   autocomplete="off" placeholder="0:00"
+                   value="{{ m.saldo_uebertrag | hhmm if m.saldo_uebertrag else '' }}">
+          </label>
+        </div>
+        <p class="klein leise felderklaerung">{{ t("einst.zeiterfassung_ab") }}</p>
         <div class="bereichsraster">
           <label class="bereich-kachel">
             <input type="checkbox" name="abgabepflicht" value="1"

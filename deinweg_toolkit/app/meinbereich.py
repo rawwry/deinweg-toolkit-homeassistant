@@ -30,8 +30,8 @@ from . import db
 from . import passwort
 from .parser import hhmm
 from .rechnen import (ABWESEND_SQL, ARBEITSTAGE_MONAT, MONATSNAMEN,
-                      abwesenheitstage,
-                      bewilligungen_pruefen, mitarbeiter_zu_benutzer,
+                      abwesenheitstage, bewilligungen_pruefen,
+                      erfassung_startmonat, mitarbeiter_zu_benutzer,
                       monat_wort, soll_mit_abwesenheit, urlaubstage_zaehlen)
 
 router = APIRouter()
@@ -43,6 +43,20 @@ _u: dict = {}
 def setup(templates, umgebung=None) -> None:
     _u["templates"] = templates
     _u.update(umgebung or {})
+
+
+def _feld(zeile, name, standard=None):
+    """Ein Feld der Mitarbeiterzeile, das es vielleicht noch nicht gibt.
+
+    `mitarbeiter_zu_benutzer` gibt bei einer verwaisten Zuordnung ein
+    schlichtes Dict zurueck, und eine Sitzung von vor der Migration
+    kennt die Spalten von 1.58 noch nicht.
+    """
+    try:
+        wert = zeile[name]
+    except (IndexError, KeyError, TypeError):
+        return standard
+    return standard if wert is None else wert
 
 
 def _spruch(benutzer) -> dict:
@@ -98,6 +112,12 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
 
         name = person["name"]
         soll_std = float(person["monatsstunden"] or 0)
+        # ⚠️⚠️ Ab wann die Zeiterfassung verbindlich gilt (seit 1.58).
+        # LEER heisst "von Anfang an" - dann verhaelt sich die Seite
+        # genau wie vor 1.58.
+        erfassung_ab = (_feld(person, "zeiterfassung_ab", "") or "").strip()
+        startmonat = erfassung_startmonat(erfassung_ab)
+        uebertrag = int(_feld(person, "saldo_uebertrag", 0) or 0)
         # ⚠️⚠️ Urlaub und Krankmeldung zaehlen seit 1.37 NICHT mehr als
         # geleistete Zeit - dafuer senken sie das Soll (siehe unten). Nur
         # beides zusammen ergibt ein stimmiges Bild: wer eine Woche krank
@@ -188,9 +208,17 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
 
     # Von der ersten erfassten Zeit bis heute jeden Monat auffuellen, damit
     # ein Monat ohne Eintraege sichtbar als Luecke erscheint statt zu fehlen.
+    # ⚠️⚠️ Ab dem Startmonat, nicht ab der ersten erfassten Zeit (seit
+    # 1.58, Timos Auftrag). Wer vorher aus Eigeninitiative getrackt hat,
+    # hat lueckenhafte Monate - die stehen sonst als tiefes Minus in der
+    # Tabelle, im Diagramm und im Trend, und machen jede dieser Zahlen
+    # unbrauchbar. Die ZEITEN selbst bleiben unangetastet: sie stehen
+    # weiter in "Eintrag fuer Eintrag", in der Uebersicht und im Export.
     monate = []
-    if ist_je_monat:
-        start = min(ist_je_monat)
+    if ist_je_monat or startmonat:
+        start = min(ist_je_monat) if ist_je_monat else startmonat
+        if startmonat and startmonat > start:
+            start = startmonat
         lauf = dt.date(int(start[:4]), int(start[5:7]), 1)
         ende = dt.date.today().replace(day=1)
         while lauf <= ende:
@@ -226,6 +254,31 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
     }
     gesamt["saldo"] = gesamt["ist"] - gesamt["soll"]
     laufend = next((m for m in monate if m["laufend"]), None)
+
+    # ⚠️⚠️ Das Stundenkonto (seit 1.58). Bis dahin zeigte die Seite den
+    # Saldo EINES Monats, den Dreimonatstrend und den "Saldo im Bild" -
+    # aber keine Zahl, die ueber die Monate mitlaeuft. Genau die braucht
+    # es, damit ein Uebertrag ueberhaupt einen Platz hat.
+    #
+    # Gerechnet wird ueber die ABGESCHLOSSENEN Monate ab dem Startmonat;
+    # der laufende bleibt draussen, sonst stuende man am Monatsersten
+    # immer im Minus (dieselbe Regel wie beim Saldo darunter).
+    # ⚠️⚠️ NUR bei gesetztem Startdatum. Ein über Jahre aufsummierter
+    # Gesamtsaldo ist kaum zu deuten - das war schon vor 1.58 die
+    # Begründung, hier den Saldo EINES Monats und den Dreimonatstrend zu
+    # zeigen statt einer Gesamtsumme. Mit einem Startdatum ändert sich
+    # das: dann hat die Summe einen klaren Anfang, und der Übertrag
+    # braucht ohnehin einen Platz. Ohne Startdatum bleibt die Reihe bei
+    # vier Kacheln wie bisher.
+    stundenkonto = None
+    if startmonat:
+        stundenkonto = {
+            "uebertrag": uebertrag,
+            "seither": gesamt["saldo"],
+            "summe": uebertrag + gesamt["saldo"],
+            "monate": gesamt["monate"],
+            "ab": erfassung_ab,
+        }
 
     # Der zuletzt abgeschlossene Monat und der Schnitt der letzten drei -
     # daraus laesst sich ablesen, ob man gerade regelmaessig ueber oder
@@ -469,6 +522,12 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                           if soll_std else 0),
             "arbeitstage_monat": ARBEITSTAGE_MONAT,
             "letzter": letzter, "trend": trend,
+            "stundenkonto": stundenkonto, "erfassung_ab": erfassung_ab,
+            # Der Startmonat liegt in der Zukunft: es gibt noch gar
+            # nichts zu zeigen, und das muss dastehen statt einer leeren
+            # Karte.
+            "erfassung_kuenftig": bool(
+                startmonat and startmonat > dt.date.today().strftime("%Y-%m")),
             "offene_vorgaenge": offene_vorgaenge, "ueberfaellig": ueberfaellig,
             "eigene_aufgaben": eigene_aufgaben, "spruch": _spruch(benutzer),
             "heute": dt.date.today().isoformat(),

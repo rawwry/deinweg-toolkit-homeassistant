@@ -26,7 +26,7 @@ import re
 from urllib.parse import urlencode
 
 from . import db
-from .parser import norm
+from .parser import norm, parse_dauer
 
 
 def jetzt() -> str:
@@ -141,6 +141,61 @@ def monat_verschieben(monat: str, schritte: int) -> str:
     jahr, mon = int(monat[:4]), int(monat[5:7])
     gesamt = jahr * 12 + (mon - 1) + schritte
     return f"{gesamt // 12:04d}-{gesamt % 12 + 1:02d}"
+
+# --- Verbindliche Zeiterfassung je Mitarbeiter (seit 1.58) -------------------
+#
+# Timos Auftrag: "wir fuehren diese Zeiterfassung gerade erst verbindlich
+# fuer alle ein". Wer vorher aus Eigeninitiative getrackt hat, hat
+# lueckenhafte Monate - die taugen weder fuer ein Diagramm noch fuer
+# einen Saldo. Zwei Angaben an `mitarbeiter` loesen das:
+# `zeiterfassung_ab` (ab wann gezaehlt wird) und `saldo_uebertrag` (was
+# an Ueberstunden schon dastand).
+#
+# ⚠️⚠️ Es wird dabei KEIN Zeiteintrag angefasst. Es geht ausschliesslich
+# um den Betrachtungszeitraum in "Mein Bereich"; in der Uebersicht, im
+# Export und in der Auswertung steht weiterhin alles.
+
+
+def erfassung_startmonat(datum: str | None) -> str | None:
+    """Der erste Monat, der verbindlich zaehlt. None = von Anfang an.
+
+    ⚠️ Liegt das Datum mitten im Monat, zaehlt erst der FOLGEMONAT
+    (Timos Entscheidung). Das Soll ist eine Monatspauschale
+    (Wochenstunden x 4,33) - ein halbes Monatssoll liesse sich daraus
+    nicht ehrlich ableiten, und ein voll gerechneter angefangener Monat
+    stellte jeden, der am 25. anfaengt, sofort tief ins Minus.
+    """
+    roh = (datum or "").strip()
+    if len(roh) < 10:
+        return None
+    try:
+        tag = dt.date.fromisoformat(roh[:10])
+    except ValueError:
+        return None
+    if tag.day == 1:
+        return tag.strftime("%Y-%m")
+    return monat_verschieben(tag.strftime("%Y-%m"), 1)
+
+
+def saldo_lesen(text: str) -> int | None:
+    """Ein Ueberstunden-Uebertrag als Minuten. Darf negativ sein.
+
+    Versteht "37:00", "+37:00", "-12:30", "37,5", "-4,25" und leer (0).
+    None heisst "das ist keine Zahl" - dann weist die Route ab, statt
+    still eine Null zu speichern.
+    """
+    roh = (text or "").strip().replace(" ", "")
+    if not roh:
+        return 0
+    vorzeichen = 1
+    if roh[0] in "+-":
+        vorzeichen = -1 if roh[0] == "-" else 1
+        roh = roh[1:]
+    if not roh:
+        return None
+    minuten = parse_dauer(roh)
+    return None if minuten is None else vorzeichen * abs(minuten)
+
 
 MONATSNAMEN = {
     "01": "Januar", "02": "Februar", "03": "März", "04": "April",

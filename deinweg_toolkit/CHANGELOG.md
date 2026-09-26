@@ -3,6 +3,19 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.58
+
+- Einstellungen → Mitarbeiter: je Person **ab wann die Zeiterfassung
+  verbindlich gilt**, dazu ein Übertrag an Über-/Minusstunden
+- ⚠️ Es wird **kein Zeiteintrag angefasst** – nur anders gezählt.
+  Übersicht, Export und „Eintrag für Eintrag“ zeigen weiterhin alles
+- „Mein Bereich“ zählt ab dem Startdatum: Diagramm, Monatstabelle,
+  Dreimonatstrend, Schnitt, Saldo im Bild und Spanne
+- Neue Kennzahl **Stundenkonto** = Übertrag + alle abgeschlossenen
+  Monate seit dem Startdatum
+- ⚠️ Ohne Startdatum ändert sich nichts – die Seite bleibt bei vier
+  Kacheln und rechnet wie bisher
+
 ## 1.57
 
 - Privatauslagen: „Geld erhalten“ hakt jetzt auch die **Aufgabe** bei der

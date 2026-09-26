@@ -23,6 +23,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
 from . import auth, dateien, db, kfz, mail, ntfy, passwort, texte_standard, wiki
 from .parser import norm, NICHT_ABRECHENBAR
+from .rechnen import saldo_lesen
 
 # Klartextnamen der Textgruppen. Der Schluesselpraefix allein ("vorgaenge",
 # "kfz", "einst") sagt niemandem etwas, der nicht im Code liest.
@@ -720,11 +721,39 @@ def team_zurueck(**werte):
 
 
 @router.post("/einstellungen/mitarbeiter")
+def erfassungsstart_lesen(datum: str, uebertrag: str):
+    """Liest die beiden Felder von 1.58 und gibt (datum, minuten, fehler).
+
+    ⚠️ LEER bleibt leer: ohne Datum zaehlt „Mein Bereich" wie vor 1.58
+    von der ersten erfassten Zeit an. Ein Standarddatum waere ein
+    stiller Eingriff in jede vorhandene Auswertung (Arbeitsregel 4).
+    """
+    roh = (datum or "").strip()
+    if roh:
+        try:
+            roh = dt.date.fromisoformat(roh[:10]).isoformat()
+        except ValueError:
+            return "", 0, ("Das Startdatum der Zeiterfassung ist kein "
+                           "gültiges Datum.")
+    minuten = saldo_lesen(uebertrag)
+    if minuten is None:
+        return "", 0, ("Der Übertrag ist nicht lesbar. Zum Beispiel 37:00, "
+                       "-12:30 oder 37,5.")
+    # ⚠️ Ein Uebertrag ohne Startdatum waere wirkungslos und damit eine
+    # Falle: er stuende gespeichert da und taete nichts.
+    if minuten and not roh:
+        return "", 0, ("Ein Übertrag braucht ein Startdatum – sonst wüsste "
+                       "niemand, worauf er sich bezieht.")
+    return roh, minuten, ""
+
+
 def mitarbeiter_anlegen(name: str = Form(""), notiz: str = Form(""),
                         monatsstunden: str = Form("0"),
                         urlaubstage: str = Form("0"),
                         abgabepflicht: str = Form("1"),
-                        auslagen_verwalter: str = Form("")):
+                        auslagen_verwalter: str = Form(""),
+                        zeiterfassung_ab: str = Form(""),
+                        saldo_uebertrag: str = Form("")):
     name = re.sub(r"\s+", " ", name).strip()
     if not name:
         return team_zurueck(fehler="Ohne Namen geht es nicht.")
@@ -734,6 +763,10 @@ def mitarbeiter_anlegen(name: str = Form(""), notiz: str = Form(""),
     urlaub = betrag_lesen(urlaubstage)
     if urlaub is None:
         return team_zurueck(fehler="Die Urlaubstage sind keine gültige Zahl.")
+    ab, uebertrag, fehler = erfassungsstart_lesen(zeiterfassung_ab,
+                                                  saldo_uebertrag)
+    if fehler:
+        return team_zurueck(fehler=fehler)
     with db.db() as con:
         schon_da = con.execute(
             "SELECT name FROM mitarbeiter").fetchall()
@@ -741,10 +774,11 @@ def mitarbeiter_anlegen(name: str = Form(""), notiz: str = Form(""),
             return team_zurueck(fehler=f"{name} steht bereits im Team.")
         con.execute(
             "INSERT INTO mitarbeiter (name, aktiv, abgabepflicht, monatsstunden, "
-            "urlaubstage, notiz, auslagen_verwalter, angelegt_am) "
-            "VALUES (?,1,?,?,?,?,?,?)",
+            "urlaubstage, notiz, auslagen_verwalter, zeiterfassung_ab, "
+            "saldo_uebertrag, angelegt_am) "
+            "VALUES (?,1,?,?,?,?,?,?,?,?)",
             (name, 1 if abgabepflicht else 0, soll, urlaub, notiz.strip(),
-             1 if auslagen_verwalter else 0, _u["jetzt"]()))
+             1 if auslagen_verwalter else 0, ab, uebertrag, _u["jetzt"]()))
     return team_zurueck(hinweis=f"{name} ins Team aufgenommen.")
 
 
@@ -754,7 +788,9 @@ def mitarbeiter_speichern(person_id: int, name: str = Form(""),
                           monatsstunden: str = Form("0"),
                           urlaubstage: str = Form("0"),
                           abgabepflicht: str = Form(""),
-                          auslagen_verwalter: str = Form("")):
+                          auslagen_verwalter: str = Form(""),
+                          zeiterfassung_ab: str = Form(""),
+                          saldo_uebertrag: str = Form("")):
     name = re.sub(r"\s+", " ", name).strip()
     if not name:
         return team_zurueck(fehler="Ohne Namen geht es nicht.")
@@ -764,6 +800,10 @@ def mitarbeiter_speichern(person_id: int, name: str = Form(""),
     urlaub = betrag_lesen(urlaubstage)
     if urlaub is None:
         return team_zurueck(fehler="Die Urlaubstage sind keine gültige Zahl.")
+    ab, uebertrag, fehler = erfassungsstart_lesen(zeiterfassung_ab,
+                                                  saldo_uebertrag)
+    if fehler:
+        return team_zurueck(fehler=fehler)
     with db.db() as con:
         andere = con.execute("SELECT name FROM mitarbeiter WHERE id<>?",
                              (person_id,)).fetchall()
@@ -771,10 +811,11 @@ def mitarbeiter_speichern(person_id: int, name: str = Form(""),
             return team_zurueck(fehler=f"{name} steht bereits im Team.")
         con.execute(
             "UPDATE mitarbeiter SET name=?, notiz=?, aktiv=?, abgabepflicht=?, "
-            "monatsstunden=?, urlaubstage=?, auslagen_verwalter=? WHERE id=?",
+            "monatsstunden=?, urlaubstage=?, auslagen_verwalter=?, "
+            "zeiterfassung_ab=?, saldo_uebertrag=? WHERE id=?",
             (name, notiz.strip(), 1 if aktiv else 0,
              1 if abgabepflicht else 0, soll, urlaub,
-             1 if auslagen_verwalter else 0, person_id))
+             1 if auslagen_verwalter else 0, ab, uebertrag, person_id))
     return team_zurueck(hinweis=f"{name} gespeichert.")
 
 

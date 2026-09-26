@@ -8316,6 +8316,188 @@ def test_umbau_1_57(client: TestClient) -> None:
                "und der Block steht unverändert da")
 
 
+
+def test_verbindliche_zeiterfassung(client: TestClient) -> None:
+    """Ab wann die Zeiterfassung verbindlich gilt (seit 1.58).
+
+    Timos Auftrag: „wir führen diese Zeiterfassung gerade erst
+    verbindlich für alle ein". Wer vorher aus Eigeninitiative getrackt
+    hat, hat lückenhafte Monate — die taugen weder für ein Diagramm noch
+    für einen Saldo. ⚠️⚠️ Der Kern der Prüfung ist deshalb doppelt: die
+    Zahlen beginnen beim Startdatum, und **kein einziger Zeiteintrag
+    wird dabei angefasst**.
+    """
+    abschnitt("Verbindliche Zeiterfassung ab Startdatum")
+    from .rechnen import erfassung_startmonat, saldo_lesen
+
+    # --- Die beiden Rechenregeln --------------------------------------
+    #
+    # ⚠️ Liegt das Datum mitten im Monat, zählt erst der FOLGEMONAT: das
+    # Soll ist eine Monatspauschale, ein halbes ließe sich daraus nicht
+    # ehrlich ableiten (Timos Entscheidung).
+    pruefe(erfassung_startmonat("2026-10-01") == "2026-10",
+           "der Erste eines Monats zählt ab diesem Monat")
+    pruefe(erfassung_startmonat("2026-10-15") == "2026-11",
+           "mitten im Monat zählt erst der Folgemonat")
+    pruefe(erfassung_startmonat("2026-12-31") == "2027-01",
+           "und das auch über den Jahreswechsel")
+    for daneben in ("", None, "quatsch", "2026-13-01"):
+        pruefe(erfassung_startmonat(daneben) is None,
+               f"„{daneben}“ heißt „von Anfang an“")
+    for eingabe, erwartet in (("37:00", 2220), ("+37:00", 2220),
+                              ("-12:30", -750), ("37,5", 2250),
+                              ("-4,25", -255), ("", 0)):
+        pruefe(saldo_lesen(eingabe) == erwartet,
+               f"„{eingabe}“ wird zu {erwartet} Minuten")
+    pruefe(saldo_lesen("abc") is None, "„abc“ wird abgewiesen statt geraten")
+
+    # --- Ein eigenes Konto mit Zeiten über mehrere Monate -------------
+    # ⚠️⚠️ Die Monate liegen RELATIV zu heute, nicht auf festen Daten:
+    # gezählt wird über die abgeschlossenen Monate, und ein aufgefüllter
+    # leerer Monat dazwischen wäre ein echtes Minus (so gewollt). Mit
+    # festen Daten wäre die erwartete Summe vom Tag des Laufs abhängig.
+    from .rechnen import MONATSNAMEN, deutsch, monat_verschieben, monat_wort
+    heute_monat = dt.date.today().strftime("%Y-%m")
+    voll = monat_verschieben(heute_monat, -1)    # letzter abgeschlossener
+    luecke = monat_verschieben(heute_monat, -2)  # davor, lückenhaft
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, "
+                    "abgabepflicht, monatsstunden, urlaubstage, angelegt_am) "
+                    "VALUES ('Startdatum Probe',1,1,160,30,'2026-01-01 08:00')")
+        mid = con.execute("SELECT id FROM mitarbeiter WHERE "
+                          "name='Startdatum Probe'").fetchone()["id"]
+        for monat, tage in ((luecke, 3), (voll, 21)):
+            for t in range(1, tage + 1):
+                con.execute(
+                    "INSERT OR REPLACE INTO eintrag (mitarbeiter, datum, monat, "
+                    "start, ende, klient, beschreibung, dauer_min, abrechenbar, "
+                    "fingerprint, angelegt_am) VALUES "
+                    "('Startdatum Probe',?,?,'09:00','17:00','Testperson',"
+                    "'Hausbesuch',480,1,?,?)",
+                    (f"{monat}-{t:02d}", monat, f"sd{monat}{t}",
+                     f"{monat}-{t:02d} 09:00"))
+    vorher = _zeilen_zahl("Startdatum Probe")
+    pruefe(vorher == 24, f"24 Zeiten angelegt (sind: {vorher})")
+
+    konto = _konto(client, "startprobe", "startprobepasswort", ["wiki"],
+                   mitarbeiter="Startdatum Probe")
+    seite = konto.get("/meinbereich").text
+    pruefe(monat_wort(luecke) in seite,
+           "ohne Startdatum steht der lückenhafte Monat in der Tabelle")
+    pruefe("Stundenkonto" not in seite,
+           "und es gibt noch keine Kachel „Stundenkonto“")
+
+    # --- Startdatum und Übertrag setzen -------------------------------
+    antwort = client.post(f"/einstellungen/mitarbeiter/{mid}", data={
+        "name": "Startdatum Probe", "notiz": "", "aktiv": "1",
+        "monatsstunden": "160", "urlaubstage": "30", "abgabepflicht": "1",
+        "zeiterfassung_ab": voll + "-01", "saldo_uebertrag": "37:00"},
+        follow_redirects=False)
+    pruefe(antwort.status_code == 303, "beide Felder lassen sich speichern")
+    with db.db() as con:
+        m = con.execute("SELECT * FROM mitarbeiter WHERE id=?", (mid,)).fetchone()
+    pruefe(m["zeiterfassung_ab"] == voll + "-01" and m["saldo_uebertrag"] == 2220,
+           "und stehen in der Datenbank")
+
+    # ⚠️⚠️ Das Wichtigste: die Zeiten bleiben unangetastet.
+    pruefe(_zeilen_zahl("Startdatum Probe") == vorher,
+           "kein einziger Zeiteintrag wurde dabei angefasst")
+
+    seite = konto.get("/meinbereich").text
+    ohne_dialog = seite.split('<div class="neuheiten"')[0]
+    # ⚠️ Auf die TABELLE eingrenzen: die Monatsauswahl in „Eintrag für
+    # Eintrag“ zeigt weiterhin alle Monate, und das ist so gewollt.
+    tabelle = ohne_dialog.split('liste dicht monatstabelle')[1].split("</table>")[0]
+    pruefe(monat_wort(luecke) not in tabelle,
+           "der lückenhafte Monat steht nicht mehr in „Monat für Monat“")
+    pruefe(monat_wort(voll) in tabelle, "der Monat ab dem Startdatum schon")
+    # 21 Tage × 8 Std = 168:00 gegen 160:00 Soll, also +08:00 in diesem
+    # einen abgeschlossenen Monat. Dazu der Übertrag von 37:00 → 45:00.
+    pruefe("45:00" in ohne_dialog,
+           "das Stundenkonto ist Übertrag 37:00 + 08:00 = 45:00")
+    pruefe("Stundenkonto" in ohne_dialog, "die Kachel steht da")
+    pruefe(deutsch(voll + "-01") in ohne_dialog,
+           "und sagt im Klartext, ab wann gezählt wird")
+
+    # --- Das Diagramm beginnt ebenfalls dort --------------------------
+    kurz = MONATSNAMEN[luecke[5:7]][:3]
+    bild = ohne_dialog.split('class="stundendiagramm"')[1].split("</svg>")[0]
+    pruefe(kurz not in bild, "auch das Diagramm lässt den lückenhaften Monat weg")
+    pruefe(MONATSNAMEN[voll[5:7]][:3] in bild, "der andere steht darin")
+    # Schnitt, Saldo im Bild und Spanne hängen an denselben Monaten.
+    zahlen = ohne_dialog.split('class="verlaufszahlen"')[1].split("</dl>")[0] \
+        if 'class="verlaufszahlen"' in ohne_dialog else ""
+    pruefe(monat_wort(luecke) not in zahlen,
+           "Schnitt, Saldo und Spanne rechnen nur ab dem Startdatum")
+
+    # --- „Eintrag für Eintrag" zeigt die alten Zeiten weiterhin -------
+    alt_seite = konto.get(f"/meinbereich?zeiten={luecke}").text
+    pruefe(deutsch(luecke + "-01") in alt_seite,
+           "die Zeiten aus dem lückenhaften Monat sind weiterhin abrufbar")
+
+    # --- Ein Startdatum in der Zukunft --------------------------------
+    kuenftig = (dt.date.today() + dt.timedelta(days=90)).replace(day=1)
+    client.post(f"/einstellungen/mitarbeiter/{mid}", data={
+        "name": "Startdatum Probe", "notiz": "", "aktiv": "1",
+        "monatsstunden": "160", "urlaubstage": "30", "abgabepflicht": "1",
+        "zeiterfassung_ab": kuenftig.isoformat(), "saldo_uebertrag": "37:00"})
+    seite = konto.get("/meinbereich").text.split('<div class="neuheiten"')[0]
+    pruefe("verbindliche Zeiterfassung" in seite,
+           "vor dem Startdatum sagt die Seite, wann es losgeht")
+    pruefe("37:00" in seite,
+           "das Stundenkonto zeigt solange nur den Übertrag")
+    pruefe("liste dicht monatstabelle" not in seite,
+           "und es gibt gar keine Monatstabelle")
+    pruefe(_zeilen_zahl("Startdatum Probe") == vorher,
+           "die Zeiten stehen immer noch alle da")
+
+    # --- Abgewiesen wird, was nicht zusammenpasst ---------------------
+    antwort = client.post(f"/einstellungen/mitarbeiter/{mid}", data={
+        "name": "Startdatum Probe", "notiz": "", "aktiv": "1",
+        "monatsstunden": "160", "urlaubstage": "30", "abgabepflicht": "1",
+        "zeiterfassung_ab": "", "saldo_uebertrag": "37:00"},
+        follow_redirects=False)
+    pruefe("fehler=" in antwort.headers.get("location", ""),
+           "ein Übertrag ohne Startdatum wird abgewiesen")
+    antwort = client.post(f"/einstellungen/mitarbeiter/{mid}", data={
+        "name": "Startdatum Probe", "notiz": "", "aktiv": "1",
+        "monatsstunden": "160", "urlaubstage": "30", "abgabepflicht": "1",
+        "zeiterfassung_ab": voll + "-01", "saldo_uebertrag": "viel"},
+        follow_redirects=False)
+    pruefe("fehler=" in antwort.headers.get("location", ""),
+           "und ein unlesbarer Übertrag auch")
+    with db.db() as con:
+        m = con.execute("SELECT * FROM mitarbeiter WHERE id=?", (mid,)).fetchone()
+    pruefe(m["zeiterfassung_ab"] == kuenftig.isoformat(),
+           "beide Fehlversuche haben nichts überschrieben")
+
+    # --- Zurück auf leer: alles wie vor 1.58 --------------------------
+    client.post(f"/einstellungen/mitarbeiter/{mid}", data={
+        "name": "Startdatum Probe", "notiz": "", "aktiv": "1",
+        "monatsstunden": "160", "urlaubstage": "30", "abgabepflicht": "1",
+        "zeiterfassung_ab": "", "saldo_uebertrag": ""})
+    seite = konto.get("/meinbereich").text.split('<div class="neuheiten"')[0]
+    pruefe(monat_wort(luecke) in seite,
+           "ohne Startdatum steht der lückenhafte Monat wieder da")
+    pruefe("Stundenkonto" not in seite,
+           "und die Kachel ist wieder weg — vier Kacheln wie vorher")
+
+    # --- Beide Formulare tragen die Felder ----------------------------
+    #
+    # ⚠️ Arbeitsregel 11: ein Formular OHNE sie räumte sie beim nächsten
+    # Speichern still weg. Sie müssen deshalb in beiden stehen.
+    einst = client.get("/einstellungen?bereich=mitarbeiter").text
+    pruefe(einst.count('name="zeiterfassung_ab"') >= 2
+           and einst.count('name="saldo_uebertrag"') >= 2,
+           "beide Felder stehen im Anlege- UND im Bearbeitungsformular")
+
+
+def _zeilen_zahl(wer: str) -> int:
+    with db.db() as con:
+        return con.execute("SELECT COUNT(*) c FROM eintrag WHERE mitarbeiter=?",
+                           (wer,)).fetchone()["c"]
+
+
 def _auslagen_modul():
     from . import auslagen as a
     return a
@@ -11134,6 +11316,7 @@ def _durchlauf(client: TestClient) -> None:
         test_admin_bereiche(client)
         test_umbau_1_56(client)
         test_umbau_1_57(client)
+        test_verbindliche_zeiterfassung(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

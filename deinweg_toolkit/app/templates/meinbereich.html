@@ -191,6 +191,28 @@
   {% if person %}
   <p class="lead">{{ t("mein.laufend_hinweis") }}</p>
   <div class="kennzahlen">
+    {# ⚠️⚠️ 0. Das Stundenkonto (seit 1.58, Timos Auftrag). Bis dahin
+       zeigte die Seite den Saldo EINES Monats, den Dreimonatstrend und
+       den „Saldo im Bild" — aber keine Zahl, die über die Monate
+       mitläuft. Genau die braucht es, damit ein Übertrag aus der Zeit
+       vor der verbindlichen Erfassung einen Platz hat.
+
+       Sie steht nur da, wo es sie gibt: ohne Startdatum und ohne
+       Übertrag bleibt die Reihe wie vorher bei vier Kacheln. #}
+    {% if stundenkonto %}
+    <a class="kennzahl {{ 'hat k-plus' if stundenkonto.summe > 0 }}{{ 'hat k-minus' if stundenkonto.summe < 0 }}"
+       href="#monate">
+      <span class="kzahl">{{ stundenkonto.summe | hhmm }}<span class="kmass">Std</span></span>
+      <span class="klabel">
+        {%- if stundenkonto.uebertrag and stundenkonto.monate %}
+          Stundenkonto · Übertrag {{ stundenkonto.uebertrag | hhmm }}
+        {%- elif stundenkonto.uebertrag %}Stundenkonto · nur der Übertrag
+        {%- else %}Stundenkonto · {{ stundenkonto.monate }}
+          {{ "Monat" if stundenkonto.monate == 1 else "Monate" }}{% endif -%}
+      </span>
+    </a>
+    {% endif %}
+
     {# 1. Der Saldo des letzten abgeschlossenen Monats. Er ist die Zahl,
        wegen der man herkommt - deshalb steht er links. #}
     <a class="kennzahl {{ 'hat k-plus' if letzter and letzter.saldo > 0 }}{{ 'hat k-minus' if letzter and letzter.saldo < 0 }}"
@@ -239,10 +261,37 @@
     </a>
   </div>
 
-  {% if not letzter %}
+  {# ⚠️ Woraus sich das Stundenkonto zusammensetzt, steht im Klartext
+     darunter. Eine Summe, deren Herkunft niemand nachrechnen kann, ist
+     keine Auskunft — und der Übertrag ist von Hand eingetragen. #}
+  {% if stundenkonto and erfassung_ab %}
+  <p class="klein leise felderklaerung">
+    {%- if stundenkonto.uebertrag %}
+      Übertrag {{ stundenkonto.uebertrag | hhmm }} Std zum
+      {{ erfassung_ab | deutsch }}
+      {%- if stundenkonto.monate %}, seither
+        {{ stundenkonto.seither | hhmm }} Std über
+        {{ stundenkonto.monate }}
+        {{ "abgeschlossenen Monat" if stundenkonto.monate == 1
+           else "abgeschlossene Monate" }}{% endif -%}.
+    {%- else %}
+      Gezählt wird ab dem {{ erfassung_ab | deutsch }}
+      {%- if stundenkonto.monate %} – {{ stundenkonto.monate }}
+        {{ "abgeschlossener Monat" if stundenkonto.monate == 1
+           else "abgeschlossene Monate" }}{% endif -%}.
+    {%- endif %}
+    {{ t("mein.erfassung_ab") }}
+  </p>
+  {% endif %}
+
+  {% if erfassung_kuenftig %}
+  <p class="meldung">{{ t("mein.erfassung_kuenftig", datum=erfassung_ab | deutsch) }}</p>
+  {% elif not letzter %}
   <p class="klein leise felderklaerung">{{ t("mein.kein_abgeschlossener") }}</p>
   {% endif %}
-  {% if not laufend %}
+  {# ⚠️ Nicht zusätzlich zur Ansage oben: dass für diesen Monat nichts
+     dasteht, hat dann einen anderen Grund und ist schon gesagt. #}
+  {% if not laufend and not erfassung_kuenftig %}
   <p class="klein leise felderklaerung">{{ t("mein.kein_laufender") }}</p>
   {% endif %}
   {% else %}
