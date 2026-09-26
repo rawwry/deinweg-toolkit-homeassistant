@@ -478,6 +478,7 @@ def _bild(con, request: Request, hinweis: str = "", fehler: str = "",
         "datum": datum or _heute(),
         "heute": _heute(),
         "betrag": euro,
+        "verwalter_text": " und ".join(verwalter(con)) or "die verwaltende Person",
         "max_mb": _u.get("MAX_UPLOAD_MB", 20),
         "belegarten": sorted(BELEGARTEN),
     }

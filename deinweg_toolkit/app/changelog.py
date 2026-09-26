@@ -2737,4 +2737,9 @@ CHANGELOG = [
         "unverändert (Timos Entscheidung)",
         "Prüfung von 2635 auf 2674 Einzelprüfungen erweitert",
     ]},
+    {"version": "1.58.1", "titel": "Text beim Einreichen der Bons", "punkte": [
+        "Privatauslagen: Die Rückfrage beim Einreichen erklärt jetzt "
+        "genauer, was passiert, und nennt die Person, die die "
+        "Rückerstattung übernimmt",
+    ]},
 ]

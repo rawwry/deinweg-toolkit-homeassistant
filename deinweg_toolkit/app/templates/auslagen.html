@@ -54,7 +54,7 @@
     {% if offen_summe %}
     <form action="/privatauslagen/block/{{ block.id }}/zustand" method="post"
           class="pa-stand-tat" hx-push-url="false"
-          onsubmit="return dwt.frage(event, '{{ betrag(offen_summe) }} an deine Chefin abgegeben?\n\nDer Block wartet danach auf die Erstattung. Ein neuer beginnt von selbst, sobald du die nächste Auslage einträgst.')">
+          onsubmit="return dwt.frage(event, '{{ betrag(offen_summe) }} als Aufforderung zur Rückzahlung einreichen?\n\nDein Auslagenblock färbt sich gelb und verbleibt in diesem Status, bis die Erstattung ausgeführt wurde. Wenn du mit Ok bestätigst, erhält {{ verwalter_text | replace("'", '') | replace('\\', '') }} eine feste Aufgabenzuweisung und wird zur Rückerstattung des Gesamtbetrags aufgefordert.')">
       <input type="hidden" name="ziel" value="abgegeben">
       <button class="knopf akzent" type="submit">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="knopfzeichen">
