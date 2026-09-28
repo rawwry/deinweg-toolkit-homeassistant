@@ -8480,18 +8480,91 @@ def test_vorlagen(client: TestClient) -> None:
            "„Meine Vorlagen“ steht in Mein Bereich")
     with db.db() as con:
         vid = con.execute("SELECT id FROM vorlage WHERE name='Dienstag'").fetchone()["id"]
-    r = client.post(f"/erfassung/vorlagen/{vid}/umbenennen", data={"name": "Probe Montag"},
-                    follow_redirects=False)  # gleich bis auf Groß/klein
-    pruefe("fehler=" in r.headers["location"], "ein doppelter Name wird abgewiesen")
-    client.post(f"/erfassung/vorlagen/{vid}/umbenennen", data={"name": "Dienstag lang"})
+    karte = seite.split('id="vorlagen"')[1].split("</section>")[0]
+    pruefe('class="vl-zeilen"' in karte and 'class="vl-zeit zahlen"' in karte,
+           "jede Vorlage zeigt ihre Zeilen als Liste mit Zeitspanne")
+    pruefe(f'href="/meinbereich?vorlage={vid}#vorlage-{vid}"' in karte,
+           "jede Vorlage hat einen Knopf „Bearbeiten“")
+    pruefe("vl-editor" not in karte.split("<script>")[0],
+           "ohne Auswahl ist kein Editor offen")
+
+    # --- Der Editor (seit 1.59.1) -------------------------------------------
+    seite = client.get(f"/meinbereich?vorlage={vid}").text
+    editor = seite.split(f'id="vorlage-{vid}"')[1].split("</form>")[0]
+    pruefe(f'action="/erfassung/vorlagen/{vid}/aendern"' in editor[:300],
+           "?vorlage=<id> öffnet genau diese Vorlage im Editor")
+    pruefe(editor.count('class="vl-ezeile"') >= 2 and 'value="Dienstag"' in editor,
+           "der Editor trägt Name und alle Zeilen")
+    pruefe('value="Vorlagenprobe" selected' in editor,
+           "die gespeicherte Leistung ist vorgewählt")
+    pruefe('<template class="vl-muster">' in editor and "<noscript>" in editor,
+           "neue Zeilen per Skript, ohne Skript steht eine leere bereit")
+
+    r = client.post(f"/erfassung/vorlagen/{vid}/aendern", data={
+        "name": "Dienstag lang", "klient": ["Testperson", "", "Gerda Gestern"],
+        "start": ["7", "", "1015"], "ende": ["0830", "", "11"],
+        "leistung": ["Vorlagenprobe", "", ""], "beschreibung": ["Früh", "", "Anruf"]},
+        follow_redirects=False)
+    with db.db() as con:
+        zeile = con.execute("SELECT name, zeilen FROM vorlage WHERE id=?", (vid,)).fetchone()
+        zeilen = _json.loads(zeile["zeilen"])
+    pruefe(r.status_code == 303 and f"#vorlage-{vid}" in r.headers["location"],
+           "nach dem Speichern zurück zu genau dieser Vorlage")
+    pruefe(zeile["name"] == "Dienstag lang" and len(zeilen) == 2,
+           "Name geändert, die geleerte Zeile ist weg")
+    pruefe(zeilen[0] == {"klient": "Testperson", "start": "07:00", "ende": "08:30",
+                         "leistung": "Vorlagenprobe", "beschreibung": "Früh"},
+           "die Zeilen stehen so gespeichert, wie sie im Editor standen")
+    pruefe("dauer" not in zeilen[0], "die Dauer wird nicht mitgespeichert, nur gerechnet")
+    seite = client.get(r.headers["location"]).text
+    pruefe('class="vl-gemerkt"' in seite.split(f'id="vorlage-{vid}"')[1][:800],
+           "die Bestätigung steht an der Vorlage selbst, dorthin springt die Seite")
+    editor = client.get(f"/meinbereich?vorlage={vid}").text.split(
+        f'id="vorlage-{vid}"')[1].split("</form>")[0]
+    pruefe("Gerda Gestern (nicht mehr in der Liste)" in editor,
+           "eine unbekannte Person bleibt im Editor stehen und ist markiert")
+
+    for daten, was in (({"name": "Probe Montag", "klient": ["Testperson"]},
+                        "ein Name, den eine andere Vorlage trägt"),
+                       ({"name": "Dienstag lang", "start": ["99"]}, "eine unlesbare Uhrzeit"),
+                       ({"name": "Dienstag lang", "klient": [""]}, "eine Vorlage ohne Zeile")):
+        r = client.post(f"/erfassung/vorlagen/{vid}/aendern", data=daten,
+                        follow_redirects=False)
+        pruefe("fehler=" in r.headers["location"] and f"vorlage={vid}" in r.headers["location"],
+               f"abgewiesen, der Editor bleibt offen: {was}")
+    editor = client.get(r.headers["location"]).text.split(f'id="vorlage-{vid}"')[1].split("</form>")[0]
+    pruefe('class="meldung fehler vl-meldung"' in editor,
+           "die Fehlermeldung steht im offenen Editor, nicht oben auf der Seite")
+    with db.db() as con:
+        pruefe(con.execute("SELECT name FROM vorlage WHERE id=?", (vid,)).fetchone()["name"]
+               == "Dienstag lang", "und dabei wurde nichts überschrieben")
+
+    seite = client.get("/meinbereich?vorlage=neu").text
+    pruefe('id="vorlage-neu"' in seite and 'action="/erfassung/vorlagen/neu"' in seite,
+           "„Neue Vorlage“ öffnet einen leeren Editor")
+    r = client.post("/erfassung/vorlagen/neu", data={
+        "name": "Freitag", "klient": ["Testperson"], "start": ["9"], "ende": ["10"],
+        "leistung": [""], "beschreibung": ["Besuch"]}, follow_redirects=False)
+    with db.db() as con:
+        frei = con.execute("SELECT id FROM vorlage WHERE name='Freitag'").fetchone()
+    pruefe(frei is not None and f"#vorlage-{frei['id']}" in r.headers["location"],
+           "eine neue Vorlage lässt sich direkt in Mein Bereich anlegen")
+    r = client.post("/erfassung/vorlagen/neu", data={"name": "freitag", "klient": ["Testperson"]},
+                    follow_redirects=False)
+    pruefe("fehler=" in r.headers["location"] and "vorlage=neu" in r.headers["location"],
+           "beim Anlegen überschreibt ein gleicher Name nichts")
+    client.post(f"/erfassung/vorlagen/{frei['id']}/loeschen")
 
     fremd = _konto(client, "vorlagenfremd", "fremdpasswort1", ["manuelle_eintraege"])
-    fremd.post(f"/erfassung/vorlagen/{vid}/umbenennen", data={"name": "Gekapert"})
+    fremd.post(f"/erfassung/vorlagen/{vid}/aendern",
+               data={"name": "Gekapert", "klient": ["Testperson"]})
     fremd.post(f"/erfassung/vorlagen/{vid}/loeschen")
     with db.db() as con:
         steht = con.execute("SELECT name FROM vorlage WHERE id=?", (vid,)).fetchone()
     pruefe(steht is not None and steht["name"] == "Dienstag lang",
-           "ein anderes Konto kann eine fremde Vorlage weder umbenennen noch löschen")
+           "ein anderes Konto kann eine fremde Vorlage weder ändern noch löschen")
+    pruefe(f'id="vorlage-{vid}"' not in fremd.get(f"/meinbereich?vorlage={vid}").text,
+           "und bekommt sie auch über die Adresse nicht zu sehen")
     pruefe("Dienstag lang" not in fremd.get("/").text,
            "und bekommt sie in der Erfassung gar nicht erst zu sehen")
     ohne = _konto(client, "vorlagenohne", "ohnepasswort1", ["datensaetze"])

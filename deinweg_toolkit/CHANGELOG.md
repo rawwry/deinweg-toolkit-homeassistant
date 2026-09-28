@@ -3,6 +3,10 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.59.1
+
+- Mein Bereich → Meine Vorlagen: Vorlagen lassen sich jetzt vollständig bearbeiten und neu anlegen, übersichtlichere Darstellung
+
 ## 1.59
 
 - Neu: Tagesvorlagen in der Erfassung – wiederkehrende Tage merken und mit einem Klick ins Formular laden

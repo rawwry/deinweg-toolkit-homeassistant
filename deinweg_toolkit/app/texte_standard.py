@@ -711,13 +711,12 @@ TEXTE_STANDARD["mein.titel.zeiten"] = "Eintrag für Eintrag"
 TEXTE_STANDARD["mein.titel.konto"] = "Mein Konto"
 TEXTE_STANDARD["mein.titel.vorlagen"] = "Meine Vorlagen"
 TEXTE_STANDARD["mein.vorlagen_einleitung"] = (
-    "Vorlagen für Tage, die sich wiederholen. Laden kannst du sie in der "
-    "Erfassung über „Vorlagen“ neben „Neuer Eintrag“ – sie füllen dort nur "
-    "das Formular. Ändern: Vorlage laden, Zeilen anpassen und unter "
-    "demselben Namen neu merken.")
+    "Vorlagen für Tage, die sich wiederholen. In der Erfassung lädst du sie "
+    "über „Vorlagen“ neben „Neuer Eintrag“ – sie füllen dort nur das "
+    "Formular, gespeichert wird erst, wenn du es sagst.")
 TEXTE_STANDARD["mein.vorlagen_leer"] = (
-    "Noch keine Vorlage angelegt. Das geht in der Erfassung – entweder aus "
-    "den eingetippten Zeilen oder aus einem Tag im Protokoll.")
+    "Leg hier eine an – oder merk dir in der Erfassung einen Tag, den du "
+    "schon eingetragen hast.")
 TEXTE_STANDARD["auswertung.titel.ueberblick"] = "Überblick"
 TEXTE_STANDARD["auswertung.titel.monate"] = "Monat für Monat"
 TEXTE_STANDARD["auswertung.titel.kontingent"] = "Stundenkontingent"

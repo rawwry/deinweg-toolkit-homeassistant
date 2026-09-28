@@ -30,6 +30,7 @@ from . import db
 from . import passwort
 from . import vorlagen as _vorlagen
 from .parser import hhmm
+from .rechnen import klientenauswahl
 from .rechnen import (ABWESEND_SQL, ARBEITSTAGE_MONAT, MONATSNAMEN,
                       abwesenheitstage, bewilligungen_pruefen,
                       erfassung_startmonat, mitarbeiter_zu_benutzer,
@@ -60,6 +61,25 @@ def _feld(zeile, name, standard=None):
     return standard if wert is None else wert
 
 
+def _vorlagen_kontext(con, benutzer, vorlage: str, gemerkt: str = "",
+                      vl_hinweis: str = "", vl_fehler: str = "") -> dict:
+    """Alles fuer die Karte „Meine Vorlagen" samt Editor (seit 1.59.1).
+
+    `vorlage` sagt, welche gerade bearbeitet wird: eine id oder "neu".
+    Die Auswahllisten sind dieselben wie in der Erfassung - erst die
+    gepflegten Personen, darunter Namen aus vorhandenen Zeiten.
+    """
+    wahl = klientenauswahl(con)
+    return {
+        "vorlagen": _vorlagen.liste(con, benutzer["id"]),
+        "vorlage_offen": vorlage if (vorlage == "neu" or vorlage.isdigit()) else "",
+        "vorlage_gemerkt": gemerkt, "vl_hinweis": vl_hinweis, "vl_fehler": vl_fehler,
+        "vl_personen": wahl["personen"], "vl_weitere": wahl["weitere"],
+        "vl_leistungen": [r["name"] for r in con.execute(
+            "SELECT name FROM leistung WHERE aktiv=1 ORDER BY name COLLATE NOCASE")],
+    }
+
+
 def _spruch(benutzer) -> dict:
     """Der Spruch - oder nichts, wenn dieses Konto ihn abgestellt hat.
 
@@ -86,7 +106,9 @@ MEINE_ZEITEN_MAX = 300
 
 @router.get("/meinbereich", response_class=HTMLResponse)
 def meinbereich(request: Request, alle: str = "", hinweis: str = "",
-                fehler: str = "", zeiten: str = "", pw: str = ""):
+                fehler: str = "", zeiten: str = "", pw: str = "",
+                vorlage: str = "", gemerkt: str = "", vl_hinweis: str = "",
+                vl_fehler: str = ""):
     benutzer = request.state.benutzer
     with db.db() as con:
         person = mitarbeiter_zu_benutzer(con, benutzer)
@@ -95,7 +117,8 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             # Bewilligungen gilt dem Team, nicht der einzelnen Person.
             return _u["templates"].TemplateResponse(
                 request=request, name="meinbereich.html",
-                context={"seite": "meinbereich", "person": None,
+                context={**_vorlagen_kontext(con, benutzer, vorlage, gemerkt, vl_hinweis, vl_fehler),
+                         "seite": "meinbereich", "person": None,
                          "monate": [], "benutzer": benutzer,
                          "spruch": _spruch(benutzer), "eigene_aufgaben": [],
                          "passwort_offen": bool(pw),
@@ -109,7 +132,6 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                                          if auth.darf_bewilligungen_sehen(benutzer)
                                          else [])
                              if b["art"] == "grundwert"],
-                         "vorlagen": _vorlagen.liste(con, benutzer["id"]),
                          "hinweis": hinweis, "fehler": fehler})
 
         name = person["name"]
@@ -508,7 +530,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
     }
 
     with db.db() as con:
-        vorlagen = _vorlagen.liste(con, benutzer["id"])
+        vorlagen_kontext = _vorlagen_kontext(con, benutzer, vorlage, gemerkt, vl_hinweis, vl_fehler)
 
     return _u["templates"].TemplateResponse(
         request=request, name="meinbereich.html", context={
@@ -543,7 +565,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "zeiten_laengste": zeiten_laengste,
             "zeiten_monat": gewaehlter_monat, "zeiten_gekappt": zeiten_gekappt,
             "zeiten_summe": zeiten_summe, "zeiten_max": MEINE_ZEITEN_MAX,
-            "vorlagen": vorlagen,
+            **vorlagen_kontext,
             "verwaist": isinstance(person, dict) and person.get("verwaist")})
 
 

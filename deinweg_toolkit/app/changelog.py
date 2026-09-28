@@ -2756,4 +2756,10 @@ CHANGELOG = [
         "Mein Bereich: Monate im Plus sind grün, im Minus rot, und der "
         "Saldo trägt immer sein Vorzeichen",
     ]},
+    {"version": "1.59.1", "titel": "Vorlagen bearbeiten", "punkte": [
+        "Mein Bereich → Meine Vorlagen: jede Vorlage lässt sich jetzt "
+        "bearbeiten – Zeilen ändern, hinzufügen und entfernen",
+        "Neue Vorlagen lassen sich auch direkt dort anlegen",
+        "Die Vorlagen sind übersichtlicher dargestellt, auch am Handy",
+    ]},
 ]

@@ -83,6 +83,8 @@ def liste(con, benutzer_id: int) -> list[dict]:
             zeilen = json.loads(r["zeilen"] or "[]")
         except ValueError:
             zeilen = []
+        for z in zeilen:
+            z["dauer"] = _minuten(z)
         raus.append({"id": r["id"], "name": r["name"], "zeilen": zeilen,
                      "anzahl": len(zeilen),
                      "minuten": sum(_minuten(z) for z in zeilen),
@@ -104,7 +106,7 @@ def _ablegen(con, benutzer_id: int, name: str, zeilen: list[dict]) -> tuple[str,
     alt = con.execute(
         "SELECT id FROM vorlage WHERE benutzer_id=? AND LOWER(name)=LOWER(?)",
         (benutzer_id, name)).fetchone()
-    daten = json.dumps(zeilen, ensure_ascii=False)
+    daten = json.dumps([_rein(z) for z in zeilen], ensure_ascii=False)
     menge = f"{len(zeilen)} {'Zeile' if len(zeilen) == 1 else 'Zeilen'}"
     if alt:
         con.execute("UPDATE vorlage SET name=?, zeilen=?, geaendert_am=? "
@@ -119,6 +121,43 @@ def _ablegen(con, benutzer_id: int, name: str, zeilen: list[dict]) -> tuple[str,
     con.execute("INSERT INTO vorlage (benutzer_id, name, zeilen, angelegt_am) "
                 "VALUES (?,?,?,?)", (benutzer_id, name, daten, jetzt()))
     return f"Vorlage „{name}“ gespeichert ({menge}).", ""
+
+
+FELDER = ("klient", "start", "ende", "leistung", "beschreibung")
+
+
+def _rein(zeile: dict) -> dict:
+    """Nur die gespeicherten Felder - `dauer` rechnet liste() jedes Mal neu."""
+    return {k: zeile.get(k, "") for k in FELDER}
+
+
+def zeilen_lesen(klient, start, ende, leistung, beschreibung) -> tuple[list, str]:
+    """Die parallelen Listen eines Formulars zu Vorlagenzeilen.
+
+    Ganz leere Zeilen fallen weg - so entfernt man ohne Skript eine Zeile,
+    indem man sie leert. Gibt (zeilen, fehler) zurueck.
+    """
+    def feld(werte: list[str], nr: int) -> str:
+        return (werte[nr] if nr < len(werte) else "").strip()
+
+    zeilen = []
+    for nr in range(max(len(klient), len(start), len(ende),
+                        len(leistung), len(beschreibung))):
+        k, a, e = feld(klient, nr), feld(start, nr), feld(ende, nr)
+        l, b = feld(leistung, nr), feld(beschreibung, nr)
+        if not any((k, a, e, l, b)):
+            continue
+        za, ze = _zeit(a), _zeit(e)
+        if (a and za is None) or (e and ze is None):
+            return [], (f"Zeile {nr + 1}: Die Uhrzeit passt nicht – "
+                        "schreib sie als HH:MM.")
+        zeilen.append({"klient": k, "start": za or "", "ende": ze or "",
+                       "leistung": l, "beschreibung": b})
+    if not zeilen:
+        return [], "Die Vorlage braucht mindestens eine ausgefüllte Zeile."
+    if len(zeilen) > ZEILEN_MAX:
+        return [], f"Eine Vorlage fasst höchstens {ZEILEN_MAX} Zeilen."
+    return zeilen, ""
 
 
 def leistung_trennen(text: str, leistungen: list[str]) -> tuple[str, str]:
@@ -161,26 +200,9 @@ def aus_formular(request: Request, name: str = Form(""),
     if fehler:
         return nein(fehler)
 
-    def feld(werte: list[str], nr: int) -> str:
-        return (werte[nr] if nr < len(werte) else "").strip()
-
-    zeilen = []
-    for nr in range(max(len(klient), len(start), len(ende),
-                        len(leistung), len(beschreibung))):
-        k, a, e = feld(klient, nr), feld(start, nr), feld(ende, nr)
-        l, b = feld(leistung, nr), feld(beschreibung, nr)
-        if not any((k, a, e, l, b)):
-            continue
-        za, ze = _zeit(a), _zeit(e)
-        if (a and za is None) or (e and ze is None):
-            return nein(f"Zeile {nr + 1}: Die Uhrzeit passt nicht – "
-                        "schreib sie als HH:MM.")
-        zeilen.append({"klient": k, "start": za or "", "ende": ze or "",
-                       "leistung": l, "beschreibung": b})
-    if not zeilen:
-        return nein("Es steht noch keine Zeile im Formular, die sich merken ließe.")
-    if len(zeilen) > ZEILEN_MAX:
-        return nein(f"Eine Vorlage fasst höchstens {ZEILEN_MAX} Zeilen.")
+    zeilen, fehler = zeilen_lesen(klient, start, ende, leistung, beschreibung)
+    if fehler:
+        return nein(fehler)
 
     with db.db() as con:
         meldung, fehler = _ablegen(con, konto["id"], name, zeilen)
@@ -242,30 +264,80 @@ def aus_tag(request: Request, datum: str = Form(""), name: str = Form("")):
 
 
 # --- Pflege in "Mein Bereich" -------------------------------------------------
+#
+# ⚠️ Seit 1.59.1 mit eigenem Editor (Timos Wunsch): Zeilen aendern,
+# ergaenzen und entfernen, ohne den Umweg ueber die Erfassung. Welche
+# Vorlage offen ist, steht in der Adresse (?vorlage=<id> bzw. =neu) - so
+# geht es ohne Skript, und nach einem Fehler landet man wieder im Editor.
 
-def _mein(hinweis: str = "", fehler: str = "") -> RedirectResponse:
-    werte = {k: v for k, v in (("hinweis", hinweis), ("fehler", fehler)) if v}
+def _mein(hinweis: str = "", fehler: str = "", vorlage: str = "") -> RedirectResponse:
+    # ⚠️ Eigene Parameter statt hinweis/fehler: die Seite springt zur
+    # Vorlagenkarte, eine Meldung ganz oben saehe dort niemand. Die Karte
+    # zeigt sie selbst (im offenen Editor bzw. ueber der Liste).
+    werte = {k: v for k, v in (("vorlage", vorlage), ("vl_hinweis", hinweis),
+                               ("vl_fehler", fehler)) if v}
+    anker = f"#vorlage-{vorlage}" if vorlage else "#vorlagen"
     return RedirectResponse("/meinbereich" + ("?" + urlencode(werte) if werte else "")
-                            + "#vorlagen", status_code=303)
+                            + anker, status_code=303)
 
 
-@router.post("/erfassung/vorlagen/{vorlage_id}/umbenennen")
-def umbenennen(request: Request, vorlage_id: int, name: str = Form("")):
+def _name_frei(con, benutzer_id: int, name: str, ausser: int = 0) -> bool:
+    return con.execute(
+        "SELECT 1 FROM vorlage WHERE benutzer_id=? AND LOWER(name)=LOWER(?) AND id<>?",
+        (benutzer_id, name, ausser)).fetchone() is None
+
+
+@router.post("/erfassung/vorlagen/neu")
+def neu(request: Request, name: str = Form(""),
+        klient: list[str] = Form([]), start: list[str] = Form([]),
+        ende: list[str] = Form([]), leistung: list[str] = Form([]),
+        beschreibung: list[str] = Form([])):
     konto = _konto(request)
     name, fehler = _name_pruefen(name)
+    if not fehler:
+        zeilen, fehler = zeilen_lesen(klient, start, ende, leistung, beschreibung)
     if fehler:
-        return _mein(fehler=fehler)
+        return _mein(fehler=fehler, vorlage="neu")
     with db.db() as con:
-        doppelt = con.execute(
-            "SELECT 1 FROM vorlage WHERE benutzer_id=? AND LOWER(name)=LOWER(?) "
-            "AND id<>?", (konto["id"], name, vorlage_id)).fetchone()
-        if doppelt:
-            return _mein(fehler=f"Eine Vorlage „{name}“ gibt es schon.")
-        n = con.execute("UPDATE vorlage SET name=?, geaendert_am=? "
-                        "WHERE id=? AND benutzer_id=?",
-                        (name, jetzt(), vorlage_id, konto["id"])).rowcount
-    return _mein(hinweis=f"Umbenannt in „{name}“.") if n else _mein(
-        fehler="Diese Vorlage gibt es nicht (mehr).")
+        # ⚠️ Anders als beim Merken aus der Erfassung ersetzt ein gleicher
+        # Name hier NICHT: wer bewusst eine neue anlegt, will keine alte
+        # still ueberschreiben.
+        if not _name_frei(con, konto["id"], name):
+            return _mein(fehler=f"Eine Vorlage „{name}“ gibt es schon.", vorlage="neu")
+        zahl = con.execute("SELECT COUNT(*) c FROM vorlage WHERE benutzer_id=?",
+                           (konto["id"],)).fetchone()["c"]
+        if zahl >= VORLAGEN_MAX:
+            return _mein(fehler=f"Du hast schon {VORLAGEN_MAX} Vorlagen.", vorlage="neu")
+        vid = con.execute(
+            "INSERT INTO vorlage (benutzer_id, name, zeilen, angelegt_am) VALUES (?,?,?,?)",
+            (konto["id"], name, json.dumps([_rein(z) for z in zeilen], ensure_ascii=False),
+             jetzt())).lastrowid
+    return RedirectResponse(f"/meinbereich?gemerkt={vid}#vorlage-{vid}", status_code=303)
+
+
+@router.post("/erfassung/vorlagen/{vorlage_id}/aendern")
+def aendern(request: Request, vorlage_id: int, name: str = Form(""),
+            klient: list[str] = Form([]), start: list[str] = Form([]),
+            ende: list[str] = Form([]), leistung: list[str] = Form([]),
+            beschreibung: list[str] = Form([])):
+    konto = _konto(request)
+    name, fehler = _name_pruefen(name)
+    if not fehler:
+        zeilen, fehler = zeilen_lesen(klient, start, ende, leistung, beschreibung)
+    if fehler:
+        return _mein(fehler=fehler, vorlage=str(vorlage_id))
+    with db.db() as con:
+        if not _name_frei(con, konto["id"], name, vorlage_id):
+            return _mein(fehler=f"Eine Vorlage „{name}“ gibt es schon.",
+                         vorlage=str(vorlage_id))
+        n = con.execute(
+            "UPDATE vorlage SET name=?, zeilen=?, geaendert_am=? WHERE id=? AND benutzer_id=?",
+            (name, json.dumps([_rein(z) for z in zeilen], ensure_ascii=False), jetzt(),
+             vorlage_id, konto["id"])).rowcount
+    if not n:
+        return _mein(fehler="Diese Vorlage gibt es nicht (mehr).")
+    return RedirectResponse(f"/meinbereich?gemerkt={vorlage_id}#vorlage-{vorlage_id}",
+                            status_code=303)
 
 
 @router.post("/erfassung/vorlagen/{vorlage_id}/loeschen")

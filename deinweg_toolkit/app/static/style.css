@@ -652,6 +652,7 @@ html:not(.mit-skript) .zeitwahl-platz { display: none; }
    und Dateien, die ein Formular im Hauptfenster aufklappen. */
 html:not(.mit-skript) .erfass-mehr,
 html:not(.mit-skript) .vorlagenwahl,
+html:not(.mit-skript) .vl-weg,
 html:not(.mit-skript) .wiki-baumknopf,
 html:not(.mit-skript) .wiki-neu-knopf,
 html:not(.mit-skript) #wiki-falten { display: none; }
@@ -1796,27 +1797,131 @@ input[type="date"] { text-transform: uppercase; }
 .tp-vorlage-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .tp-vorlage-form .felderklaerung { margin: 0; }
 
-/* „Meine Vorlagen" in Mein Bereich. */
-.vorlagenpflege { list-style: none; margin: 0; padding: 0;
-                  display: flex; flex-direction: column; gap: 6px; }
-.vp-block { border: 1px solid var(--linie); border-radius: 10px; background: var(--flaeche-2); }
-.vp-kopf {
-  display: flex; align-items: baseline; gap: 12px; padding: 11px 14px;
-  cursor: pointer; list-style: none;
+/* --- „Meine Vorlagen" in Mein Bereich (neu gebaut mit 1.59.1) ---------
+   Timos Meldung: sah aus wie eine Beta-Variante. Jede Vorlage ist jetzt
+   eine eigene kleine Karte, ihre Zeilen stehen als ruhige Liste mit der
+   Zeitspanne in der Akzentfarbe - dieselbe Lesart wie das Tagesprotokoll.
+   ⚠️ Container-Abfragen auf der Liste bzw. dem Editor, nicht aufs
+   Fenster; gestapelt ist jeweils der Ausgangszustand. */
+.vl-karte .kopfzeile { align-items: center; }
+.vl-neu { display: inline-flex; align-items: center; gap: 6px; }
+.vl-liste {
+  display: flex; flex-direction: column; gap: 12px;
+  container-type: inline-size; container-name: vlliste;
 }
-.vp-kopf::-webkit-details-marker { display: none; }
-.vp-name { flex: 1 1 auto; min-width: 0; font-weight: 600; }
-.vp-mass { flex: none; font-size: 12.5px; color: var(--leise); }
-.vp-zeilen {
-  margin: 0; padding: 2px 14px 12px 34px;
-  display: flex; flex-direction: column; gap: 4px; font-size: 13.5px;
+.vl {
+  border: 1px solid var(--linie); border-radius: var(--radius);
+  background: var(--flaeche-2); padding: 14px 16px 6px;
 }
-.vp-zeit { display: inline-block; min-width: 104px; color: var(--leise); }
-.vp-aktionen {
-  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
-  gap: 8px; padding: 10px 14px 12px; border-top: 1px solid var(--linie);
+.vl-kopf { display: flex; align-items: flex-start; gap: 12px; }
+.vl-titel { flex: 1 1 auto; min-width: 0; }
+.vl-name { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.1px;
+           text-transform: none; color: var(--tinte); overflow-wrap: anywhere; }
+.vl-mass { margin: 3px 0 0; font-size: 12.5px; color: var(--leise); }
+.vl-aktionen { flex: none; display: flex; align-items: center; }
+/* Rückmeldung direkt an der Vorlage - die Seite springt ja dorthin. */
+.vl-gemerkt {
+  display: inline-flex; align-items: center; gap: 5px; margin-left: 8px;
+  padding: 2px 9px; border-radius: 999px; vertical-align: 2px;
+  background: var(--gut-weich); color: var(--gut);
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0;
 }
-.vp-aktionen .vorlagen-zeile { flex: 1 1 260px; max-width: 440px; }
+.vl-gemerkt::before { content: "✓"; }
+.vl-meldung { margin: 0 0 12px; }
+.vl-editor .vl-meldung { margin: 0; }
+.vl-zeilen { list-style: none; margin: 12px 0 0; padding: 0; }
+.vl-zeile {
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;
+  grid-template-areas: "zeit dauer" "was was";
+  padding: 9px 0; border-top: 1px solid var(--linie);
+}
+.vl-zeit { grid-area: zeit; color: var(--akzent); font-weight: 700; font-size: 14px; }
+.vl-bis { margin: 0 2px; opacity: .7; }
+.vl-zeile.ohne-zeit .vl-zeit { color: var(--leise); font-weight: 500; }
+.vl-dauer { grid-area: dauer; align-self: center; font-size: 12.5px; color: var(--leise); }
+.vl-was { grid-area: was; display: flex; gap: 8px; min-width: 0; font-size: 14px; }
+/* Der Name hat Vorrang vor der Erläuterung - gekürzt wird erst sie. */
+.vl-person { flex: 0 0 auto; max-width: 62%; font-weight: 600;
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-person.leer { color: var(--leise); font-weight: 500; }
+.vl-text { flex: 1 1 auto; min-width: 0; color: var(--leise);
+           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-text::before { content: "·"; margin-right: 8px; }
+@container vlliste (min-width: 560px) {
+  .vl-zeile {
+    grid-template-columns: 118px 74px minmax(0, 1fr);
+    grid-template-areas: "zeit dauer was"; align-items: baseline;
+  }
+}
+.vl-leer {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 26px 16px; text-align: center;
+  border: 1px dashed var(--linie-stark); border-radius: var(--radius);
+}
+.vl-leer svg { width: 30px; height: 30px; color: var(--leise); margin-bottom: 4px; }
+.vl-leer-titel { margin: 0; font-weight: 650; }
+.vl-leer-text { margin: 0 0 8px; max-width: 420px; font-size: 13.5px; color: var(--leise); }
+
+/* Der Editor. Er trägt den Akzent am Rand - man sieht sofort, welche
+   Vorlage gerade offen ist. */
+.vl-editor {
+  display: flex; flex-direction: column; gap: 16px; padding: 16px;
+  border-color: var(--akzent); background: var(--flaeche);
+  box-shadow: 0 0 0 3px var(--akzent-weich);
+  container-type: inline-size; container-name: vleditor;
+}
+.vl-editor-kopf { display: flex; flex-direction: column; gap: 10px; }
+.vl-editor-marke {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--akzent);
+}
+.vl-namensfeld { max-width: 420px; margin: 0; }
+.vl-spaltenkopf { display: none; }
+.vl-ezeilen { display: flex; flex-direction: column; gap: 10px; }
+.vl-ezeile {
+  position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  padding: 12px; border: 1px solid var(--linie); border-radius: 10px;
+}
+.vl-ezeile .feld { margin: 0; min-width: 0; }
+.vl-f-person, .vl-f-leistung, .vl-f-text { grid-column: 1 / -1; }
+.vl-f-person { padding-right: 38px; }
+.vl-ezeile .vl-feldtitel { font-size: 12px; font-weight: 600; color: var(--leise); }
+.vl-ezeile .zeitfeld { text-align: center; }
+.vl-weg { position: absolute; top: 10px; right: 10px; }
+.vl-mehr-huelle { margin-top: 14px; }
+@container vleditor (min-width: 720px) {
+  .vl-spaltenkopf, .vl-ezeile {
+    display: grid; gap: 8px; align-items: center;
+    grid-template-columns: minmax(0, 1.4fr) 84px 84px minmax(0, 1.1fr) minmax(0, 1.5fr) 30px;
+  }
+  .vl-spaltenkopf {
+    padding: 0 0 8px; border-bottom: 1px solid var(--linie);
+    font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--leise);
+  }
+  .vl-ezeile { padding: 0; border: 0; border-radius: 0; }
+  .vl-f-person, .vl-f-leistung, .vl-f-text { grid-column: auto; }
+  .vl-f-person { padding-right: 0; }
+  .vl-ezeile .vl-feldtitel {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .vl-weg { position: static; }
+}
+.vl-editor-fuss {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  flex-wrap: wrap; margin: 0 -16px -16px; padding: 14px 16px;
+  border-top: 1px solid var(--linie); background: var(--flaeche-2);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+/* Schmal: Summe oben, darunter beide Knöpfe gleich breit - sonst stand
+   „Änderungen speichern" allein in einer zweiten Zeile. */
+.vl-summe { flex-basis: 100%; font-size: 13px; color: var(--leise); }
+.vl-editor-fuss .knopf { flex: 1 1 0; text-align: center; white-space: nowrap; }
+@container vleditor (min-width: 520px) {
+  .vl-summe { flex-basis: auto; margin-right: auto; }
+  .vl-editor-fuss .knopf { flex: none; }
+}
 
 /* ⚠️ „Weitere Zeile“: dritter Anlauf (1.25.1).
    Bis 1.24 ein kleiner, leiser Knopf am linken Rand - er stand eingerückt
