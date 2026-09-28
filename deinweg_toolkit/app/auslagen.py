@@ -74,7 +74,11 @@ ZUSTAENDE = ("offen", "abgegeben", "erstattet")
 # sie hier - und traegt die Vorgangsart dann auch unter Einstellungen
 # -> Aufgabenarten ein.
 AUFGABE_ART = "Auslagenabrechnung"
-AUFGABE_KLIENT = "Sonstige"
+# ⚠️ „Sonstiges", nicht „Sonstige" (seit 1.59.2): die Einrichtung hat
+# ihre Zeiten auf „Sonstiges" vereinheitlicht, und die Aufgabenauswahl
+# nimmt ihre Namen auch aus vorhandenen Aufgaben - ein zweiter Name hier
+# stand dort dauerhaft als Doppelgänger zur Wahl.
+AUFGABE_KLIENT = "Sonstiges"
 AUFGABE_PRIO = "Niedrig"
 AUFGABE_FRIST_TAGE = 7
 

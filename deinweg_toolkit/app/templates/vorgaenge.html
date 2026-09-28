@@ -94,21 +94,21 @@
         <label class="feld">
           <span>Vorgangsart</span>
           <select name="art">
-            {% for a in V_ARTEN %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+            {% for a in V_ARTEN %}<option value="{{ a }}" {{ 'selected' if a == fw.art }}>{{ a }}</option>{% endfor %}
           </select>
         </label>
       </div>
 
       <label class="feld">
         <span>Betreff</span>
-        <input type="text" name="titel" required maxlength="160"
+        <input type="text" name="titel" required maxlength="160" value="{{ fw.titel or '' }}"
                placeholder="z. B. Fortschreibung 2026/27 beim LWL">
       </label>
 
       <label class="feld">
         <span>Detaillierte Beschreibung <span class="leise">– darf leer bleiben</span></span>
         <textarea name="beschreibung" rows="3"
-                  placeholder="Was ist der Stand, was wurde vereinbart, was fehlt noch?"></textarea>
+                  placeholder="Was ist der Stand, was wurde vereinbart, was fehlt noch?">{{ fw.beschreibung or '' }}</textarea>
       </label>
 
       </div>
@@ -130,13 +130,13 @@
         <div class="feld zustaendigwahl">
           <span class="feldtitel-block">Zuständige Personen</span>
           {{ mehrfachwahl("", "zustaendig", leute,
-                          [eigener_name] if eigener_name else [],
+                          fw.zustaendig if fw else ([eigener_name] if eigener_name else []),
                           "Person", "Personen") }}
         </div>
         <label class="feld">
           <span>Status</span>
           <select name="status">
-            {% for s in V_STATUS %}<option value="{{ s }}" {{ 'selected' if s == 'Offen' }}>{{ s }}</option>{% endfor %}
+            {% for s in V_STATUS %}<option value="{{ s }}" {{ 'selected' if s == (fw.status or 'Offen') }}>{{ s }}</option>{% endfor %}
           </select>
         </label>
         <label class="feld">
@@ -145,18 +145,22 @@
              den Wert gibt es seit 1.32 nicht mehr, also griff die
              Vorauswahl nie und es blieb bei „Niedrig". #}
           <select name="prioritaet">
-            {% for p in V_PRIO %}<option value="{{ p }}" {{ 'selected' if p == 'Mittel' }}>{{ p }}</option>{% endfor %}
+            {% for p in V_PRIO %}<option value="{{ p }}" {{ 'selected' if p == (fw.prioritaet or 'Mittel') }}>{{ p }}</option>{% endfor %}
           </select>
         </label>
         <label class="feld">
           <span>Frist <span class="leise">– optional</span></span>
-          <input type="date" name="frist" min="2020-01-01">
+          <input type="date" name="frist" min="2020-01-01" value="{{ fw.frist or '' }}">
         </label>
       </div>
       <p class="klein leise felderklaerung">{{ t("vorgaenge.zustaendig_mehrere") }}</p>
       <p class="klein leise felderklaerung">{{ t("vorgaenge.protokoll_hinweis") }}</p>
       </div>
 
+      {# Fehlt die betreute Person oder jede zuständige Person, sagt das
+         Skript es schon vor dem Abschicken - beide Felder sind
+         Aufklapplisten ohne `required` (siehe _mehrfachwahl.html). #}
+      <p class="meldung fehler vorgang-formfehler" hidden></p>
       <div class="knopfreihe">
         <button class="knopf haupt" type="submit">Vorgang anlegen</button>
         <a class="knopf leise" href="/vorgaenge?{{ query }}">Abbrechen</a>
@@ -586,6 +590,38 @@
         window.location.href = adresse.toString();
       }
     });
+  })();
+
+  // Das Anlegeformular: Person und Zuständige sind Aufklapplisten ohne
+  // `required` - ein Pflichtfeld im zugeklappten <details> kann der
+  // Browser nicht anspringen und blockiert still. Deshalb prüft das hier
+  // vor dem Abschicken und öffnet die Liste, um die es geht. Der Server
+  // prüft trotzdem (vorgaenge.anlegen).
+  (function () {
+    var form = document.querySelector(".vorgang-formular");
+    if (!form) { return; }
+    var melde = form.querySelector(".vorgang-formfehler");
+    form.addEventListener("submit", function (e) {
+      var fehlt = [], erste = null;
+      [["klient", "die betreute Person"], ["zustaendig", "mindestens eine zuständige Person"]]
+        .forEach(function (p) {
+          if (form.querySelector("input[name='" + p[0] + "']:checked")) { return; }
+          fehlt.push(p[1]);
+          if (!erste) {
+            var f = form.querySelector("input[name='" + p[0] + "']");
+            erste = f && f.closest("details");
+          }
+        });
+      if (!fehlt.length) { melde.hidden = true; return; }
+      e.preventDefault();
+      melde.textContent = "Es fehlt noch " + fehlt.join(" und ") + ".";
+      melde.hidden = false;
+      if (erste) {
+        erste.open = true;
+        erste.scrollIntoView({block: "center", behavior: "smooth"});
+      }
+    });
+    form.addEventListener("change", function () { melde.hidden = true; });
   })();
 
   // Schnellwahl des Status auf den Karten: die Auswahl schickt selbst ab,

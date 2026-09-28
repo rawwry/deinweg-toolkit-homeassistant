@@ -1724,41 +1724,52 @@ input[type="date"] { text-transform: uppercase; }
 .vorlagen-zahl:empty { display: none; }
 .vorlagen-panel {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 30;
-  width: min(360px, 100%); box-sizing: border-box;
-  display: flex; flex-direction: column; gap: 10px; padding: 14px;
+  width: min(380px, 100%); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 12px; padding: 16px;
   border-radius: var(--radius); border: 1px solid var(--linie-stark);
   background: var(--flaeche); box-shadow: var(--schatten);
   color: var(--tinte); font-weight: 400; letter-spacing: 0;
 }
+.vorlagen-panelkopf { display: flex; flex-direction: column; gap: 3px; }
 .vorlagen-titel {
   margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
   text-transform: uppercase; color: var(--leise);
 }
+.vorlagen-unterzeile { font-size: 12.5px; color: var(--leise); }
 .vorlagen-liste {
-  display: flex; flex-direction: column; gap: 4px;
-  max-height: 260px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 320px; overflow-y: auto; margin: 0 -4px; padding: 0 4px;
 }
 .vorlagen-liste:empty { display: none; }
+/* Eine Vorlage ist ein Knopf wie eine kleine Karte: Zeichen links, Name
+   und Umfang in der Mitte, ein Pfeil rechts sagt „das setzt etwas ein". */
 .vorlage-eintrag {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
-  padding: 9px 11px; border-radius: 8px; cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 12px; border-radius: 10px; cursor: pointer; text-align: left;
   border: 1px solid var(--linie); background: var(--flaeche-2);
-  color: var(--tinte); font: inherit; font-size: 14px;
+  color: var(--tinte); font: inherit;
 }
+.vorlage-zeichen {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px;
+  border-radius: 9px; background: var(--akzent-weich); color: var(--akzent);
+}
+.vorlage-zeichen svg { width: 18px; height: 18px; }
+.vorlage-inhalt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.vorlage-name { font-size: 14.5px; font-weight: 650; overflow-wrap: anywhere; }
+.vorlage-mass { font-size: 12.5px; color: var(--leise); }
+.vorlage-pfeil { flex: none; width: 16px; height: 16px; color: var(--leise); }
 .vorlage-eintrag:hover, .vorlage-eintrag:focus-visible { border-color: var(--akzent); }
-.vorlage-name { font-weight: 600; min-width: 0; overflow: hidden;
-                text-overflow: ellipsis; white-space: nowrap; }
-.vorlage-mass { flex: none; font-size: 12.5px; color: var(--leise); }
-.vorlagen-leer { margin: 0; font-size: 13px; line-height: 1.5; color: var(--leise); }
-.vorlagen-merken {
-  display: flex; flex-direction: column; gap: 6px;
-  padding-top: 10px; border-top: 1px solid var(--linie);
+.vorlage-eintrag:hover .vorlage-pfeil { color: var(--akzent); }
+@media (prefers-reduced-motion: no-preference) {
+  .vorlage-eintrag { transition: border-color .12s ease; }
+  .vorlage-pfeil { transition: transform .12s ease, color .12s ease; }
+  .vorlage-eintrag:hover .vorlage-pfeil { transform: translateX(2px); }
 }
-.vorlagen-zeile { display: flex; gap: 8px; align-items: center; }
-.vorlagen-zeile input { flex: 1 1 auto; min-width: 0; }
-.vorlagen-meldung { margin: 0; font-size: 13px; color: var(--gut); }
-.vorlagen-meldung.fehler { color: var(--dopp); }
-.vorlagen-meldung:empty { display: none; }
+.vorlagen-leer {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; border-radius: 10px; border: 1px dashed var(--linie-stark);
+}
+.vorlagen-leer p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--leise); }
 .vorlagen-fuss { padding-top: 10px; border-top: 1px solid var(--linie); }
 /* Ein kleiner Knopf statt eines nackten Verweises (Timos Wunsch) -
    dieselbe Pillenform wie der Knopf „Vorlagen" oben. */
@@ -1773,16 +1784,8 @@ input[type="date"] { text-transform: uppercase; }
    man am Telefon leicht die Nachbarzeile. */
 @media (pointer: coarse) {
   .vorlagen-knopf { padding: 9px 15px; }
-  .vorlage-eintrag, .vorlagen-verwalten, .vorlagen-merken .knopf { min-height: 44px; }
-  .vorlage-eintrag { align-items: center; }
+  .vorlage-eintrag, .vorlagen-verwalten { min-height: 44px; }
   .vorlagen-liste { max-height: 50vh; }
-}
-/* Schmal: Zeilenzahl und Dauer unter den Namen, sonst blieb von
-   „Donnerstag Standard" nur „Donnerstag Sta…" übrig. */
-@media (max-width: 480px) {
-  .vorlage-eintrag { flex-direction: column; align-items: flex-start;
-                     justify-content: center; gap: 2px; }
-  .vorlage-name { white-space: normal; }
 }
 .vorlagen-verwalten .vorlagen-pfeil { width: 13px; height: 13px; margin-left: -2px; opacity: .7; }
 .vorlagen-verwalten:hover,
@@ -1796,6 +1799,8 @@ input[type="date"] { text-transform: uppercase; }
 .tp-vorlage > summary:hover { color: var(--akzent); }
 .tp-vorlage-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .tp-vorlage-form .felderklaerung { margin: 0; }
+.vorlagen-zeile { display: flex; gap: 8px; align-items: center; }
+.vorlagen-zeile input { flex: 1 1 auto; min-width: 0; }
 
 /* --- „Meine Vorlagen" in Mein Bereich (neu gebaut mit 1.59.1) ---------
    Timos Meldung: sah aus wie eine Beta-Variante. Jede Vorlage ist jetzt
@@ -1809,16 +1814,39 @@ input[type="date"] { text-transform: uppercase; }
   display: flex; flex-direction: column; gap: 12px;
   container-type: inline-size; container-name: vlliste;
 }
+/* ⚠️ Jede Vorlage steht zugeklappt da (seit 1.59.2): der Kopf ist das
+   <summary>, Stift und Mülleimer liegen darüber in der Hülle - nicht im
+   <summary>, sonst klappte ein Klick darauf zugleich auf. */
+.vl-huelle { position: relative; }
 .vl {
   border: 1px solid var(--linie); border-radius: var(--radius);
-  background: var(--flaeche-2); padding: 14px 16px 6px;
+  background: var(--flaeche-2);
 }
-.vl-kopf { display: flex; align-items: flex-start; gap: 12px; }
-.vl-titel { flex: 1 1 auto; min-width: 0; }
-.vl-name { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.1px;
-           text-transform: none; color: var(--tinte); overflow-wrap: anywhere; }
-.vl-mass { margin: 3px 0 0; font-size: 12.5px; color: var(--leise); }
-.vl-aktionen { flex: none; display: flex; align-items: center; }
+.vl-kopf {
+  display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none;
+  padding: 13px 92px 13px 16px; border-radius: var(--radius);
+}
+.vl-kopf::-webkit-details-marker { display: none; }
+.vl-kopf:hover .vl-name { color: var(--akzent); }
+.vl-pfeil {
+  flex: none; width: 8px; height: 8px; margin: 0 2px 0 1px;
+  border-right: 2px solid var(--leise); border-bottom: 2px solid var(--leise);
+  transform: rotate(-45deg);
+}
+.vl[open] .vl-pfeil { transform: translateY(-2px) rotate(45deg); }
+@media (prefers-reduced-motion: no-preference) {
+  .vl-pfeil { transition: transform .15s ease; }
+}
+.vl-titel { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.vl-name { font-size: 16px; font-weight: 650; letter-spacing: -0.1px;
+           color: var(--tinte); overflow-wrap: anywhere; }
+.vl-mass { font-size: 12.5px; color: var(--leise); }
+.vl-aktionen {
+  position: absolute; top: 50%; right: 14px; transform: translateY(-50%);
+  display: flex; align-items: center;
+}
+/* Aufgeklappt bleiben die Knöpfe auf Höhe des Kopfes stehen. */
+.vl-huelle:has(> .vl[open]) .vl-aktionen { top: 17px; transform: none; }
 /* Rückmeldung direkt an der Vorlage - die Seite springt ja dorthin. */
 .vl-gemerkt {
   display: inline-flex; align-items: center; gap: 5px; margin-left: 8px;
@@ -1829,29 +1857,42 @@ input[type="date"] { text-transform: uppercase; }
 .vl-gemerkt::before { content: "✓"; }
 .vl-meldung { margin: 0 0 12px; }
 .vl-editor .vl-meldung { margin: 0; }
-.vl-zeilen { list-style: none; margin: 12px 0 0; padding: 0; }
+
+/* ⚠️⚠️ Die Zeilen teilen sich EIN Raster (subgrid, seit 1.59.2), und die
+   Spalte der betreuten Person ist FEST breit: die Leistung beginnt damit
+   in jeder Zeile und in jeder Vorlage auf derselben Höhe (Timos Wunsch).
+   Vorher lief sie direkt hinter dem Namen weiter und sprang von Zeile zu
+   Zeile. Eine Spalte nach dem längsten Namen fluchtete nur innerhalb
+   einer Vorlage - gemessen 3px Versatz zur nächsten. Längere Namen
+   werden gekürzt. Gestapelt: oben Zeit | Dauer, darunter Person |
+   Leistung - auch dort fluchten beide Spalten. */
+.vl-zeilen {
+  list-style: none; margin: 0 16px; padding: 0 0 6px;
+  display: grid; grid-template-columns: minmax(0, 44%) minmax(0, 1fr);
+  column-gap: 16px;
+}
 .vl-zeile {
-  display: grid; grid-template-columns: auto 1fr; gap: 2px 12px;
-  grid-template-areas: "zeit dauer" "was was";
+  grid-column: 1 / -1; display: grid; grid-template-columns: subgrid;
+  row-gap: 2px; align-items: baseline;
   padding: 9px 0; border-top: 1px solid var(--linie);
 }
-.vl-zeit { grid-area: zeit; color: var(--akzent); font-weight: 700; font-size: 14px; }
+.vl-zeit { grid-column: 1; grid-row: 1; color: var(--akzent); font-weight: 700;
+           font-size: 14px; white-space: nowrap; }
 .vl-bis { margin: 0 2px; opacity: .7; }
 .vl-zeile.ohne-zeit .vl-zeit { color: var(--leise); font-weight: 500; }
-.vl-dauer { grid-area: dauer; align-self: center; font-size: 12.5px; color: var(--leise); }
-.vl-was { grid-area: was; display: flex; gap: 8px; min-width: 0; font-size: 14px; }
-/* Der Name hat Vorrang vor der Erläuterung - gekürzt wird erst sie. */
-.vl-person { flex: 0 0 auto; max-width: 62%; font-weight: 600;
-             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-dauer { grid-column: 2; grid-row: 1; font-size: 12.5px; color: var(--leise); }
+.vl-person, .vl-text {
+  grid-row: 2; min-width: 0; font-size: 14px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vl-person { grid-column: 1; font-weight: 600; }
 .vl-person.leer { color: var(--leise); font-weight: 500; }
-.vl-text { flex: 1 1 auto; min-width: 0; color: var(--leise);
-           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vl-text::before { content: "·"; margin-right: 8px; }
+.vl-text { grid-column: 2; color: var(--leise); }
 @container vlliste (min-width: 560px) {
-  .vl-zeile {
-    grid-template-columns: 118px 74px minmax(0, 1fr);
-    grid-template-areas: "zeit dauer was"; align-items: baseline;
-  }
+  .vl-zeilen { grid-template-columns: 112px 70px 190px minmax(0, 1fr); }
+  .vl-zeit, .vl-dauer, .vl-person, .vl-text { grid-row: 1; }
+  .vl-person { grid-column: 3; }
+  .vl-text { grid-column: 4; }
 }
 .vl-leer {
   display: flex; flex-direction: column; align-items: center; gap: 6px;

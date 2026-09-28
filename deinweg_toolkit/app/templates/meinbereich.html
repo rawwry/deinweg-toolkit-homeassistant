@@ -1167,55 +1167,66 @@
     {% if vorlage_offen == v.id | string %}
     {{ vl_editor(v) }}
     {% else %}
-    <article class="vl" id="vorlage-{{ v.id }}">
-      <header class="vl-kopf">
-        <div class="vl-titel">
-          <h3 class="vl-name">{{ v.name }}
-            {%- if vorlage_gemerkt == v.id | string %} <span class="vl-gemerkt">gespeichert</span>{% endif %}</h3>
-          <p class="vl-mass">
-            {{ v.anzahl }} {{ "Eintrag" if v.anzahl == 1 else "Einträge" }}
-            {%- if v.minuten %} · {{ v.minuten | hhmm }} Std{% endif %}
-            {%- if v.stand %} · Stand {{ v.stand[:10] | deutsch }}{% endif %}
-          </p>
-        </div>
-        <div class="vl-aktionen">
-          <a class="knopf-icon" href="/meinbereich?vorlage={{ v.id }}#vorlage-{{ v.id }}"
-             title="Bearbeiten" aria-label="Vorlage {{ v.name }} bearbeiten">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
-                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-            </svg>
-          </a>
-          <form class="inline" action="/erfassung/vorlagen/{{ v.id }}/loeschen" method="post"
-                onsubmit="return dwt.frage(event, 'Diese Vorlage entfernen? Erfasste Zeiten bleiben unberührt.')">
-            <button class="knopf-icon warn" type="submit" title="Entfernen" aria-label="Vorlage {{ v.name }} entfernen">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
-                      stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </form>
-        </div>
-      </header>
-      <ol class="vl-zeilen">
-        {% for z in v.zeilen %}
-        {% set text = [z.leistung, z.beschreibung] | select | join(": ") %}
-        <li class="vl-zeile{{ ' ohne-zeit' if not z.start }}">
-          <span class="vl-zeit zahlen">
-            {%- if z.start %}{{ z.start }}{% if z.ende %}<span class="vl-bis">–</span>{{ z.ende }}{% endif %}
-            {%- else %}ohne Zeit{% endif -%}
+    {# ⚠️ Jede Vorlage steht ZUGEKLAPPT da (seit 1.59.2, Timos Wunsch) -
+       man sucht eine nach dem Namen, nicht nach ihren Zeilen. Offen steht
+       nur die, die gerade gespeichert wurde: sie ist die Rückmeldung.
+       Stift und Mülleimer liegen NEBEN dem <details>, nicht im <summary>:
+       ein Formular darf dort nicht stehen, und ein Klick darauf soll
+       nicht zugleich auf- oder zuklappen. #}
+    <div class="vl-huelle" id="vorlage-{{ v.id }}">
+      <details class="vl"{{ ' open' if vorlage_gemerkt == v.id | string }}>
+        <summary class="vl-kopf">
+          <span class="vl-pfeil" aria-hidden="true"></span>
+          <span class="vl-titel">
+            <span class="vl-name">{{ v.name }}
+              {%- if vorlage_gemerkt == v.id | string %} <span class="vl-gemerkt">gespeichert</span>{% endif %}</span>
+            <span class="vl-mass">
+              {{ v.anzahl }} {{ "Eintrag" if v.anzahl == 1 else "Einträge" }}
+              {%- if v.minuten %} · {{ v.minuten | hhmm }} Std{% endif %}
+              {%- if v.stand %} · Stand {{ v.stand[:10] | deutsch }}{% endif %}
+            </span>
           </span>
-          <span class="vl-dauer zahlen">{% if z.dauer %}{{ z.dauer | hhmm }} Std{% endif %}</span>
-          <span class="vl-was">
+        </summary>
+        {# ⚠️ Die Zeilen teilen sich EIN Raster (subgrid): so ist die
+           Spalte der betreuten Person so breit wie der längste Name
+           dieser Vorlage, und die Leistung dahinter beginnt in jeder
+           Zeile auf derselben Höhe (Timos Wunsch). #}
+        <ol class="vl-zeilen">
+          {% for z in v.zeilen %}
+          {% set text = [z.leistung, z.beschreibung] | select | join(": ") %}
+          <li class="vl-zeile{{ ' ohne-zeit' if not z.start }}">
+            <span class="vl-zeit zahlen">
+              {%- if z.start %}{{ z.start }}{% if z.ende %}<span class="vl-bis">–</span>{{ z.ende }}{% endif %}
+              {%- else %}ohne Zeit{% endif -%}
+            </span>
+            <span class="vl-dauer zahlen">{% if z.dauer %}{{ z.dauer | hhmm }} Std{% endif %}</span>
             <span class="vl-person{{ ' leer' if not z.klient }}">{{ z.klient or "ohne Person" }}</span>
-            {%- if text %}<span class="vl-text">{{ text }}</span>{% endif %}
-          </span>
-        </li>
-        {% endfor %}
-      </ol>
-    </article>
+            <span class="vl-text">{{ text }}</span>
+          </li>
+          {% endfor %}
+        </ol>
+      </details>
+      <div class="vl-aktionen">
+        <a class="knopf-icon" href="/meinbereich?vorlage={{ v.id }}#vorlage-{{ v.id }}"
+           title="Bearbeiten" aria-label="Vorlage {{ v.name }} bearbeiten">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z"
+                  stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13.5 7.5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </a>
+        <form class="inline" action="/erfassung/vorlagen/{{ v.id }}/loeschen" method="post"
+              onsubmit="return dwt.frage(event, 'Diese Vorlage entfernen? Erfasste Zeiten bleiben unberührt.')">
+          <button class="knopf-icon warn" type="submit" title="Entfernen" aria-label="Vorlage {{ v.name }} entfernen">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 7h16M9.5 7V4.8c0-.44.36-.8.8-.8h3.4c.44 0 .8.36.8.8V7M6.5 7l.7 12.1c.05.9.8 1.6 1.7 1.6h6.2c.9 0 1.65-.7 1.7-1.6L17.5 7"
+                    stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </div>
     {% endif %}
     {% endfor %}
 

@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.59.2
+
+- Meine Vorlagen: zugeklappt, Einträge sauber in Spalten
+- Erfassung: das Vorlagen-Menü lädt nur noch, angelegt wird in Mein Bereich
+- Aufgaben: „Sonstige“ doppelt in der Auswahl behoben; nach einem Fehler bleibt das Formular ausgefüllt
+
 ## 1.59.1
 
 - Mein Bereich → Meine Vorlagen: Vorlagen lassen sich jetzt vollständig bearbeiten und neu anlegen, übersichtlichere Darstellung

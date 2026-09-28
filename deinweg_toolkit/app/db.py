@@ -818,6 +818,18 @@ def init() -> dict | None:
         con.execute("UPDATE vorgang SET status='Erledigt' "
                     "WHERE status='Abgebrochen'")
 
+        # ⚠️ Auslagenabrechnungen trugen von 1.56 bis 1.59.1 die betreute
+        # Person „Sonstige" - ein fest eingetragener Wert, den die
+        # Einrichtung laengst auf „Sonstiges" vereinheitlicht hatte. Er
+        # stand dadurch in der Aufgabenauswahl als Doppelgaenger. Nur die
+        # vom Programm angelegten Vorgaenge werden umgeschrieben (Art
+        # „Auslagenabrechnung"); von Hand angelegte bleiben, wie sie sind.
+        con.execute("UPDATE vorgang_log SET klient='Sonstiges' WHERE klient='Sonstige' "
+                    "AND vorgang_id IN (SELECT id FROM vorgang WHERE "
+                    "art='Auslagenabrechnung' AND klient='Sonstige')")
+        con.execute("UPDATE vorgang SET klient='Sonstiges' "
+                    "WHERE klient='Sonstige' AND art='Auslagenabrechnung'")
+
         # ⚠️ Prioritaeten: seit 1.32 nur noch drei Stufen. „Normal" wird zu
         # „Mittel", „Dringend" zu „Hoch" - vier Stufen fuer ein Team von
         # sechs Leuten waren eine Unterscheidung, die niemand traf.

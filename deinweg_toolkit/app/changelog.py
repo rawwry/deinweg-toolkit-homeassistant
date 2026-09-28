@@ -2762,4 +2762,14 @@ CHANGELOG = [
         "Neue Vorlagen lassen sich auch direkt dort anlegen",
         "Die Vorlagen sind übersichtlicher dargestellt, auch am Handy",
     ]},
+    {"version": "1.59.2", "titel": "Vorlagen und Aufgaben nachgebessert", "punkte": [
+        "Meine Vorlagen: jede Vorlage steht zugeklappt da, die Einträge "
+        "stehen aufgeklappt sauber in Spalten",
+        "Erfassung: im Menü „Vorlagen“ wird nur noch geladen – neue "
+        "Vorlagen legst du in Mein Bereich an",
+        "Aufgaben: „Sonstige“ steht nicht mehr doppelt neben „Sonstiges“ "
+        "in der Auswahl",
+        "Aufgaben: fehlt beim Anlegen eine Angabe, bleibt das Formular "
+        "ausgefüllt und sagt, was fehlt",
+    ]},
 ]

@@ -133,9 +133,8 @@ TEXTE_STANDARD["erfassung.protokoll_leer"] = (
     "Für diesen Tag ist noch nichts erfasst.")
 # Tagesvorlagen (seit 1.59).
 TEXTE_STANDARD["erfassung.vorlagen_leer"] = (
-    "Noch keine Vorlage. Tipp die Zeilen eines typischen Tages ein und merk "
-    "sie dir unten – oder merk dir im Protokoll einen Tag, den du schon "
-    "erfasst hast.")
+    "Noch keine Vorlage. Du legst sie in „Mein Bereich“ an – einmal "
+    "einrichten, danach hier mit einem Klick laden.")
 TEXTE_STANDARD["erfassung.vorlage_tag"] = (
     "Merkt sich deine Zeilen dieses Tages ohne Datum. Beim Laden landen sie "
     "im Formular oben, gespeichert wird erst, wenn du es sagst.")

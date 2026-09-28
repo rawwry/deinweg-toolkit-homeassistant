@@ -800,8 +800,11 @@ def test_verwaltungsvorgang(client: TestClient) -> None:
         "/vorgaenge", data={"klient": "Gibt Es Nicht", "art": "Antrag gestellt",
                             "titel": "Unerlaubt", "zustaendig": "pruefer",
                             "wer": "pruefer"}, follow_redirects=False)
-    pruefe("fehler" in antwort.headers.get("location", ""),
-           "unbekannte betreute Person wird abgelehnt")
+    with db.db() as con:
+        angelegt = con.execute("SELECT COUNT(*) c FROM vorgang WHERE titel='Unerlaubt'"
+                               ).fetchone()["c"]
+    pruefe(antwort.status_code == 200 and "im System nicht bekannt" in antwort.text
+           and angelegt == 0, "unbekannte betreute Person wird abgelehnt")
 
 
 def test_rechte(client: TestClient) -> None:
@@ -8014,7 +8017,7 @@ def test_umbau_1_56(client: TestClient) -> None:
                           ("Auslagenabrechnung",)).fetchone()
     pruefe(art is not None,
            "die Vorgangsart „Auslagenabrechnung“ gibt es (notfalls neu)")
-    pruefe(v["klient"] == "Sonstige", "betreute Person: Sonstige")
+    pruefe(v["klient"] == "Sonstiges", "betreute Person: Sonstiges")
     pruefe(v["art"] == "Auslagenabrechnung", "Vorgangsart stimmt")
     pruefe(v["titel"] == "Auslagenabrechnung Bon Bringer: 92,70 €",
            f"der Betreff nennt Namen und Gesamtbetrag (ist: {v['titel']})")
@@ -8387,22 +8390,30 @@ def test_vorlagen(client: TestClient) -> None:
     pruefe('id="vorlagenwahl"' in seite and 'id="vorlagendaten"' in seite,
            "die Erfassung trägt den Knopf „Vorlagen“ und die Daten dazu")
     knopf = seite.split('id="vorlagenwahl"')[1].split("</details>")[0]
-    pruefe('form="erfassung"' not in knopf and 'name="' not in knopf,
-           "das Namensfeld gehört zu keinem Formular - Enter speichert nie Zeiten")
+    pruefe("vorlagen-merken" not in knopf and 'type="text"' not in knopf,
+           "im Panel wird nur geladen, nicht mehr gemerkt (seit 1.59.2)")
+    pruefe('href="/meinbereich#vorlagen"' in knopf
+           and 'href="/meinbereich?vorlage=neu#vorlage-neu"' in knopf,
+           "das Panel führt zum Verwalten und zum Anlegen in Mein Bereich")
+    pruefe(client.post("/erfassung/vorlagen/speichern",
+                       data={"name": "X", "klient": ["Testperson"]}).status_code in (404, 405),
+           "die Route zum Merken aus der Erfassung gibt es nicht mehr")
     stil = client.get("/static/style.css").text
     pruefe("html:not(.mit-skript) .vorlagenwahl" in stil,
            "ohne Skript gibt es den Knopf nicht (nur eine Zeile ohnehin)")
 
-    # --- Aus dem Formular ---------------------------------------------------
-    r = client.post("/erfassung/vorlagen/speichern", data={
+    # --- Anlegen in Mein Bereich --------------------------------------------
+    r = client.post("/erfassung/vorlagen/neu", data={
         "name": "  Probe   Montag ", "klient": ["Testperson", "", "Gerda Gestern"],
         "start": ["930", "", "13"], "ende": ["1100", "", "1415"],
-        "leistung": ["", "", ""], "beschreibung": ["Besuch", "", "Anruf"],
-        "datum": ["01.03.2026", "01.03.2026", "01.03.2026"]})
-    j = r.json()
-    pruefe(r.status_code == 200 and j["ok"], "die Zeilen lassen sich als Vorlage merken")
-    probe = [v for v in j["vorlagen"] if v["name"] == "Probe Montag"]
-    pruefe(len(probe) == 1, "der Name wird von doppelten Leerzeichen befreit")
+        "leistung": ["", "", ""], "beschreibung": ["Besuch", "", "Anruf"]},
+        follow_redirects=False)
+    with db.db() as con:
+        probe = vorlagen.liste(con, con.execute(
+            "SELECT id FROM benutzer WHERE benutzername='pruefer'").fetchone()["id"])
+    probe = [v for v in probe if v["name"] == "Probe Montag"]
+    pruefe(r.status_code == 303 and len(probe) == 1,
+           "eine Vorlage lässt sich anlegen, der Name ohne doppelte Leerzeichen")
     pruefe(probe and probe[0]["anzahl"] == 2, "die leere Zeile fällt weg")
     pruefe(probe and probe[0]["zeilen"][0]["start"] == "09:30"
            and probe[0]["minuten"] == 90 + 75, "Uhrzeiten und Dauer stimmen")
@@ -8411,27 +8422,16 @@ def test_vorlagen(client: TestClient) -> None:
            "auch eine unbekannte Person bleibt in der Vorlage stehen (Timos Entscheidung)")
     pruefe(anzahl() == vorher, "dabei entsteht kein einziger Zeiteintrag")
 
-    r = client.post("/erfassung/vorlagen/speichern", data={
-        "name": "probe montag", "klient": ["Testperson"], "start": ["8"],
-        "ende": ["9"], "beschreibung": ["Kurz"]})
-    with db.db() as con:
-        n = con.execute("SELECT COUNT(*) c FROM vorlage WHERE LOWER(name)='probe montag'"
-                        ).fetchone()["c"]
-        zeilen = _json.loads(con.execute(
-            "SELECT zeilen FROM vorlage WHERE LOWER(name)='probe montag'").fetchone()["zeilen"])
-    pruefe(r.json()["ok"] and n == 1 and len(zeilen) == 1,
-           "derselbe Name ersetzt die Vorlage statt eine zweite anzulegen")
-    # Die neue Schreibweise gilt: wer ersetzt, tippt den Namen neu.
     for daten, was in (({"name": "", "klient": ["Testperson"]}, "ohne Namen"),
                        ({"name": "X", "start": ["25:99"]}, "mit unlesbarer Uhrzeit"),
                        ({"name": "X", "klient": [""]}, "ohne eine einzige Zeile"),
                        ({"name": "X" * 61, "klient": ["Testperson"]}, "mit zu langem Namen")):
-        r = client.post("/erfassung/vorlagen/speichern", data=daten)
-        pruefe(r.status_code == 400 and not r.json()["ok"], f"abgewiesen: {was}")
+        r = client.post("/erfassung/vorlagen/neu", data=daten, follow_redirects=False)
+        pruefe("vl_fehler=" in r.headers["location"], f"abgewiesen: {was}")
 
     seite = client.get("/").text
     daten = _json.loads(seite.split('id="vorlagendaten">')[1].split("</script>")[0])
-    pruefe(any(v["name"] == "probe montag" for v in daten),
+    pruefe(any(v["name"] == "Probe Montag" for v in daten),
            "die Erfassung bringt die Vorlage für das Skript mit")
 
     # --- Aus einem erfassten Tag -------------------------------------------
@@ -8476,7 +8476,7 @@ def test_vorlagen(client: TestClient) -> None:
 
     # --- Pflege in Mein Bereich --------------------------------------------
     seite = client.get("/meinbereich").text
-    pruefe('id="vorlagen"' in seite and "Dienstag" in seite and "probe montag" in seite,
+    pruefe('id="vorlagen"' in seite and "Dienstag" in seite and "Probe Montag" in seite,
            "„Meine Vorlagen“ steht in Mein Bereich")
     with db.db() as con:
         vid = con.execute("SELECT id FROM vorlage WHERE name='Dienstag'").fetchone()["id"]
@@ -8568,8 +8568,9 @@ def test_vorlagen(client: TestClient) -> None:
     pruefe("Dienstag lang" not in fremd.get("/").text,
            "und bekommt sie in der Erfassung gar nicht erst zu sehen")
     ohne = _konto(client, "vorlagenohne", "ohnepasswort1", ["datensaetze"])
-    pruefe(ohne.post("/erfassung/vorlagen/speichern",
-                     data={"name": "X", "klient": ["Testperson"]}).status_code == 403,
+    pruefe(ohne.post("/erfassung/vorlagen/neu",
+                     data={"name": "X", "klient": ["Testperson"]},
+                     follow_redirects=False).status_code == 403,
            "ohne den Bereich „manuelle Einträge“ gibt es keine Vorlagen")
     pruefe('id="vorlagen"' not in ohne.get("/meinbereich").text,
            "und auch die Karte in Mein Bereich fehlt")
@@ -8580,6 +8581,84 @@ def test_vorlagen(client: TestClient) -> None:
         con.execute("DELETE FROM eintrag WHERE fingerprint LIKE 'vl%'")
         con.execute("DELETE FROM leistung WHERE name='Vorlagenprobe'")
     pruefe(weg == 0, "die eigene Vorlage lässt sich entfernen")
+
+
+def test_umbau_1_59_2(client: TestClient) -> None:
+    """Aufgabenformular nach Fehlern, „Sonstige" aus den Auslagen (1.59.2)."""
+    abschnitt("Umbau 1.59.2")
+
+    # --- Das Formular bleibt ausgefüllt ------------------------------------
+    r = client.post("/vorgaenge", data={
+        "klient": "", "art": "Antrag gestellt", "titel": "Mein langer Betreff",
+        "beschreibung": "Viel getippt", "zustaendig": "pruefer",
+        "prioritaet": "Hoch", "frist": "2026-12-01"}, follow_redirects=False)
+    seite = r.text
+    pruefe(r.status_code == 200 and "Es fehlt noch die betreute Person." in seite,
+           "die Meldung nennt genau das fehlende Feld")
+    form = seite.split('class="vorgang-formular"')[1].split("</form>")[0]
+    pruefe('value="Mein langer Betreff"' in form and "Viel getippt</textarea>" in form,
+           "Betreff und Beschreibung stehen nach dem Fehler wieder da")
+    pruefe('value="Hoch" selected' in form and 'value="2026-12-01"' in form,
+           "Priorität und Frist ebenso")
+    pruefe('value="pruefer" checked' in form or 'value="pruefer"\n' in form,
+           "die gewählte zuständige Person bleibt angehakt")
+    r = client.post("/vorgaenge", data={"klient": "Testperson", "art": "Antrag gestellt",
+                                         "titel": "X"}, follow_redirects=False)
+    pruefe("Es fehlt noch mindestens eine zuständige Person." in r.text,
+           "auch die fehlende zuständige Person wird beim Namen genannt")
+    with open(os.path.join(os.path.dirname(__file__), "templates", "vorgaenge.html"),
+              encoding="utf-8") as f:
+        quelle = f.read()
+    skript = quelle.split('document.querySelector(".vorgang-formular")')[1][:1500]
+    pruefe("vorgang-formfehler" in skript and ":checked" in skript
+           and "preventDefault" in skript,
+           "das Skript prüft Person und Zuständige schon vor dem Abschicken")
+
+    # --- Meine Vorlagen: zugeklappt, Spalten fluchten -----------------------
+    client.post("/erfassung/vorlagen/neu", data={
+        "name": "Klappprobe", "klient": ["Testperson"], "start": ["8"], "ende": ["9"],
+        "beschreibung": ["Kurz"]})
+    with db.db() as con:
+        kid = con.execute("SELECT id FROM vorlage WHERE name='Klappprobe'").fetchone()["id"]
+    seite = client.get("/meinbereich").text
+    huelle = seite.split(f'id="vorlage-{kid}"')[1][:400]
+    pruefe('<details class="vl">' in huelle, "jede Vorlage steht zugeklappt da")
+    seite = client.get(f"/meinbereich?gemerkt={kid}").text
+    pruefe('<details class="vl" open>' in seite.split(f'id="vorlage-{kid}"')[1][:400],
+           "nur die eben gespeicherte steht offen")
+    stil = client.get("/static/style.css").text
+    regel = stil.split(".vl-zeile {")[1].split("}")[0]
+    pruefe("grid-template-columns: subgrid" in regel,
+           "die Zeilen teilen sich ein Raster - die Leistung beginnt überall gleich weit rechts")
+    client.post(f"/erfassung/vorlagen/{kid}/loeschen")
+
+    # --- „Sonstige" -> „Sonstiges" -----------------------------------------
+    from . import auslagen
+    pruefe(auslagen.AUFGABE_KLIENT == "Sonstiges",
+           "neue Auslagenabrechnungen tragen „Sonstiges“")
+    with db.db() as con:
+        con.execute("INSERT INTO vorgang (klient, art, titel, zustaendig, status, prioritaet, "
+                    "angelegt_von, angelegt_am) VALUES ('Sonstige','Auslagenabrechnung','Alt-Abrechnung','pruefer',"
+                    "'Offen','Niedrig','pruefer','2026-09-01 10:00')")
+        alt = con.execute("SELECT last_insert_rowid() i").fetchone()["i"]
+        con.execute("INSERT INTO vorgang_log (vorgang_id, klient, zeitpunkt, wer, aktion) "
+                    "VALUES (?, 'Sonstige', '2026-09-01 10:00', 'pruefer', 'Vorgang angelegt')",
+                    (alt,))
+        con.execute("INSERT INTO vorgang (klient, art, titel, zustaendig, status, prioritaet, "
+                    "angelegt_von, angelegt_am) VALUES ('Sonstige','Antrag gestellt','Von Hand','pruefer',"
+                    "'Offen','Niedrig','pruefer','2026-09-01 10:00')")
+        hand = con.execute("SELECT last_insert_rowid() i").fetchone()["i"]
+    db.init()
+    with db.db() as con:
+        k_alt = con.execute("SELECT klient FROM vorgang WHERE id=?", (alt,)).fetchone()["klient"]
+        k_log = con.execute("SELECT klient FROM vorgang_log WHERE vorgang_id=?",
+                            (alt,)).fetchone()["klient"]
+        k_hand = con.execute("SELECT klient FROM vorgang WHERE id=?", (hand,)).fetchone()["klient"]
+        con.execute("DELETE FROM vorgang_log WHERE vorgang_id IN (?, ?)", (alt, hand))
+        con.execute("DELETE FROM vorgang WHERE id IN (?, ?)", (alt, hand))
+    pruefe(k_alt == "Sonstiges" and k_log == "Sonstiges",
+           "vorhandene Auslagenabrechnungen werden samt Logbuch umgeschrieben")
+    pruefe(k_hand == "Sonstige", "von Hand angelegte Aufgaben bleiben unangetastet")
 
 
 def test_verbindliche_zeiterfassung(client: TestClient) -> None:
@@ -11584,6 +11663,7 @@ def _durchlauf(client: TestClient) -> None:
         test_verbindliche_zeiterfassung(client)
         test_umbau_1_59(client)
         test_vorlagen(client)
+        test_umbau_1_59_2(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

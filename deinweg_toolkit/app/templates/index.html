@@ -214,12 +214,10 @@
            ⚠️ Eine Vorlage speichert nichts - sie setzt nur Zeilen ein.
            ⚠️ Nur mit Skript (siehe „Zwei Fassungen" im Stylesheet): ohne
            Skript gibt es ohnehin nur eine Zeile. Die Liste baut das
-           Skript aus #vorlagendaten; so steht sie nach dem Merken ohne
-           Neuladen aktuell da.
-           ⚠️ Das Namensfeld gehört zu KEINEM Formular (kein `form=`) -
-           Enter darin darf nie „Eintrag speichern" auslösen. #}
+           Skript aus #vorlagendaten.
+           #}
         <details class="vorlagenwahl" id="vorlagenwahl">
-          <summary class="vorlagen-knopf" title="Vorlage laden oder merken">
+          <summary class="vorlagen-knopf" title="Vorlage laden">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <rect x="4" y="3.5" width="16" height="17" rx="2.5" stroke="currentColor" stroke-width="1.7"/>
               <path d="M8 8.5h8M8 12h8M8 15.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
@@ -227,20 +225,20 @@
             <span>Vorlagen</span>
             <span class="vorlagen-zahl" id="vorlagen-zahl">{{ vorlagen | length if vorlagen }}</span>
           </summary>
+          {# ⚠️ Seit 1.59.2 nur noch LADEN (Timos Wunsch): Vorlagen werden
+             in „Mein Bereich" angelegt und gepflegt. Das „Merken" aus den
+             eingetippten Zeilen ist entfallen. #}
           <div class="vorlagen-panel">
-            <p class="vorlagen-titel">Vorlage laden</p>
-            <div class="vorlagen-liste" id="vorlagen-liste"></div>
-            <p class="vorlagen-leer" id="vorlagen-leer">{{ t("erfassung.vorlagen_leer") }}</p>
-            <div class="vorlagen-merken">
-              <label class="vorlagen-titel" for="vorlagen-name">Zeilen oben als Vorlage merken</label>
-              <div class="vorlagen-zeile">
-                <input type="text" id="vorlagen-name" maxlength="60" autocomplete="off"
-                       placeholder="z. B. Montag Standard">
-                <button type="button" class="knopf leise klein" id="vorlagen-merken">Merken</button>
-              </div>
+            <div class="vorlagen-panelkopf">
+              <span class="vorlagen-titel">Vorlage laden</span>
+              <span class="vorlagen-unterzeile">füllt nur das Formular – gespeichert wird erst von dir</span>
             </div>
-            <p class="vorlagen-meldung" id="vorlagen-meldung" aria-live="polite"></p>
-            <div class="vorlagen-fuss">
+            <div class="vorlagen-liste" id="vorlagen-liste"></div>
+            <div class="vorlagen-leer" id="vorlagen-leer">
+              <p>{{ t("erfassung.vorlagen_leer") }}</p>
+              <a class="knopf akzent klein" href="/meinbereich?vorlage=neu#vorlage-neu">Erste Vorlage anlegen</a>
+            </div>
+            <div class="vorlagen-fuss" id="vorlagen-fuss">
               <a class="vorlagen-verwalten" href="/meinbereich#vorlagen">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M4 7h9M17 7h3M4 17h3M11 17h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
@@ -1391,10 +1389,8 @@
           daten  = document.getElementById("vorlagendaten"),
           raum   = document.getElementById("vorlagen-liste"),
           leer   = document.getElementById("vorlagen-leer"),
-          zahlen = document.getElementById("vorlagen-zahl"),
-          name   = document.getElementById("vorlagen-name"),
-          merken = document.getElementById("vorlagen-merken"),
-          melde  = document.getElementById("vorlagen-meldung");
+          fuss   = document.getElementById("vorlagen-fuss"),
+          zahlen = document.getElementById("vorlagen-zahl");
       if (!block || !daten) return;
       var liste_ = [];
       try { liste_ = JSON.parse(daten.textContent || "[]"); } catch (e) { liste_ = []; }
@@ -1402,29 +1398,32 @@
       function dauer(m) {
         return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0");
       }
-      function meldung(text, fehler) {
-        melde.textContent = text || "";
-        melde.classList.toggle("fehler", !!fehler);
-      }
 
+      // Jede Vorlage ist ein Knopf: Zeichen, Name, darunter Umfang, rechts
+      // ein Pfeil. Gebaut über textContent - ein Name ist Text, kein HTML.
       function zeichnen() {
         raum.textContent = "";
         liste_.forEach(function (v) {
           var k = document.createElement("button");
           k.type = "button";
           k.className = "vorlage-eintrag";
-          var n = document.createElement("span");
-          n.className = "vorlage-name";
-          n.textContent = v.name;
-          var m = document.createElement("span");
-          m.className = "vorlage-mass";
-          m.textContent = v.anzahl + (v.anzahl === 1 ? " Zeile" : " Zeilen") +
+          k.innerHTML =
+            '<span class="vorlage-zeichen" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none">' +
+            '<rect x="4" y="3.5" width="16" height="17" rx="2.5" stroke="currentColor" stroke-width="1.7"/>' +
+            '<path d="M8 8.5h8M8 12h8M8 15.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
+            '</svg></span><span class="vorlage-inhalt"><span class="vorlage-name"></span>' +
+            '<span class="vorlage-mass"></span></span>' +
+            '<svg class="vorlage-pfeil" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+            '<path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+          k.querySelector(".vorlage-name").textContent = v.name;
+          k.querySelector(".vorlage-mass").textContent =
+            v.anzahl + (v.anzahl === 1 ? " Eintrag" : " Einträge") +
             (v.minuten ? " · " + dauer(v.minuten) + " Std" : "");
-          k.appendChild(n); k.appendChild(m);
           k.addEventListener("click", function () { laden(v); });
           raum.appendChild(k);
         });
         leer.hidden = liste_.length > 0;
+        fuss.hidden = liste_.length === 0;
         zahlen.textContent = liste_.length || "";
       }
 
@@ -1479,7 +1478,6 @@
         });
         nummerieren();
         block.open = false;
-        meldung("");
         // ⚠️ Am Telefon KEIN Fokus: er öffnete sofort die Tastatur über
         // den eben geladenen Zeilen. Dort rollt die Seite nur zur ersten
         // Zeile; mit Maus und Tastatur geht es wie gewohnt ins Datum.
@@ -1491,35 +1489,6 @@
         }
       }
 
-      function merkenLos() {
-        var wort = (name.value || "").trim();
-        if (!wort) { meldung("Gib der Vorlage einen Namen.", true); name.focus(); return; }
-        var alt = liste_.filter(function (v) {
-          return v.name.toLowerCase() === wort.toLowerCase();
-        })[0];
-        if (alt && !window.confirm("Die Vorlage „" + alt.name +
-                                   "“ gibt es schon. Mit den Zeilen hier überschreiben?")) return;
-        zeilen().forEach(function (z) { z.querySelectorAll(".zeitfeld").forEach(zeitFuellen); });
-        var fd = new FormData(formular);
-        fd.append("name", wort);
-        merken.disabled = true;
-        fetch("/erfassung/vorlagen/speichern", {method: "POST", body: fd,
-                                                credentials: "same-origin"})
-          .then(function (r) { return r.json(); })
-          .then(function (j) {
-            meldung(j.meldung, !j.ok);
-            if (j.ok) { liste_ = j.vorlagen || liste_; zeichnen(); name.value = ""; }
-          })
-          .catch(function () {
-            meldung("Das hat nicht geklappt – lade die Seite neu und versuch es noch einmal.", true);
-          })
-          .then(function () { merken.disabled = false; });
-      }
-
-      merken.addEventListener("click", merkenLos);
-      name.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") { e.preventDefault(); merkenLos(); }
-      });
       document.addEventListener("click", function (e) {
         if (block.open && !block.contains(e.target)) block.open = false;
       });

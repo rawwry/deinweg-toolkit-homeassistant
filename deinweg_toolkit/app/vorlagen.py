@@ -31,7 +31,7 @@ import re
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 
 from . import db
 from .parser import dauer_aus_spanne, parse_datum, parse_zeit
@@ -102,7 +102,12 @@ def _name_pruefen(name: str) -> tuple[str, str]:
 
 
 def _ablegen(con, benutzer_id: int, name: str, zeilen: list[dict]) -> tuple[str, str]:
-    """Legt an oder ersetzt eine gleichnamige. Gibt (meldung, fehler) zurueck."""
+    """Legt an oder ersetzt eine gleichnamige. Gibt (meldung, fehler) zurueck.
+
+    ⚠️ Nur noch fuer „Diesen Tag als Vorlage merken". Das Merken aus den
+    eingetippten Zeilen der Erfassung ist mit 1.59.2 entfallen (Timos
+    Wunsch: Vorlagen werden in „Mein Bereich" angelegt).
+    """
     alt = con.execute(
         "SELECT id FROM vorlage WHERE benutzer_id=? AND LOWER(name)=LOWER(?)",
         (benutzer_id, name)).fetchone()
@@ -176,40 +181,6 @@ def leistung_trennen(text: str, leistungen: list[str]) -> tuple[str, str]:
         if vorn.strip().lower() in bekannt:
             return bekannt[vorn.strip().lower()], hinten.strip()
     return "", text
-
-
-# --- Aus den Zeilen des Formulars ---------------------------------------------
-
-@router.post("/erfassung/vorlagen/speichern")
-def aus_formular(request: Request, name: str = Form(""),
-                 klient: list[str] = Form([]), start: list[str] = Form([]),
-                 ende: list[str] = Form([]), leistung: list[str] = Form([]),
-                 beschreibung: list[str] = Form([])):
-    """Die gerade eingetippten Zeilen als Vorlage merken - per Skript.
-
-    Antwortet mit JSON: das Formular bleibt dabei stehen, man kann die
-    Zeilen danach also auch noch als Zeiten speichern. Der Knopf dafuer
-    steht ohnehin nur mit Skript da.
-    """
-    konto = _konto(request)
-
-    def nein(text: str):
-        return JSONResponse({"ok": False, "meldung": text}, status_code=400)
-
-    name, fehler = _name_pruefen(name)
-    if fehler:
-        return nein(fehler)
-
-    zeilen, fehler = zeilen_lesen(klient, start, ende, leistung, beschreibung)
-    if fehler:
-        return nein(fehler)
-
-    with db.db() as con:
-        meldung, fehler = _ablegen(con, konto["id"], name, zeilen)
-        if fehler:
-            return nein(fehler)
-        return JSONResponse({"ok": True, "meldung": meldung,
-                             "vorlagen": liste(con, konto["id"])})
 
 
 # --- Aus einem schon erfassten Tag --------------------------------------------

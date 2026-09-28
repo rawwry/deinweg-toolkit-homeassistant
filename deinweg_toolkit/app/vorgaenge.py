@@ -643,7 +643,9 @@ def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
                  mehr=gesamt > seite_nr * pro_seite,
                  vorhandene_arten=vorhandene_arten,
                  vorhandene_zustaendige=vorhandene_zustaendige,
-                 formular_offen=bool(neu or fehler), vorbelegt_klient=klient,
+                 formular_offen=bool(neu or fehler),
+                 fw=getattr(request.state, "formwerte", {}),
+                 vorbelegt_klient=getattr(request.state, "formwerte", {}).get("klient") or klient,
                  eigener_name=_umgebung.get("eigener_name", lambda r: "")(request),
                  heute_iso=heute(), fehler=fehler, hinweis=hinweis,
                  bald_tage=BALD_TAGE)
@@ -677,20 +679,36 @@ def anlegen(request: Request, klient: str = Form(""), art: str = Form(""),
     prioritaet = prioritaet if prioritaet in PRIORITAETEN else PRIO_STANDARD
     frist_iso = datum_lesen(frist)
 
-    if not klient or not titel or not zustaendig or not art:
-        return zurueck_zu("/vorgaenge", neu="1", fehler=(
-            "Betreute Person, Vorgangsart, Titel und zuständige Person "
-            "müssen ausgefüllt sein."))
+    # ⚠️⚠️ Nach einem Fehler steht das Formular WIEDER AUSGEFUELLT da
+    # (seit 1.59.2, Timos Meldung). Bis dahin leitete die Route um, und
+    # Betreff, Beschreibung, Frist waren weg - dazu eine Meldung, die nicht
+    # sagte, WELCHES Feld fehlte. Die Seite wird deshalb direkt mit den
+    # eingegebenen Werten gebaut statt umzuleiten.
+    def nochmal(meldung: str):
+        request.state.formwerte = {
+            "klient": klient, "art": art, "titel": titel,
+            "beschreibung": beschreibung, "status": status,
+            "prioritaet": prioritaet, "frist": frist_iso or "",
+            "zustaendig": namensliste(zustaendig)}
+        return uebersicht(request, neu="1", fehler=meldung)
+
+    fehlt = [was for was, wert in (("die betreute Person", klient),
+                                   ("die Vorgangsart", art),
+                                   ("der Betreff", titel),
+                                   ("mindestens eine zuständige Person", zustaendig))
+             if not wert]
+    if fehlt:
+        return nochmal("Es fehlt noch " + " und ".join(fehlt) + ".")
 
     with db.db() as con:
         if klient not in klientenliste(con):
-            return zurueck_zu("/vorgaenge", neu="1", fehler=(
+            return nochmal(
                 f"„{klient}“ ist im System nicht bekannt. Betreute Personen "
-                "kommen ausschließlich aus den hochgeladenen Arbeitslisten."))
+                "kommen ausschließlich aus den hochgeladenen Arbeitslisten.")
         if art not in vorgangsarten_liste(con):
-            return zurueck_zu("/vorgaenge", neu="1", fehler=(
+            return nochmal(
                 f"„{art}“ ist keine eingerichtete Vorgangsart. Vorgangsarten "
-                "werden unter Einstellungen → Aufgabenarten gepflegt."))
+                "werden unter Einstellungen → Aufgabenarten gepflegt.")
 
         # ⚠️ Wer die Aufgabe anlegt, steht in angelegt_von - daran hängt
         # seit 1.30 die Mail „Aufgabe erledigt". Kein Formularfeld: eine
