@@ -223,7 +223,7 @@ def test_import(client: TestClient) -> None:
 def test_menue(client: TestClient) -> None:
     """Zeiterfassung, Übersicht und Auswertung liegen unter „Arbeitszeit“."""
     abschnitt("Menü")
-    for adresse, hier in (("/", "Zeiterfassung"), ("/eintraege", "Übersicht"),
+    for adresse, hier in (("/", "Erfassung"), ("/eintraege", "Übersicht"),
                           ("/auswertung", "Auswertung")):
         seite = client.get(adresse).text
         kopf = seite.split("<main>")[0]
@@ -242,6 +242,8 @@ def test_menue(client: TestClient) -> None:
         # Einstellungen gezogen.
         pruefe(leiste.count("<a ") == 3,
                f"{adresse}: alle drei Unterpunkte stehen darin")
+        pruefe(">Zeiterfassung</a>" not in leiste,
+               f"{adresse}: der erste Reiter heißt „Erfassung“ (seit 1.59)")
 
     seite = client.get("/eintraege").text
     pruefe("<h1>Übersicht</h1>" in seite,
@@ -7194,6 +7196,9 @@ def test_htmx(client: TestClient) -> None:
     pruefe("#wikibereich, #dateienbereich {" in stil
            and "display: flex" in stil.split("#wikibereich, #dateienbereich {")[1][:80],
            "beide Hüllen setzen den Takt von main fort")
+    regel = stil.split("#aufgabenbereich, #eintragsbereich {")[1].split("}")[0]
+    pruefe("display: flex" in regel and "gap: var(--abstand)" in regel,
+           "Aufgaben und Übersicht halten Abstand zwischen ihren Karten")
 
 
 def test_bearbeiten_dauer(client: TestClient) -> None:
@@ -7775,8 +7780,9 @@ def test_privatauslagen(client: TestClient) -> None:
     pruefe('class="raster"' not in seite.split('id="auslagenbereich"')[1]
            .split("<footer")[0],
            "die Seite hat keine zweite Spalte mehr")
-    pruefe("#auslagenbereich {" in stil and "max-width: 880px" in stil,
-           "die Spalte ist gedeckelt und steht mittig")
+    regel = stil.split("#auslagenbereich {")[1].split("}")[0]
+    pruefe("max-width" not in regel,
+           "die Seite ist so breit wie alle anderen (seit 1.59)")
 
     # ⚠️ Pink gezielt: genau EIN gefüllter Knopf auf der Seite.
     inhalt = seite.split('id="auslagenbereich"')[1].split("<footer")[0]
@@ -8315,6 +8321,192 @@ def test_umbau_1_57(client: TestClient) -> None:
                            (offen["id"],)).fetchone() is not None,
                "und der Block steht unverändert da")
 
+
+
+def test_umbau_1_59(client: TestClient) -> None:
+    """Abstände, Breiten, Reiter und Saldofarben (seit 1.59)."""
+    abschnitt("Umbau 1.59")
+    import re
+    from .main import templates
+    saldo = templates.env.filters["saldo"]
+    pruefe(saldo(90) == "+01:30" and saldo(-90) == "-01:30" and saldo(0) == "00:00",
+           "ein Saldo trägt immer sein Vorzeichen, null bleibt ohne")
+
+    stil = client.get("/static/style.css").text
+    for klasse, farbe in (("zeile-plus", "--gut-weich"), ("zeile-minus", "--dopp-weich")):
+        pruefe(f"tr.{klasse}:nth-child(even)" in stil
+               and farbe in stil.split(f"tr.{klasse}:nth-child(even)")[1][:60],
+               f"{klasse} färbt auch die geraden Zeilen")
+    telefon = stil.split(".unternavigation a.aktiv")[1][:600]
+    pruefe("justify-content: center" in telefon,
+           "die Reiterleiste steht am Telefon mittig")
+
+    seite = client.get("/meinbereich?alle=1").text
+    if "monatstabelle" in seite:
+        tabelle = seite.split("monatstabelle")[1].split("</table>")[0]
+        for zeile in tabelle.split("<tr")[2:]:
+            klasse = re.search(r'class="([^"]*)"', zeile)
+            klasse = klasse.group(1) if klasse else ""
+            if "zeile-laufend" in klasse:
+                pruefe("zeile-plus" not in klasse and "zeile-minus" not in klasse,
+                       "der laufende Monat bleibt gelb")
+                continue
+            werte = re.findall(r'class="saldo-(plus|minus)">\s*([+-]?)\d', zeile)
+            for art, zeichen in werte:
+                pruefe(f"zeile-{art}" in klasse,
+                       f"eine Zeile im {art} trägt die passende Farbe")
+                pruefe(zeichen == ("+" if art == "plus" else "-"),
+                       f"und ihr Saldo das Vorzeichen „{'+' if art == 'plus' else '-'}“")
+
+
+def test_vorlagen(client: TestClient) -> None:
+    """Tagesvorlagen für die manuelle Erfassung (seit 1.59).
+
+    ⚠️⚠️ Eine Vorlage speichert NIE eine Zeit - sie füllt nur das Formular.
+    Die Prüfung zählt deshalb die Zeiteinträge vor und nach jedem Schritt.
+    """
+    abschnitt("Tagesvorlagen")
+    import json as _json
+    from . import vorlagen
+
+    pruefe(vorlagen._zeit("930") == "09:30" and vorlagen._zeit("12") == "12:00"
+           and vorlagen._zeit("14:30") == "14:30" and vorlagen._zeit("2561") is None,
+           "Uhrzeiten werden ergänzt wie im Browser, Unlesbares fällt durch")
+    pruefe(vorlagen.leistung_trennen("Hausbesuch: Einkauf", ["Hausbesuch"])
+           == ("Hausbesuch", "Einkauf")
+           and vorlagen.leistung_trennen("hausbesuch", ["Hausbesuch"]) == ("Hausbesuch", "")
+           and vorlagen.leistung_trennen("Anruf: kurz", ["Hausbesuch"]) == ("", "Anruf: kurz"),
+           "Leistung und Erläuterung werden nur an einer gepflegten Leistung getrennt")
+
+    def anzahl() -> int:
+        with db.db() as con:
+            return con.execute("SELECT COUNT(*) c FROM eintrag").fetchone()["c"]
+    vorher = anzahl()
+
+    seite = client.get("/").text
+    pruefe('id="vorlagenwahl"' in seite and 'id="vorlagendaten"' in seite,
+           "die Erfassung trägt den Knopf „Vorlagen“ und die Daten dazu")
+    knopf = seite.split('id="vorlagenwahl"')[1].split("</details>")[0]
+    pruefe('form="erfassung"' not in knopf and 'name="' not in knopf,
+           "das Namensfeld gehört zu keinem Formular - Enter speichert nie Zeiten")
+    stil = client.get("/static/style.css").text
+    pruefe("html:not(.mit-skript) .vorlagenwahl" in stil,
+           "ohne Skript gibt es den Knopf nicht (nur eine Zeile ohnehin)")
+
+    # --- Aus dem Formular ---------------------------------------------------
+    r = client.post("/erfassung/vorlagen/speichern", data={
+        "name": "  Probe   Montag ", "klient": ["Testperson", "", "Gerda Gestern"],
+        "start": ["930", "", "13"], "ende": ["1100", "", "1415"],
+        "leistung": ["", "", ""], "beschreibung": ["Besuch", "", "Anruf"],
+        "datum": ["01.03.2026", "01.03.2026", "01.03.2026"]})
+    j = r.json()
+    pruefe(r.status_code == 200 and j["ok"], "die Zeilen lassen sich als Vorlage merken")
+    probe = [v for v in j["vorlagen"] if v["name"] == "Probe Montag"]
+    pruefe(len(probe) == 1, "der Name wird von doppelten Leerzeichen befreit")
+    pruefe(probe and probe[0]["anzahl"] == 2, "die leere Zeile fällt weg")
+    pruefe(probe and probe[0]["zeilen"][0]["start"] == "09:30"
+           and probe[0]["minuten"] == 90 + 75, "Uhrzeiten und Dauer stimmen")
+    pruefe(probe and "datum" not in probe[0]["zeilen"][0], "eine Vorlage kennt kein Datum")
+    pruefe(probe and probe[0]["zeilen"][1]["klient"] == "Gerda Gestern",
+           "auch eine unbekannte Person bleibt in der Vorlage stehen (Timos Entscheidung)")
+    pruefe(anzahl() == vorher, "dabei entsteht kein einziger Zeiteintrag")
+
+    r = client.post("/erfassung/vorlagen/speichern", data={
+        "name": "probe montag", "klient": ["Testperson"], "start": ["8"],
+        "ende": ["9"], "beschreibung": ["Kurz"]})
+    with db.db() as con:
+        n = con.execute("SELECT COUNT(*) c FROM vorlage WHERE LOWER(name)='probe montag'"
+                        ).fetchone()["c"]
+        zeilen = _json.loads(con.execute(
+            "SELECT zeilen FROM vorlage WHERE LOWER(name)='probe montag'").fetchone()["zeilen"])
+    pruefe(r.json()["ok"] and n == 1 and len(zeilen) == 1,
+           "derselbe Name ersetzt die Vorlage statt eine zweite anzulegen")
+    # Die neue Schreibweise gilt: wer ersetzt, tippt den Namen neu.
+    for daten, was in (({"name": "", "klient": ["Testperson"]}, "ohne Namen"),
+                       ({"name": "X", "start": ["25:99"]}, "mit unlesbarer Uhrzeit"),
+                       ({"name": "X", "klient": [""]}, "ohne eine einzige Zeile"),
+                       ({"name": "X" * 61, "klient": ["Testperson"]}, "mit zu langem Namen")):
+        r = client.post("/erfassung/vorlagen/speichern", data=daten)
+        pruefe(r.status_code == 400 and not r.json()["ok"], f"abgewiesen: {was}")
+
+    seite = client.get("/").text
+    daten = _json.loads(seite.split('id="vorlagendaten">')[1].split("</script>")[0])
+    pruefe(any(v["name"] == "probe montag" for v in daten),
+           "die Erfassung bringt die Vorlage für das Skript mit")
+
+    # --- Aus einem erfassten Tag -------------------------------------------
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO leistung (name, aktiv, angelegt_am) "
+                    "VALUES ('Vorlagenprobe', 1, '2026-01-01 08:00')")
+        for nr, (wer, a, e, text) in enumerate((
+                ("pruefer", "13:00", "14:00", "Vorlagenprobe: Einkauf"),
+                ("pruefer", "08:00", "09:00", "Freier Text"),
+                ("Kollegin Meier", "10:00", "11:00", "Fremde Zeit"))):
+            con.execute(
+                "INSERT INTO eintrag (mitarbeiter, datum, monat, start, ende, klient, "
+                "beschreibung, dauer_min, abrechenbar, fingerprint, angelegt_am) VALUES "
+                "(?, '2026-03-17', '2026-03', ?, ?, 'Testperson', ?, 60, 1, ?, "
+                "'2026-03-17 18:00')", (wer, a, e, text, f"vl{nr}"))
+    vorher = anzahl()
+    seite = client.get("/?datum=17.03.2026").text
+    pruefe('class="tp-vorlage"' in seite and "/erfassung/vorlagen/aus-tag" in seite,
+           "das Tagesprotokoll bietet „Diesen Tag als Vorlage merken“ an")
+    r = client.post("/erfassung/vorlagen/aus-tag",
+                    data={"datum": "2026-03-17", "name": "Dienstag"}, follow_redirects=False)
+    pruefe(r.status_code == 303 and "hinweis=" in r.headers["location"]
+           and "datum=17.03.2026" in r.headers["location"],
+           "zurück auf denselben Tag, mit Bestätigung")
+    with db.db() as con:
+        zeilen = _json.loads(con.execute(
+            "SELECT zeilen FROM vorlage WHERE name='Dienstag'").fetchone()["zeilen"])
+    pruefe(len(zeilen) == 2, "nur die EIGENEN Zeiten des Tages - die fremde fehlt")
+    pruefe([z["start"] for z in zeilen] == ["08:00", "13:00"],
+           "nach Uhrzeit aufsteigend, so wie der Tag verläuft")
+    pruefe(zeilen[1]["leistung"] == "Vorlagenprobe" and zeilen[1]["beschreibung"] == "Einkauf"
+           and zeilen[0]["leistung"] == "" and zeilen[0]["beschreibung"] == "Freier Text",
+           "Leistung und Erläuterung werden wieder getrennt")
+    r = client.post("/erfassung/vorlagen/aus-tag",
+                    data={"datum": "2026-02-02", "name": "Leer"}, follow_redirects=False)
+    pruefe("fehler=" in r.headers["location"], "ein Tag ohne eigene Zeiten wird abgewiesen")
+    pruefe(anzahl() == vorher, "auch dabei entsteht kein Zeiteintrag")
+
+    seite = client.get("/?datum=17.03.2026&mitarbeiter=Kollegin+Meier").text
+    pruefe('class="tp-vorlage"' not in seite,
+           "beim Erfassen für jemand anderen gibt es den Knopf nicht")
+
+    # --- Pflege in Mein Bereich --------------------------------------------
+    seite = client.get("/meinbereich").text
+    pruefe('id="vorlagen"' in seite and "Dienstag" in seite and "probe montag" in seite,
+           "„Meine Vorlagen“ steht in Mein Bereich")
+    with db.db() as con:
+        vid = con.execute("SELECT id FROM vorlage WHERE name='Dienstag'").fetchone()["id"]
+    r = client.post(f"/erfassung/vorlagen/{vid}/umbenennen", data={"name": "Probe Montag"},
+                    follow_redirects=False)  # gleich bis auf Groß/klein
+    pruefe("fehler=" in r.headers["location"], "ein doppelter Name wird abgewiesen")
+    client.post(f"/erfassung/vorlagen/{vid}/umbenennen", data={"name": "Dienstag lang"})
+
+    fremd = _konto(client, "vorlagenfremd", "fremdpasswort1", ["manuelle_eintraege"])
+    fremd.post(f"/erfassung/vorlagen/{vid}/umbenennen", data={"name": "Gekapert"})
+    fremd.post(f"/erfassung/vorlagen/{vid}/loeschen")
+    with db.db() as con:
+        steht = con.execute("SELECT name FROM vorlage WHERE id=?", (vid,)).fetchone()
+    pruefe(steht is not None and steht["name"] == "Dienstag lang",
+           "ein anderes Konto kann eine fremde Vorlage weder umbenennen noch löschen")
+    pruefe("Dienstag lang" not in fremd.get("/").text,
+           "und bekommt sie in der Erfassung gar nicht erst zu sehen")
+    ohne = _konto(client, "vorlagenohne", "ohnepasswort1", ["datensaetze"])
+    pruefe(ohne.post("/erfassung/vorlagen/speichern",
+                     data={"name": "X", "klient": ["Testperson"]}).status_code == 403,
+           "ohne den Bereich „manuelle Einträge“ gibt es keine Vorlagen")
+    pruefe('id="vorlagen"' not in ohne.get("/meinbereich").text,
+           "und auch die Karte in Mein Bereich fehlt")
+
+    client.post(f"/erfassung/vorlagen/{vid}/loeschen")
+    with db.db() as con:
+        weg = con.execute("SELECT COUNT(*) c FROM vorlage WHERE id=?", (vid,)).fetchone()["c"]
+        con.execute("DELETE FROM eintrag WHERE fingerprint LIKE 'vl%'")
+        con.execute("DELETE FROM leistung WHERE name='Vorlagenprobe'")
+    pruefe(weg == 0, "die eigene Vorlage lässt sich entfernen")
 
 
 def test_verbindliche_zeiterfassung(client: TestClient) -> None:
@@ -11317,6 +11509,8 @@ def _durchlauf(client: TestClient) -> None:
         test_umbau_1_56(client)
         test_umbau_1_57(client)
         test_verbindliche_zeiterfassung(client)
+        test_umbau_1_59(client)
+        test_vorlagen(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()

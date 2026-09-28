@@ -651,6 +651,7 @@ html:not(.mit-skript) .zeitwahl-platz { display: none; }
    der einen Zeile) und die Symbolknöpfe in den Seitenleisten von Wiki
    und Dateien, die ein Formular im Hauptfenster aufklappen. */
 html:not(.mit-skript) .erfass-mehr,
+html:not(.mit-skript) .vorlagenwahl,
 html:not(.mit-skript) .wiki-baumknopf,
 html:not(.mit-skript) .wiki-neu-knopf,
 html:not(.mit-skript) #wiki-falten { display: none; }
@@ -1251,6 +1252,11 @@ input[type=date], input[type=time] { min-width: 0; }
 #wikibereich, #dateienbereich {
   display: flex; flex-direction: column; gap: var(--abstand); min-width: 0;
 }
+/* Dieselbe Falle bei den Huellen aus 1.50: ohne das klebten die Karten
+   von Aufgaben und Uebersicht ohne jeden Abstand aneinander (1.59). */
+#aufgabenbereich, #eintragsbereich {
+  display: flex; flex-direction: column; gap: var(--abstand); min-width: 0;
+}
 
 /* --- Eintrag bearbeiten: Kopf und Fuss (seit 1.49.1) ------------------
    Die Maske war eine Reihe aus acht Feldern unter einer Ueberschrift, mit
@@ -1686,7 +1692,131 @@ input[type="date"] { text-transform: uppercase; }
 }
 .erfasstrenner::after {
   content: ""; flex: 1 1 auto; height: 1px; background: var(--linie);
+  order: 1;
 }
+
+/* --- Tagesvorlagen (seit 1.59) -----------------------------------------
+   Der Knopf sitzt rechts auf der Linie von „Neuer Eintrag" - eine
+   Vorlage füllt genau dieses Formular. Die Linie läuft über `order`
+   zwischen Überschrift und Knopf. Das Panel klappt nach unten rechts
+   auf; die Karte klemmt es nicht ab, weil sie über die `.suchwahl`
+   ohnehin auf `overflow: visible` steht. */
+.vorlagenwahl { order: 2; font-size: 13px; }
+/* ⚠️ Bezug des Panels ist die ganze Trennzeile, nicht der Knopf: so
+   bleibt es am Telefon innerhalb der Karte (vorher ragte es links 34px
+   über ihren Rand). */
+.erfasstrenner:has(.vorlagenwahl) { position: relative; }
+.vorlagen-knopf {
+  list-style: none; display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 13px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--linie-stark); background: var(--flaeche);
+  color: var(--leise); font-weight: 600; line-height: 1.2;
+}
+.vorlagen-knopf::-webkit-details-marker { display: none; }
+.vorlagen-knopf svg { width: 15px; height: 15px; flex: none; }
+.vorlagen-knopf:hover,
+.vorlagenwahl[open] > .vorlagen-knopf { color: var(--akzent); border-color: var(--akzent); }
+.vorlagen-zahl {
+  min-width: 18px; padding: 1px 6px; border-radius: 999px; text-align: center;
+  background: var(--akzent-weich); color: var(--akzent); font-size: 11.5px;
+}
+.vorlagen-zahl:empty { display: none; }
+.vorlagen-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 30;
+  width: min(360px, 100%); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 10px; padding: 14px;
+  border-radius: var(--radius); border: 1px solid var(--linie-stark);
+  background: var(--flaeche); box-shadow: var(--schatten);
+  color: var(--tinte); font-weight: 400; letter-spacing: 0;
+}
+.vorlagen-titel {
+  margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--leise);
+}
+.vorlagen-liste {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 260px; overflow-y: auto;
+}
+.vorlagen-liste:empty { display: none; }
+.vorlage-eintrag {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 9px 11px; border-radius: 8px; cursor: pointer; text-align: left;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+  color: var(--tinte); font: inherit; font-size: 14px;
+}
+.vorlage-eintrag:hover, .vorlage-eintrag:focus-visible { border-color: var(--akzent); }
+.vorlage-name { font-weight: 600; min-width: 0; overflow: hidden;
+                text-overflow: ellipsis; white-space: nowrap; }
+.vorlage-mass { flex: none; font-size: 12.5px; color: var(--leise); }
+.vorlagen-leer { margin: 0; font-size: 13px; line-height: 1.5; color: var(--leise); }
+.vorlagen-merken {
+  display: flex; flex-direction: column; gap: 6px;
+  padding-top: 10px; border-top: 1px solid var(--linie);
+}
+.vorlagen-zeile { display: flex; gap: 8px; align-items: center; }
+.vorlagen-zeile input { flex: 1 1 auto; min-width: 0; }
+.vorlagen-meldung { margin: 0; font-size: 13px; color: var(--gut); }
+.vorlagen-meldung.fehler { color: var(--dopp); }
+.vorlagen-meldung:empty { display: none; }
+.vorlagen-fuss { padding-top: 10px; border-top: 1px solid var(--linie); }
+/* Ein kleiner Knopf statt eines nackten Verweises (Timos Wunsch) -
+   dieselbe Pillenform wie der Knopf „Vorlagen" oben. */
+.vorlagen-verwalten {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 7px 12px; border-radius: 999px; text-decoration: none;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+  color: var(--leise); font-size: 12.5px; font-weight: 600; line-height: 1.2;
+}
+.vorlagen-verwalten svg { width: 15px; height: 15px; flex: none; }
+/* Mit dem Finger: jede Tippfläche mindestens 44px hoch - sonst trifft
+   man am Telefon leicht die Nachbarzeile. */
+@media (pointer: coarse) {
+  .vorlagen-knopf { padding: 9px 15px; }
+  .vorlage-eintrag, .vorlagen-verwalten, .vorlagen-merken .knopf { min-height: 44px; }
+  .vorlage-eintrag { align-items: center; }
+  .vorlagen-liste { max-height: 50vh; }
+}
+/* Schmal: Zeilenzahl und Dauer unter den Namen, sonst blieb von
+   „Donnerstag Standard" nur „Donnerstag Sta…" übrig. */
+@media (max-width: 480px) {
+  .vorlage-eintrag { flex-direction: column; align-items: flex-start;
+                     justify-content: center; gap: 2px; }
+  .vorlage-name { white-space: normal; }
+}
+.vorlagen-verwalten .vorlagen-pfeil { width: 13px; height: 13px; margin-left: -2px; opacity: .7; }
+.vorlagen-verwalten:hover,
+.vorlagen-verwalten:focus-visible { color: var(--akzent); border-color: var(--akzent); }
+
+/* Den Tag als Vorlage merken - leise am Fuß des Protokolls. */
+.tp-vorlage { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--linie); }
+.tp-vorlage > summary {
+  cursor: pointer; font-size: 13px; font-weight: 600; color: var(--leise);
+}
+.tp-vorlage > summary:hover { color: var(--akzent); }
+.tp-vorlage-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.tp-vorlage-form .felderklaerung { margin: 0; }
+
+/* „Meine Vorlagen" in Mein Bereich. */
+.vorlagenpflege { list-style: none; margin: 0; padding: 0;
+                  display: flex; flex-direction: column; gap: 6px; }
+.vp-block { border: 1px solid var(--linie); border-radius: 10px; background: var(--flaeche-2); }
+.vp-kopf {
+  display: flex; align-items: baseline; gap: 12px; padding: 11px 14px;
+  cursor: pointer; list-style: none;
+}
+.vp-kopf::-webkit-details-marker { display: none; }
+.vp-name { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+.vp-mass { flex: none; font-size: 12.5px; color: var(--leise); }
+.vp-zeilen {
+  margin: 0; padding: 2px 14px 12px 34px;
+  display: flex; flex-direction: column; gap: 4px; font-size: 13.5px;
+}
+.vp-zeit { display: inline-block; min-width: 104px; color: var(--leise); }
+.vp-aktionen {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+  gap: 8px; padding: 10px 14px 12px; border-top: 1px solid var(--linie);
+}
+.vp-aktionen .vorlagen-zeile { flex: 1 1 260px; max-width: 440px; }
 
 /* ⚠️ „Weitere Zeile“: dritter Anlauf (1.25.1).
    Bis 1.24 ein kleiner, leiser Knopf am linken Rand - er stand eingerückt
@@ -4161,6 +4291,10 @@ fieldset.feld > span {
 .liste tbody tr.zeile-laufend,
 .liste tbody tr.zeile-laufend:nth-child(even) { background: var(--warn-weich); }
 .liste tbody tr.zeile-laufend .marke-status { margin-left: 7px; }
+.liste tbody tr.zeile-plus,
+.liste tbody tr.zeile-plus:nth-child(even)  { background: var(--gut-weich); }
+.liste tbody tr.zeile-minus,
+.liste tbody tr.zeile-minus:nth-child(even) { background: var(--dopp-weich); }
 
 /* --- Stundendiagramm im persönlichen Bereich ---------------------------
    Handgebautes SVG, serverseitig gerechnet - keine Diagrammbibliothek,
@@ -6062,6 +6196,12 @@ a.vgk-wert:hover { text-decoration: underline; }
 }
 .unternavigation a:hover { background: var(--flaeche-2); color: var(--tinte); }
 .unternavigation a.aktiv { background: var(--akzent-weich); color: var(--akzent); }
+/* Am Telefon stehen die Reiter mittig (seit 1.59, Timos Wunsch) - links
+   gestapelt sah die Leiste halb leer aus. Gilt fuer Arbeitszeit UND
+   Fuhrpark: beide kommen aus demselben Makro und sollen gleich aussehen. */
+@media (max-width: 860px) {
+  .unternavigation { justify-content: center; }
+}
 
 /* Zeitraum in der Fuhrpark-Auswertung: eine Reihe Schnellwahl-Pillen und
    daneben der eigene Zeitraum. Beide schließen einander aus, deshalb
@@ -6874,16 +7014,17 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
    Eine Seite, eine Aufgabe: wie viel habe ich gerade vorgestreckt, eine
    neue Auslage eintragen, Bons abgeben. Alles ordnet sich dem unter.
 
-   ⚠️⚠️ EINE Spalte, gedeckelt und mittig (seit 1.55). Bis 1.54 stand
+   ⚠️⚠️ EINE Spalte (seit 1.55). Bis 1.54 stand
    hier das übliche `.raster` mit 340px-Seitenspalte — also zwei
    Layouts, die am Telefon und am Schreibtisch auseinanderlaufen
    konnten. Genau darüber hat Timo sich beschwert („viele Probleme mit
    Abständen"). Mit einer Spalte gibt es nur noch einen Satz Abstände.
-   Der Deckel ist nötig, weil `main` bis 1800px breit wird und eine
-   Betragszeile über 1.7 Bildschirmmeter niemand lesen will. */
+   ⚠️ Der Deckel auf 880px ist seit 1.59 weg (Timos Wunsch): die Seite
+   war deutlich schmaler als alle anderen. Die Breite regelt jetzt wie
+   überall die Einstellung „Inhaltsbreite". */
 #auslagenbereich {
   display: flex; flex-direction: column; gap: var(--abstand);
-  width: 100%; max-width: 880px; align-self: center; min-width: 0;
+  width: 100%; min-width: 0;
 }
 
 .pa-vorlese {

@@ -2742,4 +2742,18 @@ CHANGELOG = [
         "genauer, was passiert, und nennt die Person, die die "
         "Rückerstattung übernimmt",
     ]},
+    {"version": "1.59", "titel": "Tagesvorlagen", "punkte": [
+        "Neu: Tagesvorlagen. In der Erfassung über „Vorlagen“ neben "
+        "„Neuer Eintrag“ lassen sich wiederkehrende Tage merken und "
+        "später ins Formular laden. Gespeichert wird erst, wenn du auf "
+        "„Einträge speichern“ drückst",
+        "Verwalten lassen sich die Vorlagen unter Mein Bereich → "
+        "Meine Vorlagen",
+        "Aufgaben und Übersicht: die Karten haben wieder Abstand",
+        "Privatauslagen sind jetzt so breit wie die übrigen Seiten",
+        "Arbeitszeit: der erste Reiter heißt „Erfassung“ und steht am "
+        "Handy mittig",
+        "Mein Bereich: Monate im Plus sind grün, im Minus rot, und der "
+        "Saldo trägt immer sein Vorzeichen",
+    ]},
 ]

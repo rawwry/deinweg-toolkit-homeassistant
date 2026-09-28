@@ -495,6 +495,22 @@ CREATE TABLE IF NOT EXISTS auslage (
 );
 
 CREATE INDEX IF NOT EXISTS idx_auslage_block ON auslage(block_id);
+
+-- Tagesvorlagen fuer die manuelle Zeiterfassung (seit 1.59). Jedes Konto
+-- hat seine eigenen; geladen wird eine Vorlage nur ins Formular, gespeichert
+-- wird danach wie immer. Die Zeilen stehen als JSON in EINER Spalte: sie
+-- werden nur als Ganzes gelesen und geschrieben, nie einzeln abgefragt -
+-- eine zweite Tabelle waere hier nur Apparat.
+CREATE TABLE IF NOT EXISTS vorlage (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    benutzer_id  INTEGER NOT NULL REFERENCES benutzer(id) ON DELETE CASCADE,
+    name         TEXT NOT NULL,
+    zeilen       TEXT NOT NULL DEFAULT '[]',
+    angelegt_am  TEXT NOT NULL,
+    geaendert_am TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_vorlage_benutzer ON vorlage(benutzer_id);
 CREATE INDEX IF NOT EXISTS idx_auslage_datum ON auslage(datum);
 """
 

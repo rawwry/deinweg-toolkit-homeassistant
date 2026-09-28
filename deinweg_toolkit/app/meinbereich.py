@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from . import auth
 from . import db
 from . import passwort
+from . import vorlagen as _vorlagen
 from .parser import hhmm
 from .rechnen import (ABWESEND_SQL, ARBEITSTAGE_MONAT, MONATSNAMEN,
                       abwesenheitstage, bewilligungen_pruefen,
@@ -108,6 +109,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                                          if auth.darf_bewilligungen_sehen(benutzer)
                                          else [])
                              if b["art"] == "grundwert"],
+                         "vorlagen": _vorlagen.liste(con, benutzer["id"]),
                          "hinweis": hinweis, "fehler": fehler})
 
         name = person["name"]
@@ -505,6 +507,9 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             reverse=True)[:3],
     }
 
+    with db.db() as con:
+        vorlagen = _vorlagen.liste(con, benutzer["id"])
+
     return _u["templates"].TemplateResponse(
         request=request, name="meinbereich.html", context={
             "seite": "meinbereich", "person": person, "name": person["name"],
@@ -538,6 +543,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "zeiten_laengste": zeiten_laengste,
             "zeiten_monat": gewaehlter_monat, "zeiten_gekappt": zeiten_gekappt,
             "zeiten_summe": zeiten_summe, "zeiten_max": MEINE_ZEITEN_MAX,
+            "vorlagen": vorlagen,
             "verwaist": isinstance(person, dict) and person.get("verwaist")})
 
 

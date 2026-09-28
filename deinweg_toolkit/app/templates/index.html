@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_untermenue.html" import arbeitszeit with context %}
-{% block titel %} – Zeiterfassung{% endblock %}
+{% block titel %} – Erfassung{% endblock %}
 {% block inhalt %}
 
 {{ arbeitszeit('zeiterfassung') }}
@@ -206,7 +206,57 @@
 
       <div class="erfasstrenner">
         <span>Neuer Eintrag</span>
+        {# --- Tagesvorlagen (seit 1.59, Timos Auftrag) --------------------
+           Bewusst HIER und nicht als eigene Karte: eine Vorlage füllt genau
+           dieses Formular. Als Fläche darunter läge sie getrennt von dem,
+           was sie tut, und am Telefon müsste man nach dem Laden erst
+           wieder hochrollen.
+           ⚠️ Eine Vorlage speichert nichts - sie setzt nur Zeilen ein.
+           ⚠️ Nur mit Skript (siehe „Zwei Fassungen" im Stylesheet): ohne
+           Skript gibt es ohnehin nur eine Zeile. Die Liste baut das
+           Skript aus #vorlagendaten; so steht sie nach dem Merken ohne
+           Neuladen aktuell da.
+           ⚠️ Das Namensfeld gehört zu KEINEM Formular (kein `form=`) -
+           Enter darin darf nie „Eintrag speichern" auslösen. #}
+        <details class="vorlagenwahl" id="vorlagenwahl">
+          <summary class="vorlagen-knopf" title="Vorlage laden oder merken">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="4" y="3.5" width="16" height="17" rx="2.5" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M8 8.5h8M8 12h8M8 15.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <span>Vorlagen</span>
+            <span class="vorlagen-zahl" id="vorlagen-zahl">{{ vorlagen | length if vorlagen }}</span>
+          </summary>
+          <div class="vorlagen-panel">
+            <p class="vorlagen-titel">Vorlage laden</p>
+            <div class="vorlagen-liste" id="vorlagen-liste"></div>
+            <p class="vorlagen-leer" id="vorlagen-leer">{{ t("erfassung.vorlagen_leer") }}</p>
+            <div class="vorlagen-merken">
+              <label class="vorlagen-titel" for="vorlagen-name">Zeilen oben als Vorlage merken</label>
+              <div class="vorlagen-zeile">
+                <input type="text" id="vorlagen-name" maxlength="60" autocomplete="off"
+                       placeholder="z. B. Montag Standard">
+                <button type="button" class="knopf leise klein" id="vorlagen-merken">Merken</button>
+              </div>
+            </div>
+            <p class="vorlagen-meldung" id="vorlagen-meldung" aria-live="polite"></p>
+            <div class="vorlagen-fuss">
+              <a class="vorlagen-verwalten" href="/meinbereich#vorlagen">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 7h9M17 7h3M4 17h3M11 17h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                  <circle cx="15" cy="7" r="2" stroke="currentColor" stroke-width="1.7"/>
+                  <circle cx="9" cy="17" r="2" stroke="currentColor" stroke-width="1.7"/>
+                </svg>
+                <span>Vorlagen verwalten</span>
+                <svg class="vorlagen-pfeil" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </details>
       </div>
+      <script type="application/json" id="vorlagendaten">{{ vorlagen | tojson }}</script>
 
       {# Jede Zeile ist ein vollständiger Eintrag. Der Server nimmt die
          Felder als parallele Listen entgegen, eine Zeile ist der
@@ -506,6 +556,23 @@
         <p class="tp-leer">{{ t("erfassung.protokoll_leer") }}</p>
         {% endif %}
       </div>
+      {# Den Tag als Vorlage merken (seit 1.59): der schnellste Weg zur
+         ersten Vorlage, und er geht auch ohne Skript. ⚠️ Nur bei den
+         EIGENEN Zeiten - eine Vorlage gehört dem Konto. #}
+      {% if tagesliste and eigener and not fremd %}
+      <details class="tp-vorlage">
+        <summary>Diesen Tag als Vorlage merken</summary>
+        <form action="/erfassung/vorlagen/aus-tag" method="post" class="tp-vorlage-form">
+          <p class="felderklaerung">{{ t("erfassung.vorlage_tag") }}</p>
+          <input type="hidden" name="datum" value="{{ summentag.isoformat() }}">
+          <div class="vorlagen-zeile">
+            <input type="text" name="name" maxlength="60" required autocomplete="off"
+                   aria-label="Name der Vorlage" placeholder="z. B. Montag Standard">
+            <button type="submit" class="knopf leise klein">Als Vorlage merken</button>
+          </div>
+        </form>
+      </details>
+      {% endif %}
     </section>
     {% endif %}
 
@@ -1310,6 +1377,157 @@
     });
 
     nummerieren();
+
+    // --- Tagesvorlagen (seit 1.59) --------------------------------------
+    //
+    // ⚠️⚠️ Laden FÜLLT NUR DAS FORMULAR. Gespeichert wird danach wie immer
+    // über „Einträge speichern" - man sieht jede Zeile und passt an, was
+    // an diesem Tag anders war.
+    // ⚠️ Eine betreute Person, die es in der Auswahl nicht mehr gibt,
+    // wird trotzdem eingesetzt (Timos Entscheidung): der Server lehnt die
+    // Zeile dann mit Zeilennummer ab, und genau so fällt sie auf.
+    (function () {
+      var block  = document.getElementById("vorlagenwahl"),
+          daten  = document.getElementById("vorlagendaten"),
+          raum   = document.getElementById("vorlagen-liste"),
+          leer   = document.getElementById("vorlagen-leer"),
+          zahlen = document.getElementById("vorlagen-zahl"),
+          name   = document.getElementById("vorlagen-name"),
+          merken = document.getElementById("vorlagen-merken"),
+          melde  = document.getElementById("vorlagen-meldung");
+      if (!block || !daten) return;
+      var liste_ = [];
+      try { liste_ = JSON.parse(daten.textContent || "[]"); } catch (e) { liste_ = []; }
+
+      function dauer(m) {
+        return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0");
+      }
+      function meldung(text, fehler) {
+        melde.textContent = text || "";
+        melde.classList.toggle("fehler", !!fehler);
+      }
+
+      function zeichnen() {
+        raum.textContent = "";
+        liste_.forEach(function (v) {
+          var k = document.createElement("button");
+          k.type = "button";
+          k.className = "vorlage-eintrag";
+          var n = document.createElement("span");
+          n.className = "vorlage-name";
+          n.textContent = v.name;
+          var m = document.createElement("span");
+          m.className = "vorlage-mass";
+          m.textContent = v.anzahl + (v.anzahl === 1 ? " Zeile" : " Zeilen") +
+            (v.minuten ? " · " + dauer(v.minuten) + " Std" : "");
+          k.appendChild(n); k.appendChild(m);
+          k.addEventListener("click", function () { laden(v); });
+          raum.appendChild(k);
+        });
+        leer.hidden = liste_.length > 0;
+        zahlen.textContent = liste_.length || "";
+      }
+
+      // Setzt einen Wert in ein Auswahlfeld. `ergaenzen`: fehlt die
+      // Option, wird sie angelegt (betreute Person, siehe oben).
+      function waehlen(feld, wert, ergaenzen) {
+        if (!feld) return false;
+        wert = (wert || "").trim();
+        var treffer = null;
+        Array.prototype.forEach.call(feld.options, function (o) {
+          if (!treffer && wert && o.value.toLowerCase() === wert.toLowerCase()) treffer = o;
+        });
+        if (!treffer && wert && ergaenzen) {
+          treffer = new Option(wert, wert);
+          feld.appendChild(treffer);
+        }
+        feld.value = treffer ? treffer.value : "";
+        feld.dispatchEvent(new Event("change", {bubbles: true}));
+        return !!treffer || !wert;
+      }
+
+      function setzen(zeile, d, tag) {
+        var datum = zeile.querySelector(".datumfeld");
+        if (datum) datum.value = tag;
+        var z = zeile.querySelectorAll(".zeitfeld");
+        if (z[0]) z[0].value = d.start || "";
+        if (z[1]) z[1].value = d.ende || "";
+        waehlen(zeile.querySelector("select[name='klient']"), d.klient, true);
+        var text = d.beschreibung || "",
+            l = zeile.querySelector("select[name='leistung']");
+        // Eine Leistung, die es nicht mehr gibt, geht nicht verloren: sie
+        // wandert vorn in die Erläuterung - gespeichert ergibt das
+        // denselben Text wie vorher.
+        if (!waehlen(l, d.leistung, false)) {
+          text = [d.leistung, text].filter(Boolean).join(": ");
+        }
+        var b = zeile.querySelector("[name='beschreibung']");
+        if (b) { b.value = text; b.setCustomValidity(""); }
+        rechnen(zeile);
+      }
+
+      function laden(v) {
+        if (!v.zeilen || !v.zeilen.length) return;
+        var belegt = zeilen().some(zeileGefuellt);
+        if (belegt && !window.confirm("Die Zeilen im Formular werden durch die Vorlage „" +
+                                      v.name + "“ ersetzt. Weiter?")) return;
+        var erste = zeilen()[0],
+            tag = (erste.querySelector(".datumfeld") || {}).value || "";
+        zeilen().slice(1).forEach(function (z) { z.remove(); });
+        v.zeilen.forEach(function (d, i) {
+          setzen(i === 0 ? erste : zeileAnhaengen(false), d, tag);
+        });
+        nummerieren();
+        block.open = false;
+        meldung("");
+        // ⚠️ Am Telefon KEIN Fokus: er öffnete sofort die Tastatur über
+        // den eben geladenen Zeilen. Dort rollt die Seite nur zur ersten
+        // Zeile; mit Maus und Tastatur geht es wie gewohnt ins Datum.
+        if (window.matchMedia("(pointer: coarse)").matches) {
+          erste.scrollIntoView({block: "start", behavior: "smooth"});
+        } else {
+          var ziel = erste.querySelector(".datumfeld");
+          if (ziel) ziel.focus();
+        }
+      }
+
+      function merkenLos() {
+        var wort = (name.value || "").trim();
+        if (!wort) { meldung("Gib der Vorlage einen Namen.", true); name.focus(); return; }
+        var alt = liste_.filter(function (v) {
+          return v.name.toLowerCase() === wort.toLowerCase();
+        })[0];
+        if (alt && !window.confirm("Die Vorlage „" + alt.name +
+                                   "“ gibt es schon. Mit den Zeilen hier überschreiben?")) return;
+        zeilen().forEach(function (z) { z.querySelectorAll(".zeitfeld").forEach(zeitFuellen); });
+        var fd = new FormData(formular);
+        fd.append("name", wort);
+        merken.disabled = true;
+        fetch("/erfassung/vorlagen/speichern", {method: "POST", body: fd,
+                                                credentials: "same-origin"})
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            meldung(j.meldung, !j.ok);
+            if (j.ok) { liste_ = j.vorlagen || liste_; zeichnen(); name.value = ""; }
+          })
+          .catch(function () {
+            meldung("Das hat nicht geklappt – lade die Seite neu und versuch es noch einmal.", true);
+          })
+          .then(function () { merken.disabled = false; });
+      }
+
+      merken.addEventListener("click", merkenLos);
+      name.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); merkenLos(); }
+      });
+      document.addEventListener("click", function (e) {
+        if (block.open && !block.contains(e.target)) block.open = false;
+      });
+      block.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") { block.open = false; block.querySelector("summary").focus(); }
+      });
+      zeichnen();
+    })();
 
     // --- Nach dem Speichern über htmx (seit 1.50) ---------------------
     //

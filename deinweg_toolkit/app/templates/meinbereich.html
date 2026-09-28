@@ -202,10 +202,10 @@
     {% if stundenkonto %}
     <a class="kennzahl {{ 'hat k-plus' if stundenkonto.summe > 0 }}{{ 'hat k-minus' if stundenkonto.summe < 0 }}"
        href="#monate">
-      <span class="kzahl">{{ stundenkonto.summe | hhmm }}<span class="kmass">Std</span></span>
+      <span class="kzahl">{{ stundenkonto.summe | saldo }}<span class="kmass">Std</span></span>
       <span class="klabel">
         {%- if stundenkonto.uebertrag and stundenkonto.monate %}
-          Stundenkonto · Übertrag {{ stundenkonto.uebertrag | hhmm }}
+          Stundenkonto · Übertrag {{ stundenkonto.uebertrag | saldo }}
         {%- elif stundenkonto.uebertrag %}Stundenkonto · nur der Übertrag
         {%- else %}Stundenkonto · {{ stundenkonto.monate }}
           {{ "Monat" if stundenkonto.monate == 1 else "Monate" }}{% endif -%}
@@ -220,7 +220,7 @@
       {# ⚠️ Die Einheit steht seit 1.41 dabei (Timos Wunsch): „-33:00"
          allein ist zweideutig - es könnte auch eine Uhrzeit sein oder
          eine Zahl von Tagen. Dieselbe Marke wie in der Auswertung. #}
-      <span class="kzahl">{% if letzter %}{{ letzter.saldo | hhmm }}<span class="kmass">Std</span>{% else %}–{% endif %}</span>
+      <span class="kzahl">{% if letzter %}{{ letzter.saldo | saldo }}<span class="kmass">Std</span>{% else %}–{% endif %}</span>
       <span class="klabel">{% if letzter %}Saldo {{ letzter.wort }}{% else %}kein abgeschlossener Monat{% endif %}</span>
     </a>
 
@@ -267,10 +267,10 @@
   {% if stundenkonto and erfassung_ab %}
   <p class="klein leise felderklaerung">
     {%- if stundenkonto.uebertrag %}
-      Übertrag {{ stundenkonto.uebertrag | hhmm }} Std zum
+      Übertrag {{ stundenkonto.uebertrag | saldo }} Std zum
       {{ erfassung_ab | deutsch }}
       {%- if stundenkonto.monate %}, seither
-        {{ stundenkonto.seither | hhmm }} Std über
+        {{ stundenkonto.seither | saldo }} Std über
         {{ stundenkonto.monate }}
         {{ "abgeschlossenen Monat" if stundenkonto.monate == 1
            else "abgeschlossene Monate" }}{% endif -%}.
@@ -671,7 +671,7 @@
       <div>
         <dt>Saldo im Bild</dt>
         <dd class="vz-gross {{ 'saldo-plus' if verlauf_zahlen.summe > 0 else ('saldo-minus' if verlauf_zahlen.summe < 0 else '') }}">
-          {{ verlauf_zahlen.summe | hhmm }}</dd>
+          {{ verlauf_zahlen.summe | saldo }}</dd>
         <dd class="klein leise">Summe der Abweichungen</dd>
       </div>
       {% if verlauf_zahlen.spanne %}
@@ -686,12 +686,12 @@
         <dd class="vz-spanne">
           <span class="leise">{{ verlauf_zahlen.bester.wort }}</span>
           <b class="{{ 'saldo-plus' if verlauf_zahlen.bester.saldo > 0 else ('saldo-minus' if verlauf_zahlen.bester.saldo < 0 else '') }}">
-            {{ verlauf_zahlen.bester.saldo | hhmm }}</b>
+            {{ verlauf_zahlen.bester.saldo | saldo }}</b>
         </dd>
         <dd class="vz-spanne">
           <span class="leise">{{ verlauf_zahlen.schwaechster.wort }}</span>
           <b class="{{ 'saldo-plus' if verlauf_zahlen.schwaechster.saldo > 0 else ('saldo-minus' if verlauf_zahlen.schwaechster.saldo < 0 else '') }}">
-            {{ verlauf_zahlen.schwaechster.saldo | hhmm }}</b>
+            {{ verlauf_zahlen.schwaechster.saldo | saldo }}</b>
         </dd>
       </div>
       {% endif %}
@@ -790,7 +790,7 @@
         <li>
           <span class="trendmonat">{{ m.wort }}</span>
           <span class="{{ 'saldo-plus' if m.saldo > 0 else ('saldo-minus' if m.saldo < 0 else 'leise') }}">
-            {{ m.saldo | hhmm }}
+            {{ m.saldo | saldo }}
           </span>
         </li>
         {% endfor %}
@@ -862,7 +862,12 @@
     </thead>
     <tbody>
       {% for m in monate %}
-      <tr class="{{ 'zeile-laufend' if m.laufend }}{{ ' monat-spaet' if loop.index0 >= 6 }}">
+      {# Abgeschlossene Monate tragen die Farbe ihres Saldos (seit 1.59,
+         Timos Wunsch): grün im Plus, rötlich im Minus. Der laufende
+         Monat bleibt gelb - er hat noch keinen Saldo. #}
+      <tr class="{{ 'zeile-laufend' if m.laufend
+                    else ('zeile-plus' if soll_std and m.saldo > 0
+                    else ('zeile-minus' if soll_std and m.saldo < 0 else '')) }}{{ ' monat-spaet' if loop.index0 >= 6 }}">
         <td class="stark nowrap">
           {{ m.wort }}
           {% if m.laufend %}<span class="marke-status offen">läuft</span>{% endif %}
@@ -884,7 +889,7 @@
         <td class="zahlen nowrap">
           {% if not m.laufend %}
             <span class="{{ 'saldo-plus' if m.saldo > 0 else ('saldo-minus' if m.saldo < 0 else '') }}">
-              {{ m.saldo | hhmm }}
+              {{ m.saldo | saldo }}
             </span>
           {% endif %}
         </td>
@@ -1024,6 +1029,62 @@
   </script>
 </section>
 
+{% endif %}
+
+{# --- Meine Vorlagen (seit 1.59) -----------------------------------------
+   Angelegt werden Vorlagen in der Erfassung - dort, wo die Zeilen stehen.
+   Hier nur, was man selten tut: nachsehen, umbenennen, wegräumen. Ändern
+   heißt laden, anpassen und unter demselben Namen neu merken; ein
+   zweiter Zeileneditor hier wäre eine zweite Erfassung.
+   ⚠️ Hängt am Bereich „manuelle_eintraege" - die Routen liegen unter
+   /erfassung, ohne den Bereich liefe jeder Knopf in ein 403. #}
+{% if hat_zugriff(request.state.benutzer, "manuelle_eintraege") %}
+<section class="karte" id="vorlagen">
+  <div class="kopfzeile">
+    <h2>{{ t("mein.titel.vorlagen") }}</h2>
+    {% if vorlagen %}<p class="summe">{{ vorlagen | length }}</p>{% endif %}
+  </div>
+  <p class="lead">{{ t("mein.vorlagen_einleitung") }}</p>
+  {% if vorlagen %}
+  <ul class="vorlagenpflege">
+    {% for v in vorlagen %}
+    <li>
+      <details class="vp-block">
+        <summary class="vp-kopf">
+          <span class="vp-name">{{ v.name }}</span>
+          <span class="vp-mass">{{ v.anzahl }} {{ "Zeile" if v.anzahl == 1 else "Zeilen" }}
+            {%- if v.minuten %} · {{ v.minuten | hhmm }} Std{% endif %}</span>
+        </summary>
+        <ol class="vp-zeilen">
+          {% for z in v.zeilen %}
+          <li>
+            <span class="vp-zeit zahlen">{{ z.start or "ohne Zeit" }}{% if z.ende %}–{{ z.ende }}{% endif %}</span>
+            <span class="vp-text">{{ z.klient or "ohne Person" }}
+              {%- if z.leistung or z.beschreibung %} · <span class="leise">{{ [z.leistung, z.beschreibung] | select | join(": ") }}</span>{% endif %}</span>
+          </li>
+          {% endfor %}
+        </ol>
+        {# Zwei Formulare nebeneinander, nicht ineinander - verschachtelte
+           Formulare gibt es in HTML nicht. #}
+        <div class="vp-aktionen">
+          <form action="/erfassung/vorlagen/{{ v.id }}/umbenennen" method="post" class="vorlagen-zeile">
+            <input type="text" name="name" value="{{ v.name }}" maxlength="60" required
+                   autocomplete="off" aria-label="Neuer Name für {{ v.name }}">
+            <button class="knopf leise klein" type="submit">Umbenennen</button>
+          </form>
+          <form action="/erfassung/vorlagen/{{ v.id }}/loeschen" method="post"
+                onsubmit="return dwt.frage(event, 'Diese Vorlage entfernen? Erfasste Zeiten bleiben unberührt.')">
+            <button class="knopf leise klein warn" type="submit">Entfernen</button>
+          </form>
+        </div>
+      </details>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="leer">{{ t("mein.vorlagen_leer") }}</p>
+  {% endif %}
+</section>
 {% endif %}
 
 {# „Mein Konto" steht am Ende: man ändert sein Passwort einmal im Jahr.

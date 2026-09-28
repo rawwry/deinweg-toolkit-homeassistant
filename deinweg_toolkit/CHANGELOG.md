@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.59
+
+- Neu: Tagesvorlagen in der Erfassung – wiederkehrende Tage merken und mit einem Klick ins Formular laden
+- Aufgaben und Übersicht: Abstände zwischen den Karten wieder da
+- Privatauslagen so breit wie die übrigen Seiten
+- Arbeitszeit: Reiter heißt „Erfassung“, am Handy mittig
+- Mein Bereich: Monate im Plus grün, im Minus rot, Saldo mit Vorzeichen
+
 ## 1.58.1
 
 - Privatauslagen: Der Text beim Einreichen der Bons nennt jetzt, wer die

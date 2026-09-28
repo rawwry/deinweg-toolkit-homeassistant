@@ -23,7 +23,7 @@
    für jeden Angemeldeten erreichbar (siehe auth.BEREICH_PFADE), die
    beiden anderen hängen an ihrem Bereich. #}
 {% macro arbeitszeit(seite) %}
-{% set punkte = [("/", "Zeiterfassung", seite == "zeiterfassung")] %}
+{% set punkte = [("/", "Erfassung", seite == "zeiterfassung")] %}
 {% if hat_zugriff(request.state.benutzer, "datensaetze") %}
   {% set _ = punkte.append(("/eintraege", "Übersicht", seite == "eintraege")) %}
 {% endif %}

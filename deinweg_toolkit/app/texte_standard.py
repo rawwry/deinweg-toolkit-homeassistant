@@ -131,6 +131,14 @@ TEXTE_STANDARD["erfassung.leer"] = (
 TEXTE_STANDARD["erfassung.titel.protokoll"] = "Bereits von dir erfasst"
 TEXTE_STANDARD["erfassung.protokoll_leer"] = (
     "Für diesen Tag ist noch nichts erfasst.")
+# Tagesvorlagen (seit 1.59).
+TEXTE_STANDARD["erfassung.vorlagen_leer"] = (
+    "Noch keine Vorlage. Tipp die Zeilen eines typischen Tages ein und merk "
+    "sie dir unten – oder merk dir im Protokoll einen Tag, den du schon "
+    "erfasst hast.")
+TEXTE_STANDARD["erfassung.vorlage_tag"] = (
+    "Merkt sich deine Zeilen dieses Tages ohne Datum. Beim Laden landen sie "
+    "im Formular oben, gespeichert wird erst, wenn du es sagst.")
 TEXTE_STANDARD["datensaetze.leer"] = (
     "Keine Einträge für diesen Filter.")
 TEXTE_STANDARD["auswertung.soll_erklaerung"] = (
@@ -701,6 +709,15 @@ TEXTE_STANDARD["mein.titel.trend"] = "Die letzten {monate} Monate"
 TEXTE_STANDARD["mein.titel.monate"] = "Monat für Monat"
 TEXTE_STANDARD["mein.titel.zeiten"] = "Eintrag für Eintrag"
 TEXTE_STANDARD["mein.titel.konto"] = "Mein Konto"
+TEXTE_STANDARD["mein.titel.vorlagen"] = "Meine Vorlagen"
+TEXTE_STANDARD["mein.vorlagen_einleitung"] = (
+    "Vorlagen für Tage, die sich wiederholen. Laden kannst du sie in der "
+    "Erfassung über „Vorlagen“ neben „Neuer Eintrag“ – sie füllen dort nur "
+    "das Formular. Ändern: Vorlage laden, Zeilen anpassen und unter "
+    "demselben Namen neu merken.")
+TEXTE_STANDARD["mein.vorlagen_leer"] = (
+    "Noch keine Vorlage angelegt. Das geht in der Erfassung – entweder aus "
+    "den eingetippten Zeilen oder aus einem Tag im Protokoll.")
 TEXTE_STANDARD["auswertung.titel.ueberblick"] = "Überblick"
 TEXTE_STANDARD["auswertung.titel.monate"] = "Monat für Monat"
 TEXTE_STANDARD["auswertung.titel.kontingent"] = "Stundenkontingent"

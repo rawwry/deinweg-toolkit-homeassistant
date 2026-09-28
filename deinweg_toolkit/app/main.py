@@ -47,7 +47,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.58.1"
+VERSION = "1.59"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -87,6 +87,8 @@ app = FastAPI(title=APP_NAME, docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=os.path.join(BASIS, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASIS, "templates"))
 templates.env.filters["hhmm"] = hhmm
+# Ein Saldo traegt immer sein Vorzeichen: "+12:30" / "-04:15" (seit 1.59).
+templates.env.filters["saldo"] = lambda m: ("+" if (m or 0) > 0 else "") + hhmm(m or 0)
 templates.env.globals["APP_NAME"] = APP_NAME
 templates.env.globals["VERSION"] = VERSION
 templates.env.globals["t"] = lambda *a, **k: t(*a, **k)
@@ -771,6 +773,10 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
         else:
             tagesliste, tagessumme, summentag = [], {"m": 0, "n": 0}, heute
 
+        # Die eigenen Tagesvorlagen (seit 1.59) - geladen werden sie per
+        # Skript ins Formular, siehe vorlagen.py.
+        vorlagen = _vorlagen.liste(con, benutzer["id"]) if benutzer else []
+
         # --- Was heute draengt (seit 1.37) ---------------------------------
         # ⚠️ Die Zeiterfassung ist die Seite, die jeder mehrmals am Tag
         # oeffnet; die Aufgabenseite vielleicht einmal. Eine Frist faellt
@@ -807,7 +813,7 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
         "klienten": klienten, "leistungen": leistungen, "tagesliste": tagesliste,
         "mitarbeiterliste": mitarbeiterliste, "klientliste": klientliste,
         "tagessumme": tagessumme, "mitarbeiter": mitarbeiter, "datum": datum,
-        "eigener": eigener, "fremd": fremd,
+        "eigener": eigener, "fremd": fremd, "vorlagen": vorlagen,
         "summentag": summentag, "ist_heute": summentag == heute,
         "fehler": fehler, "hinweis": hinweis, "seite": "zeiterfassung",
         # ⚠️ Leeres Dict statt des Spruchs, wenn dieses Konto sie
@@ -1821,6 +1827,12 @@ from . import auslagen as _auslagen  # noqa: E402
 _auslagen.setup(templates, {"AUSLAGEN_PFAD": AUSLAGEN_PFAD,
                             "MAX_UPLOAD_MB": MAX_UPLOAD_MB})
 app.include_router(_auslagen.router)
+
+# --- Tagesvorlagen (seit 1.59) --------------------------------------------
+# Kennt weder Templates noch Umgebung - nur db, parser und rechnen.
+from . import vorlagen as _vorlagen  # noqa: E402
+
+app.include_router(_vorlagen.router)
 
 # ⚠️ Der Rueckweg: eine erledigte Aufgabe schliesst ihren Auslagenblock.
 # `auslagen` importiert `vorgaenge` (fuer namen_text und protokoll), die
