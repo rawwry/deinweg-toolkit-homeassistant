@@ -2772,4 +2772,15 @@ CHANGELOG = [
         "Aufgaben: fehlt beim Anlegen eine Angabe, bleibt das Formular "
         "ausgefüllt und sagt, was fehlt",
     ]},
+    {"version": "1.60", "titel": "Die Aufgabenseite aufgeräumt", "punkte": [
+        "Aufgaben zeigen standardmäßig nur deine eigenen – mit einem "
+        "Klick auf „Alle“ siehst du die des ganzen Teams",
+        "Oben filtern Schnellknöpfe mit Zahlen: Offen, Überfällig, Heute, "
+        "Nächste 7 Tage, Erledigt. Seltenere Filter stecken unter „Filter“",
+        "Die Liste ist nach Dringlichkeit gruppiert und sagt oben, was du "
+        "gerade siehst",
+        "Beim Anlegen ist die zuletzt benutzte Vorgangsart schon ausgewählt",
+        "Auswahlfelder sehen in Safari jetzt genauso aus wie in Chrome "
+        "und Brave",
+    ]},
 ]

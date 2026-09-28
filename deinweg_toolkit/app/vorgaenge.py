@@ -563,26 +563,74 @@ SORTIERUNGEN = {
 }
 
 
-def kennzahlen(con) -> dict:
+# --- Die Übersicht (neu gebaut mit 1.60, Timos Auftrag) ---------------------
+#
+# ⚠️⚠️ Timos Meldung: die Seite wirkte überladen. Gemessen standen vor der
+# ersten Aufgabe rund 680px Bedienung - Überschrift, Erklärtext, vier
+# Kacheln, zwei Knöpfe, sechs Filterfelder, zwei Knöpfe, Farblegende.
+# Und „überfällig / fällig / offen / erledigt" stand dreimal da (Kacheln,
+# Legende, Statusfilter). Jetzt EIN Kopf:
+#   - WESSEN Aufgaben: „Meine | Alle" (Vorgabe: meine, Timos Wunsch)
+#   - WELCHE: eine Reihe Pillen mit Zahlen (Offen, Überfällig, Heute,
+#     nächste Tage, Erledigt) - sie ersetzen Kacheln UND Legende
+#   - dazu die Suche und „Weitere Filter" zugeklappt.
+# Die Liste darunter ist nach Dringlichkeit gruppiert und sagt in einem
+# Satz, was man gerade sieht.
+
+GRUPPEN = {
+    "ueberfaellig": "Überfällig",
+    "heute": "Heute fällig",
+    "bald": f"In den nächsten {BALD_TAGE} Tagen",
+    "spaeter": "Später",
+    "ohne": "Ohne Frist",
+    "erledigt": "Erledigt",
+}
+
+
+def gruppe_von(v, lage: str) -> str:
+    """In welche Zwischenüberschrift eine Aufgabe fällt."""
+    if lage == "zu":
+        return "erledigt"
+    if lage == "offen":
+        return "spaeter" if (v["frist"] or "") else "ohne"
+    return lage
+
+
+def lagezahlen(con, wo: str, werte: list) -> dict:
+    """Die Zahlen an den Pillen - unter allen übrigen Filtern, nur ohne
+    die Lage selbst. So stimmt die Zahl an einer Pille immer mit der
+    Liste überein, die ein Klick darauf zeigt."""
     tag = heute()
     grenze = (dt.date.today() + dt.timedelta(days=BALD_TAGE)).isoformat()
-    platzhalter = ",".join("?" * len(ABGESCHLOSSEN))
-    offen_nur = f"status NOT IN ({platzhalter})"
+    platz = ",".join("?" * len(ABGESCHLOSSEN))
+    offen = f"status NOT IN ({platz})"
 
-    def zahl(bedingung: str, werte: list) -> int:
-        return con.execute(
-            f"SELECT COUNT(*) c FROM vorgang WHERE {bedingung}", werte).fetchone()["c"]
+    def zahl(bedingung: str, mehr: list) -> int:
+        return con.execute(f"SELECT COUNT(*) c FROM vorgang WHERE ({wo}) AND {bedingung}",
+                           [*werte, *mehr]).fetchone()["c"]
 
     return {
-        "offen": zahl(offen_nur, list(ABGESCHLOSSEN)),
-        "heute": zahl(f"frist = ? AND {offen_nur}", [tag, *ABGESCHLOSSEN]),
-        "bald": zahl(f"frist > ? AND frist <= ? AND {offen_nur}",
-                     [tag, grenze, *ABGESCHLOSSEN]),
-        "ueberfaellig": zahl(f"frist <> '' AND frist < ? AND {offen_nur}",
-                             [tag, *ABGESCHLOSSEN]),
-        "erledigt": zahl(f"status IN ({platzhalter})", list(ABGESCHLOSSEN)),
-        "gesamt": zahl("1=1", []),
+        "offen": zahl(offen, list(ABGESCHLOSSEN)),
+        "ueberfaellig": zahl(f"frist <> '' AND frist < ? AND {offen}", [tag, *ABGESCHLOSSEN]),
+        "heute": zahl(f"frist = ? AND {offen}", [tag, *ABGESCHLOSSEN]),
+        "bald": zahl(f"frist > ? AND frist <= ? AND {offen}", [tag, grenze, *ABGESCHLOSSEN]),
+        "erledigt": zahl(f"status IN ({platz})", list(ABGESCHLOSSEN)),
     }
+
+
+LAGE_WORT = {
+    "offen": "offenen Aufgaben", "ueberfaellig": "überfälligen Aufgaben",
+    "heute": "heute fälligen Aufgaben",
+    "bald": f"in den nächsten {BALD_TAGE} Tagen fälligen Aufgaben",
+    "erledigt": "erledigten Aufgaben", "alle": "Aufgaben",
+}
+# Ohne Artikel davor („Offene Aufgaben von Anna") steht das Adjektiv stark.
+LAGE_WORT_OHNE = {
+    "offen": "Offene Aufgaben", "ueberfaellig": "Überfällige Aufgaben",
+    "heute": "Heute fällige Aufgaben",
+    "bald": f"In den nächsten {BALD_TAGE} Tagen fällige Aufgaben",
+    "erledigt": "Erledigte Aufgaben", "alle": "Aufgaben",
+}
 
 
 @router.get("", response_class=HTMLResponse)
@@ -590,19 +638,80 @@ def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
                status: str = "", art: str = "", faellig: str = "",
                # ⚠️ Seit 1.34 steht der Zustandsfilter ohne eigene Angabe
                # auf „offen" statt auf „alle" (Timos Wunsch): erledigte
-               # Aufgaben sind das Archiv, nicht die Arbeitsliste. Wer sie
-               # sehen will, klickt auf die Kennzahl „erledigt" oder legt
-               # das Auge in der Werkzeugleiste um.
+               # Aufgaben sind das Archiv, nicht die Arbeitsliste.
                zustand: str = "offen", q: str = "", sortierung: str = "dringlichkeit",
-               seite_nr: int = 1,
+               seite_nr: int = 1, wer: str = "",
                neu: str = "", fehler: str = "", hinweis: str = ""):
     if sortierung not in SORTIERUNGEN:
         sortierung = "dringlichkeit"
-    filter_ = filter_bauen(klient, zustaendig, status, art, faellig, zustand, q)
+    if faellig not in ("ueberfaellig", "heute", "bald", "ohne"):
+        faellig = ""
+    zustaendig = zustaendig.strip()
+    q = q.strip()
+    eigener = _umgebung.get("eigener_name", lambda r: "")(request)
 
-    # Zwanzig Karten je Seite. Als Tabelle konnte man fünfhundert Zeilen
-    # ueberfliegen; als Karten waeren das ein halber Kilometer Seite.
-    pro_seite = 20
+    # --- WESSEN Aufgaben ------------------------------------------------
+    # ⚠️⚠️ Ohne Angabe die EIGENEN (seit 1.60, Timos Wunsch). „Alle" steht
+    # ausdrücklich in der Adresse (wer=alle) - sonst wäre ein Lesezeichen
+    # auf die Gesamtliste nicht möglich. Ein ausdrücklich gewählter Name
+    # (?zustaendig=…, so verlinken „Mein Bereich" und „Was heute drängt")
+    # gewinnt gegen beides. Ohne zugeordneten Mitarbeiter gibt es keine
+    # „eigenen" - dann ist „Alle" der Normalfall.
+    if zustaendig:
+        bereich = ("meine" if eigener and zustaendig.casefold() == eigener.casefold()
+                   else "person")
+        wirksam = zustaendig
+    elif wer != "alle" and eigener:
+        bereich, wirksam = "meine", eigener
+    else:
+        bereich, wirksam = "alle", ""
+
+    filter_ = filter_bauen(klient, wirksam, status, art, faellig, zustand, q)
+    f = filter_["f"]
+    f["zustaendig"] = zustaendig          # nur der ausdrücklich gewählte
+    f["wer"] = "alle" if bereich == "alle" and eigener else ""
+    if bereich == "meine":
+        # „Zuständig: ich" ist hier kein Filter, sondern der Normalfall.
+        filter_["aktive"] = [a for a in filter_["aktive"] if a[0] != "Zuständig"]
+    # Die Lage steht als Pille oben - nicht noch einmal als Chip.
+    filter_["aktive"] = [a for a in filter_["aktive"] if a[0] not in ("Fälligkeit", "Zustand")]
+    query_werte = {k: v for k, v in f.items() if v and not (k == "zustand" and v == "offen")}
+    filter_["query"] = urlencode(query_werte)
+
+    def link(**aenderung) -> str:
+        """Dieselbe Liste mit geänderten Angaben - für Pillen und Umschalter."""
+        werte = dict(query_werte)
+        if sortierung != "dringlichkeit":
+            werte["sortierung"] = sortierung
+        for k, v in aenderung.items():
+            if v:
+                werte[k] = v
+            else:
+                werte.pop(k, None)
+        return "/vorgaenge" + ("?" + urlencode(werte) if werte else "")
+
+    if zustand == "erledigt":
+        lage = "erledigt"
+    elif faellig:
+        lage = faellig
+    elif zustand == "alle":
+        lage = "alle"
+    else:
+        lage = "offen"
+
+    # Gruppiert wird nur in der Standardsortierung: dort stehen die
+    # Aufgaben ohnehin nach Dringlichkeit, die Überschriften sagen es nur.
+    # ⚠️ Und nur, wo es mehr als eine Gruppe geben kann („Offen", „alle").
+    # Bei „Überfällig" stünde sonst über dem Titel „Alle überfälligen
+    # Aufgaben" gleich noch einmal „Überfällig".
+    gruppiert = sortierung == "dringlichkeit" and lage in ("offen", "alle")
+    # Die Marke „überfällig" am Titel braucht es nur, wo weder Gruppe noch
+    # Pille es schon sagen.
+    marke = not gruppiert and lage in ("offen", "alle")
+
+    # Vierzig statt zwanzig je Seite: mit den Gruppen ist die Liste
+    # leichter zu überfliegen, und Blättern zerschnitte sie.
+    pro_seite = 40
 
     with db.db() as con:
         gesamt = con.execute(
@@ -615,11 +724,20 @@ def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
             f"ORDER BY {SORTIERUNGEN[sortierung]} "
             f"LIMIT {pro_seite} OFFSET {(seite_nr - 1) * pro_seite}",
             filter_["werte"]).fetchall()
-        zahlen = kennzahlen(con)
+        basis = filter_bauen(klient, wirksam, status, art, "", "alle", q)
+        pillen = lagezahlen(con, basis["wo"], basis["werte"])
+        platz = ",".join("?" * len(ABGESCHLOSSEN))
+        umfang = {
+            "meine": con.execute(
+                f"SELECT COUNT(*) c FROM vorgang WHERE {ZUSTAENDIG_TRIFFT} "
+                f"AND status NOT IN ({platz})", [eigener, *ABGESCHLOSSEN]
+            ).fetchone()["c"] if eigener else 0,
+            "alle": con.execute(f"SELECT COUNT(*) c FROM vorgang WHERE status NOT IN ({platz})",
+                                list(ABGESCHLOSSEN)).fetchone()["c"],
+        }
         klienten = klientenliste(con)
         leute = teamliste(con)
         arten = vorgangsarten_liste(con)
-        # fuer die Filterfelder: nur wirklich vorkommende Werte
         vorhandene_arten = [r["art"] for r in con.execute(
             "SELECT DISTINCT art FROM vorgang ORDER BY 1")]
         # ⚠️ Aufteilen: sonst stuende „Anna, Bruno" als eigener Filterwert
@@ -628,13 +746,41 @@ def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
             {n for r in con.execute("SELECT DISTINCT zustaendig FROM vorgang")
              for n in namensliste(r["zustaendig"])},
             key=lambda s: s.casefold())
+        # Die zuletzt selbst benutzte Vorgangsart steht im Anlegeformular
+        # vorgewählt (seit 1.60) - wer immer dieselbe Art anlegt, muss
+        # sie nicht jedes Mal suchen.
+        letzte = con.execute(
+            "SELECT art FROM vorgang WHERE angelegt_von=? ORDER BY id DESC LIMIT 1",
+            (handelnde_person(request),)).fetchone()
+        letzte_art = letzte["art"] if letzte and letzte["art"] in arten else ""
 
-    liste = [{"v": z, "lage": fristlage(z)} for z in zeilen]
+    liste = []
+    for z in zeilen:
+        lage_z = fristlage(z)
+        liste.append({"v": z, "lage": lage_z, "gruppe": gruppe_von(z, lage_z)})
+    gruppen_zahl: dict[str, int] = {}
+    for e in liste:
+        gruppen_zahl[e["gruppe"]] = gruppen_zahl.get(e["gruppe"], 0) + 1
+
+    if bereich == "meine":
+        ansicht = "Deine " + LAGE_WORT[lage]
+    elif bereich == "person":
+        ansicht = LAGE_WORT_OHNE[lage] + " von " + zustaendig
+    else:
+        ansicht = "Alle " + LAGE_WORT[lage]
+    if klient:
+        ansicht += " zu " + klient
+
+    # „Weitere Filter" steht offen, sobald darin etwas gesetzt ist - sonst
+    # wirkte ein Filter, den man nicht sieht.
+    weitere = sum(1 for w in (klient, art, status, zustaendig if bereich == "person" else "")
+                  if w) + (1 if sortierung != "dringlichkeit" else 0)
 
     return seite(request, "vorgaenge.html",
-                 liste=liste, zahlen=zahlen, klienten=klienten, leute=leute,
-                 V_ARTEN=arten,
-                 f=filter_["f"], aktive_filter=filter_["aktive"],
+                 liste=liste, klienten=klienten, leute=leute,
+                 V_ARTEN=arten, GRUPPEN=GRUPPEN, gruppiert=gruppiert,
+                 gruppen_zahl=gruppen_zahl, marke=marke,
+                 f=f, aktive_filter=filter_["aktive"],
                  query=filter_["query"], sortierung=sortierung,
                  seite_nr=seite_nr, seiten_gesamt=seiten_gesamt,
                  gesamt_treffer=gesamt, pro_seite=pro_seite,
@@ -643,10 +789,15 @@ def uebersicht(request: Request, klient: str = "", zustaendig: str = "",
                  mehr=gesamt > seite_nr * pro_seite,
                  vorhandene_arten=vorhandene_arten,
                  vorhandene_zustaendige=vorhandene_zustaendige,
+                 bereich=bereich, lage=lage, pillen=pillen, umfang=umfang,
+                 link=link, ansicht=ansicht, weitere=weitere,
+                 geaendert=bool(klient or art or status or q or bereich == "person"
+                                or sortierung != "dringlichkeit"),
                  formular_offen=bool(neu or fehler),
                  fw=getattr(request.state, "formwerte", {}),
+                 letzte_art=letzte_art,
                  vorbelegt_klient=getattr(request.state, "formwerte", {}).get("klient") or klient,
-                 eigener_name=_umgebung.get("eigener_name", lambda r: "")(request),
+                 eigener_name=eigener,
                  heute_iso=heute(), fehler=fehler, hinweis=hinweis,
                  bald_tage=BALD_TAGE)
 

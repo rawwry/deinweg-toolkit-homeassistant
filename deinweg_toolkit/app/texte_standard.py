@@ -433,6 +433,11 @@ TEXTE_STANDARD["vorgaenge.keine_personen"] = (
     "oder erfasse Zeiten von Hand, dann steht die Auswahl hier bereit.")
 TEXTE_STANDARD["vorgaenge.leer"] = (
     "Kein Vorgang für diesen Filter.")
+# Seit 1.60: Leer-Zustände, die sagen, warum leer.
+TEXTE_STANDARD["vorgaenge.leer_meine"] = (
+    "Dir ist gerade keine offene Aufgabe zugewiesen.")
+TEXTE_STANDARD["vorgaenge.leer_ueberfaellig"] = (
+    "Nichts überfällig – gut so.")
 TEXTE_STANDARD["vorgaenge.aktualisieren_hinweis"] = (
     "Status, Priorität, Zuständigkeit und Wiedervorlage in einem Schritt. "
     "Alles, was du hier änderst, landet gemeinsam als ein Eintrag im "

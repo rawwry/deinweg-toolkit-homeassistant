@@ -24,52 +24,166 @@
 {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
 {% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
 
-<section class="karte">
-  <div class="kopfzeile">
-    <h1>Aufgaben</h1>
-    <p class="summe">{{ zahlen.offen }} <span>· offen von {{ zahlen.gesamt }} insgesamt</span></p>
-  </div>
-  <p class="lead">{{ t("vorgaenge.lead") }}</p>
+{# --- Der Kopf (neu gebaut mit 1.60, Timos Auftrag) --------------------
+   ⚠️⚠️ Bis 1.59 standen hier DREI Kästen: Überschrift mit Erklärtext,
+   vier Kacheln und zwei Knöpfe; darunter sechs Filterfelder mit zwei
+   Knöpfen; darüber der Liste eine Farblegende. Gemessen rund 680px, bevor
+   die erste Aufgabe kam - und „überfällig / fällig / offen / erledigt"
+   stand dreimal da. Jetzt beantwortet der Kopf genau zwei Fragen:
+     1. WESSEN Aufgaben?  Meine | Alle   (Vorgabe: meine)
+     2. WELCHE?           Pillen mit Zahlen - sie ersetzen Kacheln UND
+                          Farblegende, weil sie die Ampelfarben tragen.
+   Alles Seltene (Person, Art, Status, Zuständig, Sortierung) steht
+   zugeklappt unter „Weitere Filter" und wirkt sofort, ohne „Filtern".
+   ⚠️ Pillen und Umschalter sind gewöhnliche Verweise (`link()` baut sie
+   in vorgaenge.uebersicht, mit allen übrigen Filtern) - ohne Skript
+   funktioniert alles, mit Skript tauscht htmx nur den Bereich. #}
+{# ⚠️⚠️ Seit 1.60 ZWEI Zeilen in EINER Formensprache (Timos Meldung zu
+   1.60: „wirkt unaufgeräumt und wild"). Vorher standen eckige Knöpfe,
+   runde Pillen und ein eckiges Suchfeld in drei Höhen auf vier Zeilen.
+   Jetzt:
+     Zeile 1  Titel · Suche · „Neue Aufgabe"
+     Zeile 2  Meine | Alle · Pillen · „Filter"
+   Alles rund, alles 36px hoch, genau ein gefüllter Knopf. „Logbuch" ist
+   als Zeichen an die Liste gezogen, der Erklärtext ans Listenende.
+   ⚠️ Das Formular umschließt den ganzen Kopf: Suche und „Filter" gehören
+   zu ihm, Pillen und Umschalter sind gewöhnliche Verweise darin. Nur so
+   lassen sich die Teile frei auf die zwei Zeilen legen (Raster in
+   style.css). Die versteckten Felder halten „wessen" und „welche" fest -
+   sonst setzte eine Suche beides zurück. #}
+<section class="karte aufgabenkopf">
+  <form class="ak-suche" method="get" action="/vorgaenge" hx-boost="true">
+    {% if f.wer %}<input type="hidden" name="wer" value="{{ f.wer }}">{% endif %}
+    {% if f.faellig %}<input type="hidden" name="faellig" value="{{ f.faellig }}">{% endif %}
+    {% if f.zustand and f.zustand != 'offen' %}<input type="hidden" name="zustand" value="{{ f.zustand }}">{% endif %}
 
-  {# Die vier Kacheln sind Verweise auf dieselbe Seite mit einem Filter -
-     sie dürfen deshalb den Bereich tauschen statt die Seite neu zu bauen.
-     `hx-boost` nimmt dafür die vorhandenen `href`, es steht also nichts
-     doppelt da; ohne Skript bleiben es gewöhnliche Links. #}
-  <div class="kennzahlen" hx-boost="true">
-    <a class="kennzahl {{ 'hat' if zahlen.ueberfaellig }} k-ueberfaellig"
-       href="/vorgaenge?faellig=ueberfaellig">
-      <span class="kzahl">{{ zahlen.ueberfaellig }}</span>
-      <span class="klabel">überfällig</span>
-    </a>
-    <a class="kennzahl {{ 'hat' if zahlen.heute }} k-heute" href="/vorgaenge?faellig=heute">
-      <span class="kzahl">{{ zahlen.heute }}</span>
-      <span class="klabel">heute fällig</span>
-    </a>
-    <a class="kennzahl {{ 'hat' if zahlen.bald }} k-bald" href="/vorgaenge?faellig=bald">
-      <span class="kzahl">{{ zahlen.bald }}</span>
-      <span class="klabel">fällig in {{ bald_tage }} Tagen</span>
-    </a>
-    {# ⚠️ „wartet auf Rückmeldung“ ist mit 1.33 entfallen – die beiden
-       Status dahinter gibt es nicht mehr. Vier Kacheln statt fünf. #}
-    <a class="kennzahl k-erledigt" href="/vorgaenge?zustand=erledigt">
-      <span class="kzahl">{{ zahlen.erledigt }}</span>
-      <span class="klabel">erledigt</span>
-    </a>
-  </div>
+    <h1 class="ak-titel">Aufgaben</h1>
 
-  {# Ein Knopf, nicht zwei. Vorher stand hier „Neuen Vorgang anlegen“ und
-     direkt darunter noch einmal dieselbe Beschriftung als Aufklapper -
-     zwei Bedienelemente für dieselbe Sache. Jetzt öffnet der Knopf das
-     Formular (per Adresse, also auch ohne Skript) und heißt danach
-     „Formular schließen“. #}
-  <div class="knopfreihe" style="margin-top: 16px;">
+    <div class="ak-suchfeld">
+      <svg class="ak-suchzeichen" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M16 16l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <input type="search" name="q" value="{{ f.q or '' }}" autocomplete="off"
+             placeholder="Aufgabe suchen" title="Sucht in Betreff, Beschreibung und betreuter Person"
+             aria-label="Aufgaben durchsuchen" enterkeyhint="search">
+    </div>
+
     {% if formular_offen %}
-    <a class="knopf" href="/vorgaenge?{{ query }}">Formular schließen</a>
+    <a class="ak-knopf ak-neu" href="{{ link() }}">Formular schließen</a>
     {% else %}
-    <a class="knopf haupt" href="/vorgaenge?neu=1#neu">Neuen Vorgang anlegen</a>
+    <a class="ak-knopf haupt ak-neu" href="{{ link(neu='1') }}#neu">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      Neue Aufgabe</a>
     {% endif %}
-    <a class="knopf" href="/vorgaenge/logbuch">Logbuch aller Vorgänge</a>
+
+    <div class="ak-wahl" hx-boost="true">
+      {# 1. Wessen Aufgaben. Nur mit zugeordnetem Mitarbeiter - ohne ihn
+         gibt es keine „eigenen", und ein Umschalter mit einer Seite wäre
+         keiner. #}
+      {% if eigener_name %}
+      <nav class="ak-umfang" aria-label="Wessen Aufgaben">
+        <a href="{{ link(wer='', zustaendig='') }}" class="{{ 'aktiv' if bereich == 'meine' }}"
+           {{ 'aria-current=true' if bereich == 'meine' }}>Meine <span class="ak-zahl">{{ umfang.meine }}</span></a>
+        <a href="{{ link(wer='alle', zustaendig='') }}" class="{{ 'aktiv' if bereich == 'alle' }}"
+           {{ 'aria-current=true' if bereich == 'alle' }}>Alle <span class="ak-zahl">{{ umfang.alle }}</span></a>
+      </nav>
+      {% endif %}
+
+      {# 2. Welche. Die Zahl an einer Pille gilt unter allen übrigen
+         Filtern - sie stimmt also immer mit der Liste überein, die ein
+         Klick zeigt. Eine Pille mit 0 bleibt stehen (sonst sprängen die
+         anderen), tritt aber zurück. #}
+      <nav class="ak-lagen" aria-label="Welche Aufgaben">
+        {% set pillen_liste = [
+          ("offen", "Offen", link(faellig='', zustand='')),
+          ("ueberfaellig", "Überfällig", link(faellig='ueberfaellig', zustand='')),
+          ("heute", "Heute", link(faellig='heute', zustand='')),
+          ("bald", "Nächste " ~ bald_tage ~ " Tage", link(faellig='bald', zustand='')),
+          ("erledigt", "Erledigt", link(zustand='erledigt', faellig='')),
+        ] %}
+        {% for schluessel, wort, ziel in pillen_liste %}
+        <a href="{{ ziel }}" class="ak-pille p-{{ schluessel }}{{ ' aktiv' if lage == schluessel }}{{ ' null' if not pillen[schluessel] }}"
+           {{ 'aria-current=true' if lage == schluessel }}>
+          <span class="ak-punkt" aria-hidden="true"></span>{{ wort }}
+          <span class="ak-zahl">{{ pillen[schluessel] }}</span>
+        </a>
+        {% endfor %}
+      </nav>
+    </div>
+
+    {# 3. „Filter": ein schwebendes Feld unter dem Knopf, das die Liste
+       NICHT verschiebt und nie von selbst offen steht. Was gefiltert ist,
+       sagen die Chips darunter und die Zahl am Knopf. Eine Auswahl filtert
+       sofort, danach ist das Feld wieder zu. #}
+    <details class="ak-weitere{{ ' gesetzt' if weitere }}">
+      <summary class="ak-knopf" title="Weitere Filter" aria-label="Weitere Filter">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 7h9M17 7h3M4 17h3M11 17h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="15" cy="7" r="2" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="9" cy="17" r="2" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+        <span class="ak-wort">Filter</span>{% if weitere %}<span class="ak-zahl">{{ weitere }}</span>{% endif %}
+      </summary>
+      <div class="ak-weitere-felder">
+        <label class="feld"><span>Betreute Person</span>
+          <select name="klient">
+            <option value="">alle</option>
+            {% for k in klienten %}<option value="{{ k }}" {{ 'selected' if f.klient == k }}>{{ k }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="feld"><span>Vorgangsart</span>
+          <select name="art">
+            <option value="">alle</option>
+            {% for a in vorhandene_arten %}<option value="{{ a }}" {{ 'selected' if f.art == a }}>{{ a }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="feld"><span>Status</span>
+          <select name="status">
+            <option value="">alle</option>
+            {% for s in V_STATUS %}<option value="{{ s }}" {{ 'selected' if f.status == s }}>{{ s }}</option>{% endfor %}
+          </select>
+        </label>
+        {# Eine bestimmte Kollegin - „Meine" und „Alle" stehen oben. #}
+        <label class="feld"><span>Zuständig</span>
+          <select name="zustaendig">
+            <option value="">{{ 'ich' if bereich == 'meine' else 'alle' }}</option>
+            {% for m in vorhandene_zustaendige %}<option value="{{ m }}" {{ 'selected' if f.zustaendig == m and bereich == 'person' }}>{{ m }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="feld"><span>Sortierung</span>
+          <select name="sortierung">
+            <option value="dringlichkeit" {{ 'selected' if sortierung == 'dringlichkeit' }}>Dringlichkeit (gruppiert)</option>
+            <option value="prio" {{ 'selected' if sortierung == 'prio' }}>Priorität</option>
+            <option value="frist" {{ 'selected' if sortierung == 'frist' }}>Frist, nächste zuerst</option>
+            <option value="frist_neu" {{ 'selected' if sortierung == 'frist_neu' }}>Frist, späteste zuerst</option>
+            <option value="neu" {{ 'selected' if sortierung == 'neu' }}>zuletzt angelegt</option>
+            <option value="alt" {{ 'selected' if sortierung == 'alt' }}>zuerst angelegt</option>
+            <option value="person" {{ 'selected' if sortierung == 'person' }}>betreute Person</option>
+            <option value="status" {{ 'selected' if sortierung == 'status' }}>Status</option>
+            <option value="art" {{ 'selected' if sortierung == 'art' }}>Vorgangsart</option>
+            <option value="zustaendig" {{ 'selected' if sortierung == 'zustaendig' }}>Zuständigkeit</option>
+          </select>
+        </label>
+        {# Ohne Skript der Weg zum Abschicken; mit Skript filtert schon die
+           Auswahl selbst (siehe unten) und der Knopf entfällt. #}
+        <button class="knopf klein ak-anwenden" type="submit">Anwenden</button>
+      </div>
+    </details>
+  </form>
+
+  {% if geaendert %}
+  <div class="filterstand ak-stand" hx-boost="true">
+    <span class="filterstand-marke">Gefiltert</span>
+    {% for feld, wert in aktive_filter %}
+      <span class="filterchip"><span class="leise">{{ feld }}:</span> {{ wert }}</span>
+    {% endfor %}
+    {% if sortierung != 'dringlichkeit' %}<span class="filterchip"><span class="leise">Sortierung geändert</span></span>{% endif %}
+    <a class="ak-zurueck" href="{{ link(klient='', art='', status='', q='', zustaendig='', sortierung='') }}">zurücksetzen</a>
   </div>
+  {% endif %}
 </section>
 
 {% if formular_offen %}
@@ -94,7 +208,10 @@
         <label class="feld">
           <span>Vorgangsart</span>
           <select name="art">
-            {% for a in V_ARTEN %}<option value="{{ a }}" {{ 'selected' if a == fw.art }}>{{ a }}</option>{% endfor %}
+            {# Vorgewählt: die zuletzt selbst benutzte Art (seit 1.60) -
+               nach einem Fehler natürlich die eben gewählte. #}
+            {% set art_wahl = fw.art or letzte_art %}
+            {% for a in V_ARTEN %}<option value="{{ a }}" {{ 'selected' if a == art_wahl }}>{{ a }}</option>{% endfor %}
           </select>
         </label>
       </div>
@@ -172,119 +289,28 @@
 </section>
 {% endif %}
 
-<section class="karte">
-  <form class="filter" method="get" action="/vorgaenge" hx-boost="true">
-    <label><span>Betreute Person</span>
-      <select name="klient">
-        <option value="">alle</option>
-        {% for k in klienten %}<option value="{{ k }}" {{ 'selected' if f.klient == k }}>{{ k }}</option>{% endfor %}
-      </select>
-    </label>
-    <label><span>Zuständig</span>
-      <select name="zustaendig">
-        <option value="">alle</option>
-        {% for m in vorhandene_zustaendige %}<option value="{{ m }}" {{ 'selected' if f.zustaendig == m }}>{{ m }}</option>{% endfor %}
-      </select>
-    </label>
-    <label><span>Status</span>
-      <select name="status">
-        <option value="">alle</option>
-        {% for s in V_STATUS %}<option value="{{ s }}" {{ 'selected' if f.status == s }}>{{ s }}</option>{% endfor %}
-      </select>
-    </label>
-    <label><span>Vorgangsart</span>
-      <select name="art">
-        <option value="">alle</option>
-        {% for a in vorhandene_arten %}<option value="{{ a }}" {{ 'selected' if f.art == a }}>{{ a }}</option>{% endfor %}
-      </select>
-    </label>
-    <label><span>Sortierung</span>
-      <select name="sortierung">
-        <option value="dringlichkeit" {{ 'selected' if sortierung == 'dringlichkeit' }}>Dringlichkeit</option>
-        <option value="prio" {{ 'selected' if sortierung == 'prio' }}>Priorität</option>
-        <option value="frist" {{ 'selected' if sortierung == 'frist' }}>Frist, nächste zuerst</option>
-        <option value="frist_neu" {{ 'selected' if sortierung == 'frist_neu' }}>Frist, späteste zuerst</option>
-        <option value="neu" {{ 'selected' if sortierung == 'neu' }}>zuletzt angelegt</option>
-        <option value="alt" {{ 'selected' if sortierung == 'alt' }}>zuerst angelegt</option>
-        <option value="person" {{ 'selected' if sortierung == 'person' }}>betreute Person</option>
-        <option value="status" {{ 'selected' if sortierung == 'status' }}>Status</option>
-        <option value="art" {{ 'selected' if sortierung == 'art' }}>Vorgangsart</option>
-        <option value="zustaendig" {{ 'selected' if sortierung == 'zustaendig' }}>Zuständigkeit</option>
-      </select>
-    </label>
-    <label><span>Suche</span>
-      <input type="search" name="q" value="{{ f.q or '' }}" placeholder="Titel, Notiz oder Person">
-    </label>
-    <div class="filter-knoepfe">
-      <button class="knopf" type="submit">Filtern</button>
-      <a class="knopf leise" href="/vorgaenge">Filter entfernen</a>
-    </div>
-  </form>
-
-  {% if aktive_filter %}
-  <div class="filterstand" hx-boost="true">
-    <span class="filterstand-marke">Aktiv</span>
-    {% for feld, wert in aktive_filter %}
-      <span class="filterchip"><span class="leise">{{ feld }}:</span> {{ wert }}</span>
-    {% endfor %}
-    <a class="knopf klein leise" href="/vorgaenge">zurücksetzen</a>
-  </div>
-  {% endif %}
-</section>
-
-<section class="karte">
-  <div class="kopfzeile">
-    <h2>{{ gesamt_treffer }} Vorgang{{ '' if gesamt_treffer == 1 else 'e' }}</h2>
-  </div>
-
-  {% if liste %}
-  {# Kleine Legende, damit die Farben der Karten ohne Nachdenken lesbar
-     sind: rot = überfällig, orange = fällig (heute oder bald), neutral =
-     offen ohne nahe Frist, grün = erledigt. #}
-  <div class="listenkopf vk-kopfleiste">
-    <div class="vk-legende" aria-label="Bedeutung der Farben">
-      <span class="chip"><i class="lg-ueberfaellig"></i> überfällig</span>
-      <span class="chip"><i class="lg-faellig"></i> fällig (heute/bald)</span>
-      <span class="chip"><i class="lg-offen"></i> offen</span>
-      <span class="chip"><i class="lg-zu"></i> erledigt</span>
-    </div>
+<section class="karte aufgabenliste-karte">
+  {# Ein Satz statt einer Zahl: „Deine offenen Aufgaben" sagt, was man
+     sieht - wer sich verklickt hat, merkt es hier. #}
+  <div class="kopfzeile al-kopf">
+    <h2 class="al-titel">{{ ansicht }} <span class="al-zahl">{{ gesamt_treffer }}</span></h2>
     <div class="listenwerkzeuge">
-    {# ⚠️ „Erledigte ausblenden" steht seit 1.31.1 als Symbol neben dem
-       Ansichtsumschalter statt als Kippschalter in der Kartenüberschrift
-       (Timos Wunsch) - zwei Handgriffe an derselben Liste gehören
-       nebeneinander. Bewusst ein <label> mit einem versteckten Kästchen
-       und kein <button>: so bleibt der Zustand ein Kästchen (per Tastatur
-       erreichbar, mit Leertaste bedienbar), und ohne Skript ändert sich
-       nur nichts - der Zustandsfilter darüber tut dasselbe. #}
-    {# ⚠️ `hx-trigger` steht hier, `hx-get` setzt das Skript unten erst
-       beim Umlegen - die Zieladresse hängt am aktuellen Filter und am
-       Zustand des Kästchens. Ohne Skript bleibt beides wirkungslos, und
-       der Zustandsfilter darüber tut dasselbe. #}
-    <input type="checkbox" id="erledigte-aus" class="erledigt-kaestchen"
-           hx-trigger="dwt:laden" {{ 'checked' if f.zustand == 'offen' }}>
-    <label class="knopf-icon erledigt-schalter" for="erledigte-aus"
-           title="Erledigte ausblenden" aria-label="Erledigte ausblenden">
-      <svg class="nur-mit" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z"
-              stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
-              stroke-linejoin="round"/>
-        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
+    {# „Logbuch" steht seit 1.60 hier als Zeichen und nicht mehr oben im
+       Kopf: es gehört zur Liste (ihre Geschichte), nicht zur Bedienung. #}
+    <a class="knopf-icon" href="/vorgaenge/logbuch" title="Logbuch aller Vorgänge"
+       aria-label="Logbuch aller Vorgänge">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8"/>
       </svg>
-      <svg class="nur-ohne" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 4l16 16" stroke="currentColor" stroke-width="1.7"
-              stroke-linecap="round"/>
-        <path d="M9.9 5.4A9.6 9.6 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-2.6 3.5M6.4 7.4C4 9.2 2.5 12 2.5 12S6 19 12 19c1.3 0 2.4-.3 3.4-.7"
-              stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-      </svg>
-    </label>
+    </a>
     {# ⚠️ Beide Darstellungen stehen im HTML, umgeschaltet wird über
        data-aufgabenliste am <html> - dieselbe Technik wie bei Wiki und
-       Dateien, damit beim Laden nichts aufblitzt. Der Schalter schreibt
-       nach localStorage, gilt also je Browser und nicht je Konto. #}
-    {# ⚠️ Die Klasse muss `<name>-knopf` heißen - danach sucht aufbauen()
-       in base.html. Und bewusst OHNE data-wert: dann kippt der Knopf
-       zwischen beiden Werten, statt einen festzusetzen (dieselbe Form
-       wie die kleinen Umschalter in Wiki und Dateien). #}
+       Dateien, damit beim Laden nichts aufblitzt. Die Klasse muss
+       `<name>-knopf` heißen (danach sucht aufbauen() in base.html), und
+       bewusst OHNE data-wert, damit der Knopf kippt statt zu setzen.
+       ⚠️ „Erledigte ausblenden" (das Auge) ist mit 1.60 entfallen: die
+       Pille „Erledigt" im Kopf zeigt dasselbe mit einem Klick. #}
     <button type="button" class="knopf-icon ansichtwechsel aufgabenliste-knopf"
             title="Darstellung wechseln" aria-label="Darstellung wechseln">
       <svg class="nur-karten" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -300,6 +326,8 @@
     </button>
     </div>
   </div>
+
+  {% if liste %}
   {# Eine Karte je Vorgang statt einer achtspaltigen Tabelle. In der
      Tabelle stand der Titel - das Einzige, wonach man wirklich sucht -
      als schmale Spalte zwischen sieben anderen, und bei zwanzig Zeilen
@@ -308,13 +336,22 @@
      Balken links sagt schon vor dem Lesen, wie dringend es ist. #}
   <div class="vorgangskarten">
     {% for z in liste %}
+    {# --- Gruppen nach Dringlichkeit (seit 1.60) ------------------------
+       Die Standardsortierung stellt die Aufgaben ohnehin in diese Folge;
+       die Überschrift sagt es nur in Worten. Damit braucht es keine
+       Farblegende mehr: wer „Überfällig" liest, muss kein Rot deuten. #}
+    {% if gruppiert and loop.changed(z.gruppe) %}
+    <h3 class="vg-titel g-{{ z.gruppe }}">{{ GRUPPEN[z.gruppe] }}
+      <span class="vg-zahl">{{ gruppen_zahl[z.gruppe] }}</span></h3>
+    {% endif %}
     {# `lage` ist bei abgeschlossenen Vorgängen ohnehin schon „zu“
        (fristlage() prüft den Status zuerst) - eine zweite Klasse braucht
        es dafür nicht. #}
     <article class="vorgangskarte vk-{{ z.lage }}">
       <div class="vk-kopf">
         <a class="vk-titel" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}{%
-          if z.lage == "ueberfaellig" %}<span class="vk-lage l-ueberfaellig">überfällig</span>{%
+          if not marke %}{# Gruppe oder Pille sagen es schon #}{%
+          elif z.lage == "ueberfaellig" %}<span class="vk-lage l-ueberfaellig">überfällig</span>{%
           elif z.lage == "heute" %}<span class="vk-lage l-heute">heute fällig</span>{%
           endif %}</a>
         <div class="vk-aktionen">
@@ -331,7 +368,7 @@
           {% if darf_vorgang_loeschen(request, z.v) %}
           <form class="inline" action="/vorgaenge/{{ z.v.id }}/loeschen" method="post"
                 hx-post="/vorgaenge/{{ z.v.id }}/loeschen" hx-push-url="false"
-                onsubmit="return dwt.frage(event, 'Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
+                onsubmit="return dwt.frage(event, 'Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Sein Verlauf bleibt im Logbuch erhalten.')">
             <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
             <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -420,6 +457,10 @@
         <span>Frist</span><span>Zuständig</span><span>Prio</span><span></span>
       </div>
       {% for z in liste %}
+      {% if gruppiert and loop.changed(z.gruppe) %}
+      <h3 class="vg-titel g-{{ z.gruppe }}">{{ GRUPPEN[z.gruppe] }}
+        <span class="vg-zahl">{{ gruppen_zahl[z.gruppe] }}</span></h3>
+      {% endif %}
       <article class="vz vz-{{ z.lage }}{{ ' vz-zu' if z.v.status in V_ABGESCHLOSSEN }}">
         <div class="vz-titelblock">
           <a class="vz-titel" href="/vorgaenge/{{ z.v.id }}">{{ z.v.titel }}</a>
@@ -512,7 +553,7 @@
           {% if darf_vorgang_loeschen(request, z.v) %}
           <form class="inline" action="/vorgaenge/{{ z.v.id }}/loeschen" method="post"
                 hx-post="/vorgaenge/{{ z.v.id }}/loeschen" hx-push-url="false"
-                onsubmit="return dwt.frage(event, 'Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Das Logbuch dieses Vorgangs wird mitgelöscht.')">
+                onsubmit="return dwt.frage(event, 'Vorgang „{{ z.v.titel }}“ unwiderruflich löschen? Sein Verlauf bleibt im Logbuch erhalten.')">
             <input type="hidden" name="zurueck" value="/vorgaenge?{{ query }}">
             <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Löschen">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -564,31 +605,59 @@
   </nav>
   {% endif %}
   {% else %}
-  <p class="leer">{{ t("vorgaenge.leer") }}</p>
+  {# Ein Leer-Zustand, der sagt, WARUM leer - und den nächsten Schritt
+     anbietet. „Kein Vorgang für diesen Filter" ließ offen, ob man sich
+     verklickt hat. #}
+  <div class="al-leer" hx-boost="true">
+    {% if lage == "ueberfaellig" %}
+      <p>{{ t("vorgaenge.leer_ueberfaellig") }}</p>
+    {% elif bereich == "meine" and lage == "offen" and not geaendert %}
+      <p>{{ t("vorgaenge.leer_meine") }}</p>
+      <a class="knopf klein" href="{{ link(wer='alle') }}">Alle Aufgaben ansehen</a>
+    {% else %}
+      <p>{{ t("vorgaenge.leer") }}</p>
+      {% if geaendert %}<a class="knopf klein" href="{{ link(klient='', art='', status='', q='', zustaendig='', sortierung='') }}">Filter zurücksetzen</a>{% endif %}
+    {% endif %}
+  </div>
   {% endif %}
+
+  {# Der Erklärtext steht seit 1.60 am Ende der Liste: man liest ihn
+     einmal, danach ist er nur noch im Weg. #}
+  <details class="hinweise ak-hinweis">
+    <summary>Was gehört hierher?</summary>
+    <div class="hinweise-inhalt"><p class="klein leise">{{ t("vorgaenge.lead") }}</p></div>
+  </details>
 </section>
 
 <script>
-  // Der Schalter „erledigte ausblenden" ist nur eine bequeme Abkürzung
-  // auf den vorhandenen Zustandsfilter. Ohne Skript bleibt er wirkungslos,
-  // der Filter darüber tut dasselbe.
+  // „Weitere Filter" wirken sofort (seit 1.60): eine Auswahl schickt das
+  // Formular selbst ab, htmx tauscht nur den Bereich. Ohne Skript bleibt
+  // der Knopf „Anwenden". ⚠️ requestSubmit(), nicht submit() - nur das
+  // löst das submit-Ereignis aus, an dem htmx hängt.
+  // ⚠️ Klick daneben und Esc schließen das Feld „Weitere Filter". Die
+  // Horcher hängen am Dokument und gehen deshalb durch dwt.horchen - das
+  // Skript läuft nach jedem Austausch erneut, dwt.loesen() räumt vorher
+  // die der letzten Runde ab (siehe base.html).
+  dwt.loesen();
   (function () {
-    var schalter = document.getElementById("erledigte-aus");
-    if (!schalter) { return; }
-    schalter.addEventListener("change", function () {
-      var adresse = new URL(window.location.href);
-      adresse.searchParams.set("zustand", schalter.checked ? "offen" : "alle");
-      adresse.searchParams.delete("seite_nr");
-      // Mit htmx nur die Liste tauschen (seit 1.50), sonst wie bisher die
-      // ganze Seite holen. Der Auslöser hängt am Kästchen selbst, damit
-      // Ziel, Ausschnitt und Adresse von der Hülle geerbt werden.
-      if (window.htmx) {
-        schalter.setAttribute("hx-get", adresse.pathname + adresse.search);
-        window.htmx.process(schalter);
-        window.htmx.trigger(schalter, "dwt:laden");
-      } else {
-        window.location.href = adresse.toString();
-      }
+    var form = document.querySelector(".ak-suche");
+    if (!form) { return; }
+    var weitere = form.querySelector(".ak-weitere");
+    if (weitere) {
+      dwt.horchen(document, "click", function (e) {
+        if (weitere.open && !weitere.contains(e.target)) { weitere.open = false; }
+      });
+      dwt.horchen(document, "keydown", function (e) {
+        if (e.key === "Escape" && weitere.open) {
+          weitere.open = false;
+          weitere.querySelector("summary").focus();
+        }
+      });
+    }
+    form.querySelectorAll(".ak-weitere select").forEach(function (wahl) {
+      wahl.addEventListener("change", function () {
+        if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+      });
     });
   })();
 

@@ -382,6 +382,25 @@ input[type=email], input[type=tel], input[type=number], input[type=url], select 
   background: var(--flaeche-2); color: inherit;
   min-height: 43px;
 }
+/* ⚠️⚠️ Auswahlfelder ohne Systemaussehen (seit 1.60, Timos Meldung:
+   „in Safari total anders als in Brave"). Safari zeichnet ein <select>
+   sonst als eigenen, flachen Mac-Knopf und übergeht dabei Höhe,
+   Polsterung und Rahmen - die Felder standen dort deutlich schmaler da
+   als jedes Textfeld daneben. Chrome und Brave hielten sich an die
+   Regeln oben, deshalb fiel es dort nicht auf. Das Pfeilchen kommt jetzt
+   aus dem Stylesheet.
+   ⚠️ `:where()` hält die Spezifität bei der eines nackten `select`: eine
+   Regel mit Klasse (z. B. `.vk-statuswahl`) setzt weiterhin ihre eigene
+   Polsterung und ihr eigenes Pfeilchen. */
+select:where(:not([multiple])) {
+  appearance: none; -webkit-appearance: none;
+  padding-right: 34px;
+  /* Dieselbe Pfeilgröße wie `.wahlliste > summary::after` daneben -
+     sonst stünden in einer Formularzeile zwei verschiedene Pfeile. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23918b99' stroke-width='1.6' stroke-linecap='square'><path d='M2.2 4.1l3.8 3.8 3.8-3.8'/></svg>");
+  background-repeat: no-repeat; background-position: right 11px center;
+  background-size: 12px; text-overflow: ellipsis; cursor: pointer;
+}
 
 /* Das Dateifeld trägt seinen eigenen Knopf im Inneren. Mit der normalen
    Polsterung wird es dadurch höher als ein Auswahlfeld daneben – genau
@@ -661,7 +680,8 @@ html:not(.mit-skript) #wiki-falten { display: none; }
    Skript schickt die Auswahl selbst ab) und der Knopf neben der
    Status-Schnellwahl einer Aufgabe. */
 .mit-skript #hochladeknopf,
-.mit-skript .vk-statussenden { display: none; }
+.mit-skript .vk-statussenden,
+.mit-skript .ak-anwenden { display: none; }
 
 /* Das Ordnerformular klappt mit Skript über den Knopf auf; ohne Skript
    steht es offen da, sonst käme man nicht an das Feld.
@@ -4710,7 +4730,7 @@ fieldset.feld > span {
    Das ist einfacher als die frühere Regel „jede Frist ist orange": eine
    Frist in drei Monaten ist keine Dringlichkeit und bekommt deshalb auch
    keinen Warnton mehr. Die Töne sind die dezenten -weich-Varianten; die
-   Legende über der Liste (.vk-legende) nennt die Bedeutung ausdrücklich.
+   Pillen im Kopf und die Gruppenüberschriften nennen die Bedeutung (1.60).
    ⚠️ „überfällig" bleibt rot und nicht orange: eine überschrittene Frist
    wiegt schwerer als eine kommende. */
 .vorgangskarte.vk-ueberfaellig { border-left-color: var(--dopp);
@@ -4737,35 +4757,220 @@ fieldset.feld > span {
    verschwindet. Karten sind hier der Standard: eine Aufgabe hat einen
    Titel, und der trägt in einer Karte besser als in einer schmalen
    Spalte zwischen sechs anderen. */
+/* === Aufgaben: der Kopf (neu gebaut mit 1.60, geordnet mit 1.60) ======
+   1.60 hat die drei Kästen (Kacheln, Filterkasten, Legende) durch einen
+   Kopf ersetzt. ⚠️⚠️ Timos Meldung dazu: „wirkt unaufgeräumt und wild" -
+   eckige Knöpfe, runde Pillen und ein eckiges Suchfeld standen in drei
+   Höhen auf vier Zeilen. Seit 1.60 deshalb:
+     - ZWEI Zeilen: oben Titel · Suche · „Neue Aufgabe",
+       darunter Meine | Alle · Pillen · „Filter";
+     - EINE Form: alles rund, alles 36px hoch (`--ak-hoehe`), dieselben
+       Ränder, genau ein gefüllter Knopf.
+   Das Formular `.ak-suche` ist das Raster - es umschließt den ganzen Kopf,
+   damit Suche und „Filter" (die zu ihm gehören) frei liegen können. */
+.aufgabenkopf { overflow: visible; --ak-hoehe: 36px; }
+.ak-suche {
+  position: relative; margin: 0;
+  display: grid; align-items: center; gap: 18px 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "titel suche neu" "wahl wahl filter";
+}
+.ak-titel { grid-area: titel; margin: 0; }
+.ak-neu { grid-area: neu; }
+.ak-wahl { grid-area: wahl; display: flex; flex-wrap: wrap; align-items: center;
+           gap: 8px 14px; min-width: 0; }
+.ak-weitere { grid-area: filter; justify-self: end; align-self: start; position: relative; }
+
+/* Der eine Knopftyp des Kopfes. */
+.ak-knopf {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: var(--ak-hoehe); padding: 0 15px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--linie); background: var(--flaeche-2); color: var(--tinte);
+  font-size: 13.5px; font-weight: 600; text-decoration: none; white-space: nowrap;
+  list-style: none;
+}
+.ak-knopf::-webkit-details-marker { display: none; }
+.ak-knopf svg { width: 16px; height: 16px; flex: none; }
+.ak-knopf:hover { border-color: var(--akzent); color: var(--akzent); }
+.ak-knopf.haupt { background: var(--akzent); border-color: var(--akzent); color: #1a1113; }
+.ak-knopf.haupt:hover { background: var(--akzent-satt); border-color: var(--akzent-satt); color: #1a1113; }
+[data-thema="hell"] .ak-knopf.haupt,
+[data-thema="hell"] .ak-knopf.haupt:hover { color: #ffffff; }
+
+/* Suche: dieselbe Pille, das Zeichen steht vorn im Feld. Abgeschickt
+   wird mit Enter (am Telefon die Taste „Suchen"). */
+.ak-suchfeld { grid-area: suche; justify-self: end; width: min(100%, 320px); position: relative; }
+.ak-suchfeld input {
+  height: var(--ak-hoehe); min-height: var(--ak-hoehe);
+  padding: 0 14px 0 36px; border-radius: 999px; font-size: 13.5px;
+}
+.ak-suchzeichen {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; color: var(--leise); pointer-events: none;
+}
+
+/* Meine | Alle - eine Doppelpille in derselben Höhe. */
+.ak-umfang {
+  display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  height: var(--ak-hoehe); padding: 3px; border-radius: 999px;
+  background: var(--flaeche-2); border: 1px solid var(--linie);
+}
+.ak-umfang a {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 0 14px; border-radius: 999px; text-decoration: none;
+  color: var(--leise); font-size: 13.5px; font-weight: 600; white-space: nowrap;
+}
+.ak-umfang a:hover { color: var(--tinte); }
+.ak-umfang a.aktiv { background: var(--akzent); color: #1a1113; }
+[data-thema="hell"] .ak-umfang a.aktiv { color: #ffffff; }
+.ak-zahl {
+  min-width: 20px; padding: 0 7px; border-radius: 999px; text-align: center;
+  background: var(--flaeche); color: var(--leise);
+  font-size: 11.5px; font-weight: 700; line-height: 18px;
+}
+.ak-umfang a.aktiv .ak-zahl { background: rgb(0 0 0 / .14); color: inherit; }
+[data-thema="hell"] .ak-umfang a.aktiv .ak-zahl { background: rgb(255 255 255 / .25); }
+
+/* Die Pillen: eine je Lage, der Punkt trägt die Ampelfarbe. Eine Pille
+   ohne Treffer bleibt stehen (sonst sprängen die anderen), tritt aber
+   zurück. Überfällige mit Treffern fallen auch ungewählt auf. */
+.ak-lagen { display: flex; flex-wrap: wrap; gap: 6px; }
+.ak-pille {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: var(--ak-hoehe); padding: 0 8px 0 12px; border-radius: 999px; text-decoration: none;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+  color: var(--tinte); font-size: 13.5px; font-weight: 600; white-space: nowrap;
+}
+.ak-punkt { flex: none; width: 8px; height: 8px; border-radius: 50%;
+            background: var(--linie-stark); }
+.p-offen .ak-punkt        { background: var(--info); }
+.p-ueberfaellig .ak-punkt { background: var(--dopp); }
+.p-heute .ak-punkt,
+.p-bald .ak-punkt         { background: var(--warn); }
+.ak-pille:hover { border-color: var(--akzent); }
+.ak-pille.null { color: var(--leise); }
+.ak-pille.null .ak-punkt { opacity: .4; }
+.ak-pille.p-ueberfaellig:not(.null) .ak-zahl { background: var(--dopp); color: #ffffff; }
+.ak-pille.p-heute:not(.null) .ak-zahl { background: var(--warn-weich); color: var(--warn); }
+.ak-pille.aktiv {
+  border-color: var(--akzent); background: var(--akzent-weich); color: var(--akzent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ak-pille, .ak-umfang a, .ak-knopf {
+    transition: border-color .12s ease, background .15s ease, color .12s ease;
+  }
+}
+
+/* „Filter": der Knopf trägt die Zahl gesetzter Filter, das Feld schwebt
+   rechtsbündig darunter und verschiebt nichts. */
+.ak-weitere[open] > .ak-knopf,
+.ak-weitere.gesetzt > .ak-knopf { border-color: var(--akzent); color: var(--akzent); }
+.ak-weitere.gesetzt .ak-zahl { background: var(--akzent-weich); color: var(--akzent); }
+.ak-weitere-felder {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 25;
+  width: min(720px, calc(100vw - 64px));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px; padding: 16px; border-radius: var(--radius);
+  border: 1px solid var(--linie-stark); background: var(--flaeche);
+  box-shadow: var(--schatten);
+}
+.ak-weitere-felder .feld { margin: 0; min-width: 0; }
+.ak-anwenden { align-self: end; justify-self: start; }
+
+/* Was gefiltert ist: ruhig unter einer feinen Linie statt im gelben
+   Warnkasten der übrigen Seiten - hier ist es Auskunft, keine Warnung. */
+.filterstand.ak-stand {
+  margin: 16px 0 0; padding: 14px 0 0; gap: 8px;
+  background: none; border: 0; border-top: 1px solid var(--linie); border-radius: 0;
+}
+.ak-stand .filterstand-marke { color: var(--leise); }
+.ak-stand .filterchip { background: var(--akzent-weich); border-color: transparent; color: var(--akzent); }
+.ak-stand .filterchip .leise { color: inherit; opacity: .75; }
+.ak-zurueck { margin-left: auto; font-size: 13px; color: var(--leise); }
+.ak-zurueck:hover { color: var(--akzent); }
+
+/* ⚠️ Am Telefon (≤ 600px) drei Zeilen: Titel und „Neue Aufgabe", Suche
+   und „Filter" (nur das Zeichen), darunter Meine | Alle über die volle
+   Breite und die Pillen in EINER Reihe, die man seitlich wischt - drei
+   Zeilen Pillen waren mehr Kopf als Inhalt. Der Verlauf am rechten Rand
+   sagt, dass es dort weitergeht. */
+@media (max-width: 600px) {
+  /* ⚠️ Drei Spalten, nicht zwei: mit zweien teilte sich die Suche ihre
+     Spalte mit dem breiten Knopf „Neue Aufgabe" darüber und blieb halb
+     so breit wie möglich. So spannt „Neue Aufgabe" oben über zwei
+     Spalten, und die dritte ist genau so breit wie der Filterknopf. */
+  .ak-suche {
+    grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px 10px;
+    grid-template-areas: "titel neu neu" "suche suche filter" "wahl wahl wahl";
+  }
+  .ak-suchfeld { justify-self: stretch; width: auto; }
+  .ak-weitere .ak-wort { display: none; }
+  .ak-weitere > .ak-knopf { padding: 0 11px; }
+  .ak-weitere-felder { width: calc(100vw - 80px); grid-template-columns: 1fr; }
+  .ak-wahl { gap: 12px; }
+  .ak-umfang { width: 100%; }
+  .ak-lagen {
+    flex-wrap: nowrap; overflow-x: auto; width: calc(100% + 2 * var(--kartenluft));
+    margin: 0 calc(-1 * var(--kartenluft)); padding: 0 var(--kartenluft) 2px;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+            mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  }
+  .ak-lagen::-webkit-scrollbar { display: none; }
+  .ak-pille { flex: none; }
+}
+
+/* --- Die Liste darunter ------------------------------------------------ */
+/* Ein Satz statt einer Zahl: „Deine offenen Aufgaben". */
+/* Titel links, Logbuch und Ansicht rechts - auch am Telefon in einer
+   Zeile; ein langer Titel bricht in sich um statt die Zeichen darunter
+   zu schieben. */
+.al-kopf { align-items: center; flex-wrap: nowrap; }
+.al-kopf .listenwerkzeuge { flex-shrink: 0; flex-wrap: nowrap; }
+.al-titel {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; margin: 0;
+  flex: 1 1 auto; min-width: 0;
+  font-size: 17px; font-weight: 650; letter-spacing: -0.1px;
+  text-transform: none; color: var(--tinte);
+}
+.al-zahl {
+  padding: 1px 9px; border-radius: 999px; background: var(--flaeche-2);
+  border: 1px solid var(--linie); color: var(--leise);
+  font-size: 12.5px; font-weight: 700;
+}
+.al-leer { display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+           padding: 14px 0 4px; }
+.al-leer p { margin: 0; color: var(--leise); }
+
+/* Gruppen nach Dringlichkeit: eine leise Überschrift mit Punkt, Zahl und
+   auslaufender Linie. Sie ersetzt die Farblegende. */
+.vg-titel {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;
+  margin: 14px 0 0; font-size: 12px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--leise);
+}
+.vorgangskarten > .vg-titel:first-child,
+.vorgangsliste > .vz-kopf + .vg-titel { margin-top: 0; }
+.vg-titel::before { content: ""; flex: none; width: 8px; height: 8px;
+                    border-radius: 50%; background: var(--info); }
+.vg-titel::after { content: ""; flex: 1 1 auto; height: 1px; background: var(--linie); }
+.vg-titel.g-ueberfaellig { color: var(--dopp); }
+.vg-titel.g-ueberfaellig::before { background: var(--dopp); }
+.vg-titel.g-heute, .vg-titel.g-bald { color: var(--warn); }
+.vg-titel.g-heute::before, .vg-titel.g-bald::before { background: var(--warn); }
+.vg-titel.g-ohne::before { background: var(--linie-stark); }
+.vg-zahl {
+  padding: 0 7px; border-radius: 999px; background: var(--flaeche-2);
+  color: var(--leise); font-size: 11px; letter-spacing: 0;
+}
+
 .vorgangstabelle { display: none; }
 [data-aufgabenliste="liste"] .vorgangskarten { display: none; }
 [data-aufgabenliste="liste"] .vorgangstabelle { display: block; }
 .ansichtwechsel .nur-liste { display: none; }
 [data-aufgabenliste="liste"] .ansichtwechsel .nur-karten { display: none; }
 [data-aufgabenliste="liste"] .ansichtwechsel .nur-liste { display: block; }
-.vk-kopfleiste { align-items: center; }
 
-/* ⚠️ „Erledigte ausblenden" ist ein Kästchen, das man nicht sieht: das
-   Label daneben ist der Knopf. Bewusst kein <button> - so bleibt der
-   Zustand ein echtes Kästchen (per Tastatur erreichbar, mit Leertaste zu
-   bedienen), und der Knopf kann trotzdem aussehen wie seine Nachbarn.
-   Dieselbe Bauart wie die Mehrfachauswahl in der Übersicht. */
-.erledigt-kaestchen {
-  position: absolute; width: 1px; height: 1px; opacity: 0;
-  overflow: hidden; clip-path: inset(50%);
-}
-.erledigt-schalter { cursor: pointer; }
-.erledigt-schalter .nur-ohne { display: none; }
-/* Das Zeichen zeigt den ZUSTAND, nicht die Wirkung: sind die Erledigten
-   ausgeblendet, steht dort das durchgestrichene Auge. */
-.erledigt-kaestchen:checked + .erledigt-schalter .nur-mit { display: none; }
-.erledigt-kaestchen:checked + .erledigt-schalter .nur-ohne { display: block; }
-.erledigt-kaestchen:checked + .erledigt-schalter {
-  border-color: var(--akzent); color: var(--akzent);
-}
-.erledigt-kaestchen:focus-visible + .erledigt-schalter {
-  outline: 2px solid var(--akzent); outline-offset: 2px;
-}
 
 /* --- Die Listenansicht (neu gebaut mit 1.34) ---------------------------
    ⚠️⚠️ Bis 1.33 war das eine <table> mit 820px Mindestbreite. Am Telefon
@@ -5288,19 +5493,6 @@ a.vgk-wert:hover { text-decoration: underline; }
 
 /* Farblegende über der Kartenliste - macht die Ampel ohne Nachdenken
    lesbar. */
-.vk-legende {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
-  margin: 0 0 14px; font-size: 11.5px; color: var(--leise);
-}
-.vk-legende .chip { display: inline-flex; align-items: center; gap: 6px; }
-.vk-legende i {
-  width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto;
-  border: 1px solid var(--linie);
-}
-.vk-legende i.lg-ueberfaellig { background: var(--dopp-weich); border-color: var(--dopp); }
-.vk-legende i.lg-faellig      { background: var(--warn-weich); border-color: var(--warn); }
-.vk-legende i.lg-offen        { background: var(--info-weich); border-color: var(--info); }
-.vk-legende i.lg-zu           { background: var(--flaeche-2);  border-color: var(--linie-stark); }
 
 .vk-kopf { display: flex; align-items: flex-start; gap: 10px; }
 .vk-titel {
@@ -5355,6 +5547,9 @@ a.vgk-wert:hover { text-decoration: underline; }
    Grundton zurückbauen. */
 .vk-statuswahl {
   appearance: none; -webkit-appearance: none;
+  /* ⚠️ Eine Pille, kein Formularfeld: ohne das erbte sie die 43px
+     Mindesthöhe aller Felder und stand klobig auf der Karte. */
+  min-height: 0;
   max-width: 170px;
   padding: 3px 22px 3px 9px; border-radius: 20px;
   font: inherit; font-size: 11px; font-weight: 600; line-height: 1.45;
@@ -5714,6 +5909,7 @@ a.vgk-wert:hover { text-decoration: underline; }
 .wiki-neuform { margin-top: 12px; }
 .wiki-neuform .feld { margin-bottom: 10px; }
 .wiki-neuform input, .wiki-neuform select { padding: 7px 10px; font-size: 13.5px; }
+.wiki-neuform select { padding-right: 30px; }
 
 /* Pfadleiste */
 /* Die Pfadangabe stand bis 0.7.2 in der rechten Spalte und schob deren

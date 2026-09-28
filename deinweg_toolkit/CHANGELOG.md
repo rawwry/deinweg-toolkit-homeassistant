@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.60
+
+- Aufgaben neu aufgeräumt: standardmäßig nur die eigenen, mit einem Klick alle
+- Schnellfilter oben (Offen, Überfällig, Heute, Nächste 7 Tage, Erledigt), Liste nach Dringlichkeit gruppiert
+- Beim Anlegen ist die zuletzt benutzte Vorgangsart vorgewählt
+- Auswahlfelder sehen in Safari jetzt aus wie in Chrome und Brave
+
 ## 1.59.2
 
 - Meine Vorlagen: zugeklappt, Einträge sauber in Spalten

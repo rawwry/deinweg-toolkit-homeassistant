@@ -2562,7 +2562,7 @@ def test_vorgang_anlegen(client: TestClient) -> None:
     # Es gab einen Knopf „Neuen Vorgang anlegen" und direkt darunter noch
     # einmal dieselbe Beschriftung als Aufklapper - zwei Bedienelemente
     # für dieselbe Sache.
-    pruefe(zu.count("Neuen Vorgang anlegen") == 1,
+    pruefe(zu.count("Neue Aufgabe</a>") == 1 and "Neuen Vorgang anlegen" not in zu,
            "zugeklappt gibt es genau einen Auslöser")
     pruefe('href="/vorgaenge?neu=1#neu"' in zu,
            "und der öffnet das Formular über die Adresse, nicht per Skript")
@@ -2711,8 +2711,8 @@ def test_vorgang_schnellwahl(client: TestClient) -> None:
     # Sortierungs-Beschriftung gekürzt. ⚠️ Vor der Prüfung am Hinweis auf
     # Neuerungen abschneiden - der Changelog zitiert die alte Bezeichnung.
     liste_ohne = liste.split('<div class="neuheiten"')[0]
-    pruefe(">Dringlichkeit</option>" in liste_ohne,
-           "die Sortierung heißt nur noch „Dringlichkeit“")
+    pruefe(">Dringlichkeit (gruppiert)</option>" in liste_ohne,
+           "die Sortierung heißt „Dringlichkeit“ und sagt, dass sie gruppiert")
     pruefe("Dringlichkeit – überfällige zuerst" not in liste_ohne,
            "ohne den Zusatz")
 
@@ -2737,14 +2737,13 @@ def test_vorgang_faerbung(client: TestClient) -> None:
     pruefe('input[type="date"] { text-transform: uppercase; }' in css,
            "ein leeres Datumsfeld zeigt TT.MM.JJJJ statt tt.mm.jjjj")
 
-    # Die Legende benennt die Farben ausdrücklich.
+    # ⚠️ Seit 1.60 keine Farblegende mehr: die Pillen im Kopf tragen die
+    # Ampelfarben und die Liste ist nach Dringlichkeit überschrieben.
     liste = client.get("/vorgaenge").text
-    pruefe('class="vk-legende"' in liste, "über der Liste steht eine Farblegende")
-    for wort in ("überfällig", "fällig", "offen", "erledigt"):
-        pruefe(wort in liste.split('class="vorgangskarten"')[0].rsplit("vk-legende", 1)[-1]
-               or ("lg-" + {"überfällig":"ueberfaellig","fällig":"faellig",
-                            "offen":"offen","erledigt":"zu"}[wort]) in liste,
-               f"die Legende nennt „{wort}“")
+    pruefe('class="vk-legende"' not in liste, "die Farblegende ist entfallen")
+    for wort in ("Überfällig", "Heute", "Erledigt", "Offen"):
+        pruefe(f"</span>{wort}" in liste.split('class="ak-lagen"')[1].split("</nav>")[0],
+               f"die Pillen nennen „{wort}“")
 
     # Das Anlegeformular: „Frist" ohne „/ Wiedervorlage".
     neu_form = client.get("/vorgaenge?neu=1").text.split('<div class="neuheiten"')[0]
@@ -2830,8 +2829,16 @@ def test_dringlichkeit(client: TestClient) -> None:
 
     # Auf der Karte steht die Fristlage neben dem Titel, die Priorität
     # tritt dahinter zurück.
-    pruefe('class="vk-lage l-ueberfaellig">überfällig<' in seite_beide,
-           "überfällig steht als Marke gleich neben dem Titel")
+    # ⚠️ Seit 1.60 steht das Überfällige unter einer eigenen Überschrift -
+    # die Marke am Titel wäre dieselbe Auskunft ein zweites Mal. In jeder
+    # anderen Sortierung gibt es keine Gruppen, dort steht sie weiter.
+    pruefe('class="vg-titel g-ueberfaellig"' in seite_beide
+           and 'class="vk-lage l-ueberfaellig"' not in seite_beide,
+           "überfällig steht als Gruppenüberschrift, nicht noch einmal am Titel")
+    nach_prio = client.get("/vorgaenge?sortierung=prio").text
+    pruefe('class="vk-lage l-ueberfaellig">überfällig<' in nach_prio
+           and 'class="vg-titel' not in nach_prio,
+           "in einer anderen Sortierung keine Gruppen - dafür die Marke am Titel")
 
 
 def test_automatische_sicherung(client: TestClient) -> None:
@@ -5337,8 +5344,9 @@ def test_aufgaben_1_30(client: TestClient) -> None:
     # mehr als Kippschalter in der Kartenüberschrift.
     werkzeuge = liste.split('class="listenwerkzeuge"')[1].split("</div>")[0] \
         if 'class="listenwerkzeuge"' in liste else ""
-    pruefe('id="erledigte-aus"' in liste and "erledigt-schalter" in liste,
-           "„Erledigte ausblenden“ steht als Symbol in der Werkzeugleiste")
+    # ⚠️ Mit 1.60 entfallen: die Pille „Erledigt" im Kopf tut dasselbe.
+    pruefe('id="erledigte-aus"' not in liste and "erledigt-schalter" not in liste,
+           "das Auge „Erledigte ausblenden“ ist durch die Pillen ersetzt")
     pruefe('class="filter-umschalter erledigt-schalter"' not in liste,
            "und nicht mehr als Kippschalter in der Überschrift")
     pruefe('data-aufgabenliste="karten"' in client.get("/").text,
@@ -6052,7 +6060,7 @@ def test_zustaendige_gestapelt(client: TestClient) -> None:
         "zustaendig": ["Anna Stapel", "Bruno Stapel"],
         "status": "Offen", "prioritaet": "Mittel"}, follow_redirects=False)
 
-    seite = client.get("/vorgaenge?zustand=alle").text
+    seite = client.get("/vorgaenge?zustand=alle&wer=alle").text
     # ⚠️ Nicht die ganze Liste, sondern genau dieses Band: die Seite trägt
     # auch die Kartenansicht, und dort stehen die Namen weiterhin
     # nebeneinander.
@@ -7051,13 +7059,13 @@ def test_htmx(client: TestClient) -> None:
            "die Auswahl schickt über requestSubmit ab, nicht über submit")
     # ⚠️ Das Blättern steht erst ab der zweiten Seite im Markup - hier
     # zählt deshalb die Vorlage, nicht die gerade gerenderte Seite.
-    pruefe('class="kennzahlen" hx-boost="true"' in seite,
-           "die Kennzahlen tauschen ebenfalls nur den Bereich")
+    pruefe('class="ak-wahl" hx-boost="true"' in seite,
+           "Umschalter und Pillen tauschen ebenfalls nur den Bereich")
     pruefe('class="blaettern" aria-label="Seiten" hx-boost="true"'
            in quelle("vorgaenge.html"),
            "das Blättern der Aufgaben ebenso")
-    pruefe('hx-trigger="dwt:laden"' in seite,
-           "das Auge „Erledigte ausblenden“ hängt am eigenen Auslöser")
+    pruefe('class="ak-suche" method="get" action="/vorgaenge" hx-boost="true"' in seite,
+           "Suche und weitere Filter tauschen ebenfalls nur den Bereich")
 
     # --- 2. Zeit speichern, nur das Protokoll nachladen --------------------
     seite = client.get("/").text
@@ -7916,7 +7924,7 @@ def test_umbau_1_56(client: TestClient) -> None:
     # === 2. Das Anlegeformular der Aufgaben ============================
     seite = client.get("/vorgaenge?neu=1").text
     ohne_dialog = seite.split('<div class="neuheiten"')[0]
-    formular = ohne_dialog.split('action="/vorgaenge"')[1].split("</form>")[0]
+    formular = ohne_dialog.split('action="/vorgaenge" method="post"')[1].split("</form>")[0]
 
     pruefe("Betreff" in formular and "Kurze Bezeichnung" not in formular,
            "das Titelfeld heißt „Betreff“")
@@ -8632,6 +8640,13 @@ def test_umbau_1_59_2(client: TestClient) -> None:
            "die Zeilen teilen sich ein Raster - die Leistung beginnt überall gleich weit rechts")
     client.post(f"/erfassung/vorlagen/{kid}/loeschen")
 
+    # --- Auswahlfelder ohne Systemaussehen (1.60) ------------------------
+    regel = stil.split("select:where(:not([multiple])) {")[1].split("}")[0] \
+        if "select:where(:not([multiple])) {" in stil else ""
+    pruefe("-webkit-appearance: none" in regel and "background-image" in regel
+           and "padding-right" in regel,
+           "Auswahlfelder zeichnet das Stylesheet selbst - Safari übergeht sonst Höhe und Rahmen")
+
     # --- „Sonstige" -> „Sonstiges" -----------------------------------------
     from . import auslagen
     pruefe(auslagen.AUFGABE_KLIENT == "Sonstiges",
@@ -8659,6 +8674,113 @@ def test_umbau_1_59_2(client: TestClient) -> None:
     pruefe(k_alt == "Sonstiges" and k_log == "Sonstiges",
            "vorhandene Auslagenabrechnungen werden samt Logbuch umgeschrieben")
     pruefe(k_hand == "Sonstige", "von Hand angelegte Aufgaben bleiben unangetastet")
+
+
+def test_aufgaben_1_60(client: TestClient) -> None:
+    """Die Aufgabenseite mit einem Kopf statt drei Kästen (1.60)."""
+    abschnitt("Aufgaben 1.60: Meine | Alle, Pillen, Gruppen")
+    import datetime as _dt
+    import re
+    h = _dt.date.today()
+    tag = lambda n: (h + _dt.timedelta(days=n)).isoformat()
+    with db.db() as con:
+        for titel, wer, frist in (("KopfA überfällig", "pruefer", tag(-2)),
+                                  ("KopfB heute", "pruefer", tag(0)),
+                                  ("KopfC später", "pruefer", tag(30)),
+                                  ("KopfD ohne Frist", "pruefer", ""),
+                                  ("KopfE fremd überfällig", "Fremde Kollegin", tag(-4))):
+            con.execute(
+                "INSERT INTO vorgang (klient, art, titel, zustaendig, status, prioritaet, "
+                "frist, angelegt_am, angelegt_von) VALUES ('Testperson','Antrag gestellt',"
+                "?,?,'Offen','Mittel',?,'2026-01-01 08:00','pruefer')", (titel, wer, frist))
+
+    # --- Meine ist die Vorgabe ----------------------------------------------
+    seite = client.get("/vorgaenge?q=Kopf").text
+    pruefe("Deine offenen Aufgaben" in seite, "ohne Angabe: „Deine offenen Aufgaben“")
+    pruefe("KopfA überfällig" in seite and "KopfE fremd" not in seite,
+           "nur die eigenen - die Aufgabe der Kollegin fehlt")
+    pruefe('class="aktiv"' in seite.split('class="ak-umfang"')[1].split("</a>")[0],
+           "„Meine“ ist im Umschalter gewählt")
+    alle = client.get("/vorgaenge?q=Kopf&wer=alle").text
+    pruefe("Alle offenen Aufgaben" in alle and "KopfE fremd" in alle,
+           "ein Klick auf „Alle“ zeigt auch die der Kollegin")
+    pruefe('name="wer" value="alle"' in alle,
+           "und die Suche hält „Alle“ fest")
+    person = client.get("/vorgaenge?q=Kopf&zustaendig=Fremde%20Kollegin").text
+    pruefe("Offene Aufgaben von Fremde Kollegin" in person and "KopfA" not in person,
+           "ein ausdrücklich gewählter Name gewinnt (so verlinkt Mein Bereich)")
+
+    # --- Pillen: Zahl und Liste stimmen überein ------------------------------
+    pillen = seite.split('class="ak-lagen"')[1].split("</nav>")[0]
+    zahl = lambda schl: int(re.search(rf'p-{schl}[^>]*>.*?class="ak-zahl">(\d+)<',
+                                      pillen, re.S).group(1))
+    ueber = client.get("/vorgaenge?q=Kopf&faellig=ueberfaellig").text
+    pruefe(zahl("ueberfaellig") == 1 and ueber.count('class="vorgangskarte ') == 1,
+           "die Zahl an „Überfällig“ ist genau die Zahl, die der Klick zeigt")
+    pruefe(zahl("offen") == 4, "„Offen“ zählt alle vier eigenen")
+    pruefe("q=Kopf" in pillen, "die Pillen behalten Suche und übrige Filter")
+    pruefe('class="kennzahl' not in seite and 'class="vk-legende"' not in seite,
+           "keine Kacheln und keine Farblegende mehr")
+
+    # --- Gruppen -------------------------------------------------------------
+    gruppen = re.findall(r'class="vg-titel g-(\w+)"',
+                         seite.split('class="vorgangskarten"')[1].split('class="vorgangstabelle"')[0])
+    pruefe(gruppen == ["ueberfaellig", "heute", "spaeter", "ohne"],
+           "gruppiert in der Folge Überfällig, Heute, Später, Ohne Frist")
+    pruefe('class="vg-titel' not in ueber,
+           "mit einer Lage gewählt keine Gruppe - der Titel sagt es schon")
+    pruefe('class="vg-titel' not in client.get("/vorgaenge?q=Kopf&sortierung=prio").text,
+           "in einer anderen Sortierung keine Gruppen")
+
+    # --- Weitere Filter, Leer-Zustände --------------------------------------
+    pruefe('<details class="ak-weitere">' in seite,
+           "„Weitere Filter“ steht zugeklappt da")
+    gefiltert = client.get("/vorgaenge?klient=Testperson").text
+    pruefe('<details class="ak-weitere gesetzt">' in gefiltert
+           and "<details class=\"ak-weitere gesetzt\" open" not in gefiltert,
+           "ist darin etwas gesetzt, zeigt der Knopf es - aufgeklappt wird nicht")
+    pruefe("zu Testperson" in gefiltert, "der Titel nennt die betreute Person")
+    leer = client.get("/vorgaenge?q=GibtEsNirgends").text
+    pruefe('class="al-leer"' in leer and "Filter zurücksetzen" in leer,
+           "eine leere Suche bietet das Zurücksetzen an")
+    ohne = client.get("/vorgaenge?q=KopfA&faellig=heute").text
+    pruefe("Kein Vorgang für diesen Filter." in ohne or 'class="al-leer"' in ohne,
+           "auch eine leere Lage sagt, dass nichts da ist")
+
+    # --- Anlegen: die zuletzt benutzte Vorgangsart ist vorgewählt -----------
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO vorgangsart (name, aktiv, angelegt_am) "
+                    "VALUES ('Zuletzt benutzt', 1, '2026-01-01 08:00')")
+    client.post("/vorgaenge", data={"klient": "Testperson", "art": "Zuletzt benutzt",
+                                    "titel": "Artprobe", "zustaendig": "pruefer"})
+    form = client.get("/vorgaenge?neu=1").text.split('class="vorgang-formular"')[1]
+    pruefe('value="Zuletzt benutzt" selected' in form,
+           "im Anlegeformular steht die zuletzt benutzte Vorgangsart vorgewählt")
+
+    # --- Kleinigkeiten ------------------------------------------------------
+    pruefe("wird mitgelöscht" not in alle,
+           "die Löschfrage behauptet nicht mehr, das Logbuch gehe mit")
+    stil = client.get("/static/style.css").text
+    telefon = stil.split("=== Aufgaben: der Kopf")[1].split("@media (max-width: 600px)")[1][:1600]
+    pruefe(".ak-lagen {" in telefon and "flex-wrap: nowrap" in telefon,
+           "am Telefon stehen die Pillen in einer Reihe")
+    # --- 1.60: zwei Zeilen, eine Formensprache ---------------------------
+    kopf = seite.split('<section class="karte aufgabenkopf">')[1].split("</section>")[0]
+    pruefe(kopf.index('class="ak-titel"') < kopf.index('class="ak-suchfeld"')
+           < kopf.index("ak-neu") < kopf.index('class="ak-wahl"') < kopf.index('class="ak-weitere'),
+           "Titel, Suche, Neue Aufgabe - darunter Meine | Alle, Pillen, Filter")
+    pruefe("/vorgaenge/logbuch" not in kopf and 'href="/vorgaenge/logbuch"' in seite,
+           "„Logbuch“ steht nicht mehr im Kopf, sondern an der Liste")
+    pruefe("Was gehört hierher?" not in kopf and "Was gehört hierher?" in seite,
+           "der Erklärtext steht am Ende der Liste")
+    pruefe('class="knopf' not in kopf.split('class="ak-weitere-felder"')[0],
+           "im Kopf nur die runden Knöpfe `.ak-knopf` - keine eckigen")
+    regel = stil.split(".aufgabenkopf { overflow: visible; --ak-hoehe: 36px; }")
+    pruefe(len(regel) == 2 and "height: var(--ak-hoehe)" in regel[1].split(".ak-weitere-felder {")[0],
+           "alle Bedienelemente des Kopfes teilen sich eine Höhe")
+
+    with db.db() as con:
+        con.execute("DELETE FROM vorgang WHERE titel LIKE 'Kopf%' OR titel='Artprobe'")
 
 
 def test_verbindliche_zeiterfassung(client: TestClient) -> None:
@@ -9697,9 +9819,10 @@ def test_status_drei(client: TestClient) -> None:
     for weg in ("Warten auf Rückmeldung", "Rückfrage / Unterlagen fehlen",
                 "Abgebrochen", "wartet auf Rückmeldung"):
         pruefe(weg not in seite, f"„{weg}“ steht nirgends mehr auf der Seite")
-    # 4 Kacheln plus die Hülle <div class="kennzahlen">
-    pruefe(seite.count('<a class="kennzahl') == 4,
-           "vier Kennzahlen statt fünf")
+    # Seit 1.60 Pillen statt Kacheln: Offen, Überfällig, Heute, nächste
+    # Tage, Erledigt - „wartet auf Rückmeldung" kommt nicht zurück.
+    pruefe(seite.count('class="ak-pille') == 5,
+           "fünf Pillen, keine für „wartet auf Rückmeldung“")
 
     # Ein abgeschlossener Vorgang verschwindet aus „offen" und taucht unter
     # „erledigt" wieder auf - dieselbe Prüfung wie vor der Umstellung, nur
@@ -9810,13 +9933,10 @@ def test_erledigte_standard(client: TestClient) -> None:
     standard = client.get("/vorgaenge").text
     pruefe("Noch offen" in standard, "die offene Aufgabe steht da")
     pruefe("/vorgaenge/9380" not in standard, "die erledigte nicht")
-    # Das Auge in der Werkzeugleiste zeigt den Zustand: schon umgelegt.
-    # ⚠️ Seit 1.50 steht zwischen Klasse und „checked" noch der
-    # htmx-Auslöser - deshalb wird das Kästchen als Ganzes geschnitten
-    # und nicht mehr buchstabengleich verglichen.
-    kaestchen = standard.split('id="erledigte-aus"')[1].split(">")[0]
-    pruefe("erledigt-kaestchen" in kaestchen and "checked" in kaestchen,
-           "das Kästchen „Erledigte ausblenden“ steht angehakt da")
+    # ⚠️ Das Auge „Erledigte ausblenden" ist mit 1.60 entfallen; die
+    # Pille „Offen" steht dafür als gewählt da.
+    pruefe('class="ak-pille p-offen aktiv' in standard,
+           "die Pille „Offen“ ist die Vorgabe")
 
     # ⚠️ Auf die beiden Titel gefiltert: erledigte Vorgänge sinken in jeder
     # Sortierung nach ganz unten, und der Bestand der Prüfung reicht
@@ -11386,7 +11506,7 @@ def test_menue_reihenfolge(client: TestClient) -> None:
            "der Berechtigungsschlüssel bleibt unverändert")
     pruefe(BEREICHE["verwaltungsvorgaenge"] == "Aufgaben",
            "nur seine Beschriftung heißt jetzt „Aufgaben“")
-    pruefe("<h1>Aufgaben</h1>" in client.get("/vorgaenge").text,
+    pruefe('<h1 class="ak-titel">Aufgaben</h1>' in client.get("/vorgaenge").text,
            "die Seite selbst heißt ebenfalls „Aufgaben“")
 
     # Der Changelog stand bis 1.1.1 als Symbol in der Kopfzeile. Jetzt
@@ -11664,6 +11784,7 @@ def _durchlauf(client: TestClient) -> None:
         test_umbau_1_59(client)
         test_vorlagen(client)
         test_umbau_1_59_2(client)
+        test_aufgaben_1_60(client)
         test_texte_tot()
         test_kosmetik(client)
         test_versionen()
