@@ -2796,4 +2796,8 @@ CHANGELOG = [
         "„Meine Aufgaben | Alle Aufgaben“, darunter Schnellfilter, Suche "
         "und Filter in einer Zeile",
     ]},
+    {"version": "1.61.1", "titel": "Hinweis in der Mitte", "punkte": [
+        "Der Hinweis auf fällige Aufgaben steht jetzt mittig – am Handy "
+        "wie am Schreibtisch",
+    ]},
 ]

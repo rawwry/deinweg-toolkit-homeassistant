@@ -2365,11 +2365,17 @@ main > .unternavigation:has(+ .draengt) { margin-bottom: 0; }
    Ampelpunkt wie an `.ak-pille`, hinten der Pfeil in einem runden Feld.
    Vorher ein Balken über die volle Breite mit Kante links.
    ⚠️ Kein eigener Außenabstand - den Takt gibt der flex-gap von `main`.
-   `align-self: flex-start`, sonst zöge die Flexspalte sie auf volle
+   ⚠️ Seit 1.61.1 MITTIG, auf jeder Breite (Timos Frage, meine
+   Entscheidung): die Pille steht allein in ihrer Zeile, und direkt
+   darunter steht das ebenfalls mittige Zitat - zusammen ein ruhiges
+   Band zwischen Reiterleiste und Inhalt. Linksbündig hätte sie eine
+   eigene Kante ohne Bezug; linksbündig gehört eine Pille dorthin, wo
+   sie mit Nachbarn in einer Reihe steht (Aufgabenseite).
+   `align-self` statt `stretch`, sonst zöge die Flexspalte sie auf volle
    Breite. */
 .draengt {
   --draengt-ton: var(--leise);
-  align-self: flex-start; max-width: 100%; box-sizing: border-box;
+  align-self: center; max-width: 100%; box-sizing: border-box;
   display: inline-flex; align-items: center; gap: 10px;
   height: 38px; margin: 0; padding: 0 5px 0 15px; border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--draengt-ton) 45%, transparent);

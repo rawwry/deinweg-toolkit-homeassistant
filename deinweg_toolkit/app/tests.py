@@ -9495,9 +9495,9 @@ def test_draengt(client: TestClient) -> None:
            and ".draengt-orange { --draengt-ton:" in stil,
            "der Ton kommt für beide Farben aus derselben Regel")
     pille = stil.split("\n.draengt {")[1].split("}")[0]
-    pruefe("border-radius: 999px" in pille and "align-self: flex-start" in pille
+    pruefe("border-radius: 999px" in pille and "align-self: center" in pille
            and "height: 38px" in pille,
-           "der Hinweis ist eine Pille, nur so breit wie sein Satz")
+           "der Hinweis ist eine Pille, nur so breit wie sein Satz, und steht mittig")
     pruefe("<svg" not in inhalt.split('class="draengt-zeichen"')[1].split("</span>")[0],
            "vorn steht der Ampelpunkt statt des Ausrufezeichens")
 

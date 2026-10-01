@@ -3,6 +3,10 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.61.1
+
+- Hinweis auf fällige Aufgaben steht mittig
+
 ## 1.61
 
 - Hinweis auf fällige und überfällige Aufgaben als Pille, pulsiert leicht und erscheint auch bei mehreren Zuständigen
