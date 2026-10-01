@@ -25,17 +25,13 @@
 {% if draengt %}
 <a class="draengt {{ 'draengt-rot' if draengt.ueberfaellig else 'draengt-orange' }}"
    href="/vorgaenge?zustaendig={{ draengt.wer | urlencode }}&amp;sortierung=dringlichkeit">
-  <span class="draengt-zeichen" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.7"/>
-      <path d="M12 7.6v5.1M12 16.1h.01" stroke="currentColor" stroke-width="1.8"
-            stroke-linecap="round"/>
-    </svg>
-  </span>
+  {# Seit 1.61 eine Pille wie auf der Aufgabenseite: vorn der Punkt in
+     der Ampelfarbe (er pulsiert), dahinter der Satz, am Ende der Pfeil. #}
+  <span class="draengt-zeichen" aria-hidden="true"></span>
   <span class="draengt-text">
     {% if draengt.ueberfaellig %}
     <strong>{{ draengt.ueberfaellig }} {{ 'Aufgaben sind' if draengt.ueberfaellig != 1 else 'Aufgabe ist' }} überfällig</strong>
-    {% if draengt.heute %}<span class="draengt-dazu">· {{ draengt.heute }} {{ 'weitere werden' if draengt.heute != 1 else 'weitere wird' }} heute fällig</span>{% endif %}
+    {% if draengt.heute %}<span class="draengt-dazu">· {{ draengt.heute }} weitere heute fällig</span>{% endif %}
     {% else %}
     <strong>{{ draengt.heute }} {{ 'Aufgaben werden' if draengt.heute != 1 else 'Aufgabe wird' }} heute fällig</strong>
     {% endif %}
@@ -82,7 +78,7 @@
 {# ⚠️⚠️ Seit 1.50 schickt das Formular über htmx ab, WENN es ein
    Tagesprotokoll gibt (Timos Auftrag: „eine Zeit speichern und nur das
    Tagesprotokoll nachladen"). Getauscht wird nur die Protokollkarte;
-   Meldung, Bestand und Abgaben kommen als Nebentausch (`hx-select-oob`)
+   Meldung und Abgaben kommen als Nebentausch (`hx-select-oob`)
    aus derselben Antwort mit - sonst stünden dort gleich veraltete Zahlen.
    ⚠️ Das FORMULAR selbst bleibt stehen. Das ist der eigentliche Gewinn:
    nach einem Fehler behält man alles Getippte, statt es wie bisher beim
@@ -94,7 +90,7 @@
 {% if darf_erfassen %}<form action="/erfassung" method="post" id="erfassung"
   {%- if mitarbeiter %} hx-post="/erfassung" hx-target="#protokollkarte"
   hx-select="#protokollkarte" hx-swap="outerHTML"
-  hx-select-oob="#erfassen,#bestandkarte,#abgabenkarte"{% endif %}></form>{% endif %}
+  hx-select-oob="#erfassen,#abgabenkarte"{% endif %}></form>{% endif %}
 
 <section class="raster buendig">
   <div class="spalte">
@@ -531,7 +527,7 @@
             <form class="inline" action="/eintraege/{{ z.id }}/loeschen" method="post"
                   hx-post="/eintraege/{{ z.id }}/loeschen" hx-target="#protokollkarte"
                   hx-select="#protokollkarte" hx-swap="outerHTML"
-                  hx-select-oob="#erfassen,#bestandkarte,#abgabenkarte"
+                  hx-select-oob="#erfassen,#abgabenkarte"
                   onsubmit="return dwt.frage(event, 'Diesen Eintrag löschen?')">
               <input type="hidden" name="zurueck" value="/?mitarbeiter={{ mitarbeiter | urlencode }}&datum={{ datum | urlencode }}">
               <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Eintrag löschen">
@@ -668,25 +664,24 @@
   </div>
 
   <div class="spalte">
-    <div class="karte schmal" id="bestandkarte">
-      <h2>Bestand</h2>
-      <p class="zahl">{{ summe.n }}<span class="einheit">Einträge</span></p>
-      <p class="zahl-label">{{ summe.m | gesamtstunden }} insgesamt</p>
-      {# Ohne den Bereich „Übersicht (Datensätze)“ fuehrt der Knopf nur in
-         ein 403 - dann steht er hier gar nicht erst. #}
-      {% if hat_zugriff(request.state.benutzer, "datensaetze") %}
-      <a class="knopf leise" href="/eintraege">Zur Übersicht</a>
-      {% endif %}
-    </div>
-
+    {# ⚠️ Die Box „Bestand" (Zahl aller Einträge, Stunden insgesamt) ist
+       mit 1.61 entfallen (Timos Wunsch): eine Summe über alles und alle
+       sagt beim Erfassen nichts. Die Abgaben rücken an ihre Stelle. #}
     <div class="karte schmal" id="abgabenkarte">
       <div class="kastenkopf">
         <h2>Abgaben</h2>
-        <span class="monatswechsel">
-          <a class="minipfeil" href="/?monat={{ monat_vor }}" title="Monat zurück">‹</a>
+        {# Seit 1.61 eine Pille: Pfeil, Monat, Pfeil in einem Rahmen - der
+           Monat gehört zu den Pfeilen, nicht daneben. Der Monat steht
+           in fester Breite, damit die Pfeile beim Blättern nicht wandern. #}
+        <nav class="monatswechsel" aria-label="Monat wechseln">
+          <a class="minipfeil" href="/?monat={{ monat_vor }}" title="Monat zurück" aria-label="Monat zurück">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14.5 6-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
           <span class="kastenmonat">{{ abgabe.wort }}</span>
-          <a class="minipfeil" href="/?monat={{ monat_zurueck }}" title="Monat vor">›</a>
-        </span>
+          <a class="minipfeil" href="/?monat={{ monat_zurueck }}" title="Monat vor" aria-label="Monat vor">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9.5 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </nav>
       </div>
 
       {# Jeder Name ist anklickbar und führt in die Übersicht, gefiltert

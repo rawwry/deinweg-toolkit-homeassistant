@@ -41,33 +41,28 @@
 {# ⚠️⚠️ Seit 1.60 ZWEI Zeilen in EINER Formensprache (Timos Meldung zu
    1.60: „wirkt unaufgeräumt und wild"). Vorher standen eckige Knöpfe,
    runde Pillen und ein eckiges Suchfeld in drei Höhen auf vier Zeilen.
-   Jetzt:
-     Zeile 1  Titel · Suche · „Neue Aufgabe"
-     Zeile 2  Meine | Alle · Pillen · „Filter"
-   Alles rund, alles 36px hoch, genau ein gefüllter Knopf. „Logbuch" ist
+   Seit 1.61 DREI Ebenen (Timos Meldung: „Meine/Alle kaum von den
+   anderen Elementen unterscheidbar … keine klare Linie"):
+     Zeile 1  Titel ··························· „Neue Aufgabe"
+     Zeile 2  Meine Aufgaben | Alle Aufgaben   (Reiter, Linie darunter)
+     Zeile 3  Pillen ············ Suche · „Filter"
+   Oben, was die Seite ist und tut; in der Mitte, wessen Liste; unten,
+   wie sie eingegrenzt wird. Die Bedienelemente der Filterzeile sind
+   rund und 36px hoch, genau ein Knopf ist gefüllt. „Logbuch" ist
    als Zeichen an die Liste gezogen, der Erklärtext ans Listenende.
    ⚠️ Das Formular umschließt den ganzen Kopf: Suche und „Filter" gehören
    zu ihm, Pillen und Umschalter sind gewöhnliche Verweise darin. Nur so
-   lassen sich die Teile frei auf die zwei Zeilen legen (Raster in
+   lassen sich die Teile frei auf die Zeilen legen (Raster in
    style.css). Die versteckten Felder halten „wessen" und „welche" fest -
    sonst setzte eine Suche beides zurück. #}
 <section class="karte aufgabenkopf">
-  <form class="ak-suche" method="get" action="/vorgaenge" hx-boost="true">
+  <form class="ak-suche{{ ' ohne-umfang' if not eigener_name }}" method="get" action="/vorgaenge" hx-boost="true">
     {% if f.wer %}<input type="hidden" name="wer" value="{{ f.wer }}">{% endif %}
     {% if f.faellig %}<input type="hidden" name="faellig" value="{{ f.faellig }}">{% endif %}
     {% if f.zustand and f.zustand != 'offen' %}<input type="hidden" name="zustand" value="{{ f.zustand }}">{% endif %}
 
+    {# Zeile 1: der Titel und die eine Handlung, die die Seite anbietet. #}
     <h1 class="ak-titel">Aufgaben</h1>
-
-    <div class="ak-suchfeld">
-      <svg class="ak-suchzeichen" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"/>
-        <path d="M16 16l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-      </svg>
-      <input type="search" name="q" value="{{ f.q or '' }}" autocomplete="off"
-             placeholder="Aufgabe suchen" title="Sucht in Betreff, Beschreibung und betreuter Person"
-             aria-label="Aufgaben durchsuchen" enterkeyhint="search">
-    </div>
 
     {% if formular_offen %}
     <a class="ak-knopf ak-neu" href="{{ link() }}">Formular schließen</a>
@@ -79,23 +74,29 @@
       Neue Aufgabe</a>
     {% endif %}
 
+    {# ⚠️ Die Hülle steht auf `display: contents` - Umschalter und Pillen
+       liegen damit selbst im Raster des Kopfes. Sie bleibt trotzdem
+       stehen, weil sie das hx-boost für beide trägt. #}
     <div class="ak-wahl" hx-boost="true">
-      {# 1. Wessen Aufgaben. Nur mit zugeordnetem Mitarbeiter - ohne ihn
-         gibt es keine „eigenen", und ein Umschalter mit einer Seite wäre
-         keiner. #}
+      {# Zeile 2: WESSEN Aufgaben - seit 1.61 eine Reiterleiste und keine
+         Doppelpille mehr (Timos Meldung: „kaum von den anderen Elementen
+         unterscheidbar"). Ein Reiter wechselt die Ansicht, eine Pille
+         filtert sie; das soll man sehen, bevor man es liest.
+         Nur mit zugeordnetem Mitarbeiter - ohne ihn gibt es keine
+         „eigenen", und ein Umschalter mit einer Seite wäre keiner. #}
       {% if eigener_name %}
       <nav class="ak-umfang" aria-label="Wessen Aufgaben">
         <a href="{{ link(wer='', zustaendig='') }}" class="{{ 'aktiv' if bereich == 'meine' }}"
-           {{ 'aria-current=true' if bereich == 'meine' }}>Meine <span class="ak-zahl">{{ umfang.meine }}</span></a>
+           {{ 'aria-current=true' if bereich == 'meine' }}>Meine Aufgaben <span class="ak-zahl">{{ umfang.meine }}</span></a>
         <a href="{{ link(wer='alle', zustaendig='') }}" class="{{ 'aktiv' if bereich == 'alle' }}"
-           {{ 'aria-current=true' if bereich == 'alle' }}>Alle <span class="ak-zahl">{{ umfang.alle }}</span></a>
+           {{ 'aria-current=true' if bereich == 'alle' }}>Alle Aufgaben <span class="ak-zahl">{{ umfang.alle }}</span></a>
       </nav>
       {% endif %}
 
-      {# 2. Welche. Die Zahl an einer Pille gilt unter allen übrigen
-         Filtern - sie stimmt also immer mit der Liste überein, die ein
-         Klick zeigt. Eine Pille mit 0 bleibt stehen (sonst sprängen die
-         anderen), tritt aber zurück. #}
+      {# Zeile 3, links: WELCHE. Die Zahl an einer Pille gilt unter allen
+         übrigen Filtern - sie stimmt also immer mit der Liste überein, die
+         ein Klick zeigt. Eine Pille mit 0 bleibt stehen (sonst sprängen
+         die anderen), tritt aber zurück. #}
       <nav class="ak-lagen" aria-label="Welche Aufgaben">
         {% set pillen_liste = [
           ("offen", "Offen", link(faellig='', zustand='')),
@@ -112,6 +113,18 @@
         </a>
         {% endfor %}
       </nav>
+    </div>
+
+    {# Zeile 3, rechts: Suche und „Filter" - die beiden Werkzeuge, die die
+       Liste weiter eingrenzen, stehen zusammen am Ende der Filterzeile. #}
+    <div class="ak-suchfeld">
+      <svg class="ak-suchzeichen" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M16 16l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <input type="search" name="q" value="{{ f.q or '' }}" autocomplete="off"
+             placeholder="Aufgabe suchen" title="Sucht in Betreff, Beschreibung und betreuter Person"
+             aria-label="Aufgaben durchsuchen" enterkeyhint="search">
     </div>
 
     {# 3. „Filter": ein schwebendes Feld unter dem Knopf, das die Liste

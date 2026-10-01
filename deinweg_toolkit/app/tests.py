@@ -584,8 +584,12 @@ def test_zeiterfassung(client: TestClient) -> None:
     pruefe("Manuelle Zeiterfassung" in seite,
            "manuelle Erfassung steht auf der Startseite")
     pruefe("Zeitlisten Import" in seite, "Listenimport steht darunter")
-    pruefe("Bestand" in seite and "Abgaben" in seite,
-           "Bestand und Abgaben bleiben erhalten")
+    # ⚠️ Die Box „Bestand" ist mit 1.61 entfallen (Timos Wunsch), die
+    # Abgaben rücken an ihre Stelle.
+    pruefe('id="bestandkarte"' not in seite and "<h2>Bestand</h2>" not in seite,
+           "die Box „Bestand“ ist weg")
+    pruefe('id="abgabenkarte"' in seite and "<h2>Abgaben</h2>" in seite,
+           "die Abgaben bleiben erhalten")
     antwort = client.get("/erfassung?mitarbeiter=pruefer", follow_redirects=False)
     pruefe(antwort.status_code == 303
            and antwort.headers.get("location", "").startswith("/?"),
@@ -1708,11 +1712,11 @@ def test_meine_zeiten(client: TestClient) -> None:
            "und löschen")
     pruefe("Hausbesuch" in seite, "der Eintrag steht mit seiner Leistung da")
 
-    # Der Knopf „Zur Übersicht" verschwindet ohne den Bereich.
-    pruefe("Zur Übersicht" not in z.get("/").text,
-           "„Zur Übersicht“ fehlt im Bestand, wenn der Bereich fehlt")
-    pruefe("Zur Übersicht" in client.get("/").text,
-           "mit dem Bereich steht er weiterhin da")
+    # Der Knopf „Zur Übersicht" stand bis 1.60 in der Box „Bestand" -
+    # mit ihr ist er entfallen; der Weg ist die Reiterleiste.
+    pruefe("Zur Übersicht" not in z.get("/").text
+           and "Zur Übersicht" not in client.get("/").text,
+           "„Zur Übersicht“ ist mit der Box „Bestand“ entfallen")
 
     # Bearbeiten: der eigene ja, ein fremder nicht.
     pruefe(z.get(f"/meinbereich/eintrag/{eigen}/bearbeiten").status_code == 200,
@@ -7074,11 +7078,15 @@ def test_htmx(client: TestClient) -> None:
            and 'hx-target="#protokollkarte"' in form
            and 'hx-select="#protokollkarte"' in form,
            "das Erfassungsformular tauscht die Protokollkarte")
-    # ⚠️ Meldung, Bestand und Abgaben ändern sich beim Speichern mit -
-    # ohne Nebentausch stünden dort sofort veraltete Zahlen.
-    pruefe('hx-select-oob="#erfassen,#bestandkarte,#abgabenkarte"' in form,
-           "Meldung, Bestand und Abgaben kommen als Nebentausch mit")
-    for kennung in ('id="protokollkarte"', 'id="bestandkarte"',
+    # ⚠️ Meldung und Abgaben ändern sich beim Speichern mit - ohne
+    # Nebentausch stünden dort sofort veraltete Zahlen. (Den Bestand gibt
+    # es seit 1.61 nicht mehr; ein Nebentausch auf eine fehlende Kennung
+    # meldet htmx als Fehler.)
+    pruefe('hx-select-oob="#erfassen,#abgabenkarte"' in form,
+           "Meldung und Abgaben kommen als Nebentausch mit")
+    pruefe("#bestandkarte" not in quelle("index.html"),
+           "kein Nebentausch zeigt mehr auf den entfallenen Bestand")
+    for kennung in ('id="protokollkarte"',
                     'id="abgabenkarte"', 'id="erfassen"'):
         pruefe(kennung in seite, f"die Seite trägt {kennung}")
     pruefe('action="/erfassung" method="post"' in seite,
@@ -8766,9 +8774,19 @@ def test_aufgaben_1_60(client: TestClient) -> None:
            "am Telefon stehen die Pillen in einer Reihe")
     # --- 1.60: zwei Zeilen, eine Formensprache ---------------------------
     kopf = seite.split('<section class="karte aufgabenkopf">')[1].split("</section>")[0]
-    pruefe(kopf.index('class="ak-titel"') < kopf.index('class="ak-suchfeld"')
-           < kopf.index("ak-neu") < kopf.index('class="ak-wahl"') < kopf.index('class="ak-weitere'),
-           "Titel, Suche, Neue Aufgabe - darunter Meine | Alle, Pillen, Filter")
+    # ⚠️ Seit 1.61 drei Ebenen: Titel und „Neue Aufgabe", darunter die
+    # Reiter „Meine | Alle", darunter Pillen, Suche und Filter.
+    pruefe(kopf.index('class="ak-titel"') < kopf.index("ak-neu")
+           < kopf.index('class="ak-umfang"') < kopf.index('class="ak-lagen"')
+           < kopf.index('class="ak-suchfeld"') < kopf.index('class="ak-weitere'),
+           "Titel, Neue Aufgabe - Meine | Alle - Pillen, Suche, Filter")
+    pruefe(">Meine Aufgaben <" in kopf and ">Alle Aufgaben <" in kopf,
+           "die Reiter sagen ausgeschrieben, was sie zeigen")
+    umfang = stil.split(".ak-umfang a.aktiv {")[1].split("}")[0]
+    pruefe("border-bottom-color: var(--akzent)" in umfang and "background" not in umfang,
+           "„Meine | Alle“ sind Reiter mit Akzentstrich, keine gefüllte Pille")
+    pruefe("@container aufgabenkopf (min-width:" in stil,
+           "die eine Filterzeile hängt an der Breite der Karte")
     pruefe("/vorgaenge/logbuch" not in kopf and 'href="/vorgaenge/logbuch"' in seite,
            "„Logbuch“ steht nicht mehr im Kopf, sondern an der Liste")
     pruefe("Was gehört hierher?" not in kopf and "Was gehört hierher?" in seite,
@@ -9448,6 +9466,40 @@ def test_draengt(client: TestClient) -> None:
            "überfällig wiegt schwerer als heute fällig")
     pruefe("draengt-dazu" in inhalt and "heute fällig" in inhalt,
            "das heute Fällige steht als Zusatz daneben")
+
+    # ⚠️ Seit 1.30 kann eine Aufgabe mehreren gehören. Bis 1.61 verglich
+    # die Zeile aber das GANZE Feld - „Anna, Drängel Probe“ fand sie nie.
+    with db.db() as con:
+        con.execute("UPDATE vorgang SET zustaendig='Anna Beispiel, Drängel Probe' "
+                    "WHERE id IN (9500, 9501)")
+    inhalt = seite()
+    pruefe('draengt-rot' in inhalt and "1 Aufgabe ist überfällig" in inhalt,
+           "auch eine Aufgabe mit mehreren Zuständigen drängt")
+    with db.db() as con:
+        con.execute("UPDATE vorgang SET zustaendig='Drängel Probe Zwei' WHERE id=9501")
+    pruefe('class="draengt draengt-orange"' in seite(),
+           "ein Name, der nur gleich beginnt, zählt nicht mit")
+    with db.db() as con:
+        con.execute("UPDATE vorgang SET zustaendig='Drängel Probe' WHERE id=9501")
+
+    # Seit 1.61 pulsiert die Zeile leicht - rot wie orange, und nur, wenn
+    # Bewegung erwünscht ist (Timos Wunsch).
+    stil = client.get("/static/style.css").text
+    bewegung = bewegungsbloecke(stil)
+    pruefe(".draengt { animation: draengt-puls" in bewegung
+           and ".draengt-zeichen::after" in bewegung,
+           "die Zeile pulsiert, und zwar im Bewegungsblock")
+    pruefe("@keyframes draengt-puls" in stil and "@keyframes draengt-ring" in stil,
+           "beide Takte sind angelegt")
+    pruefe(".draengt-rot    { --draengt-ton:" in stil
+           and ".draengt-orange { --draengt-ton:" in stil,
+           "der Ton kommt für beide Farben aus derselben Regel")
+    pille = stil.split("\n.draengt {")[1].split("}")[0]
+    pruefe("border-radius: 999px" in pille and "align-self: flex-start" in pille
+           and "height: 38px" in pille,
+           "der Hinweis ist eine Pille, nur so breit wie sein Satz")
+    pruefe("<svg" not in inhalt.split('class="draengt-zeichen"')[1].split("</span>")[0],
+           "vorn steht der Ampelpunkt statt des Ausrufezeichens")
 
     # ⚠️ Eine erledigte Aufgabe drängt nicht mehr.
     with db.db() as con:

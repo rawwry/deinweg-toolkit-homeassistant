@@ -47,7 +47,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.60"
+VERSION = "1.61"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -703,8 +703,6 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
             "SELECT i.*, (SELECT COUNT(*) FROM vorschau v WHERE v.import_id=i.id) "
             "AS zeilen FROM import i WHERE i.status='vorschau' "
             "ORDER BY i.id DESC").fetchall()
-        summe = con.execute(
-            "SELECT COUNT(*) n, COALESCE(SUM(dauer_min),0) m FROM eintrag").fetchone()
         leute = [r["mitarbeiter"] for r in con.execute(
             "SELECT DISTINCT mitarbeiter FROM eintrag ORDER BY 1")]
         klienten = [r["klient"] for r in con.execute(
@@ -800,7 +798,10 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
                 "SELECT "
                 " SUM(CASE WHEN frist <> '' AND frist < ? THEN 1 ELSE 0 END) ueber,"
                 " SUM(CASE WHEN frist = ? THEN 1 ELSE 0 END) heute "
-                "FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
+                # ⚠️ Seit 1.30 traegt `zustaendig` eine Liste („Anna,
+                # Timo"). Der Vergleich auf das ganze Feld fand eine
+                # Aufgabe mit zwei Zustaendigen deshalb nie - bis 1.61.
+                f"FROM vorgang WHERE {_vorgaenge.ZUSTAENDIG_TRIFFT} "
                 "AND status NOT IN ('Erledigt')",
                 (heute.isoformat(), heute.isoformat(), eigener)).fetchone()
             ueber, faellig = zahlen["ueber"] or 0, zahlen["heute"] or 0
@@ -809,7 +810,7 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
                            "wer": eigener}
     return templates.TemplateResponse(request=request, name="index.html", context={
         "draengt": draengt,
-        "importe": importe, "summe": summe, "leute": leute,
+        "importe": importe, "leute": leute,
         "klienten": klienten, "leistungen": leistungen, "tagesliste": tagesliste,
         "mitarbeiterliste": mitarbeiterliste, "klientliste": klientliste,
         "tagessumme": tagessumme, "mitarbeiter": mitarbeiter, "datum": datum,

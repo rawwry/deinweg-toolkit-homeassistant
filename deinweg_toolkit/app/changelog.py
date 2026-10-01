@@ -2783,4 +2783,17 @@ CHANGELOG = [
         "Auswahlfelder sehen in Safari jetzt genauso aus wie in Chrome "
         "und Brave",
     ]},
+    {"version": "1.61", "titel": "Erfassung und Aufgaben geordnet", "punkte": [
+        "Der Hinweis auf heute fällige und überfällige Aufgaben ist jetzt "
+        "eine Pille im Stil der Aufgabenseite, pulsiert leicht – und "
+        "erscheint auch bei Aufgaben mit mehreren Zuständigen",
+        "Die Box „Bestand“ ist weg, die Abgaben stehen an ihrer Stelle, mit "
+        "einem neuen Monatswechsel",
+        "Mehr Luft zwischen mehreren Zeilen der Erfassung",
+        "„Diesen Tag als Vorlage merken“ ist immer pink und bleibt am "
+        "Handy nicht mehr hängen",
+        "Aufgaben: oben Titel und „Neue Aufgabe“, darunter die Reiter "
+        "„Meine Aufgaben | Alle Aufgaben“, darunter Schnellfilter, Suche "
+        "und Filter in einer Zeile",
+    ]},
 ]

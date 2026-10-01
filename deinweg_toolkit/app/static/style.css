@@ -1813,10 +1813,18 @@ input[type="date"] { text-transform: uppercase; }
 
 /* Den Tag als Vorlage merken - leise am Fuß des Protokolls. */
 .tp-vorlage { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--linie); }
+/* ⚠️ Seit 1.61 immer in der Akzentfarbe. Vorher grau mit Pink beim
+   Überfahren - am Telefon bleibt ein angetippter Verweis aber im Zustand
+   :hover stehen, und der Verweis blieb nach dem ersten Tipp für immer
+   pink (Timos Meldung). Eine Farbe, die nicht am Zeiger hängt, kann
+   nicht hängen bleiben. Beim Überfahren kommt nur der Unterstrich. */
 .tp-vorlage > summary {
-  cursor: pointer; font-size: 13px; font-weight: 600; color: var(--leise);
+  cursor: pointer; font-size: 13px; font-weight: 600; color: var(--akzent);
+  text-underline-offset: 3px;
 }
-.tp-vorlage > summary:hover { color: var(--akzent); }
+@media (hover: hover) {
+  .tp-vorlage > summary:hover { text-decoration: underline; }
+}
 .tp-vorlage-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .tp-vorlage-form .felderklaerung { margin: 0; }
 .vorlagen-zeile { display: flex; gap: 8px; align-items: center; }
@@ -2161,7 +2169,7 @@ input[type="date"] { text-transform: uppercase; }
 }
 .erfasskopf .leise { text-transform: none; letter-spacing: 0; font-weight: 500; }
 
-.erfassliste { display: flex; flex-direction: column; gap: 6px; }
+.erfassliste { display: flex; flex-direction: column; gap: 12px; }
 /* ⚠️ Sechs Spalten mit ausdrücklicher Zuteilung, kein `auto-fit`. Mit
    `minmax(132px, 1fr)` entschied die Kartenbreite, was nebeneinander
    steht - bei 263px Innenbreite passte nichts mehr nebeneinander und die
@@ -2216,6 +2224,9 @@ input[type="date"] { text-transform: uppercase; }
     gap: 8px; align-items: end; padding: 0 0 6px 2px;
     border-bottom: 1px solid var(--linie); margin-bottom: 8px;
   }
+  /* Seit 1.61 mehr Luft zwischen den Zeilen (Timos Wunsch: „noch zu
+     nah dran"): 22px von Feld zu Feld statt 18px. */
+  .erfassliste { gap: 10px; }
   .erfasszeile {
     grid-template-columns: var(--erfassraster);
     gap: 8px; align-items: center; padding: 6px 0 6px 2px;
@@ -2347,50 +2358,86 @@ main > .unternavigation:has(+ .spruch) { margin-bottom: 0; }
 main > .unternavigation:has(+ .draengt) { margin-bottom: 0; }
 
 /* --- „Was heute drängt" auf der Zeiterfassung (seit 1.37) -------------
-   Eine Zeile, keine Karte: die Seite trägt schon zwei Spalten voller
-   Kästen, ein weiterer oben hätte alles um einen Block nach unten
-   geschoben. Sie ist als Ganzes ein Verweis.
-   ⚠️ Kein eigener Außenabstand - den Takt gibt der flex-gap von `main`,
-   wie bei jedem anderen Kind auch. */
+   Ein Hinweis, keine Karte: die Seite trägt schon zwei Spalten voller
+   Kästen. Er ist als Ganzes ein Verweis.
+   ⚠️⚠️ Seit 1.61 eine PILLE in der Formensprache der Aufgabenseite
+   (Timos Wunsch): rund, 38px hoch, nur so breit wie ihr Satz, vorn der
+   Ampelpunkt wie an `.ak-pille`, hinten der Pfeil in einem runden Feld.
+   Vorher ein Balken über die volle Breite mit Kante links.
+   ⚠️ Kein eigener Außenabstand - den Takt gibt der flex-gap von `main`.
+   `align-self: flex-start`, sonst zöge die Flexspalte sie auf volle
+   Breite. */
 .draengt {
-  display: flex; align-items: center; gap: 12px;
-  margin: 0; padding: 11px 16px;
-  border: 1px solid var(--linie); border-left: 3px solid var(--leise);
-  border-radius: var(--radius); background: var(--flaeche);
+  --draengt-ton: var(--leise);
+  align-self: flex-start; max-width: 100%; box-sizing: border-box;
+  display: inline-flex; align-items: center; gap: 10px;
+  height: 38px; margin: 0; padding: 0 5px 0 15px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--draengt-ton) 45%, transparent);
   color: var(--tinte); text-decoration: none;
   transition: border-color .14s ease, background .14s ease;
 }
-/* ⚠️ Die Töne sind DIESELBEN wie bei den Aufgabenkarten: rot überfällig,
-   orange fällig. Zwei Stellen, die dasselbe meinen, müssen auch gleich
-   aussehen - sonst lernt man die Ampel zweimal. */
-.draengt-rot    { background: var(--dopp-weich); border-left-color: var(--dopp); }
-.draengt-orange { background: var(--warn-weich); border-left-color: var(--warn); }
-.draengt:hover  { border-color: var(--linie-stark); }
-.draengt-rot:hover    { border-color: var(--dopp); }
-.draengt-orange:hover { border-color: var(--warn); }
-.draengt-zeichen { flex: 0 0 auto; display: flex; }
-.draengt-zeichen svg { width: 19px; height: 19px; }
-.draengt-rot .draengt-zeichen    { color: var(--dopp); }
-.draengt-orange .draengt-zeichen { color: var(--warn); }
-/* min-width: 0, damit der Text kürzt statt die Zeile zu sprengen. */
-.draengt-text { flex: 1 1 auto; min-width: 0; font-size: 13.5px; }
+/* ⚠️ Die Töne sind DIESELBEN wie bei den Aufgabenkarten und den Pillen:
+   rot überfällig, orange fällig. Zwei Stellen, die dasselbe meinen,
+   müssen auch gleich aussehen - sonst lernt man die Ampel zweimal. */
+.draengt-rot    { --draengt-ton: var(--dopp); background: var(--dopp-weich); }
+.draengt-orange { --draengt-ton: var(--warn); background: var(--warn-weich); }
+.draengt:hover  { border-color: var(--draengt-ton); }
+/* Der Punkt - dieselbe Größe wie `.ak-punkt`, nur in der Ampelfarbe. */
+.draengt-zeichen {
+  position: relative; flex: none; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--draengt-ton);
+}
+/* min-width: 0 und Auslassung: am Telefon kürzt der Zusatz, statt die
+   Pille zweizeilig zu machen - eine Pille mit zwei Zeilen ist keine. */
+.draengt-text {
+  min-width: 0; font-size: 13.5px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
 .draengt-text strong { font-weight: 600; }
 .draengt-dazu { color: var(--leise); }
 .draengt-hin {
-  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px;
-  font-size: 12px; font-weight: 600; color: var(--leise);
+  flex: none; display: inline-flex; align-items: center; gap: 4px;
+  height: 28px; padding: 0 8px 0 11px; border-radius: 999px;
+  background: color-mix(in srgb, var(--draengt-ton) 16%, transparent);
+  font-size: 12px; font-weight: 600; color: var(--draengt-ton);
 }
 .draengt-hin svg { width: 14px; height: 14px; }
-.draengt:hover .draengt-hin { color: var(--akzent); }
-/* Am Telefon fällt das Wort „Ansehen" weg - der Pfeil sagt dasselbe, und
-   die Zeile soll einzeilig bleiben. Der Zusatz „· 2 werden heute fällig"
-   rutscht dort unter die Hauptaussage. */
+.draengt:hover .draengt-hin { background: var(--draengt-ton); color: var(--grund); }
+/* Am Telefon fällt das Wort „Ansehen" weg - der Pfeil sagt dasselbe. */
 @media (max-width: 560px) {
-  .draengt { gap: 10px; padding: 10px 12px; }
-  .draengt-hin { font-size: 0; gap: 0; }
-  .draengt-hin svg { width: 16px; height: 16px; }
-  .draengt-dazu { display: block; }
+  .draengt { gap: 9px; padding-left: 13px; }
+  .draengt-hin { font-size: 0; gap: 0; width: 28px; padding: 0; justify-content: center; }
+  .draengt-hin svg { width: 15px; height: 15px; }
 }
+/* ⚠️⚠️ Seit 1.61 pulsiert sie leicht (Timos Wunsch) - bei heute fälligen
+   UND bei überfälligen Aufgaben. Eine bewusste Ausnahme von „kein Aufbau
+   beim Laden" (Abschnitt 13): das hier ist kein Auftritt, sondern ein
+   Hinweis, und er steht nur da, wenn wirklich etwas ansteht. Deshalb
+   leise: ein Schein in der eigenen Farbe, der langsam an- und
+   abschwillt, dazu ein Ring, der vom Punkt ausläuft. Kein Hüpfen, kein
+   Blinken, nichts, was den Text bewegt. */
+@media (prefers-reduced-motion: no-preference) {
+  .draengt { animation: draengt-puls 2.6s ease-in-out infinite; }
+  .draengt-zeichen::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 50%;
+    border: 2px solid var(--draengt-ton);
+    animation: draengt-ring 2.6s ease-out infinite;
+  }
+  .draengt-hin { transition: background .14s ease, color .14s ease; }
+  /* Beim Überfahren hält sie still - wer schon hinsieht, braucht keinen
+     Hinweis mehr. */
+  .draengt:hover, .draengt:hover .draengt-zeichen::after { animation-play-state: paused; }
+}
+@keyframes draengt-puls {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--draengt-ton) 0%, transparent); }
+  50%      { box-shadow: 0 0 0 5px color-mix(in srgb, var(--draengt-ton) 20%, transparent); }
+}
+@keyframes draengt-ring {
+  0%   { transform: scale(.6); opacity: .8; }
+  70%  { transform: scale(1.9); opacity: 0; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
 .spruch blockquote {
   margin: 0;
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
@@ -2735,19 +2782,30 @@ textarea:focus { border-color: var(--akzent); }
 
 /* --- Abgaben, kompakte Box in der Seitenspalte ------------------------ */
 
+/* Seit 1.61 mit mehr Luft unter der Überschrift (18px statt 12px), und
+   der Monatswechsel ist EINE Pille: Pfeil, Monat, Pfeil in einem Rahmen.
+   Vorher standen zwei winzige Kästchen um ein graues Wort - der Monat
+   las sich wie eine Fußnote, die Pfeile wie Fremdkörper.
+   ⚠️ Der Monat hat eine feste Mindestbreite, sonst wanderten die Pfeile
+   beim Blättern mit der Wortlänge („Mai" gegen „September"). */
 .kastenkopf { display: flex; align-items: center; justify-content: space-between;
-              gap: 10px; margin-bottom: 12px; }
+              gap: 10px; margin-bottom: 18px; }
 .kastenkopf h2 { margin: 0; }
-.monatswechsel { display: flex; align-items: center; gap: 5px; }
-.kastenmonat { font-size: 11.5px; color: var(--leise); white-space: nowrap;
-               font-variant-numeric: tabular-nums; }
-.minipfeil {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 21px; height: 21px; border-radius: 6px; text-decoration: none;
-  border: 1px solid var(--linie); background: var(--flaeche-2);
-  color: var(--leise); font-size: 13px; line-height: 1;
+.monatswechsel {
+  display: inline-flex; align-items: center; gap: 2px; padding: 2px;
+  border: 1px solid var(--linie); border-radius: 999px; background: var(--flaeche-2);
 }
-.minipfeil:hover { border-color: var(--akzent); color: var(--akzent); }
+.kastenmonat { min-width: 9.5em; text-align: center; padding: 0 4px;
+               font-size: 12.5px; font-weight: 600; color: var(--tinte);
+               white-space: nowrap; font-variant-numeric: tabular-nums; }
+.minipfeil {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 26px; height: 26px; border-radius: 50%; text-decoration: none;
+  color: var(--leise);
+}
+.minipfeil svg { width: 15px; height: 15px; }
+.minipfeil:hover { background: var(--akzent-weich); color: var(--akzent); }
+.minipfeil:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
 
 .abgabekompakt { gap: 11px; }
 .abgabekompakt li {
@@ -2772,7 +2830,7 @@ textarea:focus { border-color: var(--akzent); }
 @media (prefers-reduced-motion: no-preference) {
   .abgabekompakt li { transition: border-color .2s ease, transform .2s ease; }
   .abgabekompakt li:hover { transform: translateX(2px); }
-  .minipfeil { transition: border-color .14s ease, color .14s ease; }
+  .minipfeil { transition: background .14s ease, color .14s ease; }
 }
 
 
@@ -4769,17 +4827,48 @@ fieldset.feld > span {
    Das Formular `.ak-suche` ist das Raster - es umschließt den ganzen Kopf,
    damit Suche und „Filter" (die zu ihm gehören) frei liegen können. */
 .aufgabenkopf { overflow: visible; --ak-hoehe: 36px; }
+/* ⚠️⚠️ Seit 1.61 drei Ebenen statt zwei (Timos Meldung: „Meine/Alle
+   kaum von den anderen Elementen unterscheidbar … keine klare Linie"):
+     1  Titel ······························· „Neue Aufgabe"
+     2  Meine Aufgaben | Alle Aufgaben         Reiter mit Linie darunter
+     3  Pillen ················ Suche · „Filter"
+   „Wessen" ist ein Reiter, „welche" eine Pille: zwei Fragen, zwei
+   Formen. Suche und Filter stehen am Ende der Zeile, die sie eingrenzen.
+   ⚠️ Gestapelt ist der Ausgangszustand (Suche und Filter über den
+   Pillen), die eine Filterzeile kommt über eine Container-Abfrage dazu.
+   Entscheidend ist die Breite der Karte, nicht die des Fensters -
+   dieselbe Lehre wie bei Erfassung und Aufgabenliste. */
+.aufgabenkopf { container-type: inline-size; container-name: aufgabenkopf; }
 .ak-suche {
   position: relative; margin: 0;
-  display: grid; align-items: center; gap: 18px 12px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: "titel suche neu" "wahl wahl filter";
+  display: grid; align-items: center; gap: 16px 10px;
+  /* ⚠️ Drei Spalten, nicht zwei: mit zweien teilte sich die Suche ihre
+     Spalte mit dem breiten Knopf „Neue Aufgabe" darüber und blieb halb
+     so breit wie möglich. So spannt „Neue Aufgabe" über zwei Spalten,
+     und die dritte ist genau so breit wie der Filterknopf. */
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "titel neu neu" "umfang umfang umfang"
+                       "suche suche filter" "lagen lagen lagen";
+}
+/* Ohne zugeordneten Mitarbeiter gibt es keinen Reiter - dann auch keine
+   leere Rasterzeile, die zweimal den Abstand kostet. */
+.ak-suche.ohne-umfang {
+  grid-template-areas: "titel neu neu" "suche suche filter" "lagen lagen lagen";
+}
+@container aufgabenkopf (min-width: 940px) {
+  .ak-suche {
+    grid-template-areas: "titel titel neu" "umfang umfang umfang" "lagen suche filter";
+  }
+  .ak-suche.ohne-umfang { grid-template-areas: "titel titel neu" "lagen suche filter"; }
+  .ak-suchfeld { width: 240px; }
 }
 .ak-titel { grid-area: titel; margin: 0; }
-.ak-neu { grid-area: neu; }
-.ak-wahl { grid-area: wahl; display: flex; flex-wrap: wrap; align-items: center;
-           gap: 8px 14px; min-width: 0; }
-.ak-weitere { grid-area: filter; justify-self: end; align-self: start; position: relative; }
+.ak-neu { grid-area: neu; justify-self: end; }
+.ak-wahl { display: contents; }
+.ak-weitere { grid-area: filter; justify-self: end; position: relative; }
+/* Bricht die Pillenreihe doch einmal um, bleiben Suche und Filter oben
+   an ihrer ersten Zeile statt zwischen zwei Zeilen zu schweben. */
+.ak-suchfeld, .ak-weitere { align-self: start; }
 
 /* Der eine Knopftyp des Kopfes. */
 .ak-knopf {
@@ -4799,7 +4888,7 @@ fieldset.feld > span {
 
 /* Suche: dieselbe Pille, das Zeichen steht vorn im Feld. Abgeschickt
    wird mit Enter (am Telefon die Taste „Suchen"). */
-.ak-suchfeld { grid-area: suche; justify-self: end; width: min(100%, 320px); position: relative; }
+.ak-suchfeld { grid-area: suche; position: relative; min-width: 0; }
 .ak-suchfeld input {
   height: var(--ak-hoehe); min-height: var(--ak-hoehe);
   padding: 0 14px 0 36px; border-radius: 999px; font-size: 13.5px;
@@ -4809,32 +4898,34 @@ fieldset.feld > span {
   width: 16px; height: 16px; color: var(--leise); pointer-events: none;
 }
 
-/* Meine | Alle - eine Doppelpille in derselben Höhe. */
+/* Meine | Alle - seit 1.61 Reiter auf einer Linie über die volle Breite,
+   dieselbe Form wie die Reiterleisten von Arbeitszeit und Fuhrpark.
+   Der gewählte trägt den Akzentstrich, nicht eine gefüllte Fläche: so
+   bleibt der gefüllte Knopf „Neue Aufgabe" der einzige im Kopf. */
 .ak-umfang {
-  display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr;
-  height: var(--ak-hoehe); padding: 3px; border-radius: 999px;
-  background: var(--flaeche-2); border: 1px solid var(--linie);
+  grid-area: umfang; display: flex; gap: 24px;
+  border-bottom: 1px solid var(--linie);
 }
 .ak-umfang a {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 0 14px; border-radius: 999px; text-decoration: none;
-  color: var(--leise); font-size: 13.5px; font-weight: 600; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 2px 1px 11px; margin-bottom: -1px;
+  border-bottom: 2px solid transparent; text-decoration: none;
+  color: var(--leise); font-size: 14.5px; font-weight: 600; white-space: nowrap;
 }
 .ak-umfang a:hover { color: var(--tinte); }
-.ak-umfang a.aktiv { background: var(--akzent); color: #1a1113; }
-[data-thema="hell"] .ak-umfang a.aktiv { color: #ffffff; }
+.ak-umfang a.aktiv { color: var(--tinte); border-bottom-color: var(--akzent); }
 .ak-zahl {
   min-width: 20px; padding: 0 7px; border-radius: 999px; text-align: center;
   background: var(--flaeche); color: var(--leise);
   font-size: 11.5px; font-weight: 700; line-height: 18px;
 }
-.ak-umfang a.aktiv .ak-zahl { background: rgb(0 0 0 / .14); color: inherit; }
-[data-thema="hell"] .ak-umfang a.aktiv .ak-zahl { background: rgb(255 255 255 / .25); }
+.ak-umfang .ak-zahl { background: var(--flaeche-2); }
+.ak-umfang a.aktiv .ak-zahl { background: var(--akzent-weich); color: var(--akzent); }
 
 /* Die Pillen: eine je Lage, der Punkt trägt die Ampelfarbe. Eine Pille
    ohne Treffer bleibt stehen (sonst sprängen die anderen), tritt aber
    zurück. Überfällige mit Treffern fallen auch ungewählt auf. */
-.ak-lagen { display: flex; flex-wrap: wrap; gap: 6px; }
+.ak-lagen { grid-area: lagen; display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .ak-pille {
   display: inline-flex; align-items: center; gap: 7px;
   height: var(--ak-hoehe); padding: 0 8px 0 12px; border-radius: 999px; text-decoration: none;
@@ -4889,26 +4980,17 @@ fieldset.feld > span {
 .ak-zurueck { margin-left: auto; font-size: 13px; color: var(--leise); }
 .ak-zurueck:hover { color: var(--akzent); }
 
-/* ⚠️ Am Telefon (≤ 600px) drei Zeilen: Titel und „Neue Aufgabe", Suche
-   und „Filter" (nur das Zeichen), darunter Meine | Alle über die volle
-   Breite und die Pillen in EINER Reihe, die man seitlich wischt - drei
-   Zeilen Pillen waren mehr Kopf als Inhalt. Der Verlauf am rechten Rand
-   sagt, dass es dort weitergeht. */
+/* ⚠️ Am Telefon (≤ 600px): die Reiter teilen sich die Breite, „Filter"
+   ist nur das Zeichen, und die Pillen stehen in EINER Reihe, die man
+   seitlich wischt - drei Zeilen Pillen waren mehr Kopf als Inhalt. Der
+   Verlauf am rechten Rand sagt, dass es dort weitergeht. */
 @media (max-width: 600px) {
-  /* ⚠️ Drei Spalten, nicht zwei: mit zweien teilte sich die Suche ihre
-     Spalte mit dem breiten Knopf „Neue Aufgabe" darüber und blieb halb
-     so breit wie möglich. So spannt „Neue Aufgabe" oben über zwei
-     Spalten, und die dritte ist genau so breit wie der Filterknopf. */
-  .ak-suche {
-    grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px 10px;
-    grid-template-areas: "titel neu neu" "suche suche filter" "wahl wahl wahl";
-  }
-  .ak-suchfeld { justify-self: stretch; width: auto; }
+  .ak-suche { gap: 14px 10px; }
+  .ak-umfang { gap: 0; }
+  .ak-umfang a { flex: 1 1 0; justify-content: center; }
   .ak-weitere .ak-wort { display: none; }
   .ak-weitere > .ak-knopf { padding: 0 11px; }
   .ak-weitere-felder { width: calc(100vw - 80px); grid-template-columns: 1fr; }
-  .ak-wahl { gap: 12px; }
-  .ak-umfang { width: 100%; }
   .ak-lagen {
     flex-wrap: nowrap; overflow-x: auto; width: calc(100% + 2 * var(--kartenluft));
     margin: 0 calc(-1 * var(--kartenluft)); padding: 0 var(--kartenluft) 2px;

@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 1.61
+
+- Hinweis auf fällige und überfällige Aufgaben als Pille, pulsiert leicht und erscheint auch bei mehreren Zuständigen
+- Erfassung: Box „Bestand“ entfernt, Abgaben mit neuem Monatswechsel, mehr Abstand zwischen den Zeilen
+- „Diesen Tag als Vorlage merken“ immer pink, bleibt am Handy nicht mehr hängen
+- Aufgaben: Kopf in drei Ebenen – Titel und „Neue Aufgabe“, Reiter „Meine | Alle“, Filterzeile
+
 ## 1.60
 
 - Aufgaben neu aufgeräumt: standardmäßig nur die eigenen, mit einem Klick alle
