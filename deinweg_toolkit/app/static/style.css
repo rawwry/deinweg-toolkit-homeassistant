@@ -23,6 +23,10 @@
   --linie-stark:#544961;
   --akzent:     #f285b6;
   --akzent-satt:#f9a8cd;
+  /* Schrift AUF einer Akzentfläche (gefüllter Knopf, gewählte Pille).
+     Seit 2.0 eine Variable: bei einem gelben Akzent muss sie dunkel,
+     bei einem dunkelblauen hell sein. */
+  --auf-akzent: #1a1113;
   /* Vier Stufen derselben Farbe für die Überschriften einer Wiki-Seite.
      Die erste Ebene trägt den kräftigsten Ton, nach unten wird er immer
      heller. Nicht durch Grautöne ersetzen und die Richtung nicht
@@ -42,7 +46,9 @@
   --dopp-weich: #37201f;
   --gut:        #7fd3ae;
   --zebra:      #251e2b;
-  --schatten:   0 1px 2px rgba(0,0,0,.45);
+  /* Seit 2.0 zweiteilig: eine hauchfeine Lichtkante oben (die Karte
+     liegt AUF dem Grund) und ein weicher, tiefer Schatten darunter. */
+  --schatten:   inset 0 1px 0 rgba(255,255,255,.035), 0 10px 28px -18px rgba(0,0,0,.75);
   /* Eigene Farbreihe fuer die Kostenkategorien des Fuhrparks. Sie muss
      acht unterscheidbare Toene liefern - die Akzentfarbe allein reicht
      dafuer nicht, und Grautoene waeren in einem Ringdiagramm nicht mehr
@@ -87,6 +93,7 @@
   --linie-stark:#c3c9d0;
   --akzent:     #c2417e;
   --akzent-satt:#a83568;
+  --auf-akzent: #ffffff;
   --ueber-1:    #a12d5c;
   --ueber-2:    #ba3b74;
   --ueber-3:    #c4588c;
@@ -99,7 +106,7 @@
   --dopp-weich: #fbeae6;
   --gut:        #1e7a58;
   --zebra:      #fafbfc;
-  --schatten:   0 1px 2px rgba(20,25,30,.06);
+  --schatten:   0 1px 2px rgba(20,25,30,.05), 0 10px 26px -20px rgba(20,25,30,.28);
   --kfz-tanken:    #2f7ea8;
   --kfz-inspektion:#1e7a58;
   --kfz-wartung:   #6f8a2a;
@@ -110,10 +117,247 @@
   --kfz-km:        #8b9198;
 }
 
-:root { --abstand: 18px; --radius: 12px; --kartenluft: 24px;
+:root { --abstand: 18px; --radius: 16px; --kartenluft: 24px;
         color-scheme: dark;
         --marke-liste: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1' y='2' width='14' height='2' rx='1'/><rect x='1' y='7' width='10' height='2' rx='1'/><rect x='1' y='12' width='6' height='2' rx='1'/></svg>"); }
 [data-thema="hell"] { color-scheme: light; }
+
+/* === Farbwelten, Akzente, Textgröße (seit 2.0) ================
+
+   Drei unabhängige Achsen, alle am <html> und alle je Browser in
+   localStorage (wie Hell/Dunkel schon immer - es geht keine Zeile in die
+   Datenbank):
+
+   - data-thema   dunkel | hell. Die WAHL kann zusätzlich „auto" sein
+                  (folgt dem Betriebssystem); aufgelöst wird sie im Kopf von
+                  base.html, BEVOR das erste Bild steht. ⚠️ Im Attribut steht
+                  deshalb nie „auto" - rund zwanzig Regeln im Stylesheet
+                  fragen [data-thema="hell"] ab und müssen weiter greifen.
+   - data-farbe   aubergine (Standard) | mitternacht | wald | sand | ozean |
+                  graphit | wein | honig | schiefer | kontrast. Eine Farbwelt bestimmt Grund, Flächen, Linien,
+                  Schrift und den passenden Akzent.
+   - data-akzent  auto (Akzent der Farbwelt) | rosa | violett | blau |
+                  tuerkis | gruen | gelb | orange | rot.
+
+   ⚠️⚠️ Aubergine bleibt BUCHSTABENGLEICH die Fassung bis 1.61 - sie steht
+   oben in :root / [data-thema="hell"] und wird hier nicht angefasst. Alle
+   anderen Farbwelten leiten die weichen Töne (Flächen hinter Marken, der
+   Streifen im Zeitraum, die vier Überschriftsstufen im Wiki) mit
+   color-mix() aus ihrem Akzent ab. So braucht eine neue Farbwelt nur
+   zwölf Werte, und ein Akzent passt in jede Welt.
+
+   ⚠️ Spezifität: Farbwelt (0,2,0) schlägt die Grundfassung (0,1,0), der
+   Akzent (0,2,1) schlägt die Farbwelt. Nicht umsortieren, ohne das
+   mitzudenken. */
+
+/* --- Farbwelten ---------------------------------------------------------- */
+
+[data-farbe="mitternacht"][data-thema="dunkel"] {
+  --grund: #0e1320; --flaeche: #151b2a; --flaeche-2: #1c2335;
+  --tinte: #e8ecf5; --tinte-2: #bcc4d6; --leise: #8e98ad;
+  --linie: #273048; --linie-fein: #1f273a; --linie-stark: #3d4965;
+  --zebra: #181f30; --kopfglas: rgba(21, 27, 42, .8);
+  --akzent: #7aa8ff; --akzent-satt: #a3c2ff; --auf-akzent: #0b1122;
+}
+[data-farbe="mitternacht"][data-thema="hell"] {
+  --grund: #eef1f7; --flaeche: #ffffff; --flaeche-2: #f5f7fb;
+  --tinte: #1b2233; --tinte-2: #44506a; --leise: #66718a;
+  --linie: #dde2ec; --linie-fein: #edf0f6; --linie-stark: #c0c8d8;
+  --zebra: #f9fafd; --kopfglas: rgba(255, 255, 255, .8);
+  --akzent: #2f5fd0; --akzent-satt: #244ba8; --auf-akzent: #ffffff;
+}
+
+[data-farbe="wald"][data-thema="dunkel"] {
+  --grund: #0e1612; --flaeche: #151f1a; --flaeche-2: #1c2822;
+  --tinte: #e7efe9; --tinte-2: #bccabf; --leise: #8ea295;
+  --linie: #26352d; --linie-fein: #1e2c25; --linie-stark: #3a4f44;
+  --zebra: #18231d; --kopfglas: rgba(21, 31, 26, .8);
+  --akzent: #a8d46f; --akzent-satt: #c3e58f; --auf-akzent: #0d160f;
+}
+[data-farbe="wald"][data-thema="hell"] {
+  --grund: #eef2ee; --flaeche: #ffffff; --flaeche-2: #f5f8f5;
+  --tinte: #1d2620; --tinte-2: #45544a; --leise: #66766b;
+  --linie: #dbe3dd; --linie-fein: #edf1ee; --linie-stark: #bfccc3;
+  --zebra: #f9fbf9; --kopfglas: rgba(255, 255, 255, .8);
+  --akzent: #4f7a24; --akzent-satt: #3f6219; --auf-akzent: #ffffff;
+}
+
+[data-farbe="sand"][data-thema="dunkel"] {
+  --grund: #191411; --flaeche: #221b17; --flaeche-2: #2b231e;
+  --tinte: #f2ebe5; --tinte-2: #d0c3b8; --leise: #a49486;
+  --linie: #392e27; --linie-fein: #2f261f; --linie-stark: #564638;
+  --zebra: #261e19; --kopfglas: rgba(34, 27, 23, .8);
+  --akzent: #f0956b; --akzent-satt: #f6b28f; --auf-akzent: #1d0f08;
+}
+[data-farbe="sand"][data-thema="hell"] {
+  --grund: #f5efe8; --flaeche: #fffcf8; --flaeche-2: #f9f4ee;
+  --tinte: #2b231d; --tinte-2: #5a4c41; --leise: #7b6b5e;
+  --linie: #e6dbcf; --linie-fein: #f1e9e0; --linie-stark: #cfbfaf;
+  --zebra: #fcf8f3; --kopfglas: rgba(255, 252, 248, .82);
+  --akzent: #b4532f; --akzent-satt: #94401f; --auf-akzent: #ffffff;
+}
+
+[data-farbe="ozean"][data-thema="dunkel"] {
+  --grund: #0b1618; --flaeche: #111f22; --flaeche-2: #17282c;
+  --tinte: #e4f0f1; --tinte-2: #b6cbce; --leise: #86a0a4;
+  --linie: #22373b; --linie-fein: #1a2d30; --linie-stark: #355055;
+  --zebra: #142326; --kopfglas: rgba(17, 31, 34, .8);
+  --akzent: #45d0c0; --akzent-satt: #7ee0d4; --auf-akzent: #04191a;
+}
+[data-farbe="ozean"][data-thema="hell"] {
+  --grund: #ecf3f4; --flaeche: #ffffff; --flaeche-2: #f4f8f9;
+  --tinte: #172527; --tinte-2: #3f5458; --leise: #5f777b;
+  --linie: #d8e4e6; --linie-fein: #ebf1f2; --linie-stark: #b9cdd0;
+  --zebra: #f8fbfb; --kopfglas: rgba(255, 255, 255, .8);
+  --akzent: #0f7f78; --akzent-satt: #0b6660; --auf-akzent: #ffffff;
+}
+
+[data-farbe="graphit"][data-thema="dunkel"] {
+  --grund: #111113; --flaeche: #19191c; --flaeche-2: #212125;
+  --tinte: #ececee; --tinte-2: #c2c2c8; --leise: #919198;
+  --linie: #2d2d32; --linie-fein: #25252a; --linie-stark: #47474e;
+  --zebra: #1d1d20; --kopfglas: rgba(25, 25, 28, .8);
+  --akzent: #b29bff; --akzent-satt: #cbbcff; --auf-akzent: #160d2b;
+}
+[data-farbe="graphit"][data-thema="hell"] {
+  --grund: #f3f3f5; --flaeche: #ffffff; --flaeche-2: #f7f7f9;
+  --tinte: #1d1d21; --tinte-2: #4a4a52; --leise: #6c6c75;
+  --linie: #e1e1e6; --linie-fein: #efeff2; --linie-stark: #c6c6cd;
+  --zebra: #fafafb; --kopfglas: rgba(255, 255, 255, .8);
+  --akzent: #6d4ae0; --akzent-satt: #5836c4; --auf-akzent: #ffffff;
+}
+
+[data-farbe="wein"][data-thema="dunkel"] {
+  --grund: #1a1012; --flaeche: #23161a; --flaeche-2: #2d1d22;
+  --tinte: #f3e8ea; --tinte-2: #d4bfc4; --leise: #a68d93;
+  --linie: #3c2930; --linie-fein: #321f25; --linie-stark: #5a3f48;
+  --zebra: #281a1e; --kopfglas: rgba(35, 22, 26, .8);
+  --akzent: #ff8a80; --akzent-satt: #ffada6; --auf-akzent: #200a08;
+}
+[data-farbe="wein"][data-thema="hell"] {
+  --grund: #f6eef0; --flaeche: #fffbfc; --flaeche-2: #faf3f5;
+  --tinte: #2a1a1e; --tinte-2: #5b4148; --leise: #7d636a;
+  --linie: #e8d9dd; --linie-fein: #f2e8eb; --linie-stark: #d1bcc2;
+  --zebra: #fcf7f8; --kopfglas: rgba(255, 251, 252, .82);
+  --akzent: #a8323a; --akzent-satt: #8a2730; --auf-akzent: #ffffff;
+}
+
+[data-farbe="honig"][data-thema="dunkel"] {
+  --grund: #17140c; --flaeche: #201c12; --flaeche-2: #292418;
+  --tinte: #f1ede2; --tinte-2: #cfc7b2; --leise: #a39a83;
+  --linie: #363022; --linie-fein: #2c271b; --linie-stark: #524936;
+  --zebra: #241f15; --kopfglas: rgba(32, 28, 18, .8);
+  --akzent: #f2c14e; --akzent-satt: #f7d57f; --auf-akzent: #1d1604;
+}
+[data-farbe="honig"][data-thema="hell"] {
+  --grund: #f5f1e6; --flaeche: #fffdf7; --flaeche-2: #faf6ec;
+  --tinte: #2a2516; --tinte-2: #5a5038; --leise: #7a6f55;
+  --linie: #e6dfcb; --linie-fein: #f1ecdf; --linie-stark: #cfc5a9;
+  --zebra: #fcfaf3; --kopfglas: rgba(255, 253, 247, .82);
+  --akzent: #8a6000; --akzent-satt: #704e00; --auf-akzent: #ffffff;
+}
+
+[data-farbe="schiefer"][data-thema="dunkel"] {
+  --grund: #12161b; --flaeche: #191e24; --flaeche-2: #20262e;
+  --tinte: #e6ebf0; --tinte-2: #bcc5cf; --leise: #8d98a5;
+  --linie: #2b333d; --linie-fein: #232a33; --linie-stark: #424d5a;
+  --zebra: #1c2229; --kopfglas: rgba(25, 30, 36, .8);
+  --akzent: #5cc8ff; --akzent-satt: #8bd8ff; --auf-akzent: #04131c;
+}
+[data-farbe="schiefer"][data-thema="hell"] {
+  --grund: #eef1f4; --flaeche: #ffffff; --flaeche-2: #f5f7f9;
+  --tinte: #1a2129; --tinte-2: #435060; --leise: #637080;
+  --linie: #dce1e7; --linie-fein: #edf0f3; --linie-stark: #bfc8d2;
+  --zebra: #f9fafb; --kopfglas: rgba(255, 255, 255, .8);
+  --akzent: #0a6fa8; --akzent-satt: #085a88; --auf-akzent: #ffffff;
+}
+
+/* --- Kontrast: die Farbwelt für schwache Bildschirme und müde Augen ---
+   ⚠️ Ersetzt den Schalter „Kontrast" aus den ersten 2.0-Ständen: der hob
+   nur die leise Schrift und die Linien eine Stufe an - zu wenig, um es
+   zu sehen (Timos Meldung). Hier ist alles maximal: Schwarz auf Weiß
+   bzw. Weiß auf Schwarz, sichtbare Linien, kräftigere Signaltöne. */
+[data-farbe="kontrast"][data-thema="dunkel"] {
+  --grund: #000000; --flaeche: #0a0a0a; --flaeche-2: #161616;
+  --tinte: #ffffff; --tinte-2: #ececec; --leise: #cfcfcf;
+  --linie: #5c5c5c; --linie-fein: #3d3d3d; --linie-stark: #9a9a9a;
+  --zebra: #111111; --kopfglas: rgba(0, 0, 0, .9);
+  --akzent: #ffd60a; --akzent-satt: #ffe45c; --auf-akzent: #000000;
+  --warn: #ffc14d; --dopp: #ff7b6e; --gut: #5be3a6;
+}
+[data-farbe="kontrast"][data-thema="hell"] {
+  --grund: #ececec; --flaeche: #ffffff; --flaeche-2: #f6f6f6;
+  --tinte: #000000; --tinte-2: #1a1a1a; --leise: #3b3b3b;
+  --linie: #8c8c8c; --linie-fein: #c4c4c4; --linie-stark: #4a4a4a;
+  --zebra: #f7f7f7; --kopfglas: rgba(255, 255, 255, .92);
+  --akzent: #0037b8; --akzent-satt: #002a8f; --auf-akzent: #ffffff;
+  --warn: #6b4300; --dopp: #8f1d10; --gut: #0b5e3a;
+}
+
+/* --- Akzente ------------------------------------------------------------
+   Stehen NACH den Farbwelten und tragen ein „html" mehr: so gewinnt ein
+   gewählter Akzent gegen den der Farbwelt. */
+html[data-akzent="rosa"][data-thema="dunkel"]    { --akzent: #f285b6; --akzent-satt: #f9a8cd; --auf-akzent: #1a1113; }
+html[data-akzent="rosa"][data-thema="hell"]      { --akzent: #c2417e; --akzent-satt: #a83568; --auf-akzent: #ffffff; }
+html[data-akzent="violett"][data-thema="dunkel"] { --akzent: #b29bff; --akzent-satt: #cbbcff; --auf-akzent: #160d2b; }
+html[data-akzent="violett"][data-thema="hell"]   { --akzent: #6d4ae0; --akzent-satt: #5836c4; --auf-akzent: #ffffff; }
+html[data-akzent="blau"][data-thema="dunkel"]    { --akzent: #7aa8ff; --akzent-satt: #a3c2ff; --auf-akzent: #0b1122; }
+html[data-akzent="blau"][data-thema="hell"]      { --akzent: #2f5fd0; --akzent-satt: #244ba8; --auf-akzent: #ffffff; }
+html[data-akzent="tuerkis"][data-thema="dunkel"] { --akzent: #45d0c0; --akzent-satt: #7ee0d4; --auf-akzent: #04191a; }
+html[data-akzent="tuerkis"][data-thema="hell"]   { --akzent: #0f7f78; --akzent-satt: #0b6660; --auf-akzent: #ffffff; }
+html[data-akzent="gruen"][data-thema="dunkel"]   { --akzent: #8fd46f; --akzent-satt: #ade58f; --auf-akzent: #0d160f; }
+html[data-akzent="gruen"][data-thema="hell"]     { --akzent: #3e7d2a; --akzent-satt: #2f661d; --auf-akzent: #ffffff; }
+html[data-akzent="gelb"][data-thema="dunkel"]    { --akzent: #f2c94c; --akzent-satt: #f7da7f; --auf-akzent: #1d1604; }
+html[data-akzent="gelb"][data-thema="hell"]      { --akzent: #946500; --akzent-satt: #7a5300; --auf-akzent: #ffffff; }
+html[data-akzent="orange"][data-thema="dunkel"]  { --akzent: #f39a5b; --akzent-satt: #f7b688; --auf-akzent: #1d0e04; }
+html[data-akzent="orange"][data-thema="hell"]    { --akzent: #c25a14; --akzent-satt: #a14810; --auf-akzent: #ffffff; }
+html[data-akzent="rot"][data-thema="dunkel"]     { --akzent: #f17878; --akzent-satt: #f6a0a0; --auf-akzent: #1f0909; }
+html[data-akzent="rot"][data-thema="hell"]       { --akzent: #c0392b; --akzent-satt: #a02d22; --auf-akzent: #ffffff; }
+
+/* --- Abgeleitete Töne ---------------------------------------------------
+   Nur für alles, was NICHT die unveränderte Aubergine-Fassung ist.
+   ⚠️ Im Dunklen laufen die Überschriftsstufen zur Schrift hin heller, im
+   Hellen zur Fläche hin - dieselbe Richtung wie in Aubergine: die erste
+   Ebene trägt den kräftigsten Ton (Abschnitt 12). */
+html:is([data-farbe]:not([data-farbe="aubergine"]),
+        [data-akzent]:not([data-akzent="auto"])) {
+  --akzent-weich: color-mix(in oklab, var(--akzent) 15%, var(--flaeche));
+  --akzent-band:  color-mix(in oklab, var(--akzent) 30%, var(--flaeche));
+  --ueber-1: var(--akzent);
+}
+html[data-thema="dunkel"]:is([data-farbe]:not([data-farbe="aubergine"]),
+        [data-akzent]:not([data-akzent="auto"])) {
+  --ueber-2: color-mix(in oklab, var(--akzent) 80%, var(--tinte));
+  --ueber-3: color-mix(in oklab, var(--akzent) 62%, var(--tinte));
+  --ueber-4: color-mix(in oklab, var(--akzent) 46%, var(--tinte));
+}
+html[data-thema="hell"]:is([data-farbe]:not([data-farbe="aubergine"]),
+        [data-akzent]:not([data-akzent="auto"])) {
+  --ueber-2: color-mix(in oklab, var(--akzent) 86%, var(--flaeche));
+  --ueber-3: color-mix(in oklab, var(--akzent) 72%, var(--flaeche));
+  --ueber-4: color-mix(in oklab, var(--akzent) 60%, var(--flaeche));
+}
+/* Die Signaltöne bleiben je Thema dieselben (rot heißt überall rot), nur
+   ihre weichen Flächen passen sich dem Grund der Farbwelt an - sonst
+   stünde auf einem blauen Grund ein aubergine getöntes Feld. */
+html[data-farbe]:not([data-farbe="aubergine"]) {
+  --warn-weich: color-mix(in oklab, var(--warn) 14%, var(--flaeche));
+  --dopp-weich: color-mix(in oklab, var(--dopp) 14%, var(--flaeche));
+  --gut-weich:  color-mix(in oklab, var(--gut) 13%, var(--flaeche));
+  --info-weich: color-mix(in oklab, var(--info) 14%, var(--flaeche));
+}
+
+/* --- Textgröße ------------------------------------------------------------
+   ⚠️ Über `zoom` und nicht über die Schriftgröße am <body>: im Stylesheet
+   stehen hunderte feste Pixelangaben, die sonst nicht mitgingen - dann
+   wüchse der Text aus seinen Knöpfen heraus. `zoom` skaliert Text UND
+   Maße gemeinsam, die Gestaltung bleibt dieselbe.
+   ⚠️ Nur Inhalt und Fußzeile, NICHT der ganze <body>: Kopfzeile,
+   Tableiste, Blatt und Dialoge rechnen mit 100dvh/100vh - gezoomt
+   wüchsen sie um denselben Faktor über den Bildschirm hinaus (gefunden
+   im Code-Review zu 2.0). */
+html[data-schrift="klein"] :is(main, footer) { zoom: .93; }
+html[data-schrift="gross"] :is(main, footer) { zoom: 1.1; }
 
 * { box-sizing: border-box; }
 
@@ -151,16 +395,16 @@ body > * { min-width: 0; }
    nach oben, nur um den Bereich zu wechseln. Die Höhe steht als Variable
    dabei, weil die Seitenleisten von Wiki und Dateien darunter ebenfalls
    kleben und ihren Abstand daran ausrichten müssen. */
-/* ⚠️ Seit 1.29 höher: in der Kopfzeile steht der volle Schriftzug samt
-   Unterzeile, und die wird erst ab 48px Bildhöhe wirklich lesbar
-   (Rechnung bei `.marke img`). 48 + 2×12 Polsterung + 1 Linie = 73px
-   tatsächliche Höhe; die Variable trägt wie bisher ein paar Pixel Luft
-   darauf. Wer den Wert ändert, muss ihn mit der tatsächlichen Höhe der
-   Leiste abgleichen - vier Dinge hängen daran (siehe oben). */
-:root { --kopfhoehe: 78px; }
+/* ⚠️ Seit 2.0 schlanker: 48px Logo + 2×9 Polsterung + 1 Linie = 67px.
+   Die Unterzeile des Schriftzugs braucht die 48px Bildhöhe weiterhin
+   (Rechnung bei `.marke img`) - gespart wird an der Luft darum.
+   Wer den Wert ändert, muss ihn mit der tatsächlichen Höhe der Leiste
+   abgleichen: die klebenden Seitenleisten von Wiki, Dateien und
+   Einstellungen und jede Sprungmarke hängen daran. */
+:root { --kopfhoehe: 72px; }
 .kopf {
-  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
-  padding: 12px 26px;
+  display: flex; align-items: center; gap: 18px;
+  padding: 9px 26px;
   background: var(--flaeche);
   border-bottom: 1px solid var(--linie);
   position: sticky; top: 0; z-index: 40;
@@ -168,31 +412,396 @@ body > * { min-width: 0; }
 
 .marke {
   display: flex; align-items: center;
-  text-decoration: none; margin-right: 2px; flex-shrink: 0;
+  text-decoration: none; margin-right: 6px; flex-shrink: 0;
 }
 /* ⚠️ 48px Bildhöhe, und die Zahl ist gerechnet, nicht geraten.
    Die Unterzeile des Schriftzugs hat in der Datei eine x-Höhe von 28,9
    Einheiten bei 274,13 Einheiten Gesamthöhe - also 10,5 % der Bildhöhe.
    Bei 48px sind das 5,06px x-Höhe; ab etwa 5px liest sich Kleinschrift
-   bequem. Bei den 42px von 1.27 waren es 4,4px, also grenzwertig - so
-   hat Timo es auch gemeldet.
-   ⚠️ Wer den Wert ändert, muss `--kopfhoehe` mitziehen. Und wer ein
-   neues Logo einsetzt, rechnet die 10,5 % neu aus: sie hängen an der
-   Datei, nicht an der Marke. */
+   bequem. Wer ein neues Logo einsetzt, rechnet die 10,5 % neu aus. */
 .marke img { height: 48px; width: auto; display: block; }
 
 [data-thema="dunkel"] .nur-hell,
 [data-thema="hell"]   .nur-dunkel { display: none; }
 
-.kopf nav { display: flex; gap: 2px; flex-wrap: wrap; }
-.kopf nav a {
-  position: relative;
-  color: var(--leise); text-decoration: none; padding: 8px 14px;
-  border-radius: 9px; font-size: 14px; font-weight: 500;
+/* --- Hauptmenü mit Symbolen ------------------------------------------- */
+.hauptnav { display: flex; gap: 2px; min-width: 0; }
+.navpunkt {
+  position: relative; display: inline-flex; align-items: center; gap: 8px;
+  color: var(--leise); text-decoration: none; padding: 8px 12px;
+  border-radius: 10px; font-size: 14px; font-weight: 550; white-space: nowrap;
 }
-.kopf nav a:hover { background: var(--flaeche-2); color: var(--tinte); }
-.kopf nav a.aktiv { background: var(--akzent-weich); color: var(--akzent);
-                    font-weight: 600; }
+.navpunkt .sym { width: 18px; height: 18px; flex: none; opacity: .85; }
+.navpunkt:hover { background: var(--flaeche-2); color: var(--tinte); }
+.navpunkt.aktiv { background: var(--akzent-weich); color: var(--akzent); font-weight: 650; }
+.navpunkt.aktiv .sym { opacity: 1; }
+/* Der Zähler an „Aufgaben": eigene Aufgaben, die heute drängen. Rot,
+   wenn etwas überfällig ist - dieselbe Ampel wie auf den Karten. */
+.navzahl {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px;
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: var(--warn); color: var(--grund); line-height: 1;
+}
+.navzahl.dringend { background: var(--dopp); }
+
+/* ⚠️ Zwischen 861 und 1180px reicht der Platz nicht für Symbol UND Wort
+   bei sechs Punkten plus Suche. Dann bleibt das Symbol, das Wort lebt im
+   title weiter; der gewählte Punkt behält sein Wort. */
+@media (min-width: 861px) and (max-width: 1180px) {
+  .navpunkt:not(.aktiv) .navwort { position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .navpunkt { padding: 8px 10px; }
+}
+
+/* --- Rechts: Suche, Hell/Dunkel, Konto --------------------------------- */
+.kopf-rechts { margin-left: auto; display: flex; align-items: center; gap: 6px; flex: none; }
+.suchknopf {
+  display: inline-flex; align-items: center; gap: 9px; height: 38px;
+  padding: 0 8px 0 12px; border-radius: 11px; cursor: pointer;
+  border: 1px solid var(--linie); background: var(--flaeche-2);
+  color: var(--leise); font: inherit; font-size: 13.5px; min-width: 210px;
+}
+.suchknopf .sym { width: 17px; height: 17px; }
+.suchknopf-wort { flex: 1; text-align: left; }
+.suchknopf:hover { border-color: var(--linie-stark); color: var(--tinte); }
+kbd, .suchknopf-taste {
+  font: inherit; font-size: 11px; font-weight: 600; letter-spacing: .02em;
+  padding: 2px 6px; border-radius: 6px; color: var(--leise);
+  background: var(--flaeche); border: 1px solid var(--linie);
+  box-shadow: 0 1px 0 var(--linie);
+}
+@media (max-width: 1280px) {
+  .suchknopf { min-width: 0; padding: 0; width: 38px; justify-content: center; }
+  .suchknopf-wort, .suchknopf-taste { display: none; }
+}
+.kopfsymbol {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 11px; cursor: pointer;
+  border: 1px solid transparent; background: transparent; color: var(--leise);
+}
+.kopfsymbol .sym { width: 19px; height: 19px; }
+.kopfsymbol:hover { background: var(--flaeche-2); border-color: var(--linie); color: var(--tinte); }
+.kopfsymbol > span { display: contents; }
+
+.avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(140deg, var(--akzent), var(--akzent-satt));
+  color: var(--auf-akzent); font-size: 12.5px; font-weight: 750; letter-spacing: .02em;
+}
+.avatar.gross { width: 42px; height: 42px; font-size: 15px; }
+/* Mit Profilbild (seit 2.0): das Bild füllt den Kreis, der Verlauf bleibt
+   darunter als Rand stehen, bis es geladen ist. */
+.avatar { overflow: hidden; flex: none; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar.riesig { width: 60px; height: 60px; font-size: 21px; }
+
+/* „Mein Bereich", oben: das eigene Bild statt des Abmelden-Knopfes (2.0) */
+.meinueberblick > .kopfzeile { align-items: center; gap: 16px; }
+.meinueberblick .meinueberblick-kopf { flex: 1 1 auto; min-width: 0; }
+.mein-avatar { position: relative; flex: none; display: block; border-radius: 50%;
+               text-decoration: none; }
+.mein-avatar-kamera {
+  position: absolute; right: -2px; bottom: -2px; width: 24px; height: 24px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--flaeche); border: 1px solid var(--linie-stark); color: var(--tinte-2);
+}
+.mein-avatar-kamera svg { width: 13px; height: 13px; }
+.mein-avatar:hover .mein-avatar-kamera { color: var(--akzent); border-color: var(--akzent); }
+/* ⚠️ Mit Klassen davor: eine allgemeinere Knopfregel setzte sonst
+   display: block, und das Plus saß auf der Schriftlinie statt mittig. */
+.meinueberblick .knopf.mein-erfassen { display: inline-flex; align-items: center; gap: 7px; flex: none; }
+.mein-erfassen svg { width: 15px; height: 15px; flex: none; }
+@media (max-width: 560px) {
+  .meinueberblick > .kopfzeile { flex-wrap: wrap; }
+  .meinueberblick .knopf.mein-erfassen { flex: 1 1 100%; justify-content: center; }
+}
+
+/* „Mein Konto" → Profilbild */
+.profilzeile { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+               padding: 14px 0 18px; margin-bottom: 4px;
+               border-bottom: 1px solid var(--linie-fein); }
+.profilzeile-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 180px; min-width: 0; }
+.profilzeile-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
+.profilzeile-knoepfe form { margin: 0; display: flex; gap: 8px; }
+.profil-waehlen { position: relative; cursor: pointer; }
+html.mit-skript .profilform .profil-waehlen input[type="file"] {
+  position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none;
+}
+html:not(.mit-skript) .profil-waehlen > span { display: none; }
+html:not(.mit-skript) .profil-waehlen { border: 0; padding: 0; background: none; }
+
+.kontomenue { position: relative; }
+.kontoknopf {
+  list-style: none; cursor: pointer; padding: 2px; border-radius: 50%;
+  border: 2px solid transparent; display: flex;
+}
+.kontoknopf::-webkit-details-marker { display: none; }
+.kontoknopf:hover, .kontomenue[open] .kontoknopf { border-color: var(--akzent-weich); }
+.kontoknopf.aktiv { border-color: var(--akzent); }
+.kontopanel {
+  position: absolute; right: 0; top: calc(100% + 10px); z-index: 70;
+  width: 290px; padding: 8px;
+  background: var(--flaeche); border: 1px solid var(--linie); border-radius: 16px;
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .12);
+}
+.kontopanel-kopf, .blatt-kopf {
+  display: flex; align-items: center; gap: 12px; padding: 10px 10px 12px;
+}
+.kontopanel-wer { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.kontopanel-wer strong { font-size: 14.5px; }
+.kontopanel-wer span { font-size: 12.5px; color: var(--leise);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menueliste {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 6px 0; border-top: 1px solid var(--linie-fein);
+}
+.menueliste a, .menueliste button, .kontoabmelden button {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 9px 10px; border-radius: 10px; border: 0; background: none;
+  color: var(--tinte-2); text-decoration: none; font: inherit; font-size: 14px;
+  text-align: left; cursor: pointer;
+}
+.menueliste .sym, .kontoabmelden .sym { width: 18px; height: 18px; flex: none; color: var(--leise); }
+.menueliste .sym.rechts { margin-left: auto; width: 15px; height: 15px; }
+.menueliste a:hover, .menueliste button:hover, .kontoabmelden button:hover {
+  background: var(--flaeche-2); color: var(--tinte);
+}
+.menueliste a.aktiv { color: var(--akzent); }
+.menueliste a.aktiv .sym { color: var(--akzent); }
+.kontoabmelden { margin: 0; padding-top: 6px; border-top: 1px solid var(--linie-fein); }
+.kontoabmelden button:hover, .kontoabmelden button:hover .sym { color: var(--dopp); }
+
+/* Sprungmarke für die Tastatur: erst sichtbar, wenn sie den Fokus hat. */
+.sprungmarke {
+  position: absolute; left: 12px; top: -60px; z-index: 100;
+  padding: 9px 14px; border-radius: 10px; text-decoration: none;
+  background: var(--akzent); color: var(--auf-akzent); font-weight: 650;
+}
+.sprungmarke:focus { top: 10px; }
+main:focus { outline: none; }
+
+/* Nur für Vorleseprogramme. */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip-path: inset(50%); white-space: nowrap; }
+
+/* --- Tableiste und Blatt (nur am Telefon) ------------------------------ */
+.tableiste, .blatt, .blattschatten { display: none; }
+
+@media (max-width: 860px) {
+  /* ⚠️ Die Kopfzeile klebt am Telefon NICHT und bildet keinen
+     Stapelkontext - dieselbe Lehre wie 1.x: ein z-index hier sperrte
+     sonst alles ein, was über ihr liegen muss. */
+  .kopf { position: relative; z-index: auto; gap: 10px; padding: 10px 16px; }
+  .marke img { height: 42px; }
+  .hauptnav, .themakippe, .kontomenue { display: none; }
+  .suchknopf { width: 40px; height: 40px; }
+
+  .tableiste {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: var(--kopfglas, var(--flaeche));
+    border-top: 1px solid var(--linie);
+  }
+  @supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+    .tableiste { -webkit-backdrop-filter: blur(16px) saturate(1.6);
+                         backdrop-filter: blur(16px) saturate(1.6); }
+  }
+  .tab {
+    flex: 1 1 0; min-width: 0; display: flex; flex-direction: column;
+    align-items: center; gap: 3px; padding: 6px 2px 4px;
+    border: 0; background: none; border-radius: 12px; cursor: pointer;
+    color: var(--leise); text-decoration: none; font: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab-symbol {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    width: 52px; height: 30px; border-radius: 15px;
+  }
+  .tab-symbol .sym { width: 22px; height: 22px; }
+  .tab-wort { font-size: 11px; font-weight: 600; letter-spacing: .01em;
+              max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab.aktiv { color: var(--akzent); }
+  .tab.aktiv .tab-symbol { background: var(--akzent-weich); }
+  .tabzahl {
+    position: absolute; top: -3px; right: 6px;
+    min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10.5px; font-weight: 750; line-height: 1;
+    background: var(--warn); color: var(--grund);
+    box-shadow: 0 0 0 2px var(--flaeche);
+  }
+  .tabzahl.dringend { background: var(--dopp); }
+
+  /* Platz unter dem Inhalt, damit nichts hinter der Leiste verschwindet. */
+  body { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+
+  .blattschatten:not([hidden]) {
+    display: block; position: fixed; inset: 0; z-index: 58;
+    background: rgba(0, 0, 0, .5);
+  }
+  .blatt:not([hidden]) {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain;
+    padding: 8px 14px calc(18px + env(safe-area-inset-bottom));
+    background: var(--flaeche); border-top: 1px solid var(--linie);
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -24px 60px -20px rgba(0, 0, 0, .6);
+  }
+  .blatt-griff { width: 38px; height: 5px; border-radius: 3px; margin: 2px auto 6px;
+                 background: var(--linie-stark); }
+  .blatt-kopf .kopfsymbol { margin-left: auto; }
+  .blatt-kacheln {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 8px; padding: 4px 0 12px;
+  }
+  .blatt-kachel {
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+    padding: 14px 6px 12px; border-radius: 14px; text-decoration: none;
+    background: var(--flaeche-2); border: 1px solid var(--linie-fein);
+    color: var(--tinte-2); font-size: 13px; font-weight: 600;
+  }
+  .blatt-kachel .sym { width: 24px; height: 24px; color: var(--akzent); }
+  .blatt-kachel.aktiv { border-color: var(--akzent); color: var(--akzent); }
+  .blatt .menueliste a, .blatt .menueliste button, .blatt .kontoabmelden button {
+    padding: 13px 10px; font-size: 15.5px;
+  }
+  .blatt-offen { overflow: hidden; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .navpunkt, .kopfsymbol, .suchknopf, .menueliste a, .menueliste button,
+  .tab-symbol, .blatt-kachel {
+    transition: background .14s ease, color .14s ease, border-color .14s ease;
+  }
+  .kontopanel { animation: panel-auf .16s ease-out; }
+  .blatt:not([hidden]) { animation: blatt-auf .22s cubic-bezier(.2, .9, .3, 1); }
+}
+@keyframes panel-auf { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes blatt-auf { from { transform: translateY(40px); opacity: .4; } }
+
+/* --- Dialoge: Darstellung und Schnellsuche ----------------------------- */
+.dialog {
+  border: 1px solid var(--linie); border-radius: 18px; padding: 0;
+  background: var(--flaeche); color: var(--tinte);
+  box-shadow: 0 40px 100px -30px rgba(0, 0, 0, .7);
+  width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 48px);
+}
+.dialog::backdrop { background: rgba(8, 6, 12, .55); }
+@supports ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .dialog::backdrop { -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+}
+.dialog-kopf { display: flex; align-items: center; justify-content: space-between;
+               padding: 16px 16px 4px 22px; }
+.dialog-kopf h2 { display: flex; align-items: center; gap: 10px; margin: 0;
+                  font-size: 17px; text-transform: none; letter-spacing: -.01em;
+                  color: var(--tinte); }
+.dialog-kopf h2 .sym { width: 20px; height: 20px; color: var(--akzent); }
+.dialog-hinweis { margin: 0 22px 8px; font-size: 12.5px; color: var(--leise); }
+.darstellungsdialog .darstellung { padding: 6px 22px 22px; }
+@media (prefers-reduced-motion: no-preference) {
+  .dialog[open] { animation: dialog-auf .18s cubic-bezier(.2, .9, .3, 1); }
+}
+@keyframes dialog-auf { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+
+/* Die Regler selbst */
+.darstellung { display: flex; flex-direction: column; gap: 16px; }
+.dr-zeile { display: grid; grid-template-columns: 130px minmax(0, 1fr);
+            align-items: center; gap: 8px 16px; }
+.dr-titel { font-size: 13px; font-weight: 650; color: var(--tinte-2); }
+@media (max-width: 560px) {
+  .dr-zeile { grid-template-columns: 1fr; }
+}
+.dr-segment {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; max-width: 420px;
+  padding: 3px; gap: 3px; border-radius: 12px;
+  background: var(--flaeche-2); border: 1px solid var(--linie);
+}
+.dr-segment button {
+  padding: 7px 8px; border-radius: 9px; border: 0; background: none;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--leise);
+  cursor: pointer; white-space: nowrap;
+}
+.dr-segment button:hover { color: var(--tinte); }
+.dr-segment button.aktiv {
+  background: var(--flaeche); color: var(--tinte);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25), 0 0 0 1px var(--linie);
+}
+/* Farbwelten als runde Tupfer (seit dem Nachtrag zu 2.0: „minimalistischer").
+   Die obere Hälfte ist der dunkle Grund, die untere der helle, in der
+   Mitte der Akzent. Zwei harte Stufen, kein Verlauf. */
+/* Zwei Reihen zu fünf - frei umbrechend standen im Dialog acht oben und
+   zwei verloren darunter. */
+.dr-farbwelten { display: grid; grid-template-columns: repeat(5, 34px); gap: 8px 10px; }
+.dr-welt {
+  position: relative; width: 34px; height: 34px; padding: 0; border-radius: 50%;
+  cursor: pointer; border: 2px solid var(--flaeche);
+  background: linear-gradient(180deg, var(--w-dunkel) 50%, var(--w-hell) 50%);
+  box-shadow: 0 0 0 1px var(--linie);
+}
+.dr-welt::after {
+  content: ""; position: absolute; inset: 0; margin: auto; width: 11px; height: 11px;
+  border-radius: 50%; background: var(--w-akzent);
+  box-shadow: 0 0 0 2px var(--w-dunkel);
+}
+.dr-welt:hover { box-shadow: 0 0 0 2px var(--linie-stark); }
+.dr-welt.aktiv { box-shadow: 0 0 0 2px var(--tinte); }
+/* Der Name der gewählten Welt bzw. des Akzents steht unter dem Titel -
+   die Tupfer selbst tragen ihn nur im title. */
+.dr-wahlname { display: block; margin-top: 2px; font-size: 12px; font-weight: 500;
+               color: var(--leise); }
+.dr-wahlname:empty { display: none; }
+@media (max-width: 560px) {
+  .dr-wahlname { display: inline; margin: 0 0 0 4px; }
+  .dr-wahlname::before { content: "· "; }
+}
+.dr-akzente { display: flex; flex-wrap: wrap; gap: 8px; }
+.dr-akzent {
+  width: 26px; height: 26px; border-radius: 50%; cursor: pointer; padding: 0;
+  background: var(--a); border: 2px solid var(--flaeche);
+  box-shadow: 0 0 0 1px var(--linie);
+}
+.dr-akzent-auto {
+  background: conic-gradient(#f285b6, #b29bff, #7aa8ff, #45d0c0, #8fd46f, #f2c94c, #f39a5b, #f285b6);
+}
+.dr-akzent:hover { box-shadow: 0 0 0 2px var(--linie-stark); }
+.dr-akzent.aktiv { box-shadow: 0 0 0 2px var(--tinte); }
+
+/* Schnellsuche */
+.schnellsuche { width: min(640px, calc(100vw - 24px)); margin-top: 12vh; }
+@media (max-width: 860px) { .schnellsuche { margin-top: 12px; } }
+.ss-feld { display: flex; align-items: center; gap: 10px; padding: 12px 14px 12px 18px;
+           border-bottom: 1px solid var(--linie); }
+.ss-feld .sym { width: 20px; height: 20px; color: var(--leise); flex: none; }
+.ss-eingabe, .ss-feld input[type=search] {
+  flex: 1; border: 0; background: none; min-height: 40px; padding: 0;
+  font-size: 17px; color: var(--tinte); outline: none;
+}
+.ss-feld .ss-eingabe:focus { outline: none; box-shadow: none; }
+.ss-eingabe::-webkit-search-cancel-button { -webkit-appearance: none; }
+.ss-liste { max-height: min(56vh, 460px); overflow-y: auto; padding: 6px 8px 8px; }
+.ss-gruppe { padding: 10px 10px 4px; font-size: 11px; font-weight: 700;
+             text-transform: uppercase; letter-spacing: .08em; color: var(--leise); }
+.ss-treffer {
+  display: flex; align-items: center; gap: 11px; padding: 9px 10px;
+  border-radius: 10px; text-decoration: none; color: var(--tinte-2);
+}
+.ss-symbol { display: flex; width: 30px; height: 30px; border-radius: 9px;
+             align-items: center; justify-content: center; flex: none;
+             background: var(--flaeche-2); color: var(--leise); }
+.ss-symbol .sym, .ss-symbol svg { width: 17px; height: 17px; }
+.ss-titel { font-size: 14.5px; font-weight: 550; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap; }
+.ss-zusatz { margin-left: auto; font-size: 12px; color: var(--leise); white-space: nowrap; }
+.ss-treffer.gewaehlt { background: var(--akzent-weich); color: var(--tinte); }
+.ss-treffer.gewaehlt .ss-symbol { background: var(--akzent); color: var(--auf-akzent); }
+.ss-leer { margin: 0; padding: 26px 12px; text-align: center; color: var(--leise); }
+.ss-fuss { display: flex; gap: 16px; align-items: center; padding: 10px 16px;
+           border-top: 1px solid var(--linie); font-size: 12px; color: var(--leise); }
+.ss-fuss kbd { margin-right: 3px; }
+.ss-fuss-rechts { margin-left: auto; }
+@media (max-width: 560px) { .ss-fuss { display: none; } }
 
 .schalter { margin-left: auto; display: flex; align-items: center; gap: 9px;
             color: var(--leise); font-size: 12.5px; }
@@ -293,7 +902,7 @@ main > * { min-width: 0; }
   box-shadow: var(--schatten);
 }
 
-h1 { font-size: 21px; margin: 0 0 6px; letter-spacing: -0.3px; }
+h1 { font-size: 21px; margin: 0 0 6px; letter-spacing: -0.02em; font-weight: 720; }
 h2 { font-size: 12.5px; margin: 0 0 14px; text-transform: uppercase;
      letter-spacing: .09em; color: var(--leise); font-weight: 700; }
 /* Erklärende Texte tragen ein kleines Informationszeichen davor, damit
@@ -331,6 +940,55 @@ h2 { font-size: 12.5px; margin: 0 0 14px; text-transform: uppercase;
    NICHT zusätzlich eine Schriftgröße setzen. */
 .lead, .felderklaerung { font-size: 12.5px; color: var(--leise); }
 .lead { margin: 0 0 18px; }
+
+/* --- Erklärtexte hinter ⓘ (seit 2.0) -----------------------------------
+   Timos Auftrag: „Hinweis- und Erklärtexte sollen das optische
+   Erscheinungsbild nicht mehr beeinträchtigen". Ein Erklärabsatz direkt
+   unter einer Überschrift (oder unter einem Kasten, der eine trägt)
+   steht im Modus „kompakt" nicht mehr im Bild; ein kleines ⓘ an der
+   Überschrift klappt ihn auf.
+
+   ⚠️⚠️ Die Entscheidung trifft das STYLESHEET, nicht das Skript - und
+   zwar vor dem ersten Bild (dieselbe Lehre wie 1.53: was ein Skript am
+   Seitenende wegschaltet, hat der Browser längst gezeichnet). Das Skript
+   in base.html hängt nur den Knopf an. Beide prüfen DIESELBE Bedingung;
+   wer sie an einer Stelle ändert, ändert die andere mit.
+   ⚠️ Nur mit `mit-skript`: ohne Skript gäbe es keinen Knopf, und der
+   Text wäre verloren. Dann bleibt er stehen wie bisher.
+   ⚠️ Der Text bleibt im Markup (und über aria-controls am Knopf) - für
+   Vorleseprogramme ist er nur einen Druck entfernt. */
+html.mit-skript[data-hinweise="kompakt"] main
+  :is(h1, h2, h3, :has(> h1, > h2, > h3)) + p.lead:not(.lead-auf) { display: none; }
+/* Etappe 3: dieselbe Regel für die Einleitung eines Abschnittsbandes und
+   für einen Absatz nach einer .kopfzeile (dort steckt die Überschrift
+   manchmal eine Ebene tiefer, z. B. in „Mein Bereich"). */
+html.mit-skript[data-hinweise="kompakt"] main .kopfzeile:has(h1, h2, h3) + p.lead:not(.lead-auf),
+html.mit-skript[data-hinweise="kompakt"] main .abschnittsband > h2 + p:not(.lead-auf) { display: none; }
+html.mit-skript[data-hinweise="kompakt"] main .abschnittsband > p.lead-auf {
+  margin-top: 6px; padding: 10px 14px; border-radius: 12px;
+  background: var(--flaeche-2); border: 1px solid var(--linie-fein); color: var(--tinte-2);
+}
+html.mit-skript[data-hinweise="kompakt"] main p.lead.lead-auf {
+  margin: 4px 0 16px; padding: 11px 14px 11px 38px; border-radius: 12px;
+  background: var(--flaeche-2); border: 1px solid var(--linie-fein);
+  color: var(--tinte-2); font-size: 13px;
+}
+html.mit-skript[data-hinweise="kompakt"] main p.lead.lead-auf::before {
+  left: 13px; top: 13px; color: var(--akzent); opacity: 1;
+}
+.hinweisknopf {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin: -2px 0 0 7px; padding: 0;
+  vertical-align: middle; border-radius: 50%; border: 0; cursor: pointer;
+  background: none; color: var(--leise); opacity: .75;
+}
+.hinweisknopf svg { width: 16px; height: 16px; }
+.hinweisknopf:hover, .hinweisknopf.aktiv {
+  opacity: 1; color: var(--akzent); background: var(--akzent-weich);
+}
+h2 .hinweisknopf { width: 20px; height: 20px; }
+h2 .hinweisknopf svg { width: 15px; height: 15px; }
+html[data-hinweise="ausfuehrlich"] .hinweisknopf { display: none; }
 
 /* Erklärende Absätze bekommen überall eine feste Lesebreite, unabhängig davon,
    wie breit die umgebende Karte durch den Fullwidth-Modus geworden ist. */
@@ -378,7 +1036,7 @@ h2 { font-size: 12.5px; margin: 0 0 14px; text-transform: uppercase;
 input[type=text], input[type=search], input[type=file], input[type=password],
 input[type=email], input[type=tel], input[type=number], input[type=url], select {
   width: 100%; padding: 9px 11px; font: inherit;
-  border: 1px solid var(--linie); border-radius: 8px;
+  border: 1px solid var(--linie); border-radius: 10px;
   background: var(--flaeche-2); color: inherit;
   min-height: 43px;
 }
@@ -417,6 +1075,14 @@ input[type=file]::file-selector-button {
 }
 input:focus, select:focus, button:focus-visible, a:focus-visible {
   outline: 2px solid var(--akzent); outline-offset: 1px;
+}
+/* Seit 2.0: ein Eingabefeld zeigt den Fokus als weichen Ring in der
+   Akzentfarbe statt als harte Linie daneben - der Rahmen selbst wird
+   Akzent. Knöpfe und Verweise behalten die deutliche Linie: dort ist sie
+   für die Tastatur gedacht und soll auffallen. */
+:is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea):focus {
+  outline: none; border-color: var(--akzent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--akzent) 26%, transparent);
 }
 .ankreuz { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 16px;
            font-size: 13.5px; color: var(--leise); }
@@ -657,6 +1323,9 @@ input:focus, select:focus, button:focus-visible, a:focus-visible {
 /* Nur ohne Skript: die vier Auswahlfelder des Zeitraums. Mit Skript
    steht an ihrer Stelle der Picker, bis er gebaut ist der Platzhalter. */
 .mit-skript .zeitwahl-klassisch { display: none; }
+/* Absendeknöpfe neben Auswahlfeldern, die sich mit Skript selbst abschicken
+   (seit 2.0: die Fahrzeugwahl im Fuhrpark). */
+.mit-skript .ohne-skript-knopf { display: none; }
 html:not(.mit-skript) .zeitwahl-platz { display: none; }
 /* Der Platzhalter ist nur ein Bild des zugeklappten Feldes: keine Maus,
    kein Tabstopp, keine Bedienung — er lebt nur, bis der Picker steht. */
@@ -776,7 +1445,7 @@ html:not(.mit-skript) #wiki-falten { display: none; }
    auf einen Blick, was dazugehört, ohne die Zahlen zu lesen. */
 .zw-monat.drin { background: var(--akzent-band); color: var(--akzent); }
 .zw-monat.anfang, .zw-monat.ende {
-  background: var(--akzent); color: var(--grund); font-weight: 600;
+  background: var(--akzent); color: var(--auf-akzent); font-weight: 600;
   box-shadow: none;
 }
 /* Solange das Ende fehlt, zeigt das Überfahren, was der nächste Klick
@@ -971,16 +1640,15 @@ html:not(.mit-skript) #wiki-falten { display: none; }
    Genau das war auf der Dateienseite zu sehen, wo „Dateien hochladen"
    ein <label> ist und „Neuer Ordner" ein <button>. */
 .knopf {
-  display: inline-block; padding: 9px 16px; border-radius: 8px; cursor: pointer;
+  display: inline-block; padding: 9px 16px; border-radius: 10px; cursor: pointer;
   font: inherit; font-size: 14px; font-weight: 600; line-height: 1.35;
   text-decoration: none;
   border: 1px solid var(--linie); background: var(--flaeche-2); color: var(--tinte);
 }
 .knopf:hover { border-color: var(--akzent); color: var(--akzent); }
-.knopf.haupt { background: var(--akzent); border-color: var(--akzent); color: #1a1113; }
-.knopf.haupt:hover { background: var(--akzent-satt); border-color: var(--akzent-satt); color: #1a1113; }
-[data-thema="hell"] .knopf.haupt { color: #fff; }
-[data-thema="hell"] .knopf.haupt:hover { color: #fff; }
+.knopf.haupt { background: var(--akzent); border-color: var(--akzent); color: var(--auf-akzent);
+               box-shadow: 0 8px 20px -12px var(--akzent); }
+.knopf.haupt:hover { background: var(--akzent-satt); border-color: var(--akzent-satt); color: var(--auf-akzent); }
 /* ⚠️ Die dritte Stufe zwischen „haupt" (gefüllt) und „leise" (grau):
    betont, aber nicht gefüllt. Sie fehlte bis 1.55, und deshalb standen
    auf einer Seite mehrere gefüllte Knöpfe nebeneinander, von denen nur
@@ -1054,7 +1722,7 @@ form.inline { display: inline; }
 .prozent.knapp { color: var(--warn); }
 .prozent.ueber { color: var(--dopp); }
 
-.meldung { padding: 11px 14px; border-radius: 9px; font-size: 14px; margin: 0;
+.meldung { padding: 12px 16px; border-radius: 12px; font-size: 14px; margin: 0;
            border: 1px solid transparent; }
 .meldung.fehler { background: var(--dopp-weich); color: var(--dopp); border-color: var(--dopp); }
 .meldung.hinweis { background: var(--akzent-weich); color: var(--akzent); }
@@ -1180,7 +1848,7 @@ footer a:hover { border-bottom-color: var(--akzent); }
    derselben Zeile wie ein Textfeld. Dieselbe Mindesthöhe wie oben. */
 input[type=date], input[type=time] {
   width: 100%; padding: 8px 11px; font: inherit;
-  border: 1px solid var(--linie); border-radius: 8px;
+  border: 1px solid var(--linie); border-radius: 10px;
   background: var(--flaeche-2); color: inherit;
   min-height: 43px;
 }
@@ -1337,9 +2005,12 @@ input[type=date], input[type=time] { min-width: 0; }
   .knopf.haupt:hover { box-shadow: 0 5px 16px -6px var(--akzent); }
   .knopf:active { transform: translateY(0) scale(.96); transition-duration: .07s; }
 
-  /* Tabellenzeilen rücken beim Überfahren leicht ein */
-  .liste tbody tr { transition: background .15s ease, transform .2s cubic-bezier(.34,1.4,.5,1); }
-  .liste tbody tr:hover { transform: translateX(3px); }
+  /* ⚠️ Tabellenzeilen rücken seit 2.0 NICHT mehr ein (Timos Meldung:
+     „irritierend"). Eine Zeile, die beim Überfahren zur Seite springt,
+     verschiebt genau den Text, den man gerade liest. Jetzt bleibt sie
+     stehen: Fläche leicht getönt, vorn eine schmale Akzentkante
+     (Regel unten außerhalb dieses Blocks). Nicht wieder einbauen. */
+  .liste tbody tr { transition: background .15s ease; }
 
   .balken { transform-origin: left center; }
 
@@ -2682,9 +3353,8 @@ textarea:focus { border-color: var(--akzent); }
 }
 .wahlpaar button:hover { color: var(--tinte); }
 .wahlpaar button.aktiv {
-  background: var(--akzent); color: #1a1113;
+  background: var(--akzent); color: var(--auf-akzent);
 }
-[data-thema="hell"] .wahlpaar button.aktiv { color: #ffffff; }
 @media (prefers-reduced-motion: no-preference) {
   .wahlpaar button { transition: background .18s ease, color .18s ease; }
 }
@@ -2711,80 +3381,11 @@ textarea:focus { border-color: var(--akzent); }
 .systempfade > p { margin: 10px 0 12px; }
 .systempfade > .systemliste { margin-bottom: 4px; }
 
-/* --- Symbolgruppe rechts in der Kopfzeile ---------------------------- */
-
-.werkzeuge {
-  margin-left: auto; display: flex; align-items: center; gap: 4px;
-  padding-left: 12px; border-left: 1px solid var(--linie); flex-shrink: 0;
-}
-.werkzeug {
-  position: relative; display: inline-flex; align-items: center;
-  justify-content: center; width: 38px; height: 38px;
-  border-radius: 10px; color: var(--leise); text-decoration: none;
-  border: 1px solid transparent;
-}
-.werkzeug svg { width: 20px; height: 20px; }
-.werkzeug:hover { color: var(--tinte); background: var(--flaeche-2);
-                  border-color: var(--linie); }
-.werkzeug.aktiv { color: var(--akzent); background: var(--akzent-weich); }
-
-/* Beschriftung erscheint als kleine Sprechblase darunter */
-.werkzeug-text {
-  position: absolute; top: calc(100% + 7px); left: 50%;
-  transform: translateX(-50%) translateY(-3px);
-  padding: 4px 9px; border-radius: 7px; white-space: nowrap;
-  background: var(--tinte); color: var(--grund);
-  font-size: 11.5px; font-weight: 600; letter-spacing: .01em;
-  opacity: 0; pointer-events: none; z-index: 20;
-}
-.werkzeug:hover .werkzeug-text, .werkzeug:focus-visible .werkzeug-text {
-  opacity: 1; transform: translateX(-50%) translateY(0);
-}
-/* Die Sprechblasen am rechten Rand ragten über den rechten Bildschirm-
-   rand hinaus: sie sind unter ihrem Symbol zentriert, breiter als dieses,
-   und die Symbole stehen ganz rechts. Sichtbar war davon nichts (sie sind
-   ohne Mauszeiger durchsichtig) – sie machten die Seite aber ein paar
-   Pixel breiter als das Fenster und erzeugten damit einen seitlichen
-   Scrollbalken auf jeder Seite. Deshalb hängen sie rechtsbündig statt
-   mittig.
-
-   ⚠️ Die letzten ZWEI, nicht nur die letzte (seit 1.20.5). Die letzte
-   Blase („Mein Bereich") war damit zwar gebändigt, die vorletzte
-   („Einstellungen") ist aber das längste Wort der drei und ragte
-   ihrerseits neun Pixel hinaus – der Scrollbalken war also nie ganz
-   weg. „-n+2" statt einer festen Zahl, weil je nach Rechten ein, zwei
-   oder drei Symbole dastehen; bei nur einem ist es zugleich das letzte
-   und das vorletzte, was nichts kaputt macht. */
-.werkzeuge > *:nth-last-child(-n+2) .werkzeug-text {
-  left: auto; right: 0; transform: translateX(0) translateY(-3px);
-}
-.werkzeuge > *:nth-last-child(-n+2) .werkzeug:hover .werkzeug-text,
-.werkzeuge > *:nth-last-child(-n+2) .werkzeug:focus-visible .werkzeug-text,
-.werkzeuge > *:nth-last-child(-n+2).werkzeug:hover .werkzeug-text,
-.werkzeuge > *:nth-last-child(-n+2).werkzeug:focus-visible .werkzeug-text {
-  transform: translateX(0) translateY(0);
-}
-
+/* Gewählter Punkt in Seitenmenüs (Einstellungen). */
 .seitenmenue a.aktiv {
   background: var(--akzent-weich); color: var(--akzent);
   border-left-color: var(--akzent); font-weight: 600;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  .werkzeug { transition: background .14s ease, color .14s ease,
-                          border-color .14s ease, transform .22s cubic-bezier(.34,1.5,.5,1); }
-  .werkzeug:hover { transform: translateY(-2px); }
-  .werkzeug.zahnrad svg { transition: transform .5s cubic-bezier(.2,.9,.3,1.3); }
-  .werkzeug.zahnrad:hover svg { transform: rotate(75deg); }
-  .werkzeug.zahnrad.aktiv svg { transform: rotate(45deg); }
-  .werkzeug-text { transition: opacity .16s ease, transform .2s ease; }
-}
-
-@media (max-width: 760px) {
-  .werkzeuge { padding-left: 6px; }
-  .werkzeug { width: 34px; height: 34px; }
-}
-
 
 /* --- Abgaben, kompakte Box in der Seitenspalte ------------------------ */
 
@@ -2834,129 +3435,18 @@ textarea:focus { border-color: var(--akzent); }
 .abgabekompakt .standfuss { margin-top: 0; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .abgabekompakt li { transition: border-color .2s ease, transform .2s ease; }
-  .abgabekompakt li:hover { transform: translateX(2px); }
+  .abgabekompakt li { transition: border-color .2s ease, background .2s ease; }
   .minipfeil { transition: background .14s ease, color .14s ease; }
 }
 
 
-/* --- Menü für schmale Bildschirme ------------------------------------ */
-
-.burger { display: none; }
-.menue-schliessen { display: none; }
-.menuehuelle { display: contents; }
-
+/* --- Schmale Bildschirme: Innenabstände ------------------------------ */
 @media (max-width: 860px) {
-  /* ⚠️ z-index MUSS hier zurückgesetzt werden. Die Kopfzeile trägt
-     außerhalb dieser Abfrage z-index 40 (fürs Kleben beim Rollen) und
-     bildet damit einen eigenen Stapelkontext. Die Menüschublade liegt
-     INNERHALB der Kopfzeile; ihr z-index 60 gilt dann nur noch innerhalb
-     dieses Kontextes. Der Abdunkler daneben (z-index 55) liegt dagegen
-     im Wurzelkontext und deckte damit die ganze Kopfzeile samt Menü zu -
-     das Menü war verschwommen und nicht mehr anklickbar. Am Handy klebt
-     die Kopfzeile ohnehin nicht, der Kontext wird hier also nicht
-     gebraucht. */
-  .kopf { position: relative; z-index: auto; gap: 12px; padding: 12px 18px; }
-  /* ⚠️ Am Telefon nur wenig kleiner (Timos Wunsch: gerade dort soll
-     der Schriftzug stehen). 46px sind 168px breit und lassen die
-     Unterzeile bei 4,8px x-Höhe stehen - daneben bleiben bei 375px
-     Fensterbreite noch gut 120px für den Menüknopf. */
-  .marke img { height: 46px; }
-
-  .burger {
-    display: flex; flex-direction: column; justify-content: center; gap: 5px;
-    margin-left: auto; width: 42px; height: 42px; padding: 0 10px;
-    border: 1px solid var(--linie); border-radius: 10px;
-    background: var(--flaeche-2); cursor: pointer;
-  }
-  .burger span {
-    display: block; height: 2px; border-radius: 2px; background: var(--tinte);
-    transition: transform .28s cubic-bezier(.4,1.4,.5,1), opacity .18s ease;
-  }
-  .menue-offen .burger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  .menue-offen .burger span:nth-child(2) { opacity: 0; }
-  .menue-offen .burger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-  /* Die Schublade selbst – fährt von oben herein */
-  .menuehuelle {
-    display: flex; flex-direction: column; gap: 6px;
-    position: fixed; top: 0; left: 0; right: 0; z-index: 60;
-    max-height: 100dvh; padding: 20px 20px 26px;
-    background: var(--flaeche); border-bottom: 1px solid var(--linie);
-    border-radius: 0 0 18px 18px;
-    box-shadow: 0 22px 50px -20px rgba(0,0,0,.7);
-    transform: translateY(-100%); visibility: hidden;
-    overflow-y: auto; overscroll-behavior: contain;
-  }
-  .menue-offen .menuehuelle { transform: none; visibility: visible; }
-
-  .menue-schliessen {
-    position: absolute; top: 14px; right: 14px;
-    display: flex; align-items: center; justify-content: center;
-    width: 36px; height: 36px; border-radius: 10px;
-    border: 1px solid var(--linie); background: var(--flaeche-2);
-    color: var(--leise); cursor: pointer;
-  }
-  .menue-schliessen svg { width: 18px; height: 18px; }
-  .menue-schliessen:hover { color: var(--tinte); border-color: var(--akzent); }
-
-  .menuehuelle nav {
-    flex-direction: column; gap: 3px; margin-top: 34px;
-  }
-  .menuehuelle nav a { padding: 12px 14px; font-size: 16px; border-radius: 10px; }
-
-  .werkzeuge {
-    margin: 12px 0 0; padding: 14px 0 0; flex-direction: column;
-    align-items: stretch; gap: 3px;
-    border-left: none; border-top: 1px solid var(--linie);
-  }
-  .werkzeug {
-    width: auto; height: auto; justify-content: flex-start; gap: 12px;
-    padding: 12px 14px; border-radius: 10px; font-size: 16px; font-weight: 500;
-  }
-  /* ⚠️ In der Schublade ist die Beschriftung keine Sprechblase mehr,
-     sondern steht als Wort neben dem Zeichen. Die Regeln für die
-     Sprechblase schieben sie beim Anfassen um ihre halbe Breite nach
-     links (translateX(-50%)) - auf dem Telefon löst schon das Antippen
-     :hover aus, und das Wort rutschte damit sichtbar ins Zeichen
-     hinein. Deshalb gilt hier ausdrücklich auch im angefassten Zustand
-     keine Verschiebung. Der lange Selektor ist nötig: er muss die
-     Sonderregel für die letzten Symbole
-     (.werkzeuge > *:nth-last-child(-n+2) …) schlagen. */
-  .menuehuelle .werkzeuge .werkzeug .werkzeug-text,
-  .menuehuelle .werkzeuge .werkzeug:hover .werkzeug-text,
-  .menuehuelle .werkzeuge .werkzeug:focus-visible .werkzeug-text,
-  .menuehuelle .werkzeuge > *:nth-last-child(-n+2) .werkzeug:hover .werkzeug-text,
-  .menuehuelle .werkzeuge > *:nth-last-child(-n+2) .werkzeug:focus-visible .werkzeug-text {
-    position: static; opacity: 1; transform: none; padding: 0;
-    background: none; color: inherit; font-size: 16px; font-weight: 500;
-    transition: none; left: auto; right: auto;
-  }
-  /* Aus demselben Grund hebt sich in der Schublade nichts an: ein
-     Zeichen, das beim Antippen springt, ist auf dem Telefon kein
-     Auftritt, sondern ein Wackeln. */
-  .menuehuelle .werkzeug:hover, .menuehuelle .werkzeug:active,
-  .menuehuelle nav a:hover, .menuehuelle nav a:active { transform: none; }
-
-  .schalter { margin: 14px 0 0; padding: 14px 4px 0; justify-content: space-between;
-              border-top: 1px solid var(--linie); font-size: 14px; }
-
-  .menueschatten {
-    position: fixed; inset: 0; z-index: 55;
-    background: rgba(0,0,0,.5); backdrop-filter: blur(2px);
-  }
-
   main { padding: var(--abstand) 16px 40px; }
-  /* Wie oben: der Rand sitzt am Band, nicht an footer - sonst stehen
-     Logo und Angaben wieder weiter aussen als der Inhalt darueber. */
+  /* Der Rand sitzt am Band, nicht an footer - sonst stehen Logo und
+     Angaben wieder weiter aussen als der Inhalt darueber. */
   .fussband { padding-left: 16px; padding-right: 16px; }
-  .menue-offen { overflow: hidden; }
 }
-
-/* ⚠️ Das mobile Menü bewegt sich NICHT. Es fuhr bis 1.11 herein und der
-   Abdunkler blendete ein - bei einem Menü, das man auf dem Telefon
-   ständig auf- und zuklappt, ist das kein Auftritt, sondern eine
-   Wartezeit. Nicht wieder einbauen. */
 
 /* --- Ideen: Liste statt Kacheln --------------------------------------- */
 
@@ -3260,16 +3750,17 @@ label.knopf-icon { cursor: pointer; }
    schmaler als die Summe der Spalten, staucht der Browser alles
    gleichmäßig und der letzte Knopf verschwindet wieder. Darunter rollt
    die .tabellenrolle - dieselbe Lösung wie bei den Fuhrpark-Tabellen. */
-.liste.dateiverzeichnis { min-width: 660px; }
+.liste.dateiverzeichnis { min-width: 680px; }
 .liste.dateiverzeichnis th:nth-child(3) { width: 78px; }
 .liste.dateiverzeichnis th:nth-child(4) { width: 92px; }
-/* ⚠️ Datum und Uhrzeit stehen untereinander, nicht in einer Zeile. Als
-   „30.08.2026, 11:43" brach die Spalte an einer beliebigen Stelle um -
-   wo genau, entschied die Fensterbreite. Jetzt bricht sie dort, wo es
-   gemeint ist, und die Spalte kann schmal bleiben. */
-.liste.dateiverzeichnis th:nth-child(5) { width: 96px; }
+/* ⚠️ Seit 2.0 EINE Zeile: „Heute, 11:43", „Gestern, 09:10", sonst nur das
+   Datum (dateien._zeitpunkt). Bis dahin standen Datum und Uhrzeit
+   untereinander und jede Zeile war zweizeilig. 118px trägt den längsten
+   Fall („Gestern, 14:02") samt Polsterung; nowrap muss ausdrücklich
+   stehen - die allgemeine Regel hebt td.nowrap in Rollen wieder auf. */
+.liste.dateiverzeichnis th:nth-child(5) { width: 118px; }
+.tabellenrolle .liste.dateiverzeichnis td.zeitzelle { white-space: nowrap; }
 .zeitzelle { line-height: 1.35; }
-.zeitzelle > span { display: block; font-size: 11px; opacity: .8; }
 /* Eine Aktion weniger seit 1.15.3 - der Dateiname ist der Verweis. */
 .liste.dateiverzeichnis th:last-child { width: 136px; padding-right: 6px; }
 .tabellenrolle .liste.dateiverzeichnis td:last-child { white-space: nowrap; }
@@ -3367,6 +3858,18 @@ label.knopf-icon { cursor: pointer; }
   border-color: var(--akzent-weich);
 }
 .dateizeile[data-art="ordner"] td a.stark { color: var(--akzent); font-weight: 700; }
+/* Seit 2.0: jede Art trägt ihre Farbe im Symbol (nur dort - eine Liste
+   aus bunten Zeilen wäre wieder unruhig), Bilder zeigen sich selbst. */
+.wiki-verzeichnis.dateiverzeichnis td.art-pdf .wiki-symbol { color: var(--dopp); }
+.wiki-verzeichnis.dateiverzeichnis td.art-tabelle .wiki-symbol { color: var(--gut); }
+.wiki-verzeichnis.dateiverzeichnis td.art-text .wiki-symbol { color: var(--info); }
+.wiki-verzeichnis.dateiverzeichnis td.art-praesentation .wiki-symbol { color: var(--warn); }
+.wiki-verzeichnis.dateiverzeichnis td:is(.art-video, .art-grafik, .art-bild) .wiki-symbol { color: var(--kfz-reifen); }
+.datei-mini {
+  display: block; width: 29px; height: 29px; object-fit: cover; border-radius: 8px;
+  border: 1px solid var(--linie-fein); background: var(--flaeche-2);
+}
+.dateien-belegung { margin: 10px 8px 0; font-size: 11.5px; color: var(--leise); }
 .dateizeile[data-art="ordner"]:hover .artspalte .wiki-symbol {
   border-color: var(--akzent);
 }
@@ -3561,6 +4064,9 @@ body.anmeldeseite {
    ausmachen. `--akzent` und `--info` sind die beiden Hausfarben, mit
    ausdrücklicher Deckkraft statt der fertigen -weich-Töne: die sind für
    Flächen gedacht und würden übereinandergelegt matschig.
+   ⚠️ Seit 2.0 über color-mix() aus den Variablen statt fester rgb()-Werte:
+   der Schein folgt damit Farbwelt und Akzent (vorher stand er in jeder
+   Welt aubergine-rosa da).
 
    ⚠️ Kein `filter: blur()`. Die Verläufe sind von Haus aus weich, und
    ein Weichzeichner über den ganzen Bildschirm ist auf einem älteren
@@ -3568,12 +4074,12 @@ body.anmeldeseite {
 .anmelde-schein {
   position: fixed; inset: -10%; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(38% 44% at 18% 12%, rgb(226 45 140 / .30) 0%, transparent 62%),
-    radial-gradient(34% 40% at 78% 4%,  rgb(134 182 232 / .22) 0%, transparent 60%),
-    radial-gradient(46% 50% at 92% 46%, rgb(226 45 140 / .20) 0%, transparent 64%),
-    radial-gradient(40% 46% at 8% 72%,  rgb(134 182 232 / .18) 0%, transparent 62%),
-    radial-gradient(52% 46% at 52% 104%, rgb(226 45 140 / .26) 0%, transparent 66%),
-    radial-gradient(30% 34% at 62% 58%, rgb(226 45 140 / .12) 0%, transparent 58%);
+    radial-gradient(38% 44% at 18% 12%, color-mix(in oklab, var(--akzent) 36%, transparent) 0%, transparent 62%),
+    radial-gradient(34% 40% at 78% 4%,  color-mix(in oklab, var(--info) 22%, transparent) 0%, transparent 60%),
+    radial-gradient(46% 50% at 92% 46%, color-mix(in oklab, var(--akzent) 24%, transparent) 0%, transparent 64%),
+    radial-gradient(40% 46% at 8% 72%,  color-mix(in oklab, var(--info) 18%, transparent) 0%, transparent 62%),
+    radial-gradient(52% 46% at 52% 104%, color-mix(in oklab, var(--akzent) 31%, transparent) 0%, transparent 66%),
+    radial-gradient(30% 34% at 62% 58%, color-mix(in oklab, var(--akzent) 14%, transparent) 0%, transparent 58%);
 }
 /* Im hellen Thema tragen dieselben Kerne weiter - Rosa auf Weiß wirkt
    kräftiger als auf Aubergine, also leiser einstellen. */
@@ -3590,8 +4096,8 @@ body.anmeldeseite {
 .anmelde-schein-zwei {
   position: fixed; inset: -12%; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(36% 42% at 70% 22%, rgb(134 182 232 / .16) 0%, transparent 60%),
-    radial-gradient(44% 40% at 26% 90%, rgb(226 45 140 / .18) 0%, transparent 62%);
+    radial-gradient(36% 42% at 70% 22%, color-mix(in oklab, var(--info) 16%, transparent) 0%, transparent 60%),
+    radial-gradient(44% 40% at 26% 90%, color-mix(in oklab, var(--akzent) 22%, transparent) 0%, transparent 62%);
 }
 .anmelde-huelle {
   flex: 1; display: flex; align-items: center; justify-content: center;
@@ -3606,6 +4112,20 @@ body.anmeldeseite {
   display: block; margin-bottom: 30px;
 }
 .anmelde-marke img { height: 92px; width: auto; display: block; }
+.anmeldekarte .gruss { text-align: center; margin-bottom: 2px; }
+
+/* Passwort zeigen (seit 2.0): das Skript in login.html baut den Knopf,
+   ohne Skript gibt es ihn nicht. Er liegt IM Feld, verschiebt also
+   nichts, wenn er erscheint. */
+.pw-huelle { position: relative; display: block; }
+.pw-huelle input { width: 100%; padding-right: 46px; }
+.pw-zeigen {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 36px; height: 36px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 9px; background: none; color: var(--leise); cursor: pointer;
+}
+.pw-zeigen:hover, .pw-zeigen[aria-pressed="true"] { color: var(--tinte); background: var(--flaeche-2); }
+.pw-zeigen svg { width: 18px; height: 18px; }
 
 /* Der Aufbau beim Laden. Bewusst nur hier: die Anmeldeseite sieht man
    einmal am Tag, alles andere im Programm hundertmal - dort wäre das
@@ -3663,6 +4183,8 @@ body.anmeldeseite {
   opacity: .7;
 }
 .anmeldekarte h1 { text-align: center; margin-bottom: 6px; }
+/* Ohne Erklärsatz darunter (seit 2.0) braucht die Überschrift selbst die Luft. */
+.anmeldekarte h1:not(:has(+ p)) { margin-bottom: 20px; }
 /* Auf der Anmeldekarte steht der Satz mittig und ohne Informationszeichen:
    er erklärt nichts, er sagt, was zu tun ist - und ein Zeichen links
    bräche die Mittelachse. */
@@ -4887,10 +5409,8 @@ fieldset.feld > span {
 .ak-knopf::-webkit-details-marker { display: none; }
 .ak-knopf svg { width: 16px; height: 16px; flex: none; }
 .ak-knopf:hover { border-color: var(--akzent); color: var(--akzent); }
-.ak-knopf.haupt { background: var(--akzent); border-color: var(--akzent); color: #1a1113; }
-.ak-knopf.haupt:hover { background: var(--akzent-satt); border-color: var(--akzent-satt); color: #1a1113; }
-[data-thema="hell"] .ak-knopf.haupt,
-[data-thema="hell"] .ak-knopf.haupt:hover { color: #ffffff; }
+.ak-knopf.haupt { background: var(--akzent); border-color: var(--akzent); color: var(--auf-akzent); }
+.ak-knopf.haupt:hover { background: var(--akzent-satt); border-color: var(--akzent-satt); color: var(--auf-akzent); }
 
 /* Suche: dieselbe Pille, das Zeichen steht vorn im Feld. Abgeschickt
    wird mit Enter (am Telefon die Taste „Suchen"). */
@@ -5794,7 +6314,7 @@ a.vgk-wert:hover { text-decoration: underline; }
    von .wiki-inhalt überschrieben.
 */
 
-.wiki { display: grid; gap: var(--abstand); grid-template-columns: 1fr; }
+.wiki { display: grid; gap: var(--abstand); grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 900px) {
   /* ⚠️ Die Spalte war fest auf 320px. Bei einem tief verschachtelten
      Baum blieb dadurch für die Titel kaum Platz, und mit jedem
@@ -6615,22 +7135,28 @@ a.vgk-wert:hover { text-decoration: underline; }
    Art von Auswahl, nur eine Ebene tiefer. Kein Aufklappmenü in der
    Kopfzeile: das gibt es sonst nirgends im Programm. */
 .unternavigation {
-  display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: var(--abstand);
-  padding: 5px; border-radius: var(--radius);
+  /* Seit 2.0 ein Segmentschalter in Inhaltsbreite statt eines Balkens
+     über die ganze Seite: drei Wörter brauchen keine 1400px Kasten. */
+  display: flex; gap: 3px; flex-wrap: wrap; margin-bottom: var(--abstand);
+  align-self: flex-start; width: fit-content; max-width: 100%;
+  padding: 4px; border-radius: 14px;
   border: 1px solid var(--linie); background: var(--flaeche);
   box-shadow: var(--schatten);
 }
 .unternavigation a {
-  padding: 8px 15px; border-radius: 8px; text-decoration: none;
+  padding: 8px 18px; border-radius: 10px; text-decoration: none;
   font-size: 14px; font-weight: 600; color: var(--leise);
 }
 .unternavigation a:hover { background: var(--flaeche-2); color: var(--tinte); }
-.unternavigation a.aktiv { background: var(--akzent-weich); color: var(--akzent); }
+.unternavigation a.aktiv { background: var(--akzent); color: var(--auf-akzent);
+                           box-shadow: 0 6px 16px -10px var(--akzent); }
 /* Am Telefon stehen die Reiter mittig (seit 1.59, Timos Wunsch) - links
    gestapelt sah die Leiste halb leer aus. Gilt fuer Arbeitszeit UND
    Fuhrpark: beide kommen aus demselben Makro und sollen gleich aussehen. */
 @media (max-width: 860px) {
-  .unternavigation { justify-content: center; }
+  .unternavigation { justify-content: center; align-self: stretch; width: auto;
+                     display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+  .unternavigation a { text-align: center; padding: 9px 8px; }
 }
 
 /* Zeitraum in der Fuhrpark-Auswertung: eine Reihe Schnellwahl-Pillen und
@@ -7722,7 +8248,7 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 .pa-z-stift { flex: none; pointer-events: none; }
 .pa-zeile:hover .pa-z-stift { border-color: var(--akzent); color: var(--akzent); }
 .pa-zeile:has(> details[open]) .pa-z-stift {
-  border-color: var(--akzent); background: var(--akzent); color: #1a1113;
+  border-color: var(--akzent); background: var(--akzent); color: var(--auf-akzent);
 }
 /* ⚠️ Fest 8px von oben, nicht mittig: aufgeklappt wäre die Zeile sonst
    hoch und der Mülleimer stünde irgendwo in ihrer Mitte.
@@ -7853,4 +8379,369 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
   /* Der Speichernknopf fuellt die Restbreite - er ist die Handlung,
      wegen der man hier ist. */
   .pa-form-fuss .knopf { flex: 1 1 auto; }
+}
+
+/* === 2.0 · Etappe 2: Arbeitszeit ==========================================
+
+   --- Kopfzeile der Seite: Reiter und „Was heute drängt" in EINER Zeile ---
+   ⚠️ Die Reiter tragen sonst ihren eigenen unteren Rand (für den Takt von
+   main); in der Hülle übernimmt das deren gap. */
+.seitenkopf {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px 18px; flex-wrap: wrap;
+}
+.seitenkopf > .unternavigation { margin-bottom: 0; }
+.seitenkopf > .draengt { align-self: center; }
+@media (max-width: 860px) {
+  .seitenkopf { flex-direction: column; align-items: stretch; }
+  .seitenkopf > .draengt { align-self: center; }
+}
+
+/* --- Meine Woche ----------------------------------------------------------- */
+.wochenkarte .kastenkopf { margin-bottom: 14px; }
+.wochenkarte .kastenmonat { min-width: 8.5em; }
+.wochenstreifen {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;
+}
+.wtag {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 7px 2px 8px; border-radius: 12px; text-decoration: none;
+  color: var(--tinte-2); border: 1px solid transparent;
+}
+.wtag:hover { background: var(--flaeche-2); border-color: var(--linie); }
+.wtag-kurz { font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+             text-transform: uppercase; color: var(--leise); }
+.wtag-zahl { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+             line-height: 1.2; }
+/* Die Säule wächst von unten: der Tag mit den meisten Stunden füllt sie
+   ganz, die anderen im Verhältnis. Eine Säule pro Tag, kein Diagramm. */
+.wtag-saeule {
+  position: relative; display: block; width: 8px; height: 44px; margin: 3px 0 2px;
+  border-radius: 4px; background: var(--flaeche-2); overflow: hidden;
+}
+.wtag-saeule > span {
+  position: absolute; left: 0; right: 0; bottom: 0; height: var(--anteil);
+  border-radius: 4px; background: var(--akzent);
+}
+.wtag-saeule > span.frei { background: var(--info, var(--leise)); opacity: .7; }
+.wtag-std { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--leise);
+            white-space: nowrap; }
+.wtag.wochenende { opacity: .72; }
+.wtag.zukunft .wtag-zahl { color: var(--leise); }
+.wtag.heute .wtag-zahl { color: var(--akzent); }
+.wtag.gewaehlt { background: var(--akzent-weich); border-color: color-mix(in oklab, var(--akzent) 45%, transparent); }
+.wtag.gewaehlt .wtag-kurz, .wtag.gewaehlt .wtag-std { color: var(--akzent); }
+
+/* Unter dem Streifen: zwei Kacheln (Woche, Monat), darunter ein Balken
+   gegen das Soll mit seinen beiden Auskünften an den Enden. Dieselbe
+   Formensprache wie die Kennzahlen in „Mein Bereich" - nur kleiner. */
+.wstand {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--linie-fein);
+}
+.wkachel {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  padding: 11px 12px 10px; border-radius: 12px;
+  background: var(--flaeche-2); border: 1px solid var(--linie-fein);
+}
+.wkachel-titel { font-size: 10.5px; font-weight: 700; letter-spacing: .07em;
+                 text-transform: uppercase; color: var(--leise);
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wkachel-zahl { font-size: 21px; font-weight: 720; line-height: 1.2; color: var(--tinte);
+                letter-spacing: -.01em; white-space: nowrap; }
+.wkachel-zahl .kmass { margin-left: 3px; }
+.wkachel-unter { font-size: 11.5px; color: var(--leise); white-space: nowrap;
+                 overflow: hidden; text-overflow: ellipsis; }
+.wsoll {
+  display: grid; grid-template-columns: 1fr auto; row-gap: 7px; column-gap: 10px;
+  margin-top: 12px; font-size: 12px; color: var(--leise);
+}
+.wsoll-spur {
+  grid-column: 1 / -1; display: block; height: 6px; border-radius: 3px;
+  background: var(--flaeche-2); overflow: hidden;
+}
+.wsoll-spur > span {
+  display: block; height: 100%; width: var(--anteil); min-width: 3px; border-radius: 3px;
+  background: var(--akzent);
+}
+.wsoll-rechts { color: var(--tinte-2); font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) {
+  .wtag { transition: background .14s ease, border-color .14s ease; }
+}
+.wochenkarte .kastenmonat { min-width: 4.6em; }
+
+/* --- Übersicht: nach Tagen gegliedert ------------------------------------
+   Eine Überschriftzeile je Tag. ⚠️ Ohne Zebrastreifen in dieser Tabelle:
+   die Tageszeilen verschöben das Muster, und die Gliederung leisten jetzt
+   die Tage selbst. */
+.liste .tagzeile th {
+  padding: 16px 10px 7px; text-align: left; white-space: normal;
+  font-size: 12.5px; font-weight: 700; text-transform: none; letter-spacing: 0;
+  color: var(--tinte); background: none; border-bottom: 1px solid var(--linie);
+}
+.liste tbody .tagzeile:first-child th { padding-top: 6px; }
+.tagzeile-wort { margin-right: 10px; }
+.tagzeile-summe { font-weight: 500; color: var(--leise); font-variant-numeric: tabular-nums; }
+.tagzeile-summe strong { color: var(--akzent); font-weight: 700; }
+.liste:has(.tagzeile) tbody tr:nth-child(even) { background: none; }
+.liste:has(.tagzeile) tbody tr:not(.tagzeile):hover { background: var(--flaeche-2); }
+.liste tbody tr.tagzeile:hover { background: none; }
+/* Steht der Filter als Letztes in seiner Karte, braucht er keine eigene
+   Abschlusslinie - sonst zog sich unter der Fußzeile ein leeres Band
+   mit einem zweiten Strich durch die Karte. */
+.karte > .filter:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+/* ⚠️ Seit 2.0 überall ruhig wie auf der Aufgabenseite (1.60): was
+   gefiltert ist, ist eine Auskunft, keine Warnung. Der gelbe Kasten zog
+   mehr Aufmerksamkeit als die Zahlen darunter. Die Linie darüber bringt
+   der Filter selbst mit (border-bottom). */
+.filterstand:not(.ak-stand) {
+  margin: 0; padding: 0; gap: 8px; background: none; border: 0; border-radius: 0;
+}
+.filterstand:not(.ak-stand) .filterstand-marke { color: var(--leise); }
+.filterstand:not(.ak-stand) .filterchip {
+  background: var(--akzent-weich); border-color: transparent; color: var(--akzent);
+}
+.filterstand:not(.ak-stand) .filterchip .leise { color: inherit; opacity: .75; }
+
+/* --- Übersicht am Telefon: jede Zeile ein Block (seit 2.0) --------------
+   Bis 1.61 rollte die Tabelle unter 760px seitlich, und Leistung und
+   Mitarbeiter lagen hinter dem rechten Rand - genau die beiden Angaben,
+   an denen man einen Eintrag wiedererkennt. Jetzt ist jede Zeile ein
+   kleines Raster: oben Person und Dauer, darunter Zeit und Leistung,
+   dann der Mitarbeiter; die Knöpfe rechts.
+   ⚠️ Gebaut über grid-template-areas, NICHT über eine zweite Fassung im
+   Markup - Mehrfachauswahl, Löschen und htmx hängen an derselben Zeile. */
+@media (max-width: 760px) {
+  .tabellenrolle:has(.eintragsliste), .karte:has(> .eintragsliste) { overflow-x: visible; }
+  .liste.eintragsliste { min-width: 0; table-layout: auto; }
+  .liste.eintragsliste thead { display: none; }
+  .liste.eintragsliste, .liste.eintragsliste tbody { display: block; width: 100%; }
+  .liste.eintragsliste tr.tagzeile { display: block; }
+  .liste.eintragsliste tr.tagzeile th { display: block; padding: 18px 2px 8px; }
+  .liste.eintragsliste tr:not(.tagzeile) {
+    display: grid; align-items: center;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "wahl person person dauer"
+                         "wahl zeit   text   aktion"
+                         "wahl ma     ma     aktion";
+    column-gap: 10px; row-gap: 2px; padding: 10px 2px;
+    border-bottom: 1px solid var(--linie-fein);
+  }
+  .liste.eintragsliste tr:not(.tagzeile) > td {
+    display: block; padding: 0; border: 0; min-width: 0; font-size: 13.5px;
+  }
+  .liste.eintragsliste td:nth-child(1) { grid-area: wahl; }
+  .liste.eintragsliste td:nth-child(2) { grid-area: zeit; font-size: 12.5px; }
+  .liste.eintragsliste td:nth-child(3) { grid-area: dauer; text-align: right; font-size: 15px; }
+  .liste.eintragsliste td:nth-child(4) { grid-area: person; font-weight: 650; font-size: 15px;
+                                         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .liste.eintragsliste td:nth-child(5) { grid-area: text; overflow: hidden; text-overflow: ellipsis;
+                                         white-space: nowrap; }
+  .liste.eintragsliste td:nth-child(6) { grid-area: ma; font-size: 12px; }
+  .liste.eintragsliste td:nth-child(7) { grid-area: aktion; align-self: end; }
+  .auswahlschalter:not(:checked) ~ .liste.eintragsliste td.wahlspalte { display: none; }
+}
+/* Ein Betrag bricht nicht vor seinem €-Zeichen um: am Telefon stand das
+   Zeichen sonst allein in der zweiten Zeile der Kachel. */
+@media (max-width: 560px) {
+  .kennzahlen .kzahl { white-space: nowrap; font-size: clamp(18px, 5.6vw, 24px); }
+}
+
+/* === 2.0 · Etappe 3: Mein Bereich und Aufgaben =========================== */
+.gruss { display: block; font-size: 12.5px; font-weight: 650; letter-spacing: .02em;
+         color: var(--akzent); margin-bottom: 2px; }
+.meinueberblick h1 { font-size: 24px; }
+
+/* Verweise im Fließtext ohne eigene Klasse standen bis 2.0 in
+   Browser-Blau mit Unterstrich (z. B. die Pfadzeile über einer Aufgabe,
+   „zuordnen" in den Abgaben). Jetzt in der Akzentfarbe, unterstrichen
+   nur dezent. Bewusst nur für Verweise OHNE Klasse - jedes Bedienelement
+   bringt seine Farbe selbst mit. */
+/* ⚠️ Über :where() mit der Spezifität eines nackten `a`: jede Regel mit
+   einer Klasse (etwa `.wiki-inhalt a`, dort ausdrücklich OHNE
+   Unterstrich) gewinnt weiterhin. */
+:where(main) a:where(:not([class])) {
+  color: var(--akzent); text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--akzent) 35%, transparent);
+  text-underline-offset: 3px;
+}
+:where(main) a:where(:not([class])):hover { text-decoration-color: currentColor; }
+/* Die Pfadzeile über einer einzelnen Aufgabe: leise wie die im Wiki. */
+.statuszeile a:not([class]) { color: var(--leise); text-decoration: none; }
+.statuszeile a:not([class]):hover { color: var(--akzent); }
+
+/* --- Einstellungen: der Kopf eines Punktes ist eine Überschrift ---------
+   Seit 2.0 stehen die Einleitungen hinter dem ⓘ - übrig blieb eine Karte
+   mit Titel und einem zugeklappten „Hinweise zur Pflege", also ein leerer
+   Kasten über dem eigentlichen. Jetzt ohne Kasten: Titel, ⓘ, Hinweise. */
+.karte.einstellungskopf {
+  background: none; border: 0; box-shadow: none; padding: 4px 2px 0;
+}
+.karte.einstellungskopf h1 { font-size: 24px; }
+.karte.einstellungskopf .hinweise { margin-top: 6px; padding-top: 0; border-top: 0; }
+
+/* --- Einstellungen am Telefon: das Menü als wischbare Reiterleiste ------
+   Bis 2.0 stand es unter 900px als lange Liste ÜBER dem Inhalt - dreizehn
+   Punkte, ein ganzer Bildschirm, bevor überhaupt etwas einzustellen war
+   (der Sprung auf #punkt half nur nach einem Klick). Jetzt eine Zeile,
+   seitlich zu wischen; der gewählte Punkt steht dank des Skripts im
+   Menü-Makro mittig im Bild. Die Gruppenüberschriften entfallen dort. */
+@media (max-width: 899px) {
+  .seitenmenue {
+    flex-direction: row; gap: 6px; padding: 8px; overflow-x: auto;
+    overscroll-behavior-x: contain; scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent);
+            mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent);
+  }
+  .seitenmenue::-webkit-scrollbar { display: none; }
+  .seitenmenue-titel, .seitenmenue-gruppe { display: none; }
+  .seitenmenue a {
+    flex: none; white-space: nowrap; padding: 8px 14px; border-radius: 999px;
+    border-left: 0; background: var(--flaeche-2); font-size: 14px;
+  }
+  .seitenmenue a:hover { border-left-color: transparent; }
+  .seitenmenue a.aktiv { background: var(--akzent); color: var(--auf-akzent);
+                         border-left: 0; }
+}
+
+/* Listenzeilen der Einstellungen am Telefon: der Pfeil rutschte bis 2.0
+   in eine eigene Zeile und machte jede Zeile ein Drittel höher. Jetzt
+   steht er rechts über alle Angaben. Die Personenzeile hat ihr eigenes
+   Raster (.personenkopf) und bleibt unberührt. */
+@media (max-width: 700px) {
+  .konto-kopf:not(.personenkopf) {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px; row-gap: 3px; align-items: center;
+  }
+  .konto-kopf:not(.personenkopf) > :not(.konto-pfeil) { grid-column: 1; }
+  .konto-kopf:not(.personenkopf) > .konto-pfeil { grid-column: 2; grid-row: 1 / span 3; }
+  .konto-kopf:not(.personenkopf) .konto-daten:empty,
+  .konto-kopf:not(.personenkopf) .konto-rechte:empty { display: none; }
+  .konto-kopf:not(.personenkopf) .konto-name { min-width: 0; }
+  .konto-kopf:not(.personenkopf) .konto-daten { font-size: 12.5px; color: var(--leise); }
+}
+
+/* --- Überfahren einer Tabellenzeile: stehen bleiben, nicht rücken -------
+   Ohne Bewegung: die Fläche tönt sich (Regel bei .liste), und die erste
+   Zelle trägt eine schmale Kante in der Akzentfarbe. Über box-shadow und
+   nicht über border: ein Rand verbreiterte die Zelle um 2px, und die
+   ganze Zeile spränge doch wieder. */
+/* ⚠️ Nicht in Wiki und Dateien (.wiki-verzeichnis, Timos Wunsch): dort
+   steht vorn das getönte Symbolfeld, und der Strich daneben wirkte wie ein
+   Rest. Die getönte Fläche der Zeile bleibt. */
+.liste:not(.wiki-verzeichnis) tbody tr:not(.tagzeile):hover > :first-child {
+  box-shadow: inset 2px 0 0 var(--akzent);
+}
+.abgabekompakt li:hover { border-left-color: var(--akzent); }
+
+/* --- Auswertung: „Bewilligt" als knappe Liste (seit 2.0) ------------------
+   Eine Zeile je Person, zwei Zeilen hoch: Name und Stand oben, der
+   geltende Satz darunter. Farbe nur dort, wo sie etwas sagt: rot ohne
+   Bescheid, blau Selbstzahler, grün unbefristet - ein befristeter Bescheid
+   bleibt neutral, sein Datum ist die Auskunft. */
+.bw-liste { list-style: none; margin: 4px 0 14px; padding: 0; }
+.bw-zeile {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px;
+  padding: 9px 2px; border-bottom: 1px solid var(--linie-fein);
+}
+.bw-zeile:last-child { border-bottom: 0; }
+.bw-wer { font-weight: 650; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis;
+          white-space: nowrap; }
+.bw-stand { font-size: 12px; color: var(--leise); white-space: nowrap;
+            display: inline-flex; align-items: center; gap: 6px;
+            font-variant-numeric: tabular-nums; }
+.bw-werte { grid-column: 1 / -1; font-size: 12px; color: var(--tinte-2); margin-top: 1px; }
+.bw-punkt { width: 7px; height: 7px; border-radius: 50%; background: var(--gut); flex: none; }
+.bw-ohne .bw-stand { color: var(--dopp); font-weight: 650; }
+.bw-ohne .bw-punkt { background: var(--dopp); }
+.bw-ohne .bw-werte { color: var(--leise); }
+.bw-selbst .bw-punkt { background: var(--info); }
+.bw-fuss { margin: -4px 0 14px; font-size: 12px; color: var(--leise); }
+
+/* Der Erklärtext des zugeklappten „Zeitlisten Import" (seit 1.24 im
+   <summary>, damit man ihn einmal liest und den Bereich danach übergeht)
+   erscheint im Modus „kompakt" erst beim Aufklappen. Zugeklappt sagt der
+   Titel genug; die eigentliche Erklärung steht dann direkt über dem, was
+   sie erklärt. Im Modus „Immer zeigen" bleibt es wie bisher. */
+html.mit-skript[data-hinweise="kompakt"] .importkarte:not([open]) .importkopf .lead { display: none; }
+
+/* === 2.0 · Wiki ============================================================ */
+.wiki-kachel-auszug {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; font-size: 12.5px; line-height: 1.45; color: var(--tinte-2);
+  margin-top: 2px;
+}
+.wiki-kachel-fuss { margin-top: auto; }
+
+.wiki-zuletzt { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linie-fein); }
+.wiki-zuletzt-titel { display: block; padding: 0 8px 6px; font-size: 11px; font-weight: 700;
+                      letter-spacing: .08em; text-transform: uppercase; color: var(--leise); }
+.wiki-zuletzt ul { list-style: none; margin: 0; padding: 0; }
+.wiki-zuletzt a {
+  display: flex; flex-direction: column; gap: 1px; padding: 7px 8px; border-radius: 9px;
+  text-decoration: none; color: var(--tinte-2);
+}
+.wiki-zuletzt a:hover { background: var(--flaeche-2); color: var(--tinte); }
+.wiki-zuletzt-seite { font-size: 13px; font-weight: 600; overflow: hidden;
+                      text-overflow: ellipsis; white-space: nowrap; }
+.wiki-zuletzt-wo { font-size: 11.5px; color: var(--leise); overflow: hidden;
+                   text-overflow: ellipsis; white-space: nowrap; }
+
+/* Wiki und Dateien am Telefon: der Baum steht eingeklappt, „Ordner"
+   klappt ihn auf (Skript in base.html). Ohne Skript bleibt er offen. */
+@media (max-width: 899px) {
+  html.mit-skript .wiki-seitenleiste:not(.baum-offen) > :is(.wiki-baum, .wiki-zuletzt) { display: none; }
+  .baum-schalter { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .baum-schalter::after {
+    content: ""; width: 7px; height: 7px; margin-top: -3px;
+    border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor;
+    transform: rotate(45deg);
+  }
+  .baum-offen .baum-schalter::after { transform: rotate(-135deg); margin-top: 3px; }
+}
+
+/* === Dateiliste am Telefon (2.0) ==========================================
+   ⚠️ Bis 2.0 rollte die Tabelle hier seitlich (680px Mindestbreite), und
+   die Aktionen lagen hinter dem rechten Rand. Jetzt wird jede Zeile ein
+   Raster aus zwei Lagen: oben der Name, darunter Größe · Datum,
+   rechts über beide Lagen die Knöpfe. Dieselbe Lehre wie bei der
+   Aufgabenliste (1.34) und der Übersicht (Etappe 2): eine Tabelle kann
+   nicht umbrechen, ohne ihre Spalten zu verlieren. */
+@media (max-width: 760px) {
+  .tabellenrolle:has(.dateiverzeichnis) { overflow-x: visible; }
+  .tabellenrolle .liste.dateiverzeichnis { min-width: 0; display: block; }
+  .tabellenrolle .liste.dateiverzeichnis thead { display: none; }
+  .tabellenrolle .liste.dateiverzeichnis tbody { display: block; }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile {
+    display: grid; align-items: center; column-gap: 6px; row-gap: 1px;
+    grid-template-columns: 35px max-content minmax(0, 1fr) auto;
+    grid-template-areas: "sym name name akt" "sym gr zeit akt";
+    padding: 9px 0; border-bottom: 1px solid var(--linie-fein);
+  }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile > td {
+    padding: 0; border: 0; background: none; min-width: 0;
+  }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile > td:nth-child(1) { grid-area: sym; width: auto; }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile > td:nth-child(2) {
+    grid-area: name; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* Die Art steht schon in der Endung bzw. im Ordnersymbol. */
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile > td:nth-child(3) { display: none; }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile > td:nth-child(4) { grid-area: gr; }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile > td:nth-child(5) {
+    grid-area: zeit; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile > :is(td:nth-child(3), td:nth-child(4), td:nth-child(5)) {
+    font-size: 12px; white-space: nowrap;
+  }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile >  td:nth-child(5)::before {
+    content: "· "; opacity: .7;
+  }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile > td:nth-child(6) { grid-area: akt; }
+  /* Die Akzentkante beim Überfahren gehört an die erste ZELLE einer
+     Tabellenzeile - im Raster säße sie als Strich neben dem Symbol. */
+  .tabellenrolle .liste.dateiverzeichnis tr.dateizeile > td:first-child { box-shadow: none; }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateidetailzeile:not([hidden]) { display: block; }
+  .tabellenrolle .liste.dateiverzeichnis tr.dateidetailzeile > td { display: block; padding: 4px 0 12px; }
 }

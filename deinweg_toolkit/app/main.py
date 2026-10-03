@@ -22,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
 from . import db
+from . import rechnen
 from . import mail
 from .parser import (dauer_aus_spanne, fingerprint, hhmm, lies_datei, norm,
                      parse_datum, parse_dauer, parse_zeit, NICHT_ABRECHENBAR)
@@ -47,7 +48,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "1.61.1"
+VERSION = "2.0"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -104,7 +105,10 @@ templates.env.globals["fusstext"] = lambda: fusstext()
 
 SITZUNG_TAGE = int(os.environ.get("SITZUNG_TAGE", "30"))
 
-auth.setup(templates, SITZUNG_TAGE)
+# Name des Anmelde-Cookies. Leer = "dwt_sitzung" wie immer; das lokale
+# Zweit-Add-on setzt einen eigenen, damit sich beide nicht abmelden.
+SITZUNG_COOKIE = os.environ.get("SITZUNG_COOKIE", "").strip()
+auth.setup(templates, SITZUNG_TAGE, SITZUNG_COOKIE)
 app.add_middleware(auth.SessionAuth)
 app.include_router(auth.router)
 
@@ -768,8 +772,11 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
                 "WHERE mitarbeiter=? AND datum=?",
                 (mitarbeiter, tag.isoformat())).fetchone()
             summentag = tag
+            # Woche und Monat dazu (seit 2.0, Karte „Meine Woche").
+            woche = rechnen.wochenbild(con, mitarbeiter, tag)
         else:
             tagesliste, tagessumme, summentag = [], {"m": 0, "n": 0}, heute
+            woche = None
 
         # Die eigenen Tagesvorlagen (seit 1.59) - geladen werden sie per
         # Skript ins Formular, siehe vorlagen.py.
@@ -794,17 +801,8 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
         # dann bleibt die Zeile weg statt eine Null zu zeigen.
         draengt = None
         if eigener and auth.hat_zugriff(benutzer, "verwaltungsvorgaenge"):
-            zahlen = con.execute(
-                "SELECT "
-                " SUM(CASE WHEN frist <> '' AND frist < ? THEN 1 ELSE 0 END) ueber,"
-                " SUM(CASE WHEN frist = ? THEN 1 ELSE 0 END) heute "
-                # ⚠️ Seit 1.30 traegt `zustaendig` eine Liste („Anna,
-                # Timo"). Der Vergleich auf das ganze Feld fand eine
-                # Aufgabe mit zwei Zustaendigen deshalb nie - bis 1.61.
-                f"FROM vorgang WHERE {_vorgaenge.ZUSTAENDIG_TRIFFT} "
-                "AND status NOT IN ('Erledigt')",
-                (heute.isoformat(), heute.isoformat(), eigener)).fetchone()
-            ueber, faellig = zahlen["ueber"] or 0, zahlen["heute"] or 0
+            zahlen = _vorgaenge.faellige_eigene(con, eigener, heute.isoformat())
+            ueber, faellig = zahlen["ueber"], zahlen["heute"]
             if ueber or faellig:
                 draengt = {"ueberfaellig": ueber, "heute": faellig,
                            "wer": eigener}
@@ -814,6 +812,7 @@ def startseite(request: Request, fehler: str = "", hinweis: str = "",
         "klienten": klienten, "leistungen": leistungen, "tagesliste": tagesliste,
         "mitarbeiterliste": mitarbeiterliste, "klientliste": klientliste,
         "tagessumme": tagessumme, "mitarbeiter": mitarbeiter, "datum": datum,
+        "woche": woche,
         "eigener": eigener, "fremd": fremd, "vorlagen": vorlagen,
         "summentag": summentag, "ist_heute": summentag == heute,
         "fehler": fehler, "hinweis": hinweis, "seite": "zeiterfassung",
@@ -1057,6 +1056,14 @@ def eintraege(request: Request, von_jahr: str = "", von_monat: str = "",
             f"SELECT * FROM eintrag WHERE {wo} ORDER BY datum DESC, start DESC "
             f"LIMIT {pro_seite} OFFSET {(seite_nr - 1) * pro_seite}", werte).fetchall()
         eigener = eigener_mitarbeitername(con, request.state.benutzer)
+        # Tagessummen fuer die Ueberschriften der Liste (seit 2.0) - ueber
+        # den GANZEN Filter, nicht nur ueber diese Seite: ein Tag, der auf
+        # zwei Seiten verteilt ist, nennt sonst zwei verschiedene Summen.
+        tage = sorted({z["datum"] for z in zeilen})
+        tagessummen = {r["datum"]: r for r in con.execute(
+            f"SELECT datum, COUNT(*) n, COALESCE(SUM(dauer_min),0) m FROM eintrag "
+            f"WHERE {wo} AND datum IN ({','.join('?' * len(tage))}) GROUP BY datum",
+            [*werte, *tage])} if tage else {}
 
     # Welche der angezeigten Zeilen darf dieses Konto loeschen? Einmal hier
     # gerechnet statt in der Vorlage - dieselbe Funktion entscheidet auch
@@ -1074,6 +1081,7 @@ def eintraege(request: Request, von_jahr: str = "", von_monat: str = "",
     zusatz = auswahllisten()
     return templates.TemplateResponse(request=request, name="eintraege.html", context={
         "zeilen": zeilen, "kopf": kopf, "f": filter_["f"], "seite_nr": seite_nr,
+        "tagessummen": tagessummen,
         "loeschbar": loeschbar, "bearbeitbar": bearbeitbar,
         "darf_fremde": darf_fremde, "darf_fremde_bearb": darf_fremde_bearb,
         "eigener": eigener,
@@ -1890,3 +1898,17 @@ from . import passwort as _passwort  # noqa: E402
 
 _passwort.setup(templates)
 app.include_router(_passwort.router)
+
+# Navigation und Schnellsuche (seit 2.0): das Hauptmenue an EINER Stelle
+# (Kopfzeile, Tableiste am Telefon, Blatt „Mehr") und die Liste fuer
+# Strg+K. Liest nur - siehe den Kopf von oberflaeche.py.
+from . import oberflaeche as _oberflaeche  # noqa: E402
+
+_oberflaeche.setup(templates)
+app.include_router(_oberflaeche.router)
+
+# Profilbilder (seit 2.0): in der vorhandenen Tabelle symbol, nur fuer
+# Angemeldete - siehe den Kopf von profilbild.py.
+from . import profilbild as _profilbild  # noqa: E402
+
+app.include_router(_profilbild.router)

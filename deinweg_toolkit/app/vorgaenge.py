@@ -127,6 +127,9 @@ def setup(templates, umgebung=None) -> None:
     _umgebung.update(umgebung or {})
     templates.env.filters["zeitpunkt"] = zeitpunkt
     templates.env.filters["uhrzeit"] = uhrzeit
+    # „Heute · 02.10.2026", „Gestern · …", sonst „Fr, 02.10.2026" - fuer
+    # die Tagesueberschriften der Uebersicht (seit 2.0).
+    templates.env.filters["tagwort"] = lambda tag: tag_wort(tag or "", dt.date.today())
     # „Anna, Bruno" zu einer Liste - die Vorlagen brauchen sie für die
     # Mehrfachauswahl der Zuständigen.
     templates.env.filters["namen"] = namensliste
@@ -268,6 +271,26 @@ def ist_zustaendig(wert, name: str) -> bool:
 # „Annabelle". Der Platzhalter ist der gesuchte Name.
 ZUSTAENDIG_TRIFFT = ("LOWER(', ' || zustaendig || ', ') "
                      "LIKE LOWER('%, ' || ? || ', %')")
+
+
+def faellige_eigene(con, name: str, heute: str) -> dict:
+    """Wie viele offene Aufgaben dieser Person ueberfaellig / heute faellig sind.
+
+    EINE Stelle fuer „Was heute draengt" (Zeiterfassung) und den Zaehler
+    an „Aufgaben" im Hauptmenue (oberflaeche.py, seit 2.0) - zwei Kopien
+    derselben Abfrage zeigten frueher oder spaeter verschiedene Zahlen.
+    ⚠️ Mit ZUSTAENDIG_TRIFFT: `zustaendig` traegt seit 1.30 eine Liste,
+    der Vergleich auf das ganze Feld fand eine Aufgabe mit zwei
+    Zustaendigen bis 1.61 nie.
+    """
+    z = con.execute(
+        "SELECT "
+        " SUM(CASE WHEN frist <> '' AND frist < ? THEN 1 ELSE 0 END) ueber,"
+        " SUM(CASE WHEN frist = ? THEN 1 ELSE 0 END) heute "
+        f"FROM vorgang WHERE {ZUSTAENDIG_TRIFFT} "
+        f"AND status NOT IN ({','.join('?' * len(ABGESCHLOSSEN))})",
+        (heute, heute, name, *ABGESCHLOSSEN)).fetchone()
+    return {"ueber": z["ueber"] or 0, "heute": z["heute"] or 0}
 
 
 def teamliste(con) -> list[str]:

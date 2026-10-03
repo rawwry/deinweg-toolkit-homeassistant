@@ -2800,4 +2800,42 @@ CHANGELOG = [
         "Der Hinweis auf fällige Aufgaben steht jetzt mittig – am Handy "
         "wie am Schreibtisch",
     ]},
+    # ⚠️ 2.0 entsteht als lokale Zweitfassung (nicht auf GitHub, siehe
+    # CLAUDE.md „Stage 7"). Die Punkte wachsen mit jeder Etappe mit.
+    {"version": "2.0", "titel": "Neues Gesicht", "punkte": [
+        "Zehn Farbwelten, jede hell und dunkel – darunter „Kontrast“ für "
+        "besonders gute Lesbarkeit –, dazu acht Akzentfarben und "
+        "„Automatisch“ nach dem Betriebssystem",
+        "Darstellung für jeden erreichbar: über dein Konto oben rechts, "
+        "mit Textgröße und Erklärtexten",
+        "Eigenes Profilbild: unter „Mein Konto“ hochladen, es erscheint oben rechts",
+        "„Abmelden“, „Mein Konto“ und „Meine Vorlagen“ stehen im Kontomenü "
+        "oben rechts; „Mein Bereich“ zeigt dafür dein Bild und einen Knopf "
+        "„Zeit erfassen“",
+        "Neue Kopfzeile mit Symbolen; am Handy eine Leiste unten im "
+        "Daumenbereich statt des Menüs von oben",
+        "Suchen und springen mit Strg+K (am Mac ⌘K) oder „/“: Seiten, "
+        "betreute Personen und Handgriffe",
+        "Erklärtexte stehen hinter einem kleinen ⓘ an der Überschrift",
+        "Erfassung: neue Karte „Meine Woche“ – ein Klick auf einen Tag "
+        "stellt die Erfassung auf ihn um, darunter der Monat gegen dein Soll",
+        "Übersicht nach Tagen gegliedert, mit Tagessumme; am Handy eine "
+        "Liste statt einer seitlich rollenden Tabelle",
+        "„Mein Bereich“ zählt jetzt auch Aufgaben, die du dir mit anderen teilst",
+        "„Mein Bereich“ grüßt dich je nach Tageszeit",
+        "Einstellungen am Handy: das Menü ist eine Leiste zum Wischen statt "
+        "einer langen Liste über dem Inhalt",
+        "Fuhrpark: der Knopf „Wechseln“ ist weg, die Fahrzeugwahl wechselt von selbst",
+        "Auswertung: „Bewilligt“ ist eine knappe Liste – eine Zeile je Person, "
+        "wer keinen Bescheid hat, steht oben",
+        "Tabellenzeilen rücken beim Überfahren nicht mehr zur Seite",
+        "„Meine Woche“: Woche und Monat als zwei Kacheln, darunter der Balken "
+        "gegen dein Soll",
+        "Wiki: jede Seite zeigt in der Ordneransicht ihren ersten Satz statt "
+        "des Dateinamens, die Startseite nennt die zuletzt geänderten Seiten",
+        "Dateien: Bilder zeigen in der Liste eine kleine Vorschau, das Datum "
+        "steht in einer Zeile („Heute, 09:11“), die oberste Ebene nennt die "
+        "zuletzt hinzugefügten Dateien; am Handy eine Liste ohne seitliches Rollen",
+        "Anmeldung: Gruß nach Tageszeit, Passwort lässt sich zum Prüfen einblenden",
+    ]},
 ]

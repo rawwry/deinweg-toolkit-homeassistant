@@ -22,6 +22,7 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
 from . import auth, dateien, db, kfz, mail, ntfy, passwort, texte_standard, wiki
+from . import profilbild as _profilbild
 from .parser import norm, NICHT_ABRECHENBAR
 from .rechnen import saldo_lesen
 
@@ -1179,6 +1180,9 @@ def benutzer_loeschen(request: Request, benutzer_id: int):
                 "Das war der letzte aktive Administrator. Mindestens ein "
                 "aktives Administratorkonto muss erhalten bleiben."))
         con.execute("DELETE FROM benutzer WHERE id=?", (benutzer_id,))
+        # Das Profilbild geht mit (seit 2.0) - sonst erbte ein neues Konto
+        # mit derselben Nummer das Bild.
+        _profilbild.entfernen(con, benutzer_id)
     return benutzer_zurueck(hinweis=f"„{satz['benutzername']}“ gelöscht.")
 
 

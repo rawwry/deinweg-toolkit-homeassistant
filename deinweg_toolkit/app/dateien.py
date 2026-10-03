@@ -200,18 +200,39 @@ def _groesse(zahl: int) -> str:
     return f"{zahl} B"
 
 
-def _zeitpunkt(voll: str) -> str:
-    """Datum und Uhrzeit der letzten Aenderung, getrennt zurueckgegeben.
+def _zeitpunkt(voll: str) -> dict:
+    """Wann zuletzt geaendert - in drei Formen.
 
-    Datum und Uhrzeit stehen in der Uebersicht untereinander statt in
-    einer Zeile: als "30.08.2026, 11:43" brach die Spalte an einer
-    beliebigen Stelle um, und wo genau, entschied die Fensterbreite.
+    ⚠️ Seit 2.0 steht in der Uebersicht EINE Zeile (``kurz``): „Heute,
+    11:43", „Gestern, 09:10", sonst das blosse Datum - die Uhrzeit eines
+    Tages vor drei Wochen sagt niemandem etwas. Die volle Angabe steht im
+    ``title``. Bis dahin standen Datum und Uhrzeit untereinander und
+    machten jede Zeile zweizeilig.
     """
     try:
-        wann = dt.datetime.fromtimestamp(os.path.getmtime(voll))
+        stempel = os.path.getmtime(voll)
     except OSError:
-        return {"datum": "", "zeit": ""}
-    return {"datum": wann.strftime("%d.%m.%Y"), "zeit": wann.strftime("%H:%M")}
+        return {"datum": "", "zeit": "", "kurz": "", "voll": "", "stempel": 0}
+    wann = dt.datetime.fromtimestamp(stempel)
+    tage = (dt.date.today() - wann.date()).days
+    zeit = wann.strftime("%H:%M")
+    kurz = (f"Heute, {zeit}" if tage == 0 else f"Gestern, {zeit}" if tage == 1
+            else wann.strftime("%d.%m.%Y"))
+    return {"datum": wann.strftime("%d.%m.%Y"), "zeit": zeit, "kurz": kurz,
+            "voll": wann.strftime("%d.%m.%Y, %H:%M Uhr"), "stempel": stempel}
+
+
+def ueberblick(sichtbar=None, anzahl: int = 5) -> dict:
+    """Seitenleiste der obersten Ebene: zuletzt hinzugefuegt und Platzbedarf.
+
+    ⚠️ Ueber ``_alles`` und damit durch den Sperrfilter - ein versteckter
+    Ordner taucht weder in der Liste noch in der Summe auf. Dieselbe Regel
+    wie bei wiki.zuletzt_geaendert().
+    """
+    dateien = [d for _, d in _alles(sichtbar=sichtbar) if d]
+    dateien.sort(key=lambda d: d["geaendert"]["stempel"], reverse=True)
+    return {"zuletzt": dateien[:anzahl], "zahl": len(dateien),
+            "groesse": _groesse(sum(d["bytes"] for d in dateien))}
 
 
 def _zaehle(voll: str) -> int:
@@ -379,6 +400,8 @@ def uebersicht(request: Request, ordner: str = "", hinweis: str = "",
             "unterordner": unterordner, "dateien": dateien,
             "baum": baum(sichtbar=sichtbar), "wurzel_hier": rel == "",
             "ordner_auswahl": ordnerbaum(sichtbar),
+            # Nur auf der obersten Ebene, wie „Zuletzt geaendert" im Wiki.
+            "ueberblick": ueberblick(sichtbar) if rel == "" else None,
             "endungen": ", ".join(sorted(ARTEN)),
             "max_mb": _u["MAX_UPLOAD_MB"],
             # Damit die Frage "wo liegt das eigentlich" gar nicht erst

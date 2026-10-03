@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block titel %} – Mein Konto{% endblock %}
+{% block inhalt %}
+{# Eigene Seite seit dem Nachtrag zu 2.0 - vorher die letzte Karte in
+   „Mein Bereich“. Profilbild, E-Mail-Adresse, Passwort. Erreichbar über
+   das Kontomenü und das eigene Bild oben in „Mein Bereich“. #}
+<p class="statuszeile klein leise"><a href="/meinbereich">Mein Bereich</a> / Mein Konto</p>
+{% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
+{% if hinweis %}<p class="meldung hinweis">{{ hinweis }}</p>{% endif %}
+
+{# Die Seite gibt es auch ohne Mitarbeiterzuordnung - es ist das Konto,
+   nicht die Person im Team. #}
+<section class="karte abmeldekarte" id="konto">
+  <div class="kopfzeile">
+    <div>
+      <h2>{{ t("mein.titel.konto") }}</h2>
+      <p class="klein leise" style="margin: 0;">
+        Angemeldet als <span class="stark">{{ benutzer.benutzername }}</span>{% if benutzer.rolle == "admin" %} · Administrator{% endif %}
+      </p>
+    </div>
+  </div>
+
+  <p class="lead">{{ t("mein.konto_lead") }}</p>
+
+  {# --- Profilbild (seit 2.0) ----------------------------------------------
+     Eigenes Formular (multipart) neben dem Kontoformular - verschachteln
+     geht nicht. Mit Skript: Knopf „Bild wählen" öffnet die Auswahl, das
+     Bild wird im Browser quadratisch zugeschnitten und auf 256px verkleinert
+     und dann abgeschickt. Ohne Skript: Dateifeld und „Speichern"
+     (Regel unter „Zwei Fassungen"). #}
+  {% set nav = navigation(request) %}
+  <div class="profilzeile">
+    <span class="avatar riesig" aria-hidden="true">
+      {%- if nav.bild %}<img src="{{ nav.bild }}" alt="">{% else %}{{ nav.kuerzel }}{% endif -%}
+    </span>
+    <div class="profilzeile-text">
+      <span class="stark">Profilbild</span>
+      <span class="klein leise">Erscheint oben rechts im runden Feld. JPG, PNG oder WebP.</span>
+    </div>
+    <div class="profilzeile-knoepfe">
+      <form action="/meinbereich/profilbild" method="post" enctype="multipart/form-data"
+            class="profilform">
+        <label class="knopf leise klein profil-waehlen">
+          <input type="file" name="bild" accept="image/jpeg,image/png,image/webp">
+          <span>{{ "Bild ändern" if nav.bild else "Bild wählen" }}</span>
+        </label>
+        <button type="submit" class="knopf klein ohne-skript-knopf">Speichern</button>
+      </form>
+      {% if nav.bild %}
+      <form action="/meinbereich/profilbild" method="post"
+            onsubmit="return dwt.frage(event, 'Profilbild entfernen?')">
+        <input type="hidden" name="entfernen" value="1">
+        <button type="submit" class="knopf leise klein warn">Entfernen</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <script>
+    (function () {
+      var form = document.querySelector(".profilform"),
+          feld = form && form.querySelector('input[type="file"]');
+      if (!feld || feld.dataset.fertig) { return; }
+      feld.dataset.fertig = "1";
+      // Quadratisch aus der Mitte, 256px, als JPEG - ein Handyfoto wird so
+      // von mehreren Megabyte zu rund 20 KB. Klappt etwas nicht (altes
+      // Gerät, unlesbares Format), geht das Original hinauf; der Server
+      // prüft ohnehin selbst.
+      feld.addEventListener("change", function () {
+        var datei = feld.files && feld.files[0];
+        if (!datei) { return; }
+        var abschicken = function () { form.requestSubmit ? form.requestSubmit() : form.submit(); };
+        if (!window.createImageBitmap || !window.DataTransfer) { abschicken(); return; }
+        createImageBitmap(datei).then(function (bild) {
+          var seite = Math.min(bild.width, bild.height), ziel = Math.min(256, seite),
+              c = document.createElement("canvas");
+          c.width = c.height = ziel;
+          c.getContext("2d").drawImage(bild, (bild.width - seite) / 2, (bild.height - seite) / 2,
+                                       seite, seite, 0, 0, ziel, ziel);
+          c.toBlob(function (blob) {
+            if (!blob) { abschicken(); return; }
+            var dt = new DataTransfer();
+            dt.items.add(new File([blob], "profil.jpg", {type: "image/jpeg"}));
+            feld.files = dt.files;
+            abschicken();
+          }, "image/jpeg", 0.88);
+        }).catch(abschicken);
+      });
+    })();
+  </script>
+
+  <form action="/meinbereich/konto" method="post" class="kontoform">
+    <label class="feld">
+      <span>E-Mail-Adresse <span class="leise">– für Erinnerungen und „Passwort vergessen“; ändern nur mit dem aktuellen Passwort</span></span>
+      <input type="email" name="email" value="{{ benutzer.email or '' }}"
+             autocomplete="email" placeholder="noch keine hinterlegt">
+    </label>
+
+    {# Zugeklappt: das Passwort wechselt man einmal im Jahr, die
+       E-Mail-Adresse öfter. Drei leere Passwortfelder, die immer offen
+       dastehen, sahen aus, als wäre dort etwas auszufüllen. Bewusst
+       <details> und kein Skript - ohne Skript bliebe der Block sonst
+       unerreichbar. #}
+    <details class="passwortblock"{{ ' open' if passwort_offen }}>
+      <summary>
+        <span class="passwortblock-titel">Passwort ändern</span>
+        <span class="klein leise">leer lassen, wenn es bleiben soll</span>
+      </summary>
+      <div class="feldreihe drei">
+        <label class="feld">
+          <span>Aktuelles Passwort</span>
+          <input type="password" name="passwort_alt" autocomplete="current-password">
+        </label>
+        <label class="feld">
+          <span>Neues Passwort</span>
+          <input type="password" name="passwort_neu" autocomplete="new-password">
+        </label>
+        <label class="feld">
+          <span>Neues Passwort wiederholen</span>
+          <input type="password" name="passwort_neu2" autocomplete="new-password">
+        </label>
+      </div>
+    </details>
+
+    <div class="knopfreihe">
+      <button class="knopf haupt" type="submit">Speichern</button>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

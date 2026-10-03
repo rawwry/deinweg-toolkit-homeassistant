@@ -3,6 +3,19 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.0
+
+- Neues Gesicht: zehn Farbwelten (darunter „Kontrast“), je hell und dunkel, acht Akzentfarben, „Automatisch“ nach dem Betriebssystem
+- Darstellung für jedes Konto über das Kontomenü erreichbar, mit Textgröße und Erklärtexten
+- Eigenes Profilbild je Konto (gespeichert in der vorhandenen Tabelle `symbol`, keine Schemaänderung)
+- „Mein Konto“ und „Meine Vorlagen“ als eigene Seiten im Kontomenü; „Abmelden“ steht dort statt in „Mein Bereich“
+- Neue Kopfzeile mit Symbolen und Kontomenü; am Handy eine Leiste unten statt des Menüs von oben
+- Suchen und springen mit Strg+K / ⌘K oder „/“
+- Erklärtexte hinter einem ⓘ an der Überschrift
+- Dateien: Bildvorschau in der Liste, einzeiliges Datum, „Zuletzt hinzugefügt“, Telefonliste ohne seitliches Rollen
+- Anmeldung: Gruß nach Tageszeit, Passwort einblendbar, Farbschein folgt der Farbwelt
+- Anmelde-Cookie über `SITZUNG_COOKIE` einstellbar (für zwei Fassungen auf einem Rechner)
+
 ## 1.61.1
 
 - Hinweis auf fällige Aufgaben steht mittig

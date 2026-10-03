@@ -28,7 +28,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from . import auth
 from . import db
 from . import passwort
+from . import rechnen
 from . import vorlagen as _vorlagen
+from .vorgaenge import ZUSTAENDIG_TRIFFT
 from .parser import hhmm
 from .rechnen import klientenauswahl
 from .rechnen import (ABWESEND_SQL, ARBEITSTAGE_MONAT, MONATSNAMEN,
@@ -110,6 +112,15 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
                 vorlage: str = "", gemerkt: str = "", vl_hinweis: str = "",
                 vl_fehler: str = ""):
     benutzer = request.state.benutzer
+    # Seit dem Nachtrag zu 2.0 haben Vorlagen und Konto eigene Seiten. Alte
+    # Lesezeichen und Verweise mit ihren Parametern landen dort, wo das
+    # Gemeinte jetzt steht.
+    if vorlage or gemerkt or vl_hinweis or vl_fehler:
+        werte = {k: v for k, v in (("vorlage", vorlage), ("gemerkt", gemerkt),
+                                   ("vl_hinweis", vl_hinweis), ("vl_fehler", vl_fehler)) if v}
+        return RedirectResponse("/meinbereich/vorlagen?" + urlencode(werte), status_code=303)
+    if pw:
+        return RedirectResponse("/meinbereich/konto?pw=1", status_code=303)
     with db.db() as con:
         person = mitarbeiter_zu_benutzer(con, benutzer)
         if not person:
@@ -160,11 +171,16 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
         frei_je_monat = abwesenheitstage(con.execute(
             f"SELECT datum, beschreibung FROM eintrag WHERE mitarbeiter=? "
             f"AND {ABWESEND_SQL}", (name,)).fetchall())
+        # ⚠️ Seit 2.0 ueber ZUSTAENDIG_TRIFFT: `zustaendig` traegt seit 1.30
+        # eine Liste („Anna, Timo"). Der Vergleich auf das ganze Feld fand
+        # eine Aufgabe mit zwei Zustaendigen nie - weder in der Kachel noch
+        # in „Meine Aufgaben" (derselbe Fehler, der 1.61 bei „Was heute
+        # draengt" behoben wurde).
         offene_vorgaenge = con.execute(
-            "SELECT COUNT(*) c FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
+            f"SELECT COUNT(*) c FROM vorgang WHERE {ZUSTAENDIG_TRIFFT} "
             "AND status <> 'Erledigt'", (name,)).fetchone()["c"]
         ueberfaellig = con.execute(
-            "SELECT COUNT(*) c FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
+            f"SELECT COUNT(*) c FROM vorgang WHERE {ZUSTAENDIG_TRIFFT} "
             "AND status <> 'Erledigt' AND frist <> '' "
             "AND frist < ?", (name, dt.date.today().isoformat())).fetchone()["c"]
         # Nicht nur zaehlen, sondern zeigen: die naechsten eigenen
@@ -173,7 +189,7 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
         # wirklich draengt.
         eigene_aufgaben = con.execute(
             "SELECT id, titel, klient, art, status, prioritaet, frist "
-            "FROM vorgang WHERE LOWER(TRIM(zustaendig))=LOWER(?) "
+            f"FROM vorgang WHERE {ZUSTAENDIG_TRIFFT} "
             "AND status <> 'Erledigt' "
             "ORDER BY CASE WHEN frist IS NULL OR frist='' THEN 1 ELSE 0 END, "
             "frist, id LIMIT 6", (name,)).fetchall()
@@ -537,6 +553,9 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
             "seite": "meinbereich", "person": person, "name": person["name"],
             "soll_std": soll_std, "monate": monate, "gesamt": gesamt,
             "laufend": laufend, "alle": bool(alle), "benutzer": benutzer,
+            # Ein Gruss nach der Tageszeit ueber dem Namen (seit 2.0) - vom
+            # Server, also in der Zeitzone, in der auch die Fristen laufen.
+            "gruss": rechnen.tagesgruss(),
             "hinweis": hinweis, "fehler": fehler, "passwort_offen": bool(pw),
             "diagramm": diagramm, "urlaub": urlaub,
             "verlauf_zahlen": verlauf_zahlen,
@@ -583,7 +602,39 @@ def meinbereich(request: Request, alle: str = "", hinweis: str = "",
 # ADMIN_NUR_PFADE und ausserhalb jedes Bereichs: es sind die eigenen Daten.
 
 def _konto_zurueck(**werte):
-    return RedirectResponse("/meinbereich?" + urlencode(werte), status_code=303)
+    return RedirectResponse("/meinbereich/konto?" + urlencode(werte), status_code=303)
+
+
+@router.get("/meinbereich/konto", response_class=HTMLResponse)
+def konto_seite(request: Request, hinweis: str = "", fehler: str = "", pw: str = ""):
+    """„Mein Konto" als eigene Seite (seit dem Nachtrag zu 2.0): Profilbild,
+    E-Mail-Adresse, Passwort. Erreichbar fuer JEDES Konto - es sind die
+    eigenen Daten, wie bisher unter /meinbereich."""
+    return _u["templates"].TemplateResponse(
+        request=request, name="mein_konto.html", context={
+            "seite": "meinbereich", "benutzer": request.state.benutzer,
+            "passwort_offen": bool(pw), "hinweis": hinweis, "fehler": fehler})
+
+
+@router.get("/meinbereich/vorlagen", response_class=HTMLResponse)
+def vorlagen_seite(request: Request, vorlage: str = "", gemerkt: str = "",
+                   vl_hinweis: str = "", vl_fehler: str = ""):
+    """„Meine Vorlagen" als eigene Seite (seit dem Nachtrag zu 2.0).
+
+    ⚠️ Nur mit dem Bereich manuelle_eintraege - dieselbe Bedingung, unter
+    der die Karte vorher in „Mein Bereich" stand und unter der die
+    schreibenden Routen (/erfassung/vorlagen/...) ueberhaupt erreichbar
+    sind. Der Pfad liegt unter /meinbereich und damit an keinem Bereich,
+    deshalb prueft die Route selbst.
+    """
+    benutzer = request.state.benutzer
+    if not auth.hat_zugriff(benutzer, "manuelle_eintraege"):
+        return RedirectResponse("/meinbereich", status_code=303)
+    with db.db() as con:
+        kontext = _vorlagen_kontext(con, benutzer, vorlage, gemerkt, vl_hinweis, vl_fehler)
+    return _u["templates"].TemplateResponse(
+        request=request, name="meine_vorlagen.html", context={
+            **kontext, "seite": "meinbereich", "benutzer": benutzer})
 
 
 @router.post("/meinbereich/konto")

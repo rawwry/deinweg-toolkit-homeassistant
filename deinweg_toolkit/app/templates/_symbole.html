@@ -1,0 +1,71 @@
+{# --- Die Symbole der Navigation (seit 2.0) ------------------------------
+   An EINER Stelle, damit Kopfzeile, Tableiste am Telefon, Kontomenü und
+   Schnellsuche dieselben Zeichen tragen. Strichzeichnungen in
+   currentColor, 24er Raster, 1,7er Strich - dieselbe Hand wie die
+   übrigen Symbole im Programm.
+
+   Aufruf: {{ symbol("uhr") }}. Ein unbekannter Name ergibt einen Punkt
+   statt eines Fehlers - eine fehlende Zeichnung darf keine Seite
+   abschießen. #}
+{% macro symbol(name, klasse="") -%}
+<svg class="sym {{ klasse }}" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+     stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+{%- if name == "uhr" %}
+  <circle cx="12" cy="12" r="8.6"/><path d="M12 7.4V12l3.2 2"/>
+{%- elif name == "aufgaben" %}
+  <rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.4 12.2 2.4 2.4 4.8-5"/>
+{%- elif name == "auslagen" %}
+  <path d="M6 3.8h12v16.4l-2.4-1.6-2.4 1.6-1.2-.8-1.2.8-2.4-1.6L6 20.2Z"/><path d="M9 8.5h6M9 12h6M9 15.5h3"/>
+{%- elif name == "fuhrpark" %}
+  <path d="M4.5 16.5v-4l1.9-4.6c.3-.7 1-1.2 1.8-1.2h7.6c.8 0 1.5.5 1.8 1.2l1.9 4.6v4"/><path d="M3.8 16.5h16.4M4.5 12.5h15"/><circle cx="7.6" cy="16.6" r="1.7"/><circle cx="16.4" cy="16.6" r="1.7"/>
+{%- elif name == "dateien" %}
+  <path d="M3.8 7.2c0-1 .8-1.8 1.8-1.8h3.6l2 2.2h7.2c1 0 1.8.8 1.8 1.8v7.8c0 1-.8 1.8-1.8 1.8H5.6c-1 0-1.8-.8-1.8-1.8Z"/>
+{%- elif name == "wiki" %}
+  <path d="M5 4.6h9.6a2.4 2.4 0 0 1 2.4 2.4v12.4H7.4A2.4 2.4 0 0 1 5 17Z"/><path d="M5 17a2.4 2.4 0 0 1 2.4-2.4H17M8.6 8.4h5"/>
+{%- elif name == "ideen" %}
+  <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.5.4.8 1 .9 1.6l.1.6h5.2l.1-.6c.1-.6.4-1.2.9-1.6A6 6 0 0 0 12 3Z"/>
+{%- elif name == "einstellungen" %}
+  <circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l1.8-1.4-1.9-3.3-2.2.8a7.4 7.4 0 0 0-2.6-1.5L14.1 2.8h-4.2l-.4 2.3A7.4 7.4 0 0 0 6.9 6.6l-2.2-.8-1.9 3.3 1.8 1.4a7.6 7.6 0 0 0 0 3l-1.8 1.4 1.9 3.3 2.2-.8a7.4 7.4 0 0 0 2.6 1.5l.4 2.3h4.2l.4-2.3a7.4 7.4 0 0 0 2.6-1.5l2.2.8 1.9-3.3Z"/>
+{%- elif name == "konto" %}
+  <circle cx="12" cy="8.2" r="3.6"/><path d="M4.6 20c0-3.6 3.3-5.8 7.4-5.8s7.4 2.2 7.4 5.8"/>
+{%- elif name == "suche" %}
+  <circle cx="10.8" cy="10.8" r="6.2"/><path d="m15.4 15.4 4.6 4.6"/>
+{%- elif name == "mehr" %}
+  <rect x="4" y="4" width="6.4" height="6.4" rx="1.8"/><rect x="13.6" y="4" width="6.4" height="6.4" rx="1.8"/><rect x="4" y="13.6" width="6.4" height="6.4" rx="1.8"/><rect x="13.6" y="13.6" width="6.4" height="6.4" rx="1.8"/>
+{%- elif name == "abmelden" %}
+  <path d="M14 4.5h3.6c1 0 1.9.8 1.9 1.9v11.2c0 1-.9 1.9-1.9 1.9H14"/><path d="M10 8l-4 4 4 4M6 12h9.5"/>
+{%- elif name == "mond" %}
+  <path d="M19.5 14.6A7.8 7.8 0 0 1 9.4 4.5a7.8 7.8 0 1 0 10.1 10.1Z"/>
+{%- elif name == "sonne" %}
+  <circle cx="12" cy="12" r="3.8"/><path d="M12 2.8v2.1M12 19.1v2.1M2.8 12h2.1M19.1 12h2.1M5.5 5.5 7 7M17 17l1.5 1.5M5.5 18.5 7 17M17 7l1.5-1.5"/>
+{%- elif name == "auto" %}
+  <circle cx="12" cy="12" r="8.4"/><path d="M12 3.6v16.8" /><path d="M12 3.6a8.4 8.4 0 0 1 0 16.8Z" fill="currentColor" stroke="none"/>
+{%- elif name == "palette" %}
+  <path d="M12 3.6a8.4 8.4 0 0 0 0 16.8c1.1 0 1.7-.8 1.4-1.7-.4-1.1.4-2.2 1.6-2.2h1.9a3.5 3.5 0 0 0 3.5-3.5C20.4 7.6 16.6 3.6 12 3.6Z"/><circle cx="8" cy="11" r="1.1"/><circle cx="10.6" cy="7.6" r="1.1"/><circle cx="14.6" cy="7.8" r="1.1"/>
+{%- elif name == "neu" %}
+  <path d="M12 3.4 13.9 9l5.7 1.1-4.4 3.6 1 5.7L12 16.6l-4.2 2.8 1-5.7-4.4-3.6L10.1 9Z"/>
+{%- elif name == "plus" %}
+  <path d="M12 5v14M5 12h14"/>
+{%- elif name == "pfeil" %}
+  <path d="m9 6 6 6-6 6"/>
+{%- elif name == "zu" %}
+  <path d="M6 6l12 12M18 6 6 18"/>
+{%- elif name == "info" %}
+  <circle cx="12" cy="12" r="8.6"/><path d="M12 11v5.2M12 7.7v.1"/>
+{%- elif name == "auswertung" %}
+  <path d="M4.5 19.5h15"/><path d="M7 16v-4.5M11 16V8M15 16v-6M19 16V5.5"/>
+{%- elif name == "uebersicht" %}
+  <path d="M5 6.5h14M5 12h14M5 17.5h9"/>
+{%- elif name == "person" %}
+  <circle cx="12" cy="9" r="3.4"/><path d="M5.6 19.4c.8-3 3.3-4.6 6.4-4.6s5.6 1.6 6.4 4.6"/>
+{%- elif name == "profil" %}
+  <rect x="3" y="5" width="18" height="14" rx="2.4"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16.2c.5-1.6 1.7-2.4 3.2-2.4s2.7.8 3.2 2.4M14.5 10h3.5M14.5 13.4h2.5"/>
+{%- elif name == "vorlage" %}
+  <rect x="5" y="3.5" width="12" height="15" rx="2"/><path d="M8.5 8h5M8.5 11.5h5M8.5 15h3M19 7v12a2 2 0 0 1-2 2H8"/>
+{%- elif name == "tastatur" %}
+  <rect x="3" y="6.4" width="18" height="11.2" rx="2.4"/><path d="M7 10.2h.1M10.4 10.2h.1M13.6 10.2h.1M17 10.2h.1M8 14h8"/>
+{%- else %}
+  <circle cx="12" cy="12" r="2.2"/>
+{%- endif %}
+</svg>
+{%- endmacro %}

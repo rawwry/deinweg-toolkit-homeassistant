@@ -3,6 +3,11 @@
 {% block titel %} – Erfassung{% endblock %}
 {% block inhalt %}
 
+{# ⚠️ Seit 2.0 stehen Reiter und „Was heute drängt" in EINER Zeile
+   (.seitenkopf): die Reiter sind ein Segmentschalter in Inhaltsbreite,
+   rechts daneben war vorher eine leere Zeile, und darunter kam die Pille
+   noch einmal allein in eine. Am Telefon bricht die Pille darunter um. #}
+<div class="seitenkopf">
 {{ arbeitszeit('zeiterfassung') }}
 
 {# --- Was heute drängt (seit 1.37) -------------------------------------
@@ -44,6 +49,7 @@
   </span>
 </a>
 {% endif %}
+</div>
 
 {% if spruch.text %}
 <figure class="spruch">
@@ -90,7 +96,7 @@
 {% if darf_erfassen %}<form action="/erfassung" method="post" id="erfassung"
   {%- if mitarbeiter %} hx-post="/erfassung" hx-target="#protokollkarte"
   hx-select="#protokollkarte" hx-swap="outerHTML"
-  hx-select-oob="#erfassen,#abgabenkarte"{% endif %}></form>{% endif %}
+  hx-select-oob="#erfassen,#abgabenkarte,#wochenkarte"{% endif %}></form>{% endif %}
 
 <section class="raster buendig">
   <div class="spalte">
@@ -232,10 +238,10 @@
             <div class="vorlagen-liste" id="vorlagen-liste"></div>
             <div class="vorlagen-leer" id="vorlagen-leer">
               <p>{{ t("erfassung.vorlagen_leer") }}</p>
-              <a class="knopf akzent klein" href="/meinbereich?vorlage=neu#vorlage-neu">Erste Vorlage anlegen</a>
+              <a class="knopf akzent klein" href="/meinbereich/vorlagen?vorlage=neu#vorlage-neu">Erste Vorlage anlegen</a>
             </div>
             <div class="vorlagen-fuss" id="vorlagen-fuss">
-              <a class="vorlagen-verwalten" href="/meinbereich#vorlagen">
+              <a class="vorlagen-verwalten" href="/meinbereich/vorlagen">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M4 7h9M17 7h3M4 17h3M11 17h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
                   <circle cx="15" cy="7" r="2" stroke="currentColor" stroke-width="1.7"/>
@@ -527,7 +533,7 @@
             <form class="inline" action="/eintraege/{{ z.id }}/loeschen" method="post"
                   hx-post="/eintraege/{{ z.id }}/loeschen" hx-target="#protokollkarte"
                   hx-select="#protokollkarte" hx-swap="outerHTML"
-                  hx-select-oob="#erfassen,#abgabenkarte"
+                  hx-select-oob="#erfassen,#abgabenkarte,#wochenkarte"
                   onsubmit="return dwt.frage(event, 'Diesen Eintrag löschen?')">
               <input type="hidden" name="zurueck" value="/?mitarbeiter={{ mitarbeiter | urlencode }}&datum={{ datum | urlencode }}">
               <button class="knopf-icon warn" type="submit" title="Löschen" aria-label="Eintrag löschen">
@@ -667,6 +673,79 @@
     {# ⚠️ Die Box „Bestand" (Zahl aller Einträge, Stunden insgesamt) ist
        mit 1.61 entfallen (Timos Wunsch): eine Summe über alles und alle
        sagt beim Erfassen nichts. Die Abgaben rücken an ihre Stelle. #}
+    {# --- Meine Woche (seit 2.0) ------------------------------------------
+       Die sieben Tage um den gewählten Tag mit den erfassten Stunden, ein
+       Klick auf einen Tag stellt die Erfassung auf ihn um - fürs
+       Nacherfassen der schnellste Weg. Darunter der Monat gegen das Soll,
+       mit DERSELBEN Rechnung wie in „Mein Bereich" (rechnen.wochenbild).
+       ⚠️ Ohne „hier fehlt etwas": ein leerer Tag ist ein leerer Tag, nicht
+       rot - die Karte rechnet niemandem Lücken vor (Timos Entscheidung
+       zum Tagesprotokoll, 1.43). #}
+    {% if woche %}
+    {% set wer = '&mitarbeiter=' ~ (mitarbeiter | urlencode) if fremd else '' %}
+    <div class="karte wochenkarte" id="wochenkarte">
+      <div class="kastenkopf">
+        <h2>{{ 'Woche von ' ~ mitarbeiter if fremd else 'Meine Woche' }}</h2>
+        <nav class="monatswechsel" aria-label="Woche wechseln">
+          <a class="minipfeil" href="/?datum={{ woche.vorige | deutsch }}{{ wer }}" title="Woche zurück" aria-label="Woche zurück">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14.5 6-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <span class="kastenmonat">KW {{ woche.kw }}</span>
+          <a class="minipfeil" href="/?datum={{ woche.naechste | deutsch }}{{ wer }}" title="Woche vor" aria-label="Woche vor">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9.5 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </nav>
+      </div>
+      <ol class="wochenstreifen">
+        {% for t in woche.tage %}
+        <li>
+          <a href="/?datum={{ t.datum.isoformat() | deutsch }}{{ wer }}#erfassen"
+             class="wtag{{ ' gewaehlt' if t.gewaehlt }}{{ ' heute' if t.heute }}{{ ' wochenende' if t.wochenende }}{{ ' leer' if not t.m }}{{ ' zukunft' if t.zukunft }}"
+             title="{{ t.datum.isoformat() | deutsch }}{% if t.m %} · {{ t.m | hhmm }} Std in {{ t.n }} Eintr{{ 'ag' if t.n == 1 else 'ägen' }}{% endif %}{% if t.frei %} · frei{% endif %}"
+             {% if t.gewaehlt %}aria-current="date"{% endif %}>
+            <span class="wtag-kurz">{{ t.kurz }}</span>
+            <span class="wtag-zahl">{{ t.zahl }}</span>
+            <span class="wtag-saeule" aria-hidden="true"><span style="--anteil: {{ t.anteil }}%"{% if t.frei %} class="frei"{% endif %}></span></span>
+            <span class="wtag-std">{% if t.frei and not t.m %}frei{% elif t.m %}{{ t.m | hhmm }}{% else %}&nbsp;{% endif %}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ol>
+      {# ⚠️ Seit 2.0 (Timos Meldung: „nicht ansehnlich") zwei Kacheln statt
+         dreier loser Zeilen: links die Woche, rechts der Monat - je Titel,
+         eine Zahl, eine Unterzeile. Darunter EIN Balken gegen das Soll mit
+         den beiden Auskünften an seinen Enden. #}
+      {% set tage_mit = woche.tage | selectattr("m") | list %}
+      <div class="wstand">
+        <div class="wkachel">
+          <span class="wkachel-titel">Woche</span>
+          <span class="wkachel-zahl zahlen">{{ woche.summe | hhmm }}<span class="kmass">Std</span></span>
+          <span class="wkachel-unter">
+            {%- if tage_mit %}{{ tage_mit | length }} Tag{{ 'e' if tage_mit | length != 1 }} · Ø {{ (woche.summe // (tage_mit | length)) | hhmm }}
+            {%- else %}noch nichts erfasst{% endif -%}
+          </span>
+        </div>
+        <div class="wkachel">
+          <span class="wkachel-titel">{{ woche.monat_wort }}</span>
+          <span class="wkachel-zahl zahlen">{{ woche.ist | hhmm }}<span class="kmass">Std</span></span>
+          <span class="wkachel-unter">
+            {%- if woche.soll %}von {{ woche.soll | hhmm }} Std Soll{% else %}ohne hinterlegtes Soll{% endif -%}
+          </span>
+        </div>
+      </div>
+      {% if woche.soll %}
+      <div class="wsoll">
+        <span class="wsoll-spur" aria-hidden="true"><span style="--anteil: {{ woche.anteil }}%"></span></span>
+        <span class="wsoll-links">{{ woche.anteil }} % vom Soll
+          {%- if woche.frei_monat %} · {{ woche.frei_monat | tageszahl }} Tag{{ 'e' if woche.frei_monat != 1 }} frei{% endif %}</span>
+        <span class="wsoll-rechts zahlen">
+          {%- if woche.ist >= woche.soll %}Soll erreicht{% else %}noch {{ (woche.soll - woche.ist) | hhmm }} Std{% endif -%}
+        </span>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
     <div class="karte schmal" id="abgabenkarte">
       <div class="kastenkopf">
         <h2>Abgaben</h2>

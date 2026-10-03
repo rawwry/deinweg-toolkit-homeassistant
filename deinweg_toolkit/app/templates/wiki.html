@@ -103,6 +103,23 @@
       {% endif %}
     </nav>
 
+    {# --- Zuletzt geändert (seit 2.0) --------------------------------------
+       Nur auf der Startseite: was hat sich im Wiki zuletzt bewegt? Bisher
+       sah man das nirgends - eine neue Telefonnummer im Notfallplan fiel
+       niemandem auf. Läuft durch den Sperrfilter (wiki.zuletzt_geaendert). #}
+    {% if zuletzt %}
+    <div class="wiki-zuletzt">
+      <span class="wiki-zuletzt-titel">Zuletzt geändert</span>
+      <ul>
+        {% for z in zuletzt %}
+        <li><a href="{{ z.adresse }}">
+          <span class="wiki-zuletzt-seite">{{ z.titel }}</span>
+          <span class="wiki-zuletzt-wo">{% if z.ordner %}{{ z.ordner }} · {% endif %}{{ z.geaendert }}</span>
+        </a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
   </aside>
 
   {# --- Abschnitte dieser Seite. Steht im Quelltext zwischen Navigation
@@ -359,7 +376,10 @@
         <li><a class="wiki-kachel" href="{{ s.adresse }}">
           <span class="wiki-kachel-art">Seite</span>
           <span class="wiki-kachel-titel">{{ s.titel }}</span>
-          <span class="wiki-kachel-fuss">{{ s.name }} · {{ s.geaendert }}</span>
+          {# Seit 2.0 der erste Satz der Seite statt des Dateinamens - der
+             steht weiter im title, für wer ihn in der Freigabe sucht. #}
+          {% if s.auszug %}<span class="wiki-kachel-auszug">{{ s.auszug }}</span>{% endif %}
+          <span class="wiki-kachel-fuss" title="{{ s.name }}">geändert {{ s.geaendert }}</span>
         </a></li>
         {% endfor %}
       </ul>

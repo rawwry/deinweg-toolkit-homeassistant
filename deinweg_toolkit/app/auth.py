@@ -62,9 +62,16 @@ def _zuruecksetzen(kennung: str) -> None:
 _umgebung: dict = {}
 
 
-def setup(templates, sitzung_tage: int) -> None:
+def setup(templates, sitzung_tage: int, cookie_name: str = "") -> None:
+    global COOKIE_NAME
     _umgebung["templates"] = templates
     _umgebung["sitzung_tage"] = sitzung_tage
+    # ⚠️ Seit 2.0 einstellbar (SITZUNG_COOKIE): Cookies unterscheiden keine
+    # Ports. Laufen zwei Fassungen auf demselben Rechner (8778 und 8779),
+    # ueberschrieb die Anmeldung in der einen die Sitzung der anderen -
+    # wer hin- und herwechselte, flog jedes Mal hinaus.
+    if cookie_name:
+        COOKIE_NAME = cookie_name
     templates.env.globals["hat_zugriff"] = hat_zugriff
     templates.env.globals["hat_einst_zugriff"] = hat_einst_zugriff
     templates.env.globals["darf_wiki_schreiben"] = darf_wiki_schreiben

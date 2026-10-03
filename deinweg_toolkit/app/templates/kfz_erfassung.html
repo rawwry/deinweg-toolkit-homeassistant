@@ -43,7 +43,11 @@
         {% endfor %}
       </select>
     </label>
-    <button class="knopf" type="submit">Wechseln</button>
+    {# ⚠️ Seit 2.0 nur ohne Skript sichtbar (Klasse .ohne-skript-knopf,
+       Regel unter „Zwei Fassungen" im Stylesheet): mit Skript schickt die
+       Auswahl sich selbst ab, und der Knopf war ein Bedienelement, das
+       nichts tut, was nicht schon passiert. #}
+    <button class="knopf ohne-skript-knopf" type="submit">Wechseln</button>
   </form>
 
   <dl class="kfz-stammzeile">

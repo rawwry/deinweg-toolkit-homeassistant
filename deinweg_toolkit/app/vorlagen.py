@@ -248,7 +248,7 @@ def _mein(hinweis: str = "", fehler: str = "", vorlage: str = "") -> RedirectRes
     werte = {k: v for k, v in (("vorlage", vorlage), ("vl_hinweis", hinweis),
                                ("vl_fehler", fehler)) if v}
     anker = f"#vorlage-{vorlage}" if vorlage else "#vorlagen"
-    return RedirectResponse("/meinbereich" + ("?" + urlencode(werte) if werte else "")
+    return RedirectResponse("/meinbereich/vorlagen" + ("?" + urlencode(werte) if werte else "")
                             + anker, status_code=303)
 
 
@@ -283,7 +283,7 @@ def neu(request: Request, name: str = Form(""),
             "INSERT INTO vorlage (benutzer_id, name, zeilen, angelegt_am) VALUES (?,?,?,?)",
             (konto["id"], name, json.dumps([_rein(z) for z in zeilen], ensure_ascii=False),
              jetzt())).lastrowid
-    return RedirectResponse(f"/meinbereich?gemerkt={vid}#vorlage-{vid}", status_code=303)
+    return RedirectResponse(f"/meinbereich/vorlagen?gemerkt={vid}#vorlage-{vid}", status_code=303)
 
 
 @router.post("/erfassung/vorlagen/{vorlage_id}/aendern")
@@ -307,7 +307,7 @@ def aendern(request: Request, vorlage_id: int, name: str = Form(""),
              vorlage_id, konto["id"])).rowcount
     if not n:
         return _mein(fehler="Diese Vorlage gibt es nicht (mehr).")
-    return RedirectResponse(f"/meinbereich?gemerkt={vorlage_id}#vorlage-{vorlage_id}",
+    return RedirectResponse(f"/meinbereich/vorlagen?gemerkt={vorlage_id}#vorlage-{vorlage_id}",
                             status_code=303)
 
 

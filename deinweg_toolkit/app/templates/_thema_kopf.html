@@ -1,0 +1,68 @@
+{# --- Darstellung vor dem ersten Bild (seit 2.0) ------------------------
+   Steht in base.html UND in login.html (die Anmeldeseite hat einen
+   eigenen Kopf). Vorher stand dort je eine eigene, verschieden lange
+   Fassung - die Anmeldeseite kannte nur Hell/Dunkel.
+
+   ⚠️ Muss im <head> und VOR dem ersten Bild laufen, sonst blitzt beim
+   Laden kurz die Standardfarbe auf (dieselbe Lehre wie 1.53).
+
+   Alles liegt je Browser in localStorage unter „toolkit-<name>". Es geht
+   keine Zeile in die Datenbank - die Darstellung gehört dem Gerät, nicht
+   dem Konto.
+
+   ⚠️ data-thema trägt immer den AUFGELÖSTEN Wert (dunkel | hell), die
+   Wahl „auto" steht in data-thema-wahl. Rund zwanzig Regeln im Stylesheet
+   fragen [data-thema="hell"] ab und sollen weiter greifen. #}
+<script>
+  (function () {
+    var w = document.documentElement;
+    window.DWT_EINSTELLUNGEN = {
+      thema:    ["dunkel", "hell", "auto"],
+      farbe:    ["aubergine", "mitternacht", "schiefer", "ozean", "wald", "honig",
+                 "sand", "wein", "graphit", "kontrast"],
+      akzent:   ["auto", "rosa", "violett", "blau", "tuerkis", "gruen", "gelb", "orange", "rot"],
+      schrift:  ["klein", "normal", "gross"],
+      hinweise: ["kompakt", "ausfuehrlich"],
+      breite:   ["voll", "begrenzt"],
+      wikiliste: ["kacheln", "liste"],
+      dateiliste: ["kacheln", "liste"],
+      aufgabenliste: ["karten", "liste"],
+      leerzellen: ["leer", "strich"]
+    };
+    function lies(k) {
+      try { return localStorage.getItem("toolkit-" + k); } catch (e) { return null; }
+    }
+    try {
+      // Beim Umbenennen der App wurden die Schlüssel umgestellt. Der alte
+      // Wert wird einmalig übernommen und danach entfernt.
+      ["thema", "breite"].forEach(function (k) {
+        var alt = localStorage.getItem("timetool-" + k);
+        if (alt && !localStorage.getItem("toolkit-" + k)) {
+          localStorage.setItem("toolkit-" + k, alt);
+        }
+        if (alt) localStorage.removeItem("timetool-" + k);
+      });
+    } catch (e) {}
+    Object.keys(window.DWT_EINSTELLUNGEN).forEach(function (k) {
+      var v = lies(k);
+      if (v && window.DWT_EINSTELLUNGEN[k].indexOf(v) > -1) {
+        if (k === "thema") { w.dataset.themaWahl = v; } else { w.dataset[k] = v; }
+      }
+    });
+    window.DWT_THEMA_AUFLOESEN = function () {
+      var wahl = w.dataset.themaWahl || "dunkel";
+      var dunkel = wahl === "dunkel" || (wahl === "auto" && !(window.matchMedia
+                   && matchMedia("(prefers-color-scheme: light)").matches));
+      w.dataset.thema = dunkel ? "dunkel" : "hell";
+    };
+    window.DWT_THEMA_AUFLOESEN();
+    // Die Farbe der Browserleiste (Telefon) folgt der Farbwelt. Das
+    // Stylesheet steht im Kopf VOR diesem Skript und ist damit schon
+    // geladen - der Wert lässt sich hier also schon lesen.
+    try {
+      var meta = document.querySelector('meta[name="theme-color"]'),
+          grund = getComputedStyle(w).getPropertyValue("--grund").trim();
+      if (meta && grund) { meta.content = grund; }
+    } catch (e) {}
+  })();
+</script>

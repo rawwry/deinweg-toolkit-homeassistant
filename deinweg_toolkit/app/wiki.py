@@ -180,6 +180,83 @@ def titel_der_datei(voll: str, name: str) -> str:
     return titel
 
 
+_AUSZUG: dict[str, tuple[float, str]] = {}
+
+
+def auszug_der_datei(voll: str, laenge: int = 150) -> str:
+    """Der erste Absatz Fliesstext einer Seite, ohne Markdown (seit 2.0).
+
+    Fuer die Kacheln der Ordneransicht: bis 1.61 stand dort der Dateiname
+    („01_akutkrisen_leitfaden.md") - eine Angabe fuer die Dateifreigabe,
+    nicht fuer jemanden, der eine Seite sucht. Der erste Satz sagt, was
+    drinsteht. Ueberschriften, Tabellen, Codebloecke, Zitate und Listen
+    werden uebersprungen; gepuffert wie die Titel ueber den Zeitstempel.
+    """
+    try:
+        stand = os.path.getmtime(voll)
+    except OSError:
+        return ""
+    gemerkt = _AUSZUG.get(voll)
+    if gemerkt and gemerkt[0] == stand:
+        return gemerkt[1]
+    text, im_code = "", False
+    try:
+        with open(voll, encoding="utf-8", errors="replace") as f:
+            for _ in range(80):
+                zeile = f.readline()
+                if not zeile:
+                    break
+                z = zeile.strip()
+                if z.startswith("```"):
+                    im_code = not im_code
+                    continue
+                if im_code:
+                    continue
+                if not z:
+                    if text:
+                        break
+                    continue
+                if re.match(r"^(#|\||>|[-*+]\s|\d+[.)]\s|---|\*\*\*|___|!\[)", z):
+                    if text:
+                        break
+                    continue
+                text += (" " if text else "") + z
+                if len(text) > laenge:
+                    break
+    except OSError:
+        pass
+    # Markdown abraeumen: Verweise auf ihren Text, Hervorhebungen weg.
+    text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"[*_`~]+", "", text).strip()
+    if len(text) > laenge:
+        text = text[:laenge].rsplit(" ", 1)[0].rstrip(",.;:–-") + " …"
+    _AUSZUG[voll] = (stand, text)
+    return text
+
+
+def zuletzt_geaendert(sichtbar=None, anzahl: int = 5) -> list[dict]:
+    """Die zuletzt geaenderten Seiten - fuer die Startseite des Wikis (seit 2.0).
+
+    ⚠️ Ueber _alle_seiten und damit durch den Sperrfilter: eine Seite aus
+    einem geschuetzten Ordner taucht hier fuer niemanden ohne Freigabe auf.
+    Die Startseite selbst (README) zaehlt nicht mit.
+    """
+    seiten = []
+    for rel, voll in _alle_seiten(sichtbar=sichtbar):
+        if os.path.basename(rel).lower() in ("readme.md", "index.md"):
+            continue
+        try:
+            stand = os.path.getmtime(voll)
+        except OSError:
+            continue
+        seiten.append((stand, rel, voll))
+    seiten.sort(reverse=True)
+    return [{"adresse": _adresse(rel), "titel": titel_der_datei(voll, os.path.basename(rel)),
+             "ordner": _name_titel(os.path.basename(os.path.dirname(rel))) if "/" in rel else "",
+             "geaendert": _zeitpunkt(voll)}
+            for _st, rel, voll in seiten[:anzahl]]
+
+
 # --- Geschuetzte Ordner ------------------------------------------------------
 #
 # Ein als geschuetzt gekennzeichneter Ordner (auth.geschuetzte_ordner)
@@ -390,6 +467,7 @@ def _rahmen(request: Request, zusatz: dict, hinweis: str = "", fehler: str = "",
         "wurzel_hier": False,
         "adresse": "/wiki",
         "verzeichnis": [],
+        "zuletzt": [],
     }
     inhalt.update(zusatz)
     return _u["templates"].TemplateResponse(
@@ -540,6 +618,7 @@ def _seite(request: Request, rel: str, bearbeiten: bool = False,
         "geaendert": _zeitpunkt(voll),
         "zeichen": len(text),
         "ist_start": ist_start,
+        "zuletzt": zuletzt_geaendert(_filter_aus(request)) if ist_start else [],
     }
     if not bearbeiten:
         # Das Verzeichnis der Ueberschriften wird beim Wandeln gleich
@@ -575,11 +654,13 @@ def _ordner(request: Request, rel: str, hinweis: str = "", fehler: str = ""):
         "einleitung": einleitung,
         "start_datei": start,
         "start_adresse": _adresse(start),
+        "zuletzt": [] if rel else zuletzt_geaendert(_filter_aus(request)),
         "kinder_ordner": [{"pfad": u, "adresse": _adresse(u),
                            "titel": _name_titel(n), "umfang": _umfang(u)}
                           for n, u, _p in unterordner],
         "kinder_seiten": [{"pfad": u, "adresse": _adresse(u), "name": n,
                            "titel": titel_der_datei(p, n),
+                           "auszug": auszug_der_datei(p),
                            "geaendert": _zeitpunkt(p),
                            "groesse": _groesse(p)}
                           for n, u, p in dateien if u != start],

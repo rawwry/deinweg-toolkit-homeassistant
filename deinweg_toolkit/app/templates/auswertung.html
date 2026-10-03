@@ -136,14 +136,23 @@
   </table>
   </div>
 
-  <p class="klein leise">{{ t("auswertung.soll_erklaerung") }}</p>
-  {% if gestaffelt %}
-  <p class="klein leise">{{ t("auswertung.gestaffelt") }}</p>
-  {% endif %}
-  {% if not soll_aktiv %}
-  <p class="klein leise">{{ t("auswertung.soll_fehlt") }}</p>
-  {% endif %}
-  <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.verdienst_hinweis") }}</p>
+  {# ⚠️ Seit 2.0 zugeklappt: vier Absätze Kleingedrucktes unter der Tabelle
+     standen bei jedem Besuch da und wogen so schwer wie eine Zeile Zahlen.
+     Wer wissen will, wie gerechnet wird, klappt auf - dieselbe Form wie
+     die Hinweise in den Einstellungen. Die Texte selbst sind unverändert. #}
+  <details class="hinweise auswertung-hinweise">
+    <summary>Wie wird gerechnet?{% if gestaffelt or not soll_aktiv %} <span class="marke-status offen">bitte lesen</span>{% endif %}</summary>
+    <div class="hinweise-inhalt">
+      <p class="klein leise">{{ t("auswertung.soll_erklaerung") }}</p>
+      {% if gestaffelt %}
+      <p class="klein leise">{{ t("auswertung.gestaffelt") }}</p>
+      {% endif %}
+      {% if not soll_aktiv %}
+      <p class="klein leise">{{ t("auswertung.soll_fehlt") }}</p>
+      {% endif %}
+      <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.verdienst_hinweis") }}</p>
+    </div>
+  </details>
   {% else %}
   <p class="leer">{{ t("auswertung.tabelle_leer", zeitraum=zeitraum_wort) }}</p>
   {% endif %}
@@ -293,45 +302,47 @@
   {# Woher kommen Kontingent und Satz? Das ist die Frage, die beim Lesen
      der Zahlen als Nächstes kommt. #}
   <div class="karte schmal">
+    {# ⚠️ Seit 2.0 EINE Zeile je Person (Timos Meldung: „total
+       unübersichtlich"). Vorher stand je Person ein Block aus Zeitraum,
+       Werten und - bei fehlendem Bescheid - einem ganzen Satz Erklärung,
+       siebenmal derselbe Satz. Jetzt: Name und der GELTENDE Satz links,
+       rechts nur der Stand. Wer nachrechnen will, findet ältere Bescheide
+       und die Notiz im title der Zeile; gepflegt wird in den
+       Einstellungen. Personen ohne Bescheid stehen oben - sie sind die
+       Auskunft, wegen der man herschaut. #}
     <h2>{{ t("auswertung.titel.bewilligt") }}</h2>
-    <p class="klein leise" style="margin-top: -8px;">{{ t("auswertung.bewilligt_lead") }}</p>
-    {% for p in zeitraum_liste %}
-    <div class="bewilligung">
-      <span class="stark">{{ p.klient }}</span>
-      {% if p.zeitraeume %}
-      <ul class="bescheidliste">
-        {% for z in p.zeitraeume %}
-        <li>
-          <span class="zahlen bescheidzeit">
-            {{ z.von | deutsch }} – {{ z.bis | deutsch if z.bis else "offen" }}
-          </span>
-          <span class="bescheidwerte zahlen">
-            {{ z.wochenstunden | stunden }} Std/Woche · {{ z.stundensatz | euro }}
-          </span>
-          {% if z.notiz %}<span class="klein leise">{{ z.notiz }}</span>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-      {% endif %}
-      {% if p.selbstzahler %}
-      {# Ein Selbstzahler braucht keinen Bescheid – hier steht deshalb
-         nicht „ohne Bescheid", sondern seine Rolle. #}
-      <p class="klein leise" style="margin: 6px 0 0;">
-        <span class="marke-status info">Selbstzahler</span>
-        Satz je Stunde, kein Bescheid nötig
-      </p>
-      {% elif p.ohne_bescheid %}
-      {# ⚠️ Seit 1.20 die eigentliche Auskunft dieser Spalte: hier wurde
-         gearbeitet, ohne dass etwas bewilligt war. In der Tabelle stehen
-         diese Monate nur als drei Striche da - warum, steht hier. #}
-      <p class="klein leise" style="margin: 6px 0 0;">
-        <span class="marke-status dopp">ohne Bescheid</span>
-        {{ p.ohne_bescheid }} {{ "Monat" if p.ohne_bescheid == 1 else "Monate" }}
-        mit Zeiten, aber ohne Bewilligung – sie zählen weder ins Soll noch in den Verdienst
-      </p>
-      {% endif %}
-    </div>
-    {% endfor %}
+    <p class="lead">{{ t("auswertung.bewilligt_lead") }}</p>
+    {% set ohne = zeitraum_liste | selectattr("ohne_bescheid") | rejectattr("selbstzahler") | list %}
+    <ul class="bw-liste">
+      {% for p in ohne %}
+      <li class="bw-zeile bw-ohne" title="{{ p.ohne_bescheid }} {{ 'Monat' if p.ohne_bescheid == 1 else 'Monate' }} mit Zeiten, aber ohne Bewilligung">
+        <span class="bw-wer">{{ p.klient }}</span>
+        <span class="bw-stand"><span class="bw-punkt"></span>ohne Bescheid</span>
+        <span class="bw-werte">{{ p.ohne_bescheid }} {{ 'Monat' if p.ohne_bescheid == 1 else 'Monate' }} mit Zeiten</span>
+      </li>
+      {% endfor %}
+      {% for p in zeitraum_liste if p not in ohne %}
+      {% set z = p.zeitraeume[0] if p.zeitraeume else none %}
+      <li class="bw-zeile{{ ' bw-selbst' if p.selbstzahler }}"
+          title="{% for x in p.zeitraeume %}{{ x.von | deutsch }} – {{ x.bis | deutsch if x.bis else 'offen' }}: {{ x.wochenstunden | stunden }} Std/Woche · {{ x.stundensatz | euro }}{% if x.notiz %} ({{ x.notiz }}){% endif %}{{ '&#10;' if not loop.last }}{% endfor %}">
+        <span class="bw-wer">{{ p.klient }}</span>
+        <span class="bw-stand">
+          {%- if p.selbstzahler %}<span class="bw-punkt"></span>Selbstzahler
+          {%- elif z and z.bis %}bis {{ z.bis | deutsch }}
+          {%- elif z %}<span class="bw-punkt"></span>unbefristet
+          {%- endif -%}
+        </span>
+        <span class="bw-werte zahlen">
+          {%- if z %}{{ z.wochenstunden | stunden }} Std/Woche · {{ z.stundensatz | euro }}
+          {%- if p.zeitraeume | length > 1 %} · <span class="leise">+{{ p.zeitraeume | length - 1 }} früher</span>{% endif %}
+          {%- elif p.selbstzahler %}Satz je Stunde, kein Bescheid nötig{% endif -%}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if ohne %}
+    <p class="bw-fuss">Ohne Bescheid zählen die Zeiten weder ins Soll noch in den Verdienst.</p>
+    {% endif %}
     <a class="knopf leise klein" href="/einstellungen?bereich=betreute">Zeiträume pflegen</a>
   </div>
   {% endif %}

@@ -812,3 +812,84 @@ def auswahllisten() -> dict:
             # kann falsch gehen, und die Auswertung soll denselben Monat
             # meinen wie der Wecker.
             "heute_monat": heute.strftime("%Y-%m")}
+
+
+# --- Woche und Monat auf der Zeiterfassung (seit 2.0) ------------------------
+
+WOCHENTAGE_KURZ = ("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
+
+
+def wochenbild(con, mitarbeiter: str, tag: dt.date) -> dict | None:
+    """Die Woche um ``tag`` und den Monat dazu - fuer die Karte „Meine Woche".
+
+    Liefert je Wochentag die erfassten Minuten und ob dort Urlaub oder eine
+    Krankmeldung steht, dazu fuer den Monat von ``tag`` das Ist (ohne
+    Abwesenheiten) und das Soll (gesenkt um die freien Tage). Das ist
+    DIESELBE Rechnung wie in „Mein Bereich" (meinbereich.py) - zwei
+    verschiedene Zahlen fuer denselben Monat waeren schlimmer als keine.
+
+    ⚠️ Bewusst ohne „hier fehlt etwas": die Karte zeigt, was da ist, und
+    rechnet niemandem Luecken vor (Timos Entscheidung zum Tagesprotokoll,
+    1.43). Ein leerer Tag ist ein leerer Tag, kein roter.
+
+    Nur lesend. None, wenn kein Mitarbeiter feststeht.
+    """
+    if not mitarbeiter:
+        return None
+    montag = tag - dt.timedelta(days=tag.weekday())
+    sonntag = montag + dt.timedelta(days=6)
+    je_tag = {r["datum"]: r for r in con.execute(
+        "SELECT datum, COALESCE(SUM(dauer_min),0) m, COUNT(*) n FROM eintrag "
+        "WHERE mitarbeiter=? AND datum BETWEEN ? AND ? GROUP BY datum",
+        (mitarbeiter, montag.isoformat(), sonntag.isoformat()))}
+    frei_tage = {}
+    for r in con.execute(
+            "SELECT datum, beschreibung FROM eintrag WHERE mitarbeiter=? "
+            f"AND datum BETWEEN ? AND ? AND {ABWESEND_SQL}",
+            (mitarbeiter, montag.isoformat(), sonntag.isoformat())):
+        frei_tage[r["datum"]] = max(frei_tage.get(r["datum"], 0.0),
+                                    abwesenheitswert(r["beschreibung"]))
+    heute = dt.date.today()
+    tage = []
+    for i in range(7):
+        d = montag + dt.timedelta(days=i)
+        z = je_tag.get(d.isoformat())
+        tage.append({"datum": d, "kurz": WOCHENTAGE_KURZ[i], "zahl": d.day,
+                     "m": z["m"] if z else 0, "n": z["n"] if z else 0,
+                     "frei": frei_tage.get(d.isoformat(), 0.0),
+                     "gewaehlt": d == tag, "heute": d == heute,
+                     "zukunft": d > heute, "wochenende": i >= 5})
+    groesste = max([t["m"] for t in tage] + [1])
+    for t in tage:
+        t["anteil"] = round(t["m"] / groesste * 100)
+
+    monat = tag.strftime("%Y-%m")
+    ist = con.execute(
+        "SELECT COALESCE(SUM(dauer_min),0) m FROM eintrag "
+        f"WHERE mitarbeiter=? AND monat=? AND NOT {ABWESEND_SQL}",
+        (mitarbeiter, monat)).fetchone()["m"]
+    person = con.execute(
+        "SELECT monatsstunden FROM mitarbeiter WHERE LOWER(TRIM(name))=LOWER(?)",
+        (mitarbeiter,)).fetchone()
+    voll = int(round(float(person["monatsstunden"] or 0) * 60)) if person else 0
+    frei_monat = abwesenheitstage(con.execute(
+        "SELECT datum, beschreibung FROM eintrag WHERE mitarbeiter=? AND monat=? "
+        f"AND {ABWESEND_SQL}", (mitarbeiter, monat)).fetchall()).get(monat, 0.0)
+    soll = soll_mit_abwesenheit(voll, frei_monat) if voll else 0
+    return {"tage": tage, "summe": sum(t["m"] for t in tage),
+            "kw": montag.isocalendar()[1],
+            "vorige": (montag - dt.timedelta(days=7)).isoformat(),
+            "naechste": (montag + dt.timedelta(days=7)).isoformat(),
+            "monat_wort": monat_wort(monat), "ist": ist, "soll": soll,
+            "frei_monat": frei_monat,
+            "anteil": min(100, round(ist / soll * 100)) if soll else 0}
+
+
+def tagesgruss(jetzt=None) -> str:
+    """Gruss nach der Tageszeit (seit 2.0): „Mein Bereich" und Anmeldeseite.
+
+    Vom Server, also in derselben Zeitzone wie Fristen und Wecker.
+    """
+    stunde = (jetzt or dt.datetime.now()).hour
+    return ("Guten Morgen" if 4 <= stunde < 11 else "Guten Tag" if 11 <= stunde < 18
+            else "Guten Abend")

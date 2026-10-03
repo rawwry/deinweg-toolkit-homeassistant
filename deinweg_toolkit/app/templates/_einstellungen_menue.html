@@ -90,4 +90,16 @@
   {% endif %}
   {% endif %}
 </aside>
+{# Am Telefon ist das Menü eine wischbare Zeile (seit 2.0). Der gewählte
+   Punkt rückt in die Mitte - über scrollLeft und nicht scrollIntoView:
+   das risse sonst die ganze Seite zurück nach oben, weg von #punkt. #}
+<script>
+  (function () {
+    var m = document.querySelector(".seitenmenue"), a = m && m.querySelector("a.aktiv");
+    if (a && m.scrollWidth > m.clientWidth) {
+      m.scrollLeft += a.getBoundingClientRect().left - m.getBoundingClientRect().left
+                    - m.clientWidth / 2 + a.offsetWidth / 2;
+    }
+  })();
+</script>
 {% endmacro %}

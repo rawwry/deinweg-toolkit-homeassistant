@@ -1190,6 +1190,14 @@ TEXTE_STANDARD["footer.text"] = (
 # wird ein Schluessel wieder gebraucht oder faellt ein neuer weg, schlaegt
 # sie an. Ohne das verrottete diese Notiz binnen zweier Versionen.
 UNGENUTZT = frozenset({
+    # seit 2.0: die Anmeldekarte grüßt nach der Tageszeit; der Satz
+    # „Mit Benutzername und Passwort anmelden …" wiederholte nur die Felder.
+    "login.lead",
+    # seit 2.0: Hell/Dunkel und die Inhaltsbreite stehen in den neuen
+    # Reglern der Darstellung (_darstellung.html), die sich selbst
+    # erklären - die beiden Sätze darüber sind entfallen.
+    "einst.ansicht",
+    "einst.breite",
     # seit 1.49.1: die Regel ist umgekehrt - die Zeitspanne gewinnt,
     # solange niemand die Dauer selbst anfasst. Ersetzt durch
     # bearbeiten.dauer_regel.

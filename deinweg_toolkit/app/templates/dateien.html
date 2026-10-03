@@ -85,6 +85,24 @@
       {% endif %}
     </nav>
 
+    {# Seit 2.0: was zuletzt dazukam, und wie viel Platz alles braucht -
+       nur auf der obersten Ebene, dieselbe Bauart wie im Wiki (und damit
+       am Telefon mit dem Baum eingeklappt). #}
+    {% if ueberblick and ueberblick.zuletzt %}
+    <div class="wiki-zuletzt dateien-zuletzt">
+      <span class="wiki-zuletzt-titel">Zuletzt hinzugefügt</span>
+      <ul>
+        {% for d in ueberblick.zuletzt %}
+        <li><a href="/dateien?ordner={{ d.elternteil | urlencode }}" title="{{ d.name }} · {{ d.geaendert.voll }}">
+          <span class="wiki-zuletzt-seite">{{ d.name }}</span>
+          <span class="wiki-zuletzt-wo">{{ d.elternname or "Oberste Ebene" }} · {{ d.geaendert.kurz }}</span>
+        </a></li>
+        {% endfor %}
+      </ul>
+      <p class="dateien-belegung">{{ ueberblick.zahl }} {{ "Datei" if ueberblick.zahl == 1 else "Dateien" }} · {{ ueberblick.groesse }}</p>
+    </div>
+    {% endif %}
+
   </aside>
 
   {# --- Hauptbereich --- #}
@@ -222,7 +240,7 @@
               <td><a class="stark" href="/dateien?ordner={{ o.pfad | urlencode }}">{{ o.name }}</a></td>
               <td class="leise">Ordner</td>
               <td class="leise nowrap">{{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträge' }}</td>
-              <td class="leise nowrap zeitzelle">{{ o.geaendert.datum }}<span>{{ o.geaendert.zeit }}</span></td>
+              <td class="leise nowrap zeitzelle" title="{{ o.geaendert.voll }}">{{ o.geaendert.kurz }}</td>
               <td class="nowrap">{{ ordnerknoepfe(o, ordner) }}</td>
             </tr>
             <tr class="dateidetailzeile" data-detail="{{ o.pfad }}" hidden>
@@ -233,7 +251,13 @@
             {% for d in dateien %}
             <tr class="dateizeile {{ 'unbekannt' if not d.bekannt }}"
                 draggable="true" data-pfad="{{ d.pfad }}" data-art="datei">
-              <td class="artspalte">{{ dateisymbol(d.art) }}</td>
+              {# Seit 2.0: Bilder zeigen sich selbst (der Browser verkleinert,
+                 lazy, erst wenn die Zeile ins Bild kommt), alle anderen
+                 tragen die Farbe ihrer Art. #}
+              <td class="artspalte art-{{ d.art }}">
+                {%- if d.art == "bild" and d.bekannt %}<img class="datei-mini" src="{{ d.adresse }}" alt="" loading="lazy">
+                {%- else %}{{ dateisymbol(d.art) }}{% endif -%}
+              </td>
               <td>
                 {% if d.bekannt %}
                 <a class="stark" href="{{ d.adresse }}" target="_blank" rel="noopener"
@@ -243,7 +267,7 @@
               </td>
               <td class="leise">{{ d.wort }}</td>
               <td class="zahlen leise nowrap">{{ d.groesse }}</td>
-              <td class="leise nowrap zeitzelle">{{ d.geaendert.datum }}<span>{{ d.geaendert.zeit }}</span></td>
+              <td class="leise nowrap zeitzelle" title="{{ d.geaendert.voll }}">{{ d.geaendert.kurz }}</td>
               <td class="nowrap">{{ dateiknoepfe(d, ordner) }}</td>
             </tr>
             <tr class="dateidetailzeile" data-detail="{{ d.pfad }}" hidden>
@@ -261,7 +285,7 @@
           <a class="dateikachel-flaeche" href="/dateien?ordner={{ o.pfad | urlencode }}">
             <span class="dateikachel-bild ordner">{{ dateisymbol("ordner") }}</span>
             <span class="dateikachel-name">{{ o.name }}</span>
-            <span class="dateikachel-zeile">{{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträge' }} · {{ o.geaendert.datum }}</span>
+            <span class="dateikachel-zeile">{{ o.anzahl }} {{ 'Eintrag' if o.anzahl == 1 else 'Einträge' }} · {{ o.geaendert.kurz }}</span>
           </a>
           <div class="dateikachel-knoepfe">{{ ordnerknoepfe(o, ordner) }}</div>
           <div class="dateikachel-detail" data-detail="{{ o.pfad }}" hidden>
@@ -286,7 +310,7 @@
             <span class="dateikachel-bild art"><span class="dateikachel-wort">{{ d.wort }}</span></span>
             {% endif %}
             <span class="dateikachel-name">{{ d.name }}</span>
-            <span class="dateikachel-zeile">{{ d.groesse }} · {{ d.geaendert.datum }}</span>
+            <span class="dateikachel-zeile">{{ d.groesse }} · {{ d.geaendert.kurz }}</span>
           </a>
           <div class="dateikachel-knoepfe">{{ dateiknoepfe(d, ordner) }}</div>
           <div class="dateikachel-detail" data-detail="{{ d.pfad }}" hidden>

@@ -1,0 +1,168 @@
+{# --- Kopfzeile, Tableiste, Blatt „Mehr" und die beiden Dialoge (seit 2.0)
+
+   Am Schreibtisch: Marke · Hauptmenü mit Symbolen · Suche · Hell/Dunkel ·
+   Kontomenü. Am Telefon (≤ 860px): oben nur Marke und Suche, unten eine
+   Tableiste im Daumenbereich mit vier Zielen und „Mehr".
+
+   ⚠️ Bis 1.61 standen rechts drei lose Symbole (Ideen, Einstellungen,
+   Mein Bereich) und am Telefon eine Schublade, die von oben hereinkam -
+   also genau dort, wo der Daumen nicht hinkommt. Die drei Symbole sind
+   jetzt EIN Kontomenü; die Schublade ist der Tableiste gewichen.
+
+   ⚠️ Die Liste der Menüpunkte kommt aus oberflaeche.navigation() - EINE
+   Stelle für alle drei Ansichten. Wer einen Menüpunkt ergänzt, ergänzt
+   ihn dort (HAUPTPUNKTE), nicht hier. #}
+{% from "_symbole.html" import symbol %}
+{% from "_darstellung.html" import darstellung_regler %}
+{% set nav = navigation(request) %}
+{% set im_konto = seite in ("meinbereich", "einstellungen", "ideen", "changelog", "datenpflege") %}
+
+<a class="sprungmarke" href="#inhalt">Zum Inhalt springen</a>
+
+<header class="kopf">
+  {# ⚠️ /marke/… statt /static/…: der Schriftzug lässt sich unter
+     Einstellungen → System und Sicherung durch einen eigenen ersetzen,
+     und der liegt in der Datenbank. Der Anhang ist der Stand des Logos,
+     NICHT die Programmversion. #}
+  <a class="marke" href="/" title="Zur Startseite" aria-label="Zur Startseite">
+    <img class="nur-dunkel" src="/marke/logo-fuer-dunkel.svg?v={{ markenstand() }}"
+         alt="Dein Weg Toolkit">
+    <img class="nur-hell"   src="/marke/logo-fuer-hell.svg?v={{ markenstand() }}"
+         alt="Dein Weg Toolkit">
+  </a>
+
+  <nav class="hauptnav" aria-label="Hauptmenü">
+    {% for p in nav.haupt %}
+    {% set an = seite in p.seiten %}
+    <a href="{{ p.adresse }}" class="navpunkt{{ ' aktiv' if an }}"{% if an %} aria-current="page"{% endif %}>
+      {{ symbol(p.symbol) }}<span class="navwort">{{ p.name }}</span>
+      {% if p.zahl %}<span class="navzahl{{ ' dringend' if p.dringend }}"
+            title="{{ p.zahl }} eigene Aufgabe{{ 'n' if p.zahl != 1 }} {{ 'überfällig oder ' if p.dringend }}heute fällig">{{ p.zahl }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </nav>
+
+  <div class="kopf-rechts">
+    <button type="button" class="suchknopf" data-schnellsuche
+            title="Suchen und springen (Strg+K)" aria-label="Suchen und springen">
+      {{ symbol("suche") }}<span class="suchknopf-wort">Suchen …</span>
+      <kbd class="suchknopf-taste">Strg K</kbd>
+    </button>
+    <button type="button" class="kopfsymbol themakippe" data-thema-kippen
+            title="Hell oder dunkel" aria-label="Zwischen hell und dunkel wechseln">
+      <span class="nur-dunkel">{{ symbol("sonne") }}</span>
+      <span class="nur-hell">{{ symbol("mond") }}</span>
+    </button>
+
+    <details class="kontomenue">
+      <summary class="kontoknopf{{ ' aktiv' if im_konto }}"
+               title="Angemeldet als {{ request.state.benutzer.benutzername }}"
+               aria-label="Konto, Einstellungen und Darstellung">
+        <span class="avatar" aria-hidden="true">{% if nav.bild %}<img src="{{ nav.bild }}" alt="" loading="lazy">{% else %}{{ nav.kuerzel }}{% endif %}</span>
+      </summary>
+      <div class="kontopanel">
+        <div class="kontopanel-kopf">
+          <span class="avatar gross" aria-hidden="true">{% if nav.bild %}<img src="{{ nav.bild }}" alt="" loading="lazy">{% else %}{{ nav.kuerzel }}{% endif %}</span>
+          <span class="kontopanel-wer">
+            <strong>{{ nav.name }}</strong>
+            <span>{{ nav.rolle }}{% if nav.name != request.state.benutzer.benutzername %} · {{ request.state.benutzer.benutzername }}{% endif %}</span>
+          </span>
+        </div>
+        <div class="menueliste">
+          {% for k in nav.konto %}
+          <a href="{{ k.adresse }}" class="{{ 'aktiv' if seite in k.seiten }}">{{ symbol(k.symbol) }}<span>{{ k.name }}</span></a>
+          {% endfor %}
+          <button type="button" data-darstellung-auf>{{ symbol("palette") }}<span>Darstellung anpassen</span></button>
+        </div>
+        <form action="/logout" method="post" class="kontoabmelden">
+          <button type="submit">{{ symbol("abmelden") }}<span>Abmelden</span></button>
+        </form>
+      </div>
+    </details>
+  </div>
+</header>
+
+{# --- Tableiste am Telefon ---------------------------------------------- #}
+{% set im_mehr = im_konto or seite in nav.mehr_seiten %}
+<nav class="tableiste" aria-label="Hauptmenü">
+  {% for p in nav.leiste %}
+  {% set an = seite in p.seiten %}
+  <a href="{{ p.adresse }}" class="tab{{ ' aktiv' if an }}"{% if an %} aria-current="page"{% endif %}>
+    <span class="tab-symbol">{{ symbol(p.symbol) }}{% if p.zahl %}<span class="tabzahl{{ ' dringend' if p.dringend }}">{{ p.zahl }}</span>{% endif %}</span>
+    <span class="tab-wort">{{ p.kurz }}</span>
+  </a>
+  {% endfor %}
+  <button type="button" class="tab{{ ' aktiv' if im_mehr }}" data-blatt-auf
+          aria-expanded="false" aria-controls="mehrblatt">
+    <span class="tab-symbol">{{ symbol("mehr") }}</span>
+    <span class="tab-wort">Mehr</span>
+  </button>
+</nav>
+
+<div class="blattschatten" data-blatt-zu hidden></div>
+<div class="blatt" id="mehrblatt" role="dialog" aria-modal="true" aria-label="Mehr" hidden>
+  <div class="blatt-griff" aria-hidden="true"></div>
+  <div class="blatt-kopf">
+    <span class="avatar gross" aria-hidden="true">{% if nav.bild %}<img src="{{ nav.bild }}" alt="" loading="lazy">{% else %}{{ nav.kuerzel }}{% endif %}</span>
+    <span class="kontopanel-wer">
+      <strong>{{ nav.name }}</strong>
+      <span>{{ nav.rolle }}</span>
+    </span>
+    <button type="button" class="kopfsymbol" data-blatt-zu aria-label="Schließen">{{ symbol("zu") }}</button>
+  </div>
+  {% if nav.mehr %}
+  <div class="blatt-kacheln">
+    {% for p in nav.mehr %}
+    <a href="{{ p.adresse }}" class="blatt-kachel{{ ' aktiv' if seite in p.seiten }}">
+      {{ symbol(p.symbol) }}<span>{{ p.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="menueliste">
+    {% for k in nav.konto %}
+    <a href="{{ k.adresse }}" class="{{ 'aktiv' if seite in k.seiten }}">{{ symbol(k.symbol) }}<span>{{ k.name }}</span>{{ symbol("pfeil", "rechts") }}</a>
+    {% endfor %}
+    <button type="button" data-darstellung-auf>{{ symbol("palette") }}<span>Darstellung anpassen</span>{{ symbol("pfeil", "rechts") }}</button>
+  </div>
+  <form action="/logout" method="post" class="kontoabmelden">
+    <button type="submit">{{ symbol("abmelden") }}<span>Abmelden</span></button>
+  </form>
+</div>
+
+{# --- Dialog „Darstellung" ----------------------------------------------
+   ⚠️ Ein <dialog>, kein eigenes Seitenstück: so ist er von JEDER Seite aus
+   erreichbar, und man sieht die Wirkung sofort auf der Seite dahinter. #}
+<dialog class="dialog darstellungsdialog" aria-labelledby="darstellung-titel">
+  <div class="dialog-kopf">
+    <h2 id="darstellung-titel">{{ symbol("palette") }} Darstellung</h2>
+    <button type="button" class="kopfsymbol" data-dialog-zu aria-label="Schließen">{{ symbol("zu") }}</button>
+  </div>
+  <p class="dialog-hinweis">Gilt nur für diesen Browser. Jede Änderung wirkt sofort.</p>
+  {{ darstellung_regler(voll=true) }}
+</dialog>
+
+{# --- Schnellsuche (Strg+K, „/") ----------------------------------------
+   Die Liste kommt erst beim ersten Öffnen von /schnellsuche.json - sie
+   kostet also keinen Seitenaufbau etwas. #}
+<dialog class="dialog schnellsuche" aria-label="Suchen und springen">
+  <div class="ss-feld">
+    {{ symbol("suche") }}
+    <input type="search" class="ss-eingabe" placeholder="Wohin? Seite, Person oder Handgriff …"
+           autocomplete="off" spellcheck="false" aria-label="Suchbegriff"
+           role="combobox" aria-expanded="true" aria-controls="ss-liste">
+    <kbd>Esc</kbd>
+  </div>
+  <div class="ss-liste" id="ss-liste" role="listbox"></div>
+  {# Die Zeichen für die Treffer - einmal hier, das Skript kopiert sie. #}
+  <template class="ss-symbole">
+    {% for n in ["uhr", "aufgaben", "auslagen", "fuhrpark", "dateien", "wiki", "ideen",
+                 "einstellungen", "konto", "neu", "plus", "person", "uebersicht",
+                 "auswertung", "palette", "pfeil"] %}<span data-s="{{ n }}">{{ symbol(n) }}</span>{% endfor %}
+  </template>
+  <div class="ss-fuss">
+    <span><kbd>↑</kbd><kbd>↓</kbd> auswählen</span>
+    <span><kbd>Enter</kbd> öffnen</span>
+    <span class="ss-fuss-rechts">Überall mit <kbd>Strg</kbd><kbd>K</kbd></span>
+  </div>
+</dialog>

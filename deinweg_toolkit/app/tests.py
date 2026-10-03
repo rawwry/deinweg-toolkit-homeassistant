@@ -65,6 +65,16 @@ from .main import app  # noqa: E402
 _ERGEBNIS = {"ok": 0, "fehler": []}
 
 
+def hauptmenue(seite: str) -> str:
+    """Das Hauptmenü in der Kopfzeile (seit 2.0 mit Klasse und Symbolen).
+
+    Bis 1.61 stand dort ein nacktes <nav>; die Prüfungen schnitten an
+    diesem Wort. Jetzt gibt es mehrere <nav> auf der Seite (Kopfzeile,
+    Tableiste am Telefon, Reiter) - gemeint ist das Hauptmenü oben.
+    """
+    return seite.split('class="hauptnav"')[1].split("</nav>")[0]
+
+
 def pruefe(bedingung, beschreibung: str) -> None:
     if bedingung:
         _ERGEBNIS["ok"] += 1
@@ -835,10 +845,21 @@ def test_rechte(client: TestClient) -> None:
     pruefe(zweiter.get("/meinbereich").status_code == 200,
            "eigener Bereich bleibt für jeden erreichbar")
     seite = client.get("/meinbereich").text
-    pruefe('action="/logout"' in seite, "Abmelden steht in „Mein Bereich“")
-    pruefe(seite.count('action="/logout"') == 1, "und zwar genau einmal")
-    pruefe('action="/logout"' not in client.get("/eintraege").text,
-           "in der Kopfzeile steht es nicht mehr")
+    inhalt = seite.split('<main')[1].split('</main>')[0]
+    # ⚠️⚠️ Seit 2.0 steht „Abmelden" NICHT mehr im Inhalt von „Mein Bereich"
+    # (Timos Entscheidung), sondern im Kontomenü und im Blatt - auf jeder
+    # Seite, auch für Konten ohne Mitarbeiterzuordnung.
+    pruefe('action="/logout"' not in inhalt, "Abmelden steht nicht mehr im Inhalt von „Mein Bereich“")
+    pruefe(seite.split('<main')[0].count('action="/logout"') >= 1,
+           "sondern im Kopf (Kontomenü und Blatt)")
+    # ⚠️ Seit 2.0 steht es zusätzlich im Kontomenü (oben rechts) und im
+    # Blatt „Mehr" am Telefon - dort, wo man es in jeder Anwendung sucht.
+    # Nicht aber als loser Knopf zwischen den Menüpunkten (bis 1.1).
+    kopf = client.get("/eintraege").text
+    pruefe('action="/logout"' not in hauptmenue(kopf),
+           "zwischen den Menüpunkten steht es nicht")
+    pruefe('action="/logout"' in kopf.split('class="kontopanel"')[1].split("</details>")[0],
+           "dafür im Kontomenü")
 
 
 def test_symbole(client: TestClient) -> None:
@@ -867,7 +888,7 @@ def test_oberflaeche(client: TestClient) -> None:
     seite = client.get("/einstellungen?bereich=oberflaeche").text
     pruefe("wikiliste-knopf" in seite, "Umschalter für die Wiki-Ansicht ist da")
     pruefe('data-wikiliste="kacheln"' in seite, "Kacheln sind die Voreinstellung")
-    pruefe("thema-knopf" in seite and "breite-knopf" in seite,
+    pruefe('data-einstellung="thema"' in seite and 'data-einstellung="breite"' in seite,
            "die bisherigen Schalter stehen weiter daneben")
 
 
@@ -1460,16 +1481,17 @@ def test_marke(client: TestClient) -> None:
     # ⚠️ Mit dem Schriftzug ist die Leiste gewachsen - die Variable muss
     # mitziehen, sonst rutschen die klebenden Seitenleisten von Wiki,
     # Dateien und Einstellungen unter sie.
-    pruefe(":root { --kopfhoehe: 78px; }" in stil,
-           "die Leistenhöhe steht auf 78px")
+    # ⚠️ Seit 2.0 schlanker (72px): dieselben 48px Logo, weniger Luft darum.
+    pruefe(":root { --kopfhoehe: 72px; }" in stil,
+           "die Leistenhöhe steht auf 72px")
     # ⚠️ 48px ist gerechnet: die Unterzeile hat in der Datei eine x-Höhe
     # von 28,9 von 274,13 Einheiten, also 10,5 % der Bildhöhe. Bei 48px
     # sind das 5,06px - ab etwa 5px liest sich Kleinschrift bequem, bei
     # den 42px davor waren es 4,4px und damit grenzwertig.
     pruefe(".marke img { height: 48px" in stil,
            "der Schriftzug steht mit 48px in der Kopfzeile")
-    pruefe(".marke img { height: 46px" in stil,
-           "am Telefon mit 46px")
+    pruefe(".marke img { height: 42px" in stil,
+           "am Telefon mit 42px (dort steht nur noch die Suche daneben)")
     # Die Bewegung am Logo ist wieder die ursprüngliche: eine
     # Übergangsblende beim Überfahren, sonst nichts. Der Ruhepuls aus
     # 1.28 ist auf Timos Wunsch entfallen.
@@ -1639,7 +1661,7 @@ def test_einstellungspunkte(client: TestClient) -> None:
            "der Wiki-Schalter steht da, der Bereich ist erteilt")
     pruefe("dateiliste-knopf" not in seite,
            "der Dateien-Schalter fehlt, der Bereich ist es nicht")
-    pruefe("thema-knopf" in seite and "breite-knopf" in seite,
+    pruefe('data-einstellung="thema"' in seite and 'data-einstellung="breite"' in seite,
            "Darkmode und Breite bleiben für jeden")
 
     # Kein einziger Haken heisst "nichts" - nicht "alles". Ohne den
@@ -1764,14 +1786,14 @@ def test_meine_zeiten(client: TestClient) -> None:
     # vier Kennzahlen UND den Abmelden-Knopf. Vorher war sie ein Balken,
     # der nur den Namen und den Knopf hielt.
     kopfkarte = seite.split('class="karte meinueberblick"')[1].split("</section>")[0]
-    pruefe('action="/logout"' in kopfkarte,
-           "„Abmelden“ steht in der Kopfkarte")
+    pruefe('action="/logout"' not in kopfkarte and 'class="mein-avatar"' in kopfkarte,
+           "in der Kopfkarte steht das eigene Bild statt „Abmelden“ (seit 2.0)")
     pruefe(seite.index("meinueberblick") < seite.index("Bewilligungen im Blick")
            if "Bewilligungen im Blick" in seite else True,
            "die Kopfkarte steht vor den Bewilligungen")
-    pruefe('class="knopf abmelden"' in seite,
-           "und zwar als eigener Knopf in der Kopfzeile")
-    pruefe(seite.count('action="/logout"') == 1, "genau einmal")
+    pruefe('class="knopf abmelden"' not in seite,
+           "der alte Abmelden-Knopf ist weg")
+    pruefe('href="/#erfassen"' in kopfkarte, "dafür steht dort der Kurzweg „Zeit erfassen“")
 
 
 def test_benutzerverwaltung_aufbau(client: TestClient) -> None:
@@ -2160,7 +2182,8 @@ def test_monatsbloecke(client: TestClient) -> None:
            "die Monate sind als Sprungliste verlinkt")
     pruefe(seite.count('id="monat-') == 15,
            "jeder Block trägt seine Sprungmarke")
-    pruefe("<h2>Bewilligt</h2>" in seite and "bescheidliste" in seite,
+    # Seit 2.0 eine knappe Liste (.bw-liste) statt eines Blocks je Person.
+    pruefe("<h2>Bewilligt</h2>" in seite and 'class="bw-liste"' in seite,
            "die zugrunde liegenden Bescheide stehen daneben")
     # Maßangaben: einmal je Spalte im Kopf, nicht in jeder Zelle.
     pruefe(seite.count('class="massangabe">Std<') >= 3,
@@ -3419,6 +3442,17 @@ def test_wiki_geschuetzter_ordner(client: TestClient) -> None:
     client.post("/einstellungen/wiki-geschuetzt", data={"ordner": ["Geheimkram"]},
                 follow_redirects=False)
 
+    # ⚠️ „Zuletzt geändert" auf der Startseite (seit 2.0) läuft durch
+    # denselben Sperrfilter - sonst stünde der Titel der geschützten Seite
+    # für jeden lesbar in der Seitenleiste.
+    def zuletzt(seite):
+        return seite.split('class="wiki-zuletzt"')[1].split("</div>")[0] \
+            if 'class="wiki-zuletzt"' in seite else ""
+    pruefe("Vollmacht" in zuletzt(client.get("/wiki").text),
+           "„Zuletzt geändert“ nennt der Verwaltung die geschützte Seite")
+    pruefe("Vollmacht" not in zuletzt(fremd.get("/wiki").text),
+           "einem Konto ohne Freigabe verschweigt es sie")
+
 
 def test_fusszeile_buendig(client: TestClient) -> None:
     """Die Fußzeile steht bündig zum Inhalt darüber."""
@@ -4359,7 +4393,9 @@ def test_selbstzahler(client: TestClient) -> None:
                       "bis_jahr=2026&bis_monat=05").text
     seitenspalte = ausw[ausw.index("Selbstzahler Probe"):] \
         if "Selbstzahler Probe" in ausw else ""
-    pruefe('<span class="marke-status info">Selbstzahler</span>' in ausw,
+    zeile = ausw.split('class="bw-zeile bw-selbst"')[1].split("</li>")[0] \
+        if 'class="bw-zeile bw-selbst"' in ausw else ""
+    pruefe("Selbstzahler Probe" in zeile and "Selbstzahler" in zeile.split("bw-stand")[1],
            "die Auswertung nennt den Selbstzahler beim Namen, nicht „Grundwert“")
 
     # Zeilenfärbung nach Status: eine gültige Person grün, eine leere rot.
@@ -4701,7 +4737,7 @@ def test_zeitwahl(client: TestClient) -> None:
 def test_konto_zugeklappt(client: TestClient) -> None:
     """„Mein Konto“: der Passwortwechsel steht zugeklappt."""
     abschnitt("Mein Konto: Passwort zugeklappt")
-    seite = client.get("/meinbereich").text
+    seite = client.get("/meinbereich/konto").text
     pruefe('<details class="passwortblock">' in seite,
            "der Passwortblock ist zugeklappt")
     pruefe('<details class="passwortblock" open>' not in seite,
@@ -4718,7 +4754,7 @@ def test_konto_zugeklappt(client: TestClient) -> None:
                           follow_redirects=False)
     pruefe("pw=1" in antwort.headers.get("location", ""),
            "ein Passwortfehler führt mit „pw=1“ zurück")
-    offen = client.get("/meinbereich?pw=1&fehler=x").text
+    offen = client.get("/meinbereich/konto?pw=1&fehler=x").text
     pruefe('<details class="passwortblock" open>' in offen,
            "und der Block steht dann offen")
 
@@ -5613,11 +5649,11 @@ def test_meinbereich_umbau(client: TestClient) -> None:
            "der reine Kopfbalken ist weg")
     pruefe(".karte.meinkopf {" not in stil,
            "und seine Regel steht auch nicht mehr im Stylesheet")
-    # „Abmelden“ bleibt oben und genau einmal - sonst fehlte er Konten
-    # ohne Mitarbeiterzuordnung ganz (der Grund von 1.2).
+    # „Abmelden“ steht seit 2.0 im Kontomenü (jede Seite), nicht mehr hier.
     kopf = ohne_dialog.split('class="karte meinueberblick"')[1].split("</section>")[0]
-    pruefe('action="/logout"' in kopf, "„Abmelden“ steht in der ersten Karte")
-    pruefe(ohne_dialog.count('action="/logout"') == 1, "und genau einmal")
+    pruefe('action="/logout"' not in kopf, "„Abmelden“ steht nicht mehr in der ersten Karte")
+    pruefe('action="/logout"' in ohne_dialog.split("<main")[0],
+           "sondern im Kontomenü")
 
     # --- Kein Loch neben der Aufgabenkarte ----------------------------------
     # ⚠️ „Bewilligungen im Blick“ hängt an einem Einzelrecht. Ohne das
@@ -5860,8 +5896,10 @@ def test_eigene_bezeichnungen(client: TestClient) -> None:
 
     # --- Sie stehen wirklich auf der Seite ----------------------------------
     seite = client.get("/meinbereich").text
-    for wort in ("Monat für Monat", "Eintrag für Eintrag", "Mein Konto"):
+    for wort in ("Monat für Monat", "Eintrag für Eintrag"):
         pruefe(f"<h2>{wort}</h2>" in seite, f"„{wort}“ steht als Überschrift da")
+    pruefe("<h2>Mein Konto</h2>" in client.get("/meinbereich/konto").text,
+           "„Mein Konto“ steht als Überschrift auf seiner eigenen Seite")
     auswertung = client.get("/auswertung").text
     for wort in ("Überblick", "Stundenkontingent", "Monate", "Bewilligt"):
         pruefe(f"<h2>{wort}</h2>" in auswertung,
@@ -6292,8 +6330,10 @@ def test_tagesprotokoll(client: TestClient) -> None:
     pruefe("4 Einträge" in kopf and "04:00 Std" in kopf,
            "dazu Anzahl und Summe des Tages")
     # ⚠️ Dieselbe Zahl stand bis 1.42 zusätzlich in der Kartenüberschrift.
-    pruefe(ohne_dialog.count("04:00 Std") == 1,
-           "und genau einmal auf der Seite, nicht zusätzlich im Kartenkopf")
+    # Seit 2.0 nennt die Karte „Meine Woche" rechts daneben jeden Tag mit
+    # seiner Summe - das ist die Woche, nicht ein zweiter Kopf des Tages.
+    pruefe(ohne_dialog.split('id="wochenkarte"')[0].count("04:00 Std") == 1,
+           "und genau einmal in Erfassung und Protokoll, nicht zusätzlich im Kartenkopf")
 
     # --- Bearbeiten und Löschen bleiben erreichbar -------------------------
     # ⚠️ Ohne sie wäre mit der alten Tabelle eine Funktion verschwunden
@@ -7034,8 +7074,10 @@ def test_htmx(client: TestClient) -> None:
     for datei in ("vorgaenge.html", "eintraege.html"):
         pruefe('hx-history="false"' in quelle(datei),
                f"{datei} legt keinen angereicherten Bereich in den Verlauf")
-    pruefe(basis.count("window.dwt.nachruesten.push(") == 3,
-           "Schalter, Namenslisten und Zeitraum-Picker hängen am Haken")
+    # Seit 2.0 zusätzlich: die Markierung der Darstellungsregler und die
+    # ⓘ-Knöpfe an den Überschriften.
+    pruefe(basis.count("window.dwt.nachruesten.push(") == 6,
+           "Schalter, Namenslisten, Zeitraum-Picker, Darstellung, ⓘ und Baum hängen am Haken")
     pruefe('if (k.dataset.fertig) { return; }' in basis
            and 'if (liste.dataset.fertig) { return; }' in basis
            and "wurzel.dataset.fertig" in basis,
@@ -7082,8 +7124,8 @@ def test_htmx(client: TestClient) -> None:
     # Nebentausch stünden dort sofort veraltete Zahlen. (Den Bestand gibt
     # es seit 1.61 nicht mehr; ein Nebentausch auf eine fehlende Kennung
     # meldet htmx als Fehler.)
-    pruefe('hx-select-oob="#erfassen,#abgabenkarte"' in form,
-           "Meldung und Abgaben kommen als Nebentausch mit")
+    pruefe('hx-select-oob="#erfassen,#abgabenkarte,#wochenkarte"' in form,
+           "Meldung, Abgaben und Woche (seit 2.0) kommen als Nebentausch mit")
     pruefe("#bestandkarte" not in quelle("index.html"),
            "kein Nebentausch zeigt mehr auf den entfallenen Bestand")
     for kennung in ('id="protokollkarte"',
@@ -8408,9 +8450,9 @@ def test_vorlagen(client: TestClient) -> None:
     knopf = seite.split('id="vorlagenwahl"')[1].split("</details>")[0]
     pruefe("vorlagen-merken" not in knopf and 'type="text"' not in knopf,
            "im Panel wird nur geladen, nicht mehr gemerkt (seit 1.59.2)")
-    pruefe('href="/meinbereich#vorlagen"' in knopf
-           and 'href="/meinbereich?vorlage=neu#vorlage-neu"' in knopf,
-           "das Panel führt zum Verwalten und zum Anlegen in Mein Bereich")
+    pruefe('href="/meinbereich/vorlagen"' in knopf
+           and 'href="/meinbereich/vorlagen?vorlage=neu#vorlage-neu"' in knopf,
+           "das Panel führt zum Verwalten und zum Anlegen auf „Meine Vorlagen“")
     pruefe(client.post("/erfassung/vorlagen/speichern",
                        data={"name": "X", "klient": ["Testperson"]}).status_code in (404, 405),
            "die Route zum Merken aus der Erfassung gibt es nicht mehr")
@@ -8491,15 +8533,17 @@ def test_vorlagen(client: TestClient) -> None:
            "beim Erfassen für jemand anderen gibt es den Knopf nicht")
 
     # --- Pflege in Mein Bereich --------------------------------------------
-    seite = client.get("/meinbereich").text
+    seite = client.get("/meinbereich/vorlagen").text
     pruefe('id="vorlagen"' in seite and "Dienstag" in seite and "Probe Montag" in seite,
-           "„Meine Vorlagen“ steht in Mein Bereich")
+           "„Meine Vorlagen“ hat eine eigene Seite (seit dem Nachtrag zu 2.0)")
+    pruefe('id="vorlagen"' not in client.get("/meinbereich").text,
+           "und steht nicht mehr in „Mein Bereich“")
     with db.db() as con:
         vid = con.execute("SELECT id FROM vorlage WHERE name='Dienstag'").fetchone()["id"]
     karte = seite.split('id="vorlagen"')[1].split("</section>")[0]
     pruefe('class="vl-zeilen"' in karte and 'class="vl-zeit zahlen"' in karte,
            "jede Vorlage zeigt ihre Zeilen als Liste mit Zeitspanne")
-    pruefe(f'href="/meinbereich?vorlage={vid}#vorlage-{vid}"' in karte,
+    pruefe(f'href="/meinbereich/vorlagen?vorlage={vid}#vorlage-{vid}"' in karte,
            "jede Vorlage hat einen Knopf „Bearbeiten“")
     pruefe("vl-editor" not in karte.split("<script>")[0],
            "ohne Auswahl ist kein Editor offen")
@@ -8636,7 +8680,7 @@ def test_umbau_1_59_2(client: TestClient) -> None:
         "beschreibung": ["Kurz"]})
     with db.db() as con:
         kid = con.execute("SELECT id FROM vorlage WHERE name='Klappprobe'").fetchone()["id"]
-    seite = client.get("/meinbereich").text
+    seite = client.get("/meinbereich/vorlagen").text
     huelle = seite.split(f'id="vorlage-{kid}"')[1][:400]
     pruefe('<details class="vl">' in huelle, "jede Vorlage steht zugeklappt da")
     seite = client.get(f"/meinbereich?gemerkt={kid}").text
@@ -9012,7 +9056,7 @@ def test_admin_bereiche(client: TestClient) -> None:
 
     # --- Was jetzt fehlt ----------------------------------------------
     seite = chef.get("/vorgaenge").text
-    nav = seite.split("<nav>")[1].split("</nav>")[0]
+    nav = hauptmenue(seite)
     for weg, pfad in (("Fuhrpark", "/fuhrpark"), ("Dateien", "/dateien"),
                       ("Privatauslagen", "/privatauslagen")):
         pruefe(weg not in nav,
@@ -10571,14 +10615,14 @@ def test_kosmetik(client: TestClient) -> None:
     # rechtsbündig; „Einstellungen" ist aber das längste Wort und ragte
     # als vorletzte neun Pixel über den Fensterrand - der Scrollbalken
     # war also nie ganz weg.
-    pruefe(".werkzeuge > *:nth-last-child(-n+2) .werkzeug-text {" in stil,
-           "die letzten zwei Sprechblasen hängen rechtsbündig")
-    pruefe(".werkzeuge > *:last-child .werkzeug-text {" not in stil,
-           "die alte Regel für nur die letzte ist ersetzt")
-    pruefe(".menuehuelle .werkzeuge > *:nth-last-child(-n+2) .werkzeug:hover"
-           in stil,
-           "und die Sonderregel der Menüschublade zieht mit – sonst "
-           "verlöre sie den Spezifitätskampf")
+    # Seit 2.0 gibt es die drei Werkzeugsymbole mit ihren Sprechblasen
+    # nicht mehr - sie sind im Kontomenü aufgegangen, dessen Fenster
+    # rechtsbündig unter dem Knopf hängt und damit nicht über den
+    # Fensterrand hinausragen kann.
+    pruefe(".werkzeug-text" not in stil and ".menuehuelle" not in stil,
+           "die alten Sprechblasen und die Menüschublade sind ganz weg")
+    pruefe(".kontopanel {\n  position: absolute; right: 0;" in stil,
+           "das Kontomenü hängt rechtsbündig unter seinem Knopf")
 
     # --- Tabellen am Telefon: einheitlich, einzeilige Titel, rollbar ----
     # ⚠️ Nicht am letzten „@media (max-width: 760px)" abschneiden - davon
@@ -10640,6 +10684,447 @@ def test_kosmetik(client: TestClient) -> None:
     pruefe(all("fuss-purzel" not in t for t in ruhig[:1]),
            "und läuft nur mit ausdrücklicher Erlaubnis für Bewegung")
 
+
+
+def test_neues_gesicht(client: TestClient) -> None:
+    """2.0: Kopfzeile, Tableiste, Schnellsuche, Darstellung, Erklärtexte."""
+    abschnitt("2.0: Neues Gesicht")
+
+    def quelle(name):
+        with open(os.path.join(os.path.dirname(__file__), "templates", name),
+                  encoding="utf-8") as f:
+            return f.read()
+
+    stil = client.get("/static/style.css").text
+    seite = client.get("/").text
+    basis = quelle("base.html")
+
+    # --- Kopfzeile, Tableiste, Blatt ---------------------------------------
+    menue = hauptmenue(seite)
+    pruefe(menue.count('class="navpunkt') == 6 and '<svg class="sym' in menue,
+           "das Hauptmenü trägt alle sechs Punkte mit Symbol")
+    pruefe('class="tableiste"' in seite and 'data-blatt-auf' in seite,
+           "am Telefon gibt es die Tableiste mit „Mehr“")
+    leiste = seite.split('class="tableiste"')[1].split("</nav>")[0]
+    pruefe(len(re.findall(r'class="tab( aktiv)?"', leiste)) == 4,
+           "die Leiste zeigt drei Ziele und „Mehr“, wenn es mehr als vier gibt")
+    blatt = seite.split('id="mehrblatt"')[1].split("<dialog")[0]
+    for ziel in ("/fuhrpark", "/dateien", "/wiki", "/meinbereich", "/einstellungen"):
+        pruefe(f'href="{ziel}"' in blatt, f"„Mehr“ führt zu {ziel}")
+    pruefe(".tableiste, .blatt, .blattschatten { display: none; }" in stil,
+           "am Schreibtisch sind Leiste und Blatt aus")
+    pruefe("env(safe-area-inset-bottom)" in stil,
+           "die Leiste hält Abstand zum Home-Balken des iPhones")
+    pruefe('class="burger"' not in seite and "menuehuelle" not in seite,
+           "die Schublade von oben ist weg")
+
+    # Der Zähler an „Aufgaben": eigene, heute drängende Aufgaben.
+    with db.db() as con:
+        con.execute("UPDATE benutzer SET mitarbeiter='Kollegin Gesicht' "
+                    "WHERE benutzername='gesicht'")
+    gesicht = _konto(client, "gesicht", "gesichtpasswort",
+                     ["verwaltungsvorgaenge", "datensaetze"])
+    with db.db() as con:
+        con.execute("UPDATE benutzer SET mitarbeiter='Kollegin Gesicht' "
+                    "WHERE benutzername='gesicht'")
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, abgabepflicht, "
+                    "angelegt_am) VALUES ('Kollegin Gesicht',1,0,'2026-01-01 08:00')")
+        for titel, frist in (("Gesicht alt", "2020-01-01"), ("Gesicht neu", "2099-01-01")):
+            con.execute("INSERT INTO vorgang (klient, art, titel, zustaendig, status, "
+                        "frist, angelegt_am, angelegt_von, zuweis_gemeldet, "
+                        "erledigt_gemeldet) VALUES ('Frau Probe','Sonstiges',?,"
+                        "'Anna, Kollegin Gesicht','Offen',?,'2026-01-01 08:00','x',1,1)",
+                        (titel, frist))
+    g = gesicht.get("/vorgaenge").text
+    pruefe('class="navzahl dringend"' in hauptmenue(g) and ">1</span>" in hauptmenue(g),
+           "„Aufgaben“ zählt die eine überfällige eigene Aufgabe – auch mit zwei Zuständigen")
+    pruefe("/fuhrpark" not in hauptmenue(g) and "/fuhrpark" not in g.split('id="mehrblatt"')[1],
+           "ein Bereich ohne Recht fehlt in Menü UND Blatt")
+
+    # --- Schnellsuche -------------------------------------------------------
+    antwort = client.get("/schnellsuche.json")
+    pruefe(antwort.status_code == 200 and antwort.headers["cache-control"] == "no-store",
+           "die Schnellsuche liefert ihre Liste, ohne Zwischenspeicher")
+    alle = {e["adresse"] for e in antwort.json()}
+    pruefe("/einstellungen?bereich=benutzer#punkt" in alle,
+           "die Verwaltung findet die Benutzerverwaltung")
+    eng = {e["adresse"] for e in gesicht.get("/schnellsuche.json").json()}
+    pruefe(not any(a.startswith(("/fuhrpark", "/dateien", "/wiki", "/einstellungen",
+                                 "/privatauslagen", "/auswertung")) for a in eng),
+           "ein eingeschränktes Konto bekommt nichts angeboten, was ein 403 wäre")
+    pruefe("/vorgaenge" in eng and "/eintraege" in eng,
+           "seine eigenen Bereiche stehen darin")
+    pruefe(TestClient(app).get("/schnellsuche.json", follow_redirects=False).status_code
+           in (303, 307, 401, 403),
+           "ohne Anmeldung gibt es keine Liste")
+    pruefe('fetch("/schnellsuche.json"' in basis,
+           "die Liste wird erst beim Öffnen geholt")
+    pruefe("(e.metaKey || e.ctrlKey)" in basis, "Strg+K und ⌘K öffnen sie")
+
+    # --- Darstellung --------------------------------------------------------
+    for welt in ("mitternacht", "wald", "sand", "ozean", "graphit",
+                 "wein", "honig", "schiefer", "kontrast"):
+        for thema in ("dunkel", "hell"):
+            pruefe(f'[data-farbe="{welt}"][data-thema="{thema}"] {{' in stil,
+                   f"Farbwelt {welt} hat eine {thema}e Fassung")
+    for akzent in ("rosa", "violett", "blau", "tuerkis", "gruen", "gelb", "orange", "rot"):
+        pruefe(f'html[data-akzent="{akzent}"][data-thema="dunkel"]' in stil
+               and f'html[data-akzent="{akzent}"][data-thema="hell"]' in stil,
+               f"Akzent {akzent} gibt es hell und dunkel")
+    pruefe("color: #1a1113" not in stil,
+           "keine feste Schriftfarbe mehr auf Akzentflächen (--auf-akzent)")
+    kopfskript = quelle("_thema_kopf.html")
+    pruefe('{% include "_thema_kopf.html" %}' in basis
+           and '{% include "_thema_kopf.html" %}' in quelle("login.html"),
+           "Kopfseite und Anmeldeseite lesen die Darstellung mit demselben Skript")
+    pruefe('dataset.thema = dunkel ? "dunkel" : "hell"' in kopfskript,
+           "„Automatisch“ wird vor dem ersten Bild zu hell oder dunkel aufgelöst")
+    pruefe('class="dialog darstellungsdialog"' in seite
+           and seite.count('data-einstellung="farbe"') == 10,
+           "der Dialog „Darstellung“ steht auf jeder Seite, mit zehn Farbwelten")
+    # Dieselben zehn Namen an drei Stellen: Makro, Kopfskript, Stylesheet.
+    regler = quelle("_darstellung.html")
+    regler = regler[regler.index("{% set FARBWELTEN"):regler.index("{% set AKZENTE")]
+    welten = re.findall(r'\("([a-z]+)",\s+"[A-ZÄÖÜ]', regler)
+    pruefe(len(welten) == 10 and all(f'"{w}"' in kopfskript for w in welten),
+           "jede Farbwelt im Regler steht auch in der Liste des Kopfskripts")
+    # ⚠️ Der Schalter „Kontrast" war ohne sichtbare Wirkung (Timos Meldung)
+    # und ist durch die Farbwelt „Kontrast" ersetzt.
+    pruefe("data-kontrast" not in stil and "data-kontrast" not in basis
+           and "kontrast:" not in kopfskript,
+           "den wirkungslosen Kontrast-Schalter gibt es nicht mehr")
+    pruefe('data-wahlname="farbe"' in seite,
+           "neben dem Titel steht der Name der gewählten Farbwelt")
+    pruefe('data-einstellung="farbe"' in gesicht.get("/meinbereich").text,
+           "auch ein Konto ohne Einstellungen kommt an die Darstellung")
+
+    # --- Erklärtexte hinter ⓘ ----------------------------------------------
+    pruefe('html.mit-skript[data-hinweise="kompakt"] main\n'
+           '  :is(h1, h2, h3, :has(> h1, > h2, > h3)) + p.lead:not(.lead-auf) '
+           '{ display: none; }' in stil,
+           "das Stylesheet blendet den Erklärtext aus - vor dem ersten Bild")
+    pruefe('vor.matches("h1, h2, h3")' in basis
+           and 'vor.querySelector(":scope > h1, :scope > h2, :scope > h3")' in basis,
+           "das Skript prüft dieselbe Bedingung und hängt nur den Knopf an")
+    pruefe('<p class="lead">' in seite.split("<main")[1],
+           "der Text steht weiterhin im Markup")
+
+
+def test_etappe_arbeitszeit(client: TestClient) -> None:
+    """2.0, Etappe 2: Meine Woche, Tagesgliederung, Aufgaben in Mein Bereich."""
+    abschnitt("2.0: Arbeitszeit")
+    import datetime as _dt
+    from . import rechnen
+
+    # --- Meine Woche: dieselbe Rechnung wie in „Mein Bereich" ---------------
+    mittwoch = _dt.date(2026, 3, 11)
+    with db.db() as con:
+        con.execute("INSERT OR IGNORE INTO mitarbeiter (name, aktiv, abgabepflicht, "
+                    "monatsstunden, angelegt_am) VALUES ('Woche Probe',1,0,100,"
+                    "'2026-01-01 08:00')")
+        for datum, minuten, text in (("2026-03-09", 90, "Hausbesuch"),
+                                     ("2026-03-09", 30, "Telefonat"),
+                                     ("2026-03-11", 120, "Hausbesuch"),
+                                     ("2026-03-13", 480, "Urlaub"),
+                                     ("2026-03-20", 60, "Hausbesuch"),
+                                     ("2026-02-27", 999, "Hausbesuch")):
+            con.execute("INSERT INTO eintrag (mitarbeiter, datum, monat, klient, "
+                        "beschreibung, dauer_min, fingerprint, angelegt_am) VALUES "
+                        "('Woche Probe',?,?,'Frau Probe',?,?,?, '2026-01-01 08:00')",
+                        (datum, datum[:7], text, minuten, "wp" + datum + str(minuten)))
+        w = rechnen.wochenbild(con, "Woche Probe", mittwoch)
+    pruefe([t["kurz"] for t in w["tage"]] == ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
+           "die Woche beginnt am Montag")
+    pruefe(w["tage"][0]["datum"] == _dt.date(2026, 3, 9) and w["tage"][0]["m"] == 120
+           and w["tage"][0]["n"] == 2,
+           "der Montag zählt beide Einträge zusammen")
+    pruefe(w["tage"][2]["gewaehlt"] and not w["tage"][0]["gewaehlt"],
+           "der gewählte Tag ist markiert")
+    pruefe(w["tage"][4]["frei"] == 1.0, "der Urlaubstag ist als frei erkannt")
+    pruefe(w["summe"] == 120 + 120 + 480, "die Wochensumme stimmt (ohne Nachbarwochen)")
+    pruefe(w["ist"] == 90 + 30 + 120 + 60,
+           "das Monats-Ist zählt ohne Urlaub und ohne den Vormonat")
+    voll = 100 * 60
+    pruefe(w["soll"] == rechnen.soll_mit_abwesenheit(voll, 1.0) and w["soll"] < voll,
+           "das Monatssoll sinkt um den freien Tag - wie in „Mein Bereich“")
+    pruefe(w["kw"] == 11 and w["vorige"] == "2026-03-02" and w["naechste"] == "2026-03-16",
+           "Kalenderwoche und Blättern stimmen")
+    pruefe(rechnen.wochenbild(None, "", mittwoch) is None,
+           "ohne Mitarbeiter gibt es keine Woche")
+
+    seite = client.get("/").text
+    pruefe('id="wochenkarte"' in seite and 'class="wochenstreifen"' in seite,
+           "die Karte „Meine Woche“ steht auf der Erfassung")
+    karte = seite.split('id="wochenkarte"')[1].split('id="abgabenkarte"')[0]
+    pruefe(len(re.findall(r'<a href="/\?datum=[^"]*#erfassen"', karte)) == 7,
+           "sieben Tage, jeder führt auf die Erfassung dieses Tages")
+    pruefe("dopp" not in karte and "fehlt" not in karte,
+           "und kein Tag wird als Lücke angeprangert")
+    pruefe('class="seitenkopf"' in seite, "Reiter und Hinweis stehen in einer Zeile")
+
+    # --- Übersicht nach Tagen ---------------------------------------------
+    liste = client.get("/eintraege?mitarbeiter=Woche+Probe").text
+    pruefe(liste.count('class="tagzeile"') == 5,
+           "je Tag eine Überschriftzeile")
+    pruefe("Montag, 09.03.2026" in liste and "2 Einträge" in liste and "02:00 Std" in liste,
+           "mit Wochentag, Anzahl und Summe des Tages")
+    pruefe("<th>Datum</th>" not in liste, "die Datumsspalte ist entfallen")
+    stil = client.get("/static/style.css").text
+    pruefe('grid-template-areas: "wahl person person dauer"' in stil,
+           "am Telefon ist jede Zeile ein Block statt einer rollenden Tabelle")
+
+    # --- Mein Bereich: Aufgaben mit mehreren Zuständigen ---------------------
+    with db.db() as con:
+        con.execute("INSERT INTO vorgang (klient, art, titel, zustaendig, status, frist, "
+                    "angelegt_am, angelegt_von, zuweis_gemeldet, erledigt_gemeldet) "
+                    "VALUES ('Frau Probe','Sonstiges','Zu zweit erledigen',"
+                    "'Anna, Woche Probe','Offen','2020-01-01','2026-01-01 08:00','x',1,1)")
+        con.execute("UPDATE benutzer SET mitarbeiter='Woche Probe' WHERE benutzername='wocheprobe'")
+    wp = _konto(client, "wocheprobe", "wocheprobepasswort", ["verwaltungsvorgaenge"])
+    with db.db() as con:
+        con.execute("UPDATE benutzer SET mitarbeiter='Woche Probe' WHERE benutzername='wocheprobe'")
+    mein = wp.get("/meinbereich").text
+    pruefe("Zu zweit erledigen" in mein,
+           "„Meine Aufgaben“ findet eine Aufgabe mit zwei Zuständigen")
+
+
+def test_etappe_seiten(client: TestClient) -> None:
+    """2.0, Etappen 3 bis 5: Mein Bereich, Fuhrpark, Einstellungen, Verweise."""
+    abschnitt("2.0: Mein Bereich, Fuhrpark, Einstellungen")
+    stil = client.get("/static/style.css").text
+    mein = client.get("/meinbereich").text
+    pruefe('class="gruss"' in mein and any(g in mein for g in
+           ("Guten Morgen", "Guten Tag", "Guten Abend")),
+           "„Mein Bereich“ grüßt nach der Tageszeit")
+    pruefe(".abschnittsband > h2 + p:not(.lead-auf) { display: none; }" in stil,
+           "auch die Einleitung eines Abschnittsbandes steht hinter dem ⓘ")
+    basis = open(os.path.join(os.path.dirname(__file__), "templates", "base.html"),
+                 encoding="utf-8").read()
+    pruefe('main .abschnittsband > h2 + p' in basis and 'vor.matches(".kopfzeile")' in basis,
+           "das Skript kennt dieselben Fälle")
+
+    fuhr = open(os.path.join(os.path.dirname(__file__), "templates", "kfz_erfassung.html"),
+                encoding="utf-8").read()
+    pruefe('class="knopf ohne-skript-knopf"' in fuhr
+           and ".mit-skript .ohne-skript-knopf { display: none; }" in stil,
+           "„Wechseln“ im Fuhrpark steht nur noch ohne Skript da")
+
+    einst = client.get("/einstellungen?bereich=leistungen").text
+    pruefe("background: none; border: 0; box-shadow: none;" in
+           stil.split(".karte.einstellungskopf {")[1].split("}")[0],
+           "der Kopf eines Einstellungspunktes ist eine Überschrift ohne Kasten")
+    pruefe("m.scrollLeft +=" in einst and "scrollIntoView" not in
+           einst.split('class="seitenmenue"')[1].split("</script>")[0],
+           "am Telefon rückt der gewählte Punkt ins Bild, ohne die Seite zu verschieben")
+    pruefe(".seitenmenue-titel, .seitenmenue-gruppe { display: none; }" in stil,
+           "und das Menü ist dort eine wischbare Zeile")
+
+    pruefe(":where(main) a:where(:not([class])) {" in stil,
+           "klassenlose Verweise tragen die Akzentfarbe - ohne Spezifität")
+    pruefe(".wiki-inhalt a" in stil, "die Wiki-Verweise behalten ihre eigene Regel")
+
+
+def test_etappe_wiki(client: TestClient) -> None:
+    """2.0: Kurzvorschau der Seiten und „Zuletzt geändert"."""
+    abschnitt("2.0: Wiki")
+    from . import wiki as _w
+    pfad = os.path.join(_ORDNER, "wiki", "vorschauprobe.md")
+    with open(pfad, "w", encoding="utf-8") as f:
+        f.write("# Titel der Probe\n\n> Ein Zitat zählt nicht.\n\n"
+                "Der **erste** Absatz mit [einem Verweis](x.md) und\nzweiter Zeile.\n\n"
+                "Der zweite Absatz zählt nicht mehr.\n")
+    auszug = _w.auszug_der_datei(pfad)
+    pruefe(auszug == "Der erste Absatz mit einem Verweis und zweiter Zeile.",
+           f"die Vorschau ist der erste Fließtext-Absatz ohne Markdown (ist: {auszug!r})")
+    with open(pfad, "w", encoding="utf-8") as f:
+        f.write("Wort " * 80)
+    os.utime(pfad, (1, 2))
+    lang = _w.auszug_der_datei(pfad)
+    pruefe(lang.endswith(" …") and len(lang) <= 155,
+           "ein langer Absatz wird an einer Wortgrenze gekürzt")
+    pruefe(_w.auszug_der_datei(pfad + ".fehlt") == "", "eine fehlende Datei gibt nichts")
+    seite = client.get("/wiki").text
+    pruefe('class="wiki-zuletzt"' in seite, "die Startseite nennt die zuletzt geänderten Seiten")
+    wiki_html = open(os.path.join(os.path.dirname(__file__), "templates", "wiki.html"),
+                     encoding="utf-8").read()
+    pruefe("{{ s.auszug }}" in wiki_html and 'title="{{ s.name }}"' in wiki_html,
+           "die Kachel zeigt die Vorschau, der Dateiname steht im title")
+    css = open(os.path.join(os.path.dirname(__file__), "static", "style.css"),
+               encoding="utf-8").read()
+    # Mit 1fr wuchs die Spalte am Telefon auf den laengsten Titel unter
+    # „Zuletzt geaendert" (429px bei 375px Fenster) - die Seite rollte seitlich.
+    pruefe(".wiki { display: grid; gap: var(--abstand); grid-template-columns: minmax(0, 1fr); }" in css,
+           "die einspaltige Wiki-Ansicht kann nicht breiter werden als das Fenster")
+    os.remove(pfad)
+
+def test_profilbild(client: TestClient) -> None:
+    """2.0: eigenes Profilbild je Konto, in der vorhandenen Tabelle symbol."""
+    abschnitt("2.0: Profilbild")
+    from . import profilbild as _pb
+    png = (b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\rIHDR" + b"\x00" * 40)
+    jpg = b"\xff\xd8\xff\xe0" + b"\x00" * 40
+    webp = b"RIFF\x00\x00\x00\x00WEBPVP8 " + b"\x00" * 20
+    pruefe(_pb.art_erkennen(png) == "image/png" and _pb.art_erkennen(jpg) == "image/jpeg"
+           and _pb.art_erkennen(webp) == "image/webp",
+           "PNG, JPEG und WebP werden an den ersten Bytes erkannt")
+    pruefe(_pb.art_erkennen(b"<svg xmlns='x'></svg>") == "" and _pb.art_erkennen(b"GIF89a") == "",
+           "SVG und alles andere werden nicht erkannt")
+
+    eigen = _konto(client, "bildprobe", "bildprobe123", ["manuelle_eintraege"])
+    fremd = _konto(client, "bildfremd", "bildfremd123", ["manuelle_eintraege"])
+    with db.db() as con:
+        eid = con.execute("SELECT id FROM benutzer WHERE benutzername='bildprobe'").fetchone()["id"]
+        vorher = con.execute("SELECT COUNT(*) c FROM sqlite_master").fetchone()["c"]
+    seite = eigen.get("/meinbereich/konto").text
+    pruefe('class="profilform"' in seite and 'name="bild"' in seite,
+           "„Mein Konto“ hat ein Feld für das Profilbild")
+    pruefe(f"/profilbild/{eid}" not in seite, "ohne Bild steht das Kürzel da, kein Bildverweis")
+
+    a = eigen.post("/meinbereich/profilbild", files={"bild": ("x.txt", b"hallo", "image/png")},
+                   follow_redirects=False)
+    pruefe(a.status_code == 303 and "fehler=" in a.headers["location"],
+           "eine Textdatei mit falscher Angabe wird abgewiesen")
+    a = eigen.post("/meinbereich/profilbild",
+                   files={"bild": ("gross.jpg", jpg + b"\x00" * (_pb.MAX_BYTES + 1), "image/jpeg")},
+                   follow_redirects=False)
+    pruefe("fehler=" in a.headers["location"], "ein Bild über 2 MB wird abgewiesen")
+    with db.db() as con:
+        pruefe(_pb.stand(con, eid) == "", "nach den Fehlversuchen liegt kein Bild vor")
+
+    a = eigen.post("/meinbereich/profilbild", files={"bild": ("p.jpg", jpg, "image/jpeg")},
+                   follow_redirects=False)
+    pruefe("hinweis=" in a.headers["location"], "ein JPEG wird angenommen")
+    seite = eigen.get("/meinbereich").text
+    pruefe(seite.count(f'src="/profilbild/{eid}?v=') >= 4,
+           "das Bild steht im Kopf, im Kontomenü, im Blatt und in „Mein Bereich“")
+    pruefe(f'src="/profilbild/{eid}?v=' in eigen.get("/meinbereich/konto").text.split("<main")[1],
+           "und auf „Mein Konto“")
+    holen = eigen.get(f"/profilbild/{eid}")
+    pruefe(holen.status_code == 200 and holen.content == jpg
+           and holen.headers["content-type"] == "image/jpeg"
+           and holen.headers.get("x-content-type-options") == "nosniff",
+           "es kommt byteweise zurück, mit erkanntem Inhaltstyp und nosniff")
+    pruefe(TestClient(app).get(f"/profilbild/{eid}", follow_redirects=False).status_code
+           in (303, 307, 401, 403),
+           "ohne Anmeldung ist kein Profilbild abrufbar")
+    pruefe(client.get(f"/symbol/profil-{eid}").status_code == 404
+           and client.get(f"/marke/profil-{eid}.svg").status_code == 404,
+           "auch nicht über die öffentlichen Adressen derselben Tabelle")
+    pruefe(f"/profilbild/{eid}" not in fremd.get("/meinbereich").text,
+           "ein anderes Konto zeigt sein eigenes Kürzel, nicht dieses Bild")
+    with db.db() as con:
+        nachher = con.execute("SELECT COUNT(*) c FROM sqlite_master").fetchone()["c"]
+        pruefe(con.execute("SELECT COUNT(*) c FROM symbol WHERE name=?",
+                           (f"profil-{eid}",)).fetchone()["c"] == 1,
+               "gespeichert als Zeile profil-<Nummer> in symbol")
+    pruefe(vorher == nachher, "⚠️ am Schema ändert sich nichts (keine neue Tabelle)")
+    stand1 = None
+    with db.db() as con:
+        stand1 = _pb.stand(con, eid)
+        con.execute("UPDATE symbol SET geaendert_am='2000-01-01 00:00:00' WHERE name=?",
+                    (f"profil-{eid}",))
+    eigen.post("/meinbereich/profilbild", files={"bild": ("p.png", png, "image/png")})
+    with db.db() as con:
+        zeile = con.execute("SELECT art FROM symbol WHERE name=?", (f"profil-{eid}",)).fetchone()
+        pruefe(zeile["art"] == "image/png" and _pb.stand(con, eid) != "20000101000000",
+               "ein neues Bild ersetzt das alte und ändert den Stand im Anhang")
+
+    eigen.post("/meinbereich/profilbild", data={"entfernen": "1"})
+    with db.db() as con:
+        pruefe(_pb.stand(con, eid) == "", "„Entfernen“ räumt das Bild weg")
+    eigen.post("/meinbereich/profilbild", files={"bild": ("p.jpg", jpg, "image/jpeg")})
+    client.post(f"/einstellungen/benutzer/{eid}/loeschen")
+    with db.db() as con:
+        pruefe(con.execute("SELECT COUNT(*) c FROM symbol WHERE name=?",
+                           (f"profil-{eid}",)).fetchone()["c"] == 0,
+               "wird das Konto gelöscht, geht sein Bild mit")
+    meinb = open(os.path.join(os.path.dirname(__file__), "templates", "mein_konto.html"),
+                 encoding="utf-8").read()
+    pruefe("createImageBitmap" in meinb and "256" in meinb and "requestSubmit" in meinb,
+           "das Skript verkleinert vor dem Hochladen auf 256px")
+
+def test_etappe_dateien(client: TestClient) -> None:
+    """2.0: Dateien (Zeitzeile, Vorschau, Überblick, Telefon) und Anmeldeseite."""
+    abschnitt("2.0: Dateien und Anmeldung")
+    import datetime as _dt
+    from . import dateien as _d
+    from . import rechnen
+    wurzel = _d.wurzel()
+    os.makedirs(os.path.join(wurzel, "etappeprobe"), exist_ok=True)
+    pfad = os.path.join(wurzel, "etappeprobe", "neu.png")
+    with open(pfad, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n" + b"\x00" * 30)
+    z = _d._zeitpunkt(pfad)
+    pruefe(z["kurz"].startswith("Heute, ") and z["voll"].endswith(" Uhr"),
+           "eine heute geänderte Datei heißt „Heute, hh:mm“, voll im title")
+    alt = (_dt.datetime.now() - _dt.timedelta(days=1)).timestamp()
+    os.utime(pfad, (alt, alt))
+    pruefe(_d._zeitpunkt(pfad)["kurz"].startswith("Gestern, "), "gestern heißt „Gestern“")
+    alt = (_dt.datetime.now() - _dt.timedelta(days=9)).timestamp()
+    os.utime(pfad, (alt, alt))
+    pruefe(re.fullmatch(r"\d\d\.\d\d\.\d{4}", _d._zeitpunkt(pfad)["kurz"]) is not None,
+           "ältere nur mit Datum")
+    os.utime(pfad, None)
+
+    seite = client.get("/dateien").text
+    pruefe('class="wiki-zuletzt dateien-zuletzt"' in seite and "neu.png" in seite.split("dateien-zuletzt")[1],
+           "die oberste Ebene nennt die zuletzt hinzugefügten Dateien")
+    pruefe('class="dateien-belegung"' in seite, "und den Platzbedarf")
+    unter = client.get("/dateien?ordner=etappeprobe").text
+    pruefe("dateien-zuletzt" not in unter, "in einem Unterordner nicht")
+    pruefe('class="datei-mini"' in unter and 'class="artspalte art-bild"' in unter,
+           "ein Bild zeigt sich in der Liste selbst")
+    pruefe('zeitzelle" title="' in unter, "die Zeitzelle trägt die volle Angabe im title")
+    # Versteckter Ordner: taucht weder in „Zuletzt" noch in der Summe auf.
+    sichtbar = lambda rel: not rel.startswith("etappeprobe")
+    ueb = _d.ueberblick(sichtbar)
+    pruefe(all(d["elternteil"] != "etappeprobe" for d in ueb["zuletzt"]),
+           "der Überblick läuft durch den Sperrfilter")
+    stil = client.get("/static/style.css").text
+    pruefe('grid-template-areas: "sym name name akt" "sym gr zeit akt";' in stil,
+           "am Telefon wird jede Dateizeile ein Raster statt einer rollenden Tabelle")
+
+    # --- Anmeldeseite ---------------------------------------------------------
+    pruefe(rechnen.tagesgruss(_dt.datetime(2026, 1, 1, 8)) == "Guten Morgen"
+           and rechnen.tagesgruss(_dt.datetime(2026, 1, 1, 13)) == "Guten Tag"
+           and rechnen.tagesgruss(_dt.datetime(2026, 1, 1, 21)) == "Guten Abend",
+           "der Gruß folgt der Tageszeit")
+    anmeldung = TestClient(app).get("/login").text
+    pruefe('class="gruss"' in anmeldung and 'class="pw-huelle"' in anmeldung,
+           "die Anmeldekarte grüßt und hat den Augen-Knopf am Passwort")
+    pruefe('name="passwort" required autocomplete="current-password"' in anmeldung,
+           "das Passwortfeld bleibt ein gewöhnliches Feld (ohne Skript bedienbar)")
+    schein = stil[stil.index(".anmelde-schein {"):stil.index(".anmelde-huelle {")]
+    pruefe("rgb(226 45 140" not in schein and "var(--akzent)" in schein,
+           "der Farbschein folgt Farbwelt und Akzent statt festem Rosa")
+    import shutil
+    shutil.rmtree(os.path.join(wurzel, "etappeprobe"), ignore_errors=True)
+
+def test_konto_seiten(client: TestClient) -> None:
+    """Nachtrag zu 2.0: „Mein Konto“ und „Meine Vorlagen“ als eigene Seiten."""
+    abschnitt("2.0: Mein Konto und Meine Vorlagen")
+    seite = client.get("/").text
+    kopf = seite.split("<main")[0]
+    pruefe('href="/meinbereich/konto"' in kopf and 'href="/meinbereich/vorlagen"' in kopf,
+           "beide stehen im Kontomenü")
+    mb = client.get("/meinbereich").text.split("<main")[1]
+    pruefe('class="kontoform"' not in mb and 'id="vorlagen"' not in mb,
+           "„Mein Bereich“ trägt weder Kontoformular noch Vorlagen")
+    pruefe('href="/meinbereich/konto"' in mb, "das eigene Bild führt zu „Mein Konto“")
+    ohne = _konto(client, "ohnevorlage", "ohnevorlage123", ["datensaetze"])
+    pruefe('href="/meinbereich/vorlagen"' not in ohne.get("/meinbereich").text,
+           "ohne manuelle Erfassung steht „Meine Vorlagen“ nicht im Menü")
+    r = ohne.get("/meinbereich/vorlagen", follow_redirects=False)
+    pruefe(r.status_code == 303 and r.headers["location"] == "/meinbereich",
+           "und die Seite selbst schickt zurück")
+    pruefe(ohne.get("/meinbereich/konto").status_code == 200,
+           "„Mein Konto“ erreicht jedes Konto")
+    r = client.get("/meinbereich?vorlage=neu", follow_redirects=False)
+    pruefe(r.status_code == 303 and r.headers["location"].startswith("/meinbereich/vorlagen?vorlage=neu"),
+           "alte Verweise mit ?vorlage= landen auf „Meine Vorlagen“")
+    r = client.get("/meinbereich?pw=1", follow_redirects=False)
+    pruefe(r.headers.get("location") == "/meinbereich/konto?pw=1",
+           "alte Verweise mit ?pw=1 landen auf „Mein Konto“")
 
 def test_versionen() -> None:
     """Die Versionszaehlung: beginnt bei 0.1, endet beim aktuellen Stand."""
@@ -11531,8 +12016,7 @@ def test_dateien(client: TestClient) -> None:
            "ohne den Bereich „Dateien“ ist die Seite gesperrt")
     pruefe(ohne.get("/dateien/holen/Bericht.pdf").status_code == 403,
            "auch das Ausliefern einer einzelnen Datei")
-    pruefe("/dateien" not in ohne.get("/eintraege").text.split("<nav>")[1]
-           .split("</nav>")[0],
+    pruefe("/dateien" not in hauptmenue(ohne.get("/eintraege").text),
            "und der Menüpunkt fehlt")
 
 
@@ -11540,8 +12024,8 @@ def test_menue_reihenfolge(client: TestClient) -> None:
     """Reihenfolge im Hauptmenü und die Bezeichnung „Aufgaben“."""
     abschnitt("Menü: Reihenfolge und Bezeichnungen")
     seite = client.get("/").text
-    nav = seite.split("<nav>")[1].split("</nav>")[0]
-    punkte = re.findall(r">([^<>]+)</a>", nav)
+    nav = hauptmenue(seite)
+    punkte = re.findall(r'class="navwort">([^<>]+)</span>', nav)
     pruefe(punkte == ["Arbeitszeit", "Aufgaben", "Privatauslagen", "Fuhrpark",
                       "Dateien", "Wiki"],
            f"das Menü steht in der erwarteten Reihenfolge (ist: {punkte})")
@@ -11566,8 +12050,10 @@ def test_menue_reihenfolge(client: TestClient) -> None:
     from .main import VERSION
     kopf = seite.split("</header>")[0]
     fuss = seite.split("<footer>")[1].split("</footer>")[0]
-    pruefe('href="/changelog"' not in kopf,
-           "der Changelog steht nicht mehr in der Kopfzeile")
+    # ⚠️ Seit 2.0 steht „Was ist neu?" im Kontomenü - als Eintrag dort,
+    # nicht als eigenes Symbol in der Leiste. Geprüft wird das Hauptmenü.
+    pruefe('href="/changelog"' not in hauptmenue(kopf + "</header>"),
+           "der Changelog steht nicht im Hauptmenü der Kopfzeile")
     pruefe('href="/changelog"' in fuss,
            "der Changelog steht in der Fußzeile")
     pruefe(fuss.index(VERSION) < fuss.index('href="/changelog"'),
@@ -11839,6 +12325,13 @@ def _durchlauf(client: TestClient) -> None:
         test_aufgaben_1_60(client)
         test_texte_tot()
         test_kosmetik(client)
+        test_neues_gesicht(client)
+        test_etappe_arbeitszeit(client)
+        test_etappe_seiten(client)
+        test_etappe_wiki(client)
+        test_profilbild(client)
+        test_etappe_dateien(client)
+        test_konto_seiten(client)
         test_versionen()
     except Exception:
         print("\nUnerwarteter Abbruch:")

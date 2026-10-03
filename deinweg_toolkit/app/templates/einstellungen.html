@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_einstellungen_menue.html" import einstellungsmenue with context %}
+{% from "_darstellung.html" import darstellung_regler %}
 
 {# Der Mülleimer. Er stand bis 1.20.4 an manchen Stellen als Wortknopf
    „entfernen" und an anderen als Symbol - in derselben Liste sogar
@@ -152,16 +153,12 @@
   </div>
   {% endmacro %}
 
+  {# ⚠️ Seit 2.0 dieselben Regler wie im Dialog „Darstellung" (Kontomenü),
+     aus einem Makro. Hier stehen sie zusätzlich, weil man sie unter
+     „Oberfläche" sucht. #}
   <div class="optionsgruppe">
     <h2 class="unterkopf">Darstellung</h2>
-    <div class="optionsliste">
-      {{ wahlpaar("thema", "Farben", t("einst.ansicht"),
-                  ("dunkel", "Dunkel"), ("hell", "Hell"),
-                  "Zwischen dunkler und heller Ansicht wechseln") }}
-      {{ wahlpaar("breite", "Inhaltsbreite", t("einst.breite"),
-                  ("voll", "Volle Breite"), ("begrenzt", "Begrenzt"),
-                  "Zwischen voller und begrenzter Inhaltsbreite wechseln") }}
-    </div>
+    {{ darstellung_regler(voll=true) }}
   </div>
 
   {# Die beiden Ansichtsschalter regeln etwas, das ohne den jeweiligen

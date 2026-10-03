@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="de" data-thema="dunkel" data-breite="voll">
+<html lang="de" data-thema="dunkel" data-thema-wahl="dunkel" data-farbe="aubergine"
+      data-akzent="auto" data-schrift="normal" data-breite="voll">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,14 +28,7 @@
 {% else %}
 <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v={{ VERSION }}">
 {% endif %}
-<script>
-  (function () {
-    try {
-      var t = localStorage.getItem("toolkit-thema");
-      if (t === "hell" || t === "dunkel") document.documentElement.dataset.thema = t;
-    } catch (e) {}
-  })();
-</script>
+{% include "_thema_kopf.html" %}
 </head>
 <body class="anmeldeseite">
 {# Der Schein hinter der Karte ist reines CSS - kein Bild, das geladen
@@ -62,8 +56,11 @@
     {% set modus = modus or "anmelden" %}
     <div class="karte anmeldekarte">
     {% if modus == "anmelden" %}
+      {# Seit 2.0: ein Gruß nach der Tageszeit statt des Satzes „Mit
+         Benutzername und Passwort anmelden …" - der sagte dasselbe wie die
+         Überschrift und die beiden Felder darunter. #}
+      <span class="gruss">{{ tagesgruss() }}</span>
       <h1>Anmelden</h1>
-      <p class="lead">{{ t("login.lead") }}</p>
 
     {% if geaendert %}<p class="meldung hinweis">Dein neues Passwort gilt. Bitte melde dich damit an.</p>{% endif %}
     {% if fehler %}<p class="meldung fehler">{{ fehler }}</p>{% endif %}
@@ -76,7 +73,7 @@
       </label>
       <label class="feld">
         <span>Passwort</span>
-        <input type="password" name="passwort" required autocomplete="current-password">
+        <span class="pw-huelle"><input type="password" name="passwort" required autocomplete="current-password"></span>
       </label>
       <div class="knopfreihe">
         <button class="knopf haupt anmelde-knopf" type="submit">Anmelden</button>
@@ -139,5 +136,28 @@
     <p class="anmelde-fuss">Dein Weg Toolkit · Version {{ VERSION }}</p>
   </div>
 </main>
+<script>
+  // Passwort zeigen (seit 2.0): ein Augen-Knopf im Feld - am Telefon
+  // vertippt man sich leicht, und ohne Kontrolle weiß man nicht, wo.
+  // Gebaut vom Skript; ohne Skript gibt es ihn schlicht nicht.
+  (function () {
+    var AUGE = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/></svg>';
+    var ZU = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4l16 16M9.9 5.8A9.7 9.7 0 0 1 12 5.5C18 5.5 21.5 12 21.5 12a17 17 0 0 1-3.1 3.9M6.1 7.6C3.8 9.2 2.5 12 2.5 12S6 18.5 12 18.5c1.6 0 3-.4 4.2-1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    document.querySelectorAll(".pw-huelle").forEach(function (h) {
+      var feld = h.querySelector("input"), k = document.createElement("button");
+      k.type = "button"; k.className = "pw-zeigen"; k.innerHTML = AUGE;
+      k.setAttribute("aria-label", "Passwort zeigen"); k.setAttribute("aria-pressed", "false");
+      k.addEventListener("click", function () {
+        var zeigen = feld.type === "password";
+        feld.type = zeigen ? "text" : "password";
+        k.innerHTML = zeigen ? ZU : AUGE;
+        k.setAttribute("aria-pressed", zeigen ? "true" : "false");
+        k.setAttribute("aria-label", zeigen ? "Passwort verbergen" : "Passwort zeigen");
+        feld.focus();
+      });
+      h.appendChild(k);
+    });
+  })();
+</script>
 </body>
 </html>

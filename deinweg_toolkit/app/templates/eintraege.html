@@ -132,22 +132,34 @@
   </p>
   {% endif %}
 
-  <table class="liste dicht">
+  <table class="liste dicht eintragsliste">
     <thead>
       <tr><th class="wahlspalte">{% if loeschbar %}<input type="checkbox" id="alle-waehlen"
               aria-label="Alle Einträge dieser Seite auswählen">{% endif %}</th>
-          <th>Datum</th><th>Zeit</th><th>Dauer</th><th>Betreute Person</th>
+          <th>Zeit</th><th>Dauer</th><th>Betreute Person</th>
           <th>Leistung</th><th>Mitarbeiter</th><th></th></tr>
     </thead>
     <tbody>
+    {# ⚠️ Seit 2.0 nach TAGEN gegliedert: eine Überschriftzeile je Tag mit
+       Anzahl und Summe (über den ganzen Filter, nicht nur diese Seite -
+       main.eintraege rechnet sie). Die Spalte „Datum“ ist dafür entfallen:
+       sie wiederholte in jeder Zeile, was jetzt einmal darüber steht. #}
     {% for z in zeilen %}
+      {% if loop.changed(z.datum) %}
+      {% set ts = tagessummen.get(z.datum) %}
+      <tr class="tagzeile">
+        <th colspan="7" scope="rowgroup">
+          <span class="tagzeile-wort">{{ z.datum | tagwort }}</span>
+          {% if ts %}<span class="tagzeile-summe">{{ ts.n }} Eintr{{ 'ag' if ts.n == 1 else 'äge' }} · <strong>{{ ts.m | hhmm }} Std</strong></span>{% endif %}
+        </th>
+      </tr>
+      {% endif %}
       <tr>
         <td class="wahlspalte">
           {%- if z.id in loeschbar %}<input type="checkbox" name="ids" value="{{ z.id }}"
             form="massenloeschen" class="massenwahl"
             aria-label="Eintrag vom {{ z.datum | deutsch }} auswählen">{% endif -%}
         </td>
-        <td class="zahlen">{{ z.datum | deutsch }}</td>
         <td class="zahlen leise"><span class="zeitspanne">{{ z.start or "—" }}{% if z.ende %} <span class="bis">{{ z.ende }}</span>{% endif %}</span></td>
         <td class="zahlen stark">{{ z.dauer_min | hhmm }}</td>
         <td>{{ z.klient }}</td>

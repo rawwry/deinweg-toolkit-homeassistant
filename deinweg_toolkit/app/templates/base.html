@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="de" data-thema="dunkel" data-breite="voll" data-wikiliste="kacheln"
+<html lang="de" data-thema="dunkel" data-thema-wahl="dunkel" data-farbe="aubergine"
+      data-akzent="auto" data-schrift="normal" data-hinweise="kompakt"
+      data-breite="voll" data-wikiliste="kacheln"
       data-dateiliste="liste" data-aufgabenliste="karten" data-leerzellen="leer">
 <head>
 <meta charset="utf-8">
@@ -182,134 +184,13 @@
   // `hidden`, sondern eine Regel unter „Zwei Fassungen" im Stylesheet.
   document.documentElement.classList.add("mit-skript");
 
-  // vor dem ersten Rendern setzen, damit es nicht kurz aufblitzt
-  (function () {
-    try {
-      // Beim Umbenennen der App wurden die Schluessel umgestellt. Damit
-      // niemand seine Einstellung verliert, wird der alte Wert einmalig
-      // uebernommen und danach entfernt.
-      ["thema", "breite"].forEach(function (k) {
-        var alt = localStorage.getItem("timetool-" + k);
-        if (alt && !localStorage.getItem("toolkit-" + k)) {
-          localStorage.setItem("toolkit-" + k, alt);
-        }
-        if (alt) localStorage.removeItem("timetool-" + k);
-      });
-      var t = localStorage.getItem("toolkit-thema");
-      if (t === "hell" || t === "dunkel") document.documentElement.dataset.thema = t;
-      var b = localStorage.getItem("toolkit-breite");
-      if (b === "voll" || b === "begrenzt") document.documentElement.dataset.breite = b;
-      var w = localStorage.getItem("toolkit-wikiliste");
-      if (w === "kacheln" || w === "liste") document.documentElement.dataset.wikiliste = w;
-      var d = localStorage.getItem("toolkit-dateiliste");
-      if (d === "kacheln" || d === "liste") document.documentElement.dataset.dateiliste = d;
-      var a = localStorage.getItem("toolkit-aufgabenliste");
-      if (a === "karten" || a === "liste") document.documentElement.dataset.aufgabenliste = a;
-      var z = localStorage.getItem("toolkit-leerzellen");
-      if (z === "leer" || z === "strich") document.documentElement.dataset.leerzellen = z;
-    } catch (e) {}
-  })();
 </script>
+{% include "_thema_kopf.html" %}
 </head>
 <body>
-<header class="kopf">
-  {# ⚠️ Die Kopfzeile trägt seit 1.27 den vollständigen Schriftzug samt
-     Unterzeile - dieselbe Datei wie auf der Anmeldeseite und in der
-     Fußzeile. 1.28 stand hier kurz eine eigene Fassung ohne Unterzeile;
-     sie ist auf Timos Wunsch wieder weg. Stattdessen ist die Leiste
-     gewachsen, bis die Unterzeile wirklich lesbar ist (siehe
-     `--kopfhoehe` im Stylesheet, dort steht die Rechnung).
-     „marke-fuer-*.svg" (nur das Zeichen) wird seit 1.27 nirgends mehr
-     eingebunden. #}
-  <a class="marke" href="/" title="Zur Startseite" aria-label="Zur Startseite">
-    {# ⚠️ /marke/… statt /static/…: der Schriftzug lässt sich unter
-       Einstellungen → System und Sicherung durch einen eigenen ersetzen,
-       und der liegt in der Datenbank. Der Anhang ist der Stand des
-       Logos, NICHT die Programmversion - sonst hinge der Browser nach
-       einem Tausch am alten Bild. #}
-    <img class="nur-dunkel" src="/marke/logo-fuer-dunkel.svg?v={{ markenstand() }}"
-         alt="Dein Weg Toolkit">
-    <img class="nur-hell"   src="/marke/logo-fuer-hell.svg?v={{ markenstand() }}"
-         alt="Dein Weg Toolkit">
-  </a>
-  <button type="button" class="burger" id="burger" aria-expanded="false"
-          aria-controls="hauptmenue" aria-label="Menü öffnen">
-    <span></span><span></span><span></span>
-  </button>
+{% include "_kopf.html" %}
 
-  <div class="menuehuelle" id="hauptmenue">
-  <button type="button" class="menue-schliessen" id="menue-schliessen" aria-label="Menü schließen">
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-    </svg>
-  </button>
-  <nav>
-    {# Zeiterfassung, Übersicht und Auswertung sind seit 0.8.1 der eine
-       Menüpunkt „Arbeitszeit“; die drei Seiten stehen darunter als
-       Unterpunkte (siehe _untermenue.html). Der Punkt selbst führt auf
-       die Zeiterfassung und ist wie diese für jeden Angemeldeten
-       erreichbar - die Unterpunkte prüfen ihre Bereiche einzeln. #}
-    <a href="/" class="{{ 'aktiv' if seite in ('zeiterfassung', 'eintraege', 'auswertung') }}">Arbeitszeit</a>
-    {% if hat_zugriff(request.state.benutzer, "verwaltungsvorgaenge") %}
-    <a href="/vorgaenge" class="{{ 'aktiv' if seite=='vorgaenge' }}">Aufgaben</a>
-    {% endif %}
-    {# ⚠️ Hinter „Aufgaben“ und nicht am Ende (Timos Wunsch, 1.55): die
-       Privatauslagen sind das, was zwischendurch am Handy aufgerufen
-       wird, und stehen damit im Daumenbereich der Menüschublade. #}
-    {% if hat_zugriff(request.state.benutzer, "privatauslagen") %}
-    <a href="/privatauslagen" class="{{ 'aktiv' if seite=='privatauslagen' }}">Privatauslagen</a>
-    {% endif %}
-    {% if hat_zugriff(request.state.benutzer, "fuhrpark") %}
-    <a href="/fuhrpark" class="{{ 'aktiv' if seite=='fuhrpark' }}">Fuhrpark</a>
-    {% endif %}
-    {% if hat_zugriff(request.state.benutzer, "dateien") %}
-    <a href="/dateien" class="{{ 'aktiv' if seite=='dateien' }}">Dateien</a>
-    {% endif %}
-    {% if hat_zugriff(request.state.benutzer, "wiki") %}
-    <a href="/wiki" class="{{ 'aktiv' if seite=='wiki' }}">Wiki</a>
-    {% endif %}
-  </nav>
-
-  <div class="werkzeuge">
-    {% if hat_zugriff(request.state.benutzer, "ideen") %}
-    <a href="/ideen" class="werkzeug {{ 'aktiv' if seite=='ideen' }}"
-       title="Ideen und Rückmeldungen">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.5.4.8 1 .9 1.6l.1.6h5.2l.1-.6c.1-.6.4-1.2.9-1.6A6 6 0 0 0 12 3Z"
-              stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="werkzeug-text">Ideen</span>
-    </a>
-    {% endif %}
-
-    {% if hat_zugriff(request.state.benutzer, "einstellungen") %}
-    <a href="/einstellungen" class="werkzeug zahnrad {{ 'aktiv' if seite=='einstellungen' }}"
-       title="Einstellungen">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" stroke="currentColor" stroke-width="1.7"/>
-        <path d="M19.4 12.9c.04-.3.06-.6.06-.9s-.02-.6-.06-.9l1.86-1.45a.8.8 0 0 0 .19-1.02l-1.76-3.05a.8.8 0 0 0-.97-.35l-2.2.88a6.9 6.9 0 0 0-1.55-.9l-.33-2.34a.8.8 0 0 0-.79-.68h-3.52a.8.8 0 0 0-.79.68l-.33 2.34c-.56.22-1.08.53-1.55.9l-2.2-.88a.8.8 0 0 0-.97.35L2.61 8.63a.8.8 0 0 0 .19 1.02L4.66 11.1c-.04.3-.06.6-.06.9s.02.6.06.9L2.8 14.35a.8.8 0 0 0-.19 1.02l1.76 3.05c.2.35.62.5.97.35l2.2-.88c.47.37.99.68 1.55.9l.33 2.34c.06.4.4.68.79.68h3.52c.4 0 .73-.29.79-.68l.33-2.34c.56-.22 1.08-.53 1.55-.9l2.2.88c.35.14.77 0 .97-.35l1.76-3.05a.8.8 0 0 0-.19-1.02l-1.86-1.45Z"
-              stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-      </svg>
-      <span class="werkzeug-text">Einstellungen</span>
-    </a>
-    {% endif %}
-
-    <a href="/meinbereich" class="werkzeug {{ 'aktiv' if seite=='meinbereich' }}"
-       title="Angemeldet als {{ request.state.benutzer.benutzername }} · Mein Bereich (hier auch abmelden)">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.7"/>
-        <path d="M4.5 20c0-3.6 3.4-5.8 7.5-5.8s7.5 2.2 7.5 5.8"
-              stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-      </svg>
-      <span class="werkzeug-text">Mein Bereich</span>
-    </a>
-
-  </div>
-</header>
-
-<div class="menueschatten" id="menueschatten" hidden></div>
-
-<main>
+<main id="inhalt" tabindex="-1">
 {% block inhalt %}{% endblock %}
 </main>
 
@@ -381,10 +262,6 @@
             k.setAttribute("aria-checked", wert === standard ? "false" : "true");
           }
         });
-        if (speicher === "thema") {
-          var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.content = wert === "hell" ? "#f2f3f4" : "#17121c";
-        }
       }
 
       knoepfe.forEach(function (k) {
@@ -409,12 +286,6 @@
     }
 
     function schalterBauen() {
-    aufbauen("thema", "thema", "dunkel", "hell", function (w) {
-      return w === "hell" ? "Hell" : "Dunkel";
-    });
-    aufbauen("breite", "breite", "voll", "begrenzt", function (w) {
-      return w === "begrenzt" ? "Begrenzt" : "Volle Breite";
-    });
     // Wiki: Kacheln oder Liste. Beide Darstellungen stehen im HTML, der
     // Schalter blendet nur um - so ist beim Laden nichts zu sehen, was
     // gleich wieder verschwindet.
@@ -446,14 +317,84 @@
     window.dwt.nachruesten.push(schalterBauen);
     schalterBauen();
 
-    // ⚠️ Die Kopfzeile wird durchscheinend, sobald gescrollt wird - der
-    // Weichzeichner läuft also nicht dauerhaft, sondern nur, wenn wirklich
-    // etwas darunter vorbeizieht. Das Stylesheet schaltet ihn zusätzlich
-    // erst ab 861px zu; am Telefon klebt die Leiste gar nicht.
-    //
-    // Der Zuhörer ist `passive` (er verhindert nichts) und schreibt nur,
-    // wenn sich der Zustand wirklich ändert - eine Klassenzuweisung bei
-    // jedem Scroll-Bild wäre unnötige Arbeit für den Browser.
+    // --- Darstellung einstellen (seit 2.0) -------------------------------
+    // Jeder Knopf mit data-einstellung/data-wert setzt einen Wert am
+    // <html>, legt ihn in localStorage ab und markiert, was gewählt ist.
+    // ⚠️ Über EINEN Horcher am Dokument (Delegation) und nicht je Knopf:
+    // die Regler stehen im Dialog UND in den Einstellungen, und nach einem
+    // htmx-Austausch kämen sonst unverkabelte Knöpfe dazu.
+    var EINST = window.DWT_EINSTELLUNGEN || {};
+    function themaFarbeMelden() {
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (!meta) { return; }
+      var grund = getComputedStyle(wurzel).getPropertyValue("--grund").trim();
+      if (grund) { meta.content = grund; }
+    }
+    function markieren() {
+      document.querySelectorAll("[data-einstellung]").forEach(function (k) {
+        var name = k.dataset.einstellung,
+            jetzt = name === "thema" ? (wurzel.dataset.themaWahl || "dunkel")
+                                     : wurzel.dataset[name];
+        var an = k.dataset.wert === jetzt;
+        k.classList.toggle("aktiv", an);
+        k.setAttribute("aria-pressed", an ? "true" : "false");
+      });
+      // Der Name des Gewählten neben dem Titel (Farbwelt, Akzent) kommt aus
+      // dem title des markierten Tupfers derselben Gruppe.
+      document.querySelectorAll("[data-wahlname]").forEach(function (z) {
+        var gruppe = z.closest(".darstellung"),
+            k = gruppe && gruppe.querySelector('[data-einstellung="'
+                + z.dataset.wahlname + '"].aktiv');
+        z.textContent = k ? (k.getAttribute("title") || "") : "";
+      });
+    }
+    window.dwt.einstellen = function (name, wert) {
+      if (!EINST[name] || EINST[name].indexOf(wert) < 0) { return; }
+      function anwenden() {
+        if (name === "thema") {
+          wurzel.dataset.themaWahl = wert;
+          window.DWT_THEMA_AUFLOESEN();
+        } else {
+          wurzel.dataset[name] = wert;
+        }
+        markieren();
+        themaFarbeMelden();
+      }
+      // Ein sanfter Übergang beim Farbwechsel, wo der Browser ihn kann -
+      // und nur, wenn niemand Bewegung abgestellt hat.
+      var ruhig = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (document.startViewTransition && !ruhig
+          && ["thema", "farbe", "akzent"].indexOf(name) > -1) {
+        document.startViewTransition(anwenden);
+      } else {
+        anwenden();
+      }
+      try { localStorage.setItem("toolkit-" + name, wert); } catch (e) {}
+    };
+    document.addEventListener("click", function (e) {
+      var k = e.target.closest("[data-einstellung]");
+      if (k) { window.dwt.einstellen(k.dataset.einstellung, k.dataset.wert); return; }
+      if (e.target.closest("[data-thema-kippen]")) {
+        window.dwt.einstellen("thema", wurzel.dataset.thema === "hell" ? "dunkel" : "hell");
+      }
+    });
+    // „Automatisch" folgt dem Betriebssystem auch, während die Seite offen ist.
+    if (window.matchMedia) {
+      var hellAbfrage = matchMedia("(prefers-color-scheme: light)");
+      var folgen = function () {
+        if (wurzel.dataset.themaWahl === "auto") {
+          window.DWT_THEMA_AUFLOESEN(); markieren(); themaFarbeMelden();
+        }
+      };
+      if (hellAbfrage.addEventListener) { hellAbfrage.addEventListener("change", folgen); }
+    }
+    window.dwt.nachruesten.push(markieren);
+    markieren();
+    themaFarbeMelden();
+
+    // --- Kopfzeile wird beim Scrollen durchscheinend ---------------------
+    // ⚠️ Nur bei echtem Zustandswechsel schreiben, `passive` horchen. Das
+    // Stylesheet schaltet den Weichzeichner erst ab 861px zu.
     (function () {
       var leiste = document.querySelector(".kopf");
       if (!leiste) { return; }
@@ -466,33 +407,307 @@
       pruefen();
     })();
 
-    // Menü für schmale Bildschirme
-    var burger   = document.getElementById("burger"),
-        huelle   = document.getElementById("hauptmenue"),
-        schatten = document.getElementById("menueschatten"),
-        schliessen = document.getElementById("menue-schliessen");
+    // --- Kontomenü -------------------------------------------------------
+    // Ein <details>: geht ohne Skript auf und zu. Das Skript schließt es
+    // nur zusätzlich bei einem Klick daneben und mit Esc.
+    var konto = document.querySelector(".kontomenue");
+    document.addEventListener("click", function (e) {
+      if (konto && konto.open && !konto.contains(e.target)) { konto.open = false; }
+    });
 
-    function menue(auf) {
-      document.body.classList.toggle("menue-offen", auf);
-      burger.setAttribute("aria-expanded", auf ? "true" : "false");
-      burger.setAttribute("aria-label", auf ? "Menü schließen" : "Menü öffnen");
-      if (schatten) schatten.hidden = !auf;
+    // --- Blatt „Mehr" am Telefon -----------------------------------------
+    var blatt = document.getElementById("mehrblatt"),
+        blattSchatten = document.querySelector(".blattschatten"),
+        blattKnopf = document.querySelector("[data-blatt-auf]");
+    function blattZeigen(auf) {
+      if (!blatt) { return; }
+      blatt.hidden = !auf;
+      if (blattSchatten) { blattSchatten.hidden = !auf; }
+      document.body.classList.toggle("blatt-offen", auf);
+      if (blattKnopf) { blattKnopf.setAttribute("aria-expanded", auf ? "true" : "false"); }
+      if (auf) {
+        var erstes = blatt.querySelector("a, button");
+        if (erstes) { erstes.focus({preventScroll: true}); }
+      } else if (blattKnopf) {
+        blattKnopf.focus({preventScroll: true});
+      }
     }
+    if (blattKnopf) {
+      blattKnopf.addEventListener("click", function () { blattZeigen(blatt.hidden); });
+    }
+    document.querySelectorAll("[data-blatt-zu]").forEach(function (z) {
+      z.addEventListener("click", function () { blattZeigen(false); });
+    });
 
-    if (burger) {
-      burger.addEventListener("click", function () {
-        menue(!document.body.classList.contains("menue-offen"));
+    // --- Dialog „Darstellung" --------------------------------------------
+    var darstellung = document.querySelector(".darstellungsdialog");
+    document.addEventListener("click", function (e) {
+      if (e.target.closest("[data-darstellung-auf]") && darstellung) {
+        if (konto) { konto.open = false; }
+        blattZeigen(false);
+        darstellung.showModal();
+        markieren();
+      }
+      var zu = e.target.closest("[data-dialog-zu]");
+      if (zu) { zu.closest("dialog").close(); }
+      // Ein Klick auf den abgedunkelten Rand schließt ebenfalls.
+      // ⚠️ Über die Koordinaten und nicht über e.target allein: auch ein
+      // Klick in eine leere Stelle IM Dialog (Rand eines Absatzes, Lücke
+      // zwischen Reglern) trifft das <dialog> selbst und hätte ihn sonst
+      // geschlossen. Ohne Maus (Tastatur löst „click" mit 0/0 aus) nie.
+      if (e.target.tagName === "DIALOG" && e.target.classList.contains("dialog")
+          && (e.clientX || e.clientY)) {
+        var r = e.target.getBoundingClientRect();
+        if (e.clientX < r.left || e.clientX > r.right
+            || e.clientY < r.top || e.clientY > r.bottom) {
+          e.target.close();
+        }
+      }
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") { return; }
+      if (konto && konto.open) { konto.open = false; konto.querySelector("summary").focus(); }
+      if (blatt && !blatt.hidden) { blattZeigen(false); }
+    });
+
+    // --- Schnellsuche (Strg+K oder „/") ----------------------------------
+    // Die Liste kommt beim ersten Öffnen vom Server (nur Adressen, keine
+    // Inhalte, gefiltert nach den Rechten dieses Kontos). Dazu kommen hier
+    // die Handgriffe der Darstellung und die zuletzt besuchten Seiten.
+    (function () {
+      var dlg = document.querySelector(".schnellsuche");
+      if (!dlg) { return; }
+      var feld = dlg.querySelector(".ss-eingabe"),
+          liste = dlg.querySelector(".ss-liste"),
+          daten = null, ladefehler = false, treffer = [], wahl = 0;
+      var SYMBOL = {}, vorrat = dlg.querySelector(".ss-symbole");
+      if (vorrat) {
+        vorrat.content.querySelectorAll("[data-s]").forEach(function (s) {
+          SYMBOL[s.dataset.s] = s.innerHTML;
+        });
+      }
+      var DARSTELLUNG = [
+        ["thema", "dunkel", "Dunkles Design"], ["thema", "hell", "Helles Design"],
+        ["thema", "auto", "Design wie das Betriebssystem"],
+        ["farbe", "aubergine", "Farbwelt Aubergine"], ["farbe", "mitternacht", "Farbwelt Mitternacht"],
+        ["farbe", "wald", "Farbwelt Wald"], ["farbe", "sand", "Farbwelt Sand"],
+        ["farbe", "ozean", "Farbwelt Ozean"], ["farbe", "graphit", "Farbwelt Graphit"],
+        ["farbe", "schiefer", "Farbwelt Schiefer"], ["farbe", "honig", "Farbwelt Honig"],
+        ["farbe", "wein", "Farbwelt Wein"], ["farbe", "kontrast", "Farbwelt Kontrast (gut lesbar)"],
+        ["schrift", "gross", "Größere Schrift"], ["schrift", "normal", "Normale Schrift"]
+      ].map(function (d) {
+        return {gruppe: "Darstellung", titel: d[2], einstellung: d[0], wert: d[1],
+                symbol: "palette",
+                zusatz: "", worte: (d[2] + " theme farbe design").toLowerCase()};
       });
-      if (schatten) schatten.addEventListener("click", function () { menue(false); });
-      schliessen.addEventListener("click", function () { menue(false); });
-      huelle.addEventListener("click", function (e) {
-        // nach der Auswahl eines Punktes schließen
-        if (e.target.closest("a")) menue(false);
+      function zuletzt() {
+        try { return JSON.parse(localStorage.getItem("toolkit-zuletzt") || "[]"); }
+        catch (e) { return []; }
+      }
+      // Die eben geöffnete Seite merken - höchstens sechs, ohne Doppelte.
+      try {
+        var hier = {titel: document.title.replace(/^Dein Weg Toolkit\s*–\s*/, "") || "Startseite",
+                    adresse: location.pathname + location.search};
+        var alt = zuletzt().filter(function (z) { return z.adresse !== hier.adresse; });
+        alt.unshift(hier);
+        localStorage.setItem("toolkit-zuletzt", JSON.stringify(alt.slice(0, 6)));
+      } catch (e) {}
+
+      function zeichnen() {
+        var wort = (feld.value || "").trim().toLowerCase();
+        if (!wort) {
+          var z = zuletzt().slice(1).map(function (e) {
+            return {gruppe: "Zuletzt geöffnet", titel: e.titel, adresse: e.adresse,
+                    zusatz: "", symbol: "uhr"};
+          });
+          treffer = z.concat((daten || []).filter(function (d) {
+            return d.gruppe === "Handgriffe";
+          }));
+        } else {
+          var teile = wort.split(/\s+/);
+          treffer = (daten || []).concat(DARSTELLUNG).filter(function (d) {
+            return teile.every(function (t) { return d.worte.indexOf(t) > -1; });
+          });
+          // Was mit dem Wort BEGINNT, steht vorn.
+          treffer.sort(function (a, b) {
+            var x = a.titel.toLowerCase().indexOf(wort) === 0 ? 0 : 1,
+                y = b.titel.toLowerCase().indexOf(wort) === 0 ? 0 : 1;
+            return x - y;
+          });
+          treffer = treffer.slice(0, 40);
+        }
+        wahl = Math.min(wahl, Math.max(treffer.length - 1, 0));
+        var html = "", gruppe = null;
+        treffer.forEach(function (t, i) {
+          if (t.gruppe !== gruppe) {
+            gruppe = t.gruppe;
+            html += '<div class="ss-gruppe">' + schutz(gruppe) + "</div>";
+          }
+          html += '<a class="ss-treffer' + (i === wahl ? " gewaehlt" : "") + '" role="option"' +
+                  ' data-i="' + i + '" href="' + schutz(t.adresse || "#") + '"' +
+                  (i === wahl ? ' aria-selected="true"' : "") + ">" +
+                  '<span class="ss-symbol">' + (SYMBOL[t.symbol] || SYMBOL.pfeil || "") + "</span>" +
+                  '<span class="ss-titel">' + schutz(t.titel) + "</span>" +
+                  (t.zusatz ? '<span class="ss-zusatz">' + schutz(t.zusatz) + "</span>" : "") +
+                  "</a>";
+        });
+        if (!treffer.length) {
+          html = ladefehler
+            ? '<p class="ss-leer">Die Liste ließ sich nicht laden. Bist du noch ' +
+              'angemeldet? <a href="/login">Neu anmelden</a></p>'
+            : '<p class="ss-leer">' + (daten ? "Nichts gefunden." : "Einen Moment …") + "</p>";
+        }
+        liste.innerHTML = html;
+        var g = liste.querySelector(".gewaehlt");
+        if (g) { g.scrollIntoView({block: "nearest"}); }
+      }
+      function schutz(t) {
+        return String(t).replace(/[&<>"]/g, function (c) {
+          return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c];
+        });
+      }
+      function ausfuehren(t) {
+        if (!t) { return; }
+        if (t.einstellung) { window.dwt.einstellen(t.einstellung, t.wert); dlg.close(); return; }
+        dlg.close();
+        window.location.href = t.adresse;
+      }
+      function oeffnen() {
+        if (dlg.open) { return; }
+        if (konto) { konto.open = false; }
+        blattZeigen(false);
+        feld.value = ""; wahl = 0;
+        if (!daten) { ladefehler = false; }
+        dlg.showModal();
+        feld.focus();
+        zeichnen();
+        if (!daten) {
+          // ⚠️ Schlägt das Holen fehl (abgelaufene Anmeldung: dann kommt die
+          // Anmeldeseite zurück statt JSON), wird NICHTS gemerkt - beim
+          // nächsten Öffnen versucht es die Suche erneut. Bis dahin sagt
+          // sie, woran es liegt, statt „Nichts gefunden".
+          fetch("/schnellsuche.json", {credentials: "same-origin"})
+            .then(function (r) {
+              var art = r.headers.get("content-type") || "";
+              if (!r.ok || art.indexOf("json") < 0) { throw new Error("keine Liste"); }
+              return r.json();
+            })
+            .then(function (d) { daten = d; zeichnen(); })
+            .catch(function () { ladefehler = true; zeichnen(); });
+        }
+      }
+      window.dwt.schnellsuche = oeffnen;
+      feld.addEventListener("input", function () { wahl = 0; zeichnen(); });
+      feld.addEventListener("keydown", function (e) {
+        if (e.key === "ArrowDown") { e.preventDefault(); wahl = Math.min(wahl + 1, treffer.length - 1); zeichnen(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); wahl = Math.max(wahl - 1, 0); zeichnen(); }
+        else if (e.key === "Enter") { e.preventDefault(); ausfuehren(treffer[wahl]); }
+      });
+      liste.addEventListener("click", function (e) {
+        var a = e.target.closest(".ss-treffer");
+        if (!a) { return; }
+        e.preventDefault();
+        ausfuehren(treffer[parseInt(a.dataset.i, 10)]);
+      });
+      liste.addEventListener("mousemove", function (e) {
+        var a = e.target.closest(".ss-treffer");
+        if (a && parseInt(a.dataset.i, 10) !== wahl) { wahl = parseInt(a.dataset.i, 10); zeichnen(); }
+      });
+      document.addEventListener("click", function (e) {
+        if (e.target.closest("[data-schnellsuche]")) { oeffnen(); }
       });
       document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape") menue(false);
+        var tippt = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+        if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault(); oeffnen();
+        } else if (e.key === "/" && !tippt && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          e.preventDefault(); oeffnen();
+        }
+      });
+      // Auf dem Mac heißt die Taste ⌘, nicht Strg.
+      if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) {
+        document.querySelectorAll(".suchknopf-taste").forEach(function (k) { k.textContent = "⌘K"; });
+        var fuss = dlg.querySelector(".ss-fuss-rechts");
+        if (fuss) { fuss.innerHTML = "Überall mit <kbd>⌘</kbd><kbd>K</kbd>"; }
+      }
+    })();
+
+    // --- Erklärtexte hinter ⓘ (seit 2.0) ----------------------------------
+    // Ein erklärender Absatz (.lead) direkt unter einer Überschrift steht
+    // im Modus „kompakt" nicht mehr im Bild, sondern hinter einem kleinen
+    // ⓘ an eben dieser Überschrift. Der Text bleibt im Markup und wird nur
+    // ausgeblendet - die Entscheidung trifft das STYLESHEET vor dem ersten
+    // Bild (dieselbe Lehre wie 1.53), hier kommt nur der Knopf dazu.
+    // ⚠️ Dieselbe Bedingung wie im Stylesheet: der Absatz folgt direkt
+    // auf eine Überschrift oder auf einen Kasten, der eine trägt. Ein
+    // Absatz ohne Überschrift darüber bleibt stehen - ihn zu verstecken
+    // hieße, ihn zu verlieren.
+    var hinweisNr = 0;
+    function hinweiseBauen() {
+      // Seit Etappe 3 auch die Einleitung eines Abschnittsbandes
+      // (.abschnittsband > h2 + p) und ein Absatz nach einer .kopfzeile,
+      // deren Überschrift tiefer verschachtelt steht.
+      document.querySelectorAll("main p.lead, main .abschnittsband > h2 + p").forEach(function (p) {
+        if (p.dataset.fertig) { return; }
+        p.dataset.fertig = "1";
+        var vor = p.previousElementSibling, kopf = null;
+        if (!vor) { return; }
+        if (vor.matches("h1, h2, h3")) { kopf = vor; }
+        else if (vor.matches(".kopfzeile")) { kopf = vor.querySelector("h1, h2, h3"); }
+        else { kopf = vor.querySelector(":scope > h1, :scope > h2, :scope > h3"); }
+        if (!kopf || kopf.querySelector(".hinweisknopf")) { return; }
+        if (!p.id) { p.id = "hinweis-" + (++hinweisNr); }
+        var k = document.createElement("button");
+        k.type = "button";
+        k.className = "hinweisknopf";
+        k.setAttribute("aria-expanded", "false");
+        k.setAttribute("aria-controls", p.id);
+        k.setAttribute("aria-label", "Erklärung anzeigen");
+        k.title = "Erklärung anzeigen";
+        k.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+                      'stroke-width="1.9" stroke-linecap="round" aria-hidden="true">' +
+                      '<circle cx="12" cy="12" r="9"/><path d="M12 11v5.2M12 7.7v.1"/></svg>';
+        k.addEventListener("click", function (e) {
+          e.preventDefault(); e.stopPropagation();
+          var auf = !p.classList.contains("lead-auf");
+          p.classList.toggle("lead-auf", auf);
+          k.setAttribute("aria-expanded", auf ? "true" : "false");
+          k.classList.toggle("aktiv", auf);
+        });
+        kopf.appendChild(k);
       });
     }
+    window.dwt.nachruesten.push(hinweiseBauen);
+    hinweiseBauen();
+
+    // --- Wiki und Dateien am Telefon: Baum eingeklappt (seit 2.0) ---------
+    // Unter 900px stand der ganze Ordnerbaum VOR dem Inhalt. Jetzt klappt
+    // „Ordner" ihn auf; das Stylesheet blendet ihn nur dort und nur mit
+    // Skript aus. Nach einem Austausch (htmx) ist er wieder zu - man hat
+    // ja gerade gewählt, wohin.
+    function baumSchalterBauen() {
+      document.querySelectorAll(".wiki-seitenleiste").forEach(function (leiste) {
+        var titel = leiste.querySelector(".wiki-baumkopf > span:first-child");
+        if (!titel || titel.dataset.fertig) { return; }
+        titel.dataset.fertig = "1";
+        titel.classList.add("baum-schalter");
+        titel.setAttribute("role", "button");
+        titel.setAttribute("tabindex", "0");
+        titel.setAttribute("aria-expanded", "false");
+        function kippen() {
+          var auf = !leiste.classList.contains("baum-offen");
+          leiste.classList.toggle("baum-offen", auf);
+          titel.setAttribute("aria-expanded", auf ? "true" : "false");
+        }
+        titel.addEventListener("click", kippen);
+        titel.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); kippen(); }
+        });
+      });
+    }
+    window.dwt.nachruesten.push(baumSchalterBauen);
+    baumSchalterBauen();
   })();
 
   // --- Ein Osterei ------------------------------------------------------

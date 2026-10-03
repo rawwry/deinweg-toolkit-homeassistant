@@ -1,0 +1,85 @@
+{# --- Regler der Darstellung (seit 2.0) ---------------------------------
+   Steht an ZWEI Stellen und kommt deshalb aus einem Makro: im Dialog
+   „Darstellung", den jedes Konto über sein Kontomenü erreicht, und unter
+   Einstellungen → Oberfläche. ⚠️ Bis 1.61 gab es Hell/Dunkel nur in den
+   Einstellungen - wer den Bereich nicht hatte, kam nie an den Schalter.
+
+   Jeder Knopf trägt data-einstellung und data-wert; das Skript in
+   base.html (dwt.einstellen) setzt den Wert am <html>, legt ihn in
+   localStorage ab und markiert den gewählten Knopf. Keine IDs, damit das
+   Makro mehrfach auf derselben Seite stehen darf. #}
+
+{# Je Farbwelt: Schlüssel, Name, Grund im Dunklen, Grund im Hellen, Akzent.
+   Der Tupfer zeigt beide Gründe (halb und halb) und den Akzent in der
+   Mitte - so sieht man auch im hellen Modus, wie die Welt dunkel aussieht. #}
+{% set FARBWELTEN = [
+  ("aubergine",   "Aubergine",   "#17121c", "#f2f3f4", "#f285b6"),
+  ("mitternacht", "Mitternacht", "#0e1320", "#eef1f7", "#7aa8ff"),
+  ("schiefer",    "Schiefer",    "#12161b", "#eef1f4", "#5cc8ff"),
+  ("ozean",       "Ozean",       "#0b1618", "#ecf3f4", "#45d0c0"),
+  ("wald",        "Wald",        "#0e1612", "#eef2ee", "#a8d46f"),
+  ("honig",       "Honig",       "#17140c", "#f5f1e6", "#f2c14e"),
+  ("sand",        "Sand",        "#191411", "#f5efe8", "#f0956b"),
+  ("wein",        "Wein",        "#1a1012", "#f6eef0", "#ff8a80"),
+  ("graphit",     "Graphit",     "#111113", "#f3f3f5", "#b29bff"),
+  ("kontrast",    "Kontrast",    "#000000", "#ffffff", "#ffd60a"),
+] %}
+{% set AKZENTE = [
+  ("rosa", "Rosa", "#f285b6"), ("violett", "Violett", "#b29bff"),
+  ("blau", "Blau", "#7aa8ff"), ("tuerkis", "Türkis", "#45d0c0"),
+  ("gruen", "Grün", "#8fd46f"), ("gelb", "Gelb", "#f2c94c"),
+  ("orange", "Orange", "#f39a5b"), ("rot", "Rot", "#f17878"),
+] %}
+
+{% macro segment(name, titel, werte) %}
+<div class="dr-zeile">
+  <span class="dr-titel">{{ titel }}</span>
+  <div class="dr-segment" role="group" aria-label="{{ titel }}">
+    {% for wert, wort in werte %}
+    <button type="button" data-einstellung="{{ name }}" data-wert="{{ wert }}"
+            aria-pressed="false">{{ wort }}</button>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro darstellung_regler(voll=true) %}
+<div class="darstellung">
+  {{ segment("thema", "Modus", [("dunkel", "Dunkel"), ("hell", "Hell"), ("auto", "Automatisch")]) }}
+
+  <div class="dr-zeile dr-block">
+    <span class="dr-titel">Farbwelt <span class="dr-wahlname" data-wahlname="farbe"></span></span>
+    <div class="dr-farbwelten" role="group" aria-label="Farbwelt">
+      {% for wert, wort, dunkel, hell, akzent in FARBWELTEN %}
+      <button type="button" class="dr-welt" data-einstellung="farbe" data-wert="{{ wert }}"
+              aria-pressed="false" title="{{ wort }}"
+              style="--w-dunkel: {{ dunkel }}; --w-hell: {{ hell }}; --w-akzent: {{ akzent }}">
+        <span class="sr">{{ wort }}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="dr-zeile dr-block">
+    <span class="dr-titel">Akzent <span class="dr-wahlname" data-wahlname="akzent"></span></span>
+    <div class="dr-akzente" role="group" aria-label="Akzentfarbe">
+      <button type="button" class="dr-akzent dr-akzent-auto" data-einstellung="akzent"
+              data-wert="auto" aria-pressed="false" title="Passend zur Farbwelt">
+        <span class="sr">Passend zur Farbwelt</span>
+      </button>
+      {% for wert, wort, farbe in AKZENTE %}
+      <button type="button" class="dr-akzent" data-einstellung="akzent" data-wert="{{ wert }}"
+              aria-pressed="false" title="{{ wort }}" style="--a: {{ farbe }}">
+        <span class="sr">{{ wort }}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  {{ segment("schrift", "Textgröße", [("klein", "Kompakt"), ("normal", "Normal"), ("gross", "Groß")]) }}
+  {% if voll %}
+  {{ segment("hinweise", "Erklärtexte", [("kompakt", "Hinter ⓘ"), ("ausfuehrlich", "Immer zeigen")]) }}
+  {{ segment("breite", "Inhaltsbreite", [("voll", "Volle Breite"), ("begrenzt", "Begrenzt")]) }}
+  {% endif %}
+</div>
+{% endmacro %}
