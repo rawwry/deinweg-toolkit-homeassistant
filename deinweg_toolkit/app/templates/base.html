@@ -727,19 +727,67 @@
           && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     function beat() {
+      // 150 BPM, 20 Sekunden: Bassdrum auf jedem Schlag, Snare auf 2 und 4,
+      // Hi-Hats in Sechzehnteln, ein Sägezahn-Bass im Oktavsprung durch
+      // einen pumpenden Tiefpass und ein Arpeggio über Am–F–C–G mit Echo.
+      // Alles synthetisiert, keine Datei. Leise genug fürs Büro (0.14).
       var AC = window.AudioContext || window.webkitAudioContext;
       if (!AC || ruhig) { return null; }
-      var ctx = new AC(), laut = ctx.createGain(), takt = 60 / 124, t = ctx.currentTime + .05;
-      laut.gain.value = .12; laut.connect(ctx.destination);
-      for (var i = 0; i < 40; i++) {
-        var k = ctx.createOscillator(), g = ctx.createGain(), z = t + i * takt;
-        k.frequency.setValueAtTime(140, z); k.frequency.exponentialRampToValueAtTime(40, z + .12);
-        g.gain.setValueAtTime(1, z); g.gain.exponentialRampToValueAtTime(.001, z + .2);
-        k.connect(g); g.connect(laut); k.start(z); k.stop(z + .22);
-        var h = ctx.createOscillator(), hg = ctx.createGain(), y = z + takt / 2;
-        h.type = "square"; h.frequency.value = 7000 + (i % 4) * 400;
-        hg.gain.setValueAtTime(.08, y); hg.gain.exponentialRampToValueAtTime(.001, y + .05);
-        h.connect(hg); hg.connect(laut); h.start(y); h.stop(y + .06);
+      var ctx = new AC(), laut = ctx.createGain(), takt = 60 / 150,
+          t0 = ctx.currentTime + .05, schlaege = 52;
+      laut.gain.value = .14; laut.connect(ctx.destination);
+      var echo = ctx.createDelay(), rueck = ctx.createGain(), nass = ctx.createGain();
+      echo.delayTime.value = takt * .75; rueck.gain.value = .35; nass.gain.value = .3;
+      echo.connect(rueck); rueck.connect(echo); echo.connect(nass); nass.connect(laut);
+      var rauschen = ctx.createBuffer(1, ctx.sampleRate * .3, ctx.sampleRate), d = rauschen.getChannelData(0);
+      for (var n = 0; n < d.length; n++) { d[n] = Math.random() * 2 - 1; }
+      function huellkurve(g, z, spitze, dauer) {
+        g.gain.setValueAtTime(spitze, z); g.gain.exponentialRampToValueAtTime(.001, z + dauer);
+      }
+      function geraeusch(z, dauer, frequenz, spitze) {
+        var q = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+        q.buffer = rauschen; f.type = "highpass"; f.frequency.value = frequenz;
+        huellkurve(g, z, spitze, dauer); q.connect(f); f.connect(g); g.connect(laut);
+        q.start(z); q.stop(z + dauer + .02);
+      }
+      function ton(art, hz, z, dauer, spitze, ziel, filter) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = art; o.frequency.value = hz; huellkurve(g, z, spitze, dauer);
+        if (filter) { o.connect(filter); filter.connect(g); } else { o.connect(g); }
+        g.connect(ziel || laut); o.start(z); o.stop(z + dauer + .02);
+      }
+      // Grundtöne der Akkorde Am, F, C, G (je ein Takt = vier Schläge)
+      var akkorde = [[220, 261.6, 329.6], [174.6, 220, 261.6], [261.6, 329.6, 392], [196, 246.9, 293.7]];
+      for (var i = 0; i < schlaege; i++) {
+        var z = t0 + i * takt, akk = akkorde[Math.floor(i / 4) % 4];
+        // Bassdrum
+        var k = ctx.createOscillator(), kg = ctx.createGain();
+        k.frequency.setValueAtTime(160, z); k.frequency.exponentialRampToValueAtTime(42, z + .11);
+        huellkurve(kg, z, 1.1, .22); k.connect(kg); kg.connect(laut); k.start(z); k.stop(z + .24);
+        // Snare auf 2 und 4
+        if (i % 2 === 1) { geraeusch(z, .16, 1500, .5); }
+        // Hi-Hats in Sechzehnteln, die offene auf der Zählzeit „und"
+        for (var h = 0; h < 4; h++) {
+          geraeusch(z + h * takt / 4, h === 2 ? .12 : .035, 8000, h === 2 ? .22 : .12);
+        }
+        // Synth-Bass: Achtel im Oktavsprung, Tiefpass pumpt mit der Bassdrum
+        for (var a = 0; a < 2; a++) {
+          var lp = ctx.createBiquadFilter(), za = z + a * takt / 2;
+          lp.type = "lowpass"; lp.Q.value = 9;
+          lp.frequency.setValueAtTime(300, za); lp.frequency.exponentialRampToValueAtTime(2400, za + .08);
+          lp.frequency.exponentialRampToValueAtTime(400, za + .18);
+          ton("sawtooth", akk[0] / (a ? 2 : 4), za, .19, .5, null, lp);
+        }
+        // Arpeggio in Sechzehnteln, mit Echo
+        for (var p = 0; p < 4; p++) {
+          var zp = z + p * takt / 4, hz = akk[p % 3] * (p === 3 ? 4 : 2);
+          ton("square", hz, zp, .09, .09);
+          ton("square", hz, zp, .09, .09, echo);
+        }
+        // Ein Synth-Akkord auf jedem Taktanfang
+        if (i % 4 === 0) {
+          akk.forEach(function (f) { ton("sawtooth", f, z, takt * 3.5, .05); });
+        }
       }
       return ctx;
     }
@@ -774,17 +822,17 @@
     function los() {
       an = true;
       document.documentElement.classList.add("disco");
-      ["disco-licht", "disco-blitz", "disco-kugel", "disco-band", "disco-konfetti"].forEach(function (k) {
+      ["disco-laser", "disco-licht", "disco-blitz", "disco-kugel", "disco-band", "disco-konfetti"].forEach(function (k) {
         var d = document.createElement("div");
         d.className = k; d.setAttribute("aria-hidden", "true");
         if (k === "disco-band") { d.textContent = "DISCO!"; }
         if (k === "disco-konfetti" && !ruhig) {
           var farben = ["#ff00c8", "#ffe600", "#00ffa0", "#00d4ff", "#a100ff", "#ff7a00"];
-          for (var i = 0; i < 90; i++) {
+          for (var i = 0; i < 160; i++) {
             var s = document.createElement("i");
             s.style.left = (Math.random() * 100) + "%";
             s.style.setProperty("--k", farben[i % farben.length]);
-            s.style.setProperty("--d", (2 + Math.random() * 3).toFixed(2) + "s");
+            s.style.setProperty("--d", (1.2 + Math.random() * 2).toFixed(2) + "s");
             s.style.setProperty("--v", (-Math.random() * 5).toFixed(2) + "s");
             d.appendChild(s);
           }

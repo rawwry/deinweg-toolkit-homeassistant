@@ -3,6 +3,10 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.0.2
+
+- Discomodus aufgedreht: 150 BPM mit Synthesizer, Laser, RGB-Blitze (unter 3 pro Sekunde), mehr Tempo und Konfetti
+
 ## 2.0.1
 
 - Neues Osterei in der Fußzeile (ersetzt den Purzelbaum)

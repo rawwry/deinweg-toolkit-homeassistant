@@ -2841,4 +2841,15 @@ CHANGELOG = [
     {"version": "2.0.1", "titel": "Disco", "punkte": [
         "Ein neues Osterei – wo es steckt, wird nicht verraten",
     ]},
+    {"version": "2.0.2", "titel": "Saturday Night Toolkit", "punkte": [
+        "Der Discomodus hat ein Upgrade bekommen: 150 BPM, ein Synthesizer "
+        "mit Größenwahn, Laser, RGB-Gewitter und so viel Konfetti, dass die "
+        "Reinigungskraft schon gekündigt hat",
+        "Karten schwanken, Knöpfe hüpfen, Menüpunkte drehen Pirouetten, und "
+        "die Überschriften verlieren Buchstabe für Buchstabe die Fassung",
+        "Dein Minusstundensaldo tanzt mit – kleiner wird er davon leider nicht",
+        "Wo die Party steigt? Wer an der richtigen Stelle fünfmal anklopft, "
+        "kommt rein. Der Türsteher heißt Esc",
+        "Nach 20 Sekunden ist Sperrstunde – die Zeiterfassung wartet schon",
+    ]},
 ]

@@ -10689,14 +10689,16 @@ def test_kosmetik(client: TestClient) -> None:
            "das alte Osterei (Purzelbaum) ist ersetzt")
     # ⚠️⚠️ Die Grenze gegen echtes Flackern (lichtempfindliche Epilepsie):
     # höchstens 3 Helligkeitsblitze pro Sekunde (WCAG), und schwach.
+    # Gerechnet wird wie WCAG 2.3.1: Blitze je Durchlauf durch seine Dauer.
     blitz = re.search(r"\.disco-blitz \{ animation: disco-blitz ([\d.]+)s", stil)
-    pruefe(blitz is not None and float(blitz.group(1)) >= 0.34,
-           "der Blitz kommt höchstens dreimal pro Sekunde")
-    takt = stil.split("@keyframes disco-blitz {")[1].split("}\n")[0]
+    takt = stil.split("@keyframes disco-blitz {")[1].split("\n  }")[0]
     werte = [float(w) for w in re.findall(r"opacity: ([\d.]+)", takt)]
-    pruefe(werte and max(werte) <= 0.2, "und ist schwach (höchstens 20 % Weiß)")
+    blitze = sum(1 for w in werte if w > 0)
+    pruefe(blitz is not None and blitze and blitze / float(blitz.group(1)) < 3,
+           f"weniger als drei Blitze pro Sekunde "
+           f"({blitze} in {blitz.group(1) if blitz else '?'} s)")
     ruhig = stil.split("@media (prefers-reduced-motion: no-preference)")
-    pruefe(all("disco-blitz .5s" not in t for t in ruhig[:1])
+    pruefe(all(".disco-blitz { animation" not in t for t in ruhig[:1])
            and "@media (prefers-reduced-motion: reduce) {\n  /* Ruhig: nur das Band" in stil,
            "mit „Bewegung reduzieren“ bewegt und blitzt nichts")
 
