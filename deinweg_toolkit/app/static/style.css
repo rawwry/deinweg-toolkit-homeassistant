@@ -7547,21 +7547,162 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
   .liste td input.mini[type="date"] { min-width: 136px; }
 }
 
-/* --- Ein Osterei ---------------------------------------------------------
-   Fünfmal auf die Versionsnummer in der Fußzeile: das Logo schlägt einen
-   Purzelbaum, und die Rechtezeile erinnert vier Sekunden lang an den
-   alten Untertitel. Gut versteckt, folgenlos, und der Purzelbaum hängt
-   wie jede andere Bewegung im Programm an „prefers-reduced-motion" - wer
-   sie abgestellt hat, bekommt nur den Spruch zu sehen. */
-.fuss-fassung .version { cursor: default; -webkit-user-select: none; user-select: none; }
-.fuss-recht.geheim { color: var(--akzent); font-style: italic; }
+/* --- Ein Osterei: der Discomodus (seit 2.0, Timos Wunsch) ------------------
+   Fünfmal auf die Zeile „Dein Weg Toolkit 2.0 Changelog" in der Fußzeile
+   (nur das Wort „Changelog" bleibt ein gewöhnlicher Verweis): die ganze
+   Seite rastet 20 Sekunden lang aus. Esc oder ein Klick beendet es sofort.
+   Es wird nichts gespeichert und nichts abgeschickt.
+
+   ⚠️⚠️ BEWUSSTE GRENZE - nicht „verbessern":
+   Timo wollte etwas, das „einem epileptischen Anfall gleichkommt". Genau
+   das darf es NICHT sein: schnelles Flackern löst bei lichtempfindlicher
+   Epilepsie echte Anfälle aus, und ein Osterei klickt auch jemand an, der
+   das nicht weiß. Deshalb:
+   - Helligkeitsblitze höchstens 2 pro Sekunde (Grenze nach WCAG: 3), und
+     schwach (Weiß mit höchstens 18 % Deckkraft).
+   - Farben WANDERN (hue-rotate über Sekunden), sie springen nicht. Kein
+     flächiges, sattes Rot im Wechsel.
+   - Alles Übrige darf vollständig eskalieren: tanzende Buchstaben,
+     schwankende Karten, kreisende Scheinwerfer, Discokugel, Konfetti.
+   - Mit „Bewegung reduzieren" im System nur ein ruhiges Regenbogenband -
+     wie jede andere Bewegung im Programm (Abschnitt 13). */
+.fuss-fassung { cursor: default; -webkit-user-select: none; user-select: none; }
+.fuss-fassung a { cursor: pointer; }
+
+.disco-licht, .disco-blitz, .disco-kugel, .disco-band, .disco-konfetti {
+  position: fixed; pointer-events: none; z-index: 900;
+}
+.disco-licht {
+  inset: -20%;
+  background:
+    radial-gradient(22% 30% at 20% 30%, rgb(255 0 200 / .55), transparent 70%),
+    radial-gradient(22% 30% at 80% 25%, rgb(0 220 255 / .55), transparent 70%),
+    radial-gradient(26% 34% at 50% 80%, rgb(255 230 0 / .5), transparent 70%),
+    radial-gradient(20% 26% at 85% 75%, rgb(0 255 120 / .45), transparent 70%);
+  mix-blend-mode: screen; opacity: .75;
+}
+.disco-blitz { inset: 0; background: #fff; opacity: 0; }
+/* Die Kugel hängt an einem Kabel; gedreht wird nur ::after (die Kugel),
+   sonst kreiste das Kabel mit. */
+.disco-kugel {
+  top: 0; left: 50%; width: 120px; height: 160px; margin-left: -60px; z-index: 901;
+  transform-origin: 50% 0;
+}
+.disco-kugel::before {
+  content: ""; position: absolute; left: 59px; top: 0; width: 2px; height: 40px;
+  background: #999;
+}
+.disco-kugel::after {
+  content: ""; position: absolute; left: 0; top: 40px; width: 120px; height: 120px;
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(from 0deg, #fff 0 8deg, #9aa 8deg 16deg, #dde 16deg 24deg, #567 24deg 32deg),
+    #ccc;
+  box-shadow: 0 0 40px 10px rgb(255 255 255 / .55), inset -18px -18px 40px rgb(0 0 0 / .45);
+}
+.disco-band {
+  left: 0; right: 0; top: 42%; z-index: 902; text-align: center;
+  font: 900 clamp(48px, 12vw, 180px)/1 system-ui, sans-serif; letter-spacing: .04em;
+  background: linear-gradient(90deg, #ff00c8, #ffe600, #00ffa0, #00d4ff, #a100ff, #ff00c8);
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 6px 0 rgb(0 0 0 / .35));
+}
+.disco-konfetti { inset: 0; overflow: hidden; z-index: 903; }
+.disco-konfetti i {
+  position: absolute; top: -20px; width: 10px; height: 16px; border-radius: 2px;
+  background: var(--k, #f0f);
+}
+.disco-zeichen { display: inline-block; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Ruhig: nur das Band, nichts bewegt sich, nichts blitzt. */
+  .disco-licht, .disco-blitz, .disco-kugel, .disco-konfetti { display: none; }
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .fuss-recht { transition: color .3s ease; }
-  .fussmarke.purzelt img { animation: fuss-purzel 1.5s cubic-bezier(.5, 0, .3, 1); }
-  @keyframes fuss-purzel {
-    0%   { transform: rotate(0) scale(1); }
-    35%  { transform: rotate(200deg) scale(.9); }
-    100% { transform: rotate(360deg) scale(1); }
+  /* ⚠️ Das Wackeln NICHT auf <body>: ein transform dort macht body zum
+     Bezugsrahmen aller festen Elemente, und Kugel, Licht und Schriftzug
+     klebten an der Seite statt am Bildschirm (gemessen: „DISCO!" 1000px
+     unter dem sichtbaren Bereich). */
+  html.disco main, html.disco .kopf, html.disco footer, html.disco .tableiste {
+    animation: disco-farben 2.4s linear infinite, disco-wackeln .45s ease-in-out infinite;
+  }
+  html.disco main > *, html.disco .karte {
+    animation: disco-schwanken 1.1s ease-in-out infinite alternate;
+  }
+  html.disco main > *:nth-child(2n), html.disco .karte:nth-child(2n) {
+    animation-duration: .9s; animation-direction: alternate-reverse;
+  }
+  html.disco main > *:nth-child(3n) { animation-duration: 1.3s; }
+  html.disco .knopf, html.disco button, html.disco .ak-pille, html.disco .marke-status {
+    animation: disco-huepfen .5s cubic-bezier(.3, 1.8, .5, 1) infinite;
+  }
+  html.disco .navpunkt, html.disco .tab, html.disco .avatar, html.disco .kopfsymbol {
+    animation: disco-drehen 1.6s linear infinite;
+  }
+  html.disco .navpunkt:nth-child(2n) { animation-direction: reverse; }
+  html.disco .marke img, html.disco .fussmarke img {
+    animation: disco-drehen .8s linear infinite;
+  }
+  html.disco :is(h1, h2, h3, .kzahl, .gruss, label, th, .lead, p, td, a, span) {
+    animation: disco-text 1s ease-in-out infinite alternate;
+  }
+  html.disco .disco-zeichen {
+    animation: disco-zeichen .6s cubic-bezier(.3, 1.6, .5, 1) infinite alternate;
+    animation-delay: calc(var(--i) * -.07s);
+  }
+  html.disco .wiki-symbol, html.disco svg.sym, html.disco .datei-mini {
+    animation: disco-drehen 1.2s linear infinite;
+  }
+  .disco-licht { animation: disco-scheinwerfer 3.2s ease-in-out infinite alternate,
+                            disco-farben 2s linear infinite; }
+  /* ⚠️ 2 Blitze pro Sekunde, schwach - siehe Kopf dieses Blocks. */
+  .disco-blitz { animation: disco-blitz .5s steps(1, end) infinite; }
+  .disco-kugel { animation: disco-pendel 1.8s ease-in-out infinite alternate; }
+  .disco-kugel::after { animation: disco-kugel 2.5s linear infinite; }
+  .disco-band { animation: disco-band 1.5s linear infinite, disco-zoom .9s cubic-bezier(.3, 1.7, .5, 1) infinite alternate; }
+  .disco-konfetti i { animation: disco-fallen var(--d, 3s) linear var(--v, 0s) infinite; }
+
+  @keyframes disco-wackeln {
+    0%, 100% { transform: translate(0, 0) rotate(0); }
+    25% { transform: translate(-6px, 3px) rotate(-.6deg); }
+    50% { transform: translate(5px, -4px) rotate(.5deg); }
+    75% { transform: translate(-3px, -2px) rotate(-.3deg); }
+  }
+  @keyframes disco-farben { to { filter: hue-rotate(360deg) saturate(1.8); } }
+  @keyframes disco-schwanken {
+    from { transform: rotate(-2.5deg) scale(.97) skewX(-3deg); }
+    to   { transform: rotate(2.5deg) scale(1.03) skewX(3deg); }
+  }
+  @keyframes disco-huepfen {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-9px) scale(1.12) rotate(-4deg); }
+  }
+  @keyframes disco-drehen { to { transform: rotate(360deg); } }
+  @keyframes disco-text {
+    from { letter-spacing: 0; text-shadow: 2px 2px 0 #ff00c8, -2px -2px 0 #00e5ff; }
+    to   { letter-spacing: .12em; text-shadow: -3px 2px 0 #ffe600, 3px -2px 0 #00ff88; }
+  }
+  @keyframes disco-zeichen {
+    from { transform: translateY(4px) rotate(-12deg) scale(.9); color: #ff00c8; }
+    to   { transform: translateY(-10px) rotate(12deg) scale(1.3); color: #00e5ff; }
+  }
+  @keyframes disco-scheinwerfer {
+    from { transform: rotate(-25deg) translateX(-6%); }
+    to   { transform: rotate(25deg) translateX(6%); }
+  }
+  @keyframes disco-blitz { 0% { opacity: .18; } 30% { opacity: 0; } }
+  @keyframes disco-kugel { to { filter: hue-rotate(360deg); transform: rotate(360deg); } }
+  @keyframes disco-pendel { from { transform: rotate(-14deg); } to { transform: rotate(14deg); } }
+  @keyframes disco-band { to { background-position: 300% 0; } }
+  @keyframes disco-zoom {
+    from { transform: scale(.85) rotate(-6deg); }
+    to   { transform: scale(1.15) rotate(6deg); }
+  }
+  @keyframes disco-fallen {
+    from { transform: translateY(-20px) rotate(0); }
+    to   { transform: translateY(110vh) rotate(1080deg); }
   }
 }
 

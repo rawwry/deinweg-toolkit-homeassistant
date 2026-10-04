@@ -2838,4 +2838,7 @@ CHANGELOG = [
         "zuletzt hinzugefügten Dateien; am Handy eine Liste ohne seitliches Rollen",
         "Anmeldung: Gruß nach Tageszeit, Passwort lässt sich zum Prüfen einblenden",
     ]},
+    {"version": "2.0.1", "titel": "Disco", "punkte": [
+        "Ein neues Osterei – wo es steckt, wird nicht verraten",
+    ]},
 ]

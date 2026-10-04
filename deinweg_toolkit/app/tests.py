@@ -7412,6 +7412,9 @@ def test_kein_aufbau(client: TestClient) -> None:
 
     # Kein Element bekommt beim Laden noch eine Animation mit auf den Weg.
     block = bewegungsbloecke(stil)
+    # Der Discomodus (Osterei, nur nach fünf Klicks) ist kein Aufbau beim
+    # Laden - seine Regeln hängen alle an html.disco.
+    block = re.sub(r"html\.disco[^{]*\{[^}]*\}", "", block)
     for regel in ("main > *", "footer {", ".meldung {", ".spruch {",
                   ".zahl {"):
         teil = block.split(regel)[1].split("}")[0] if regel in block else ""
@@ -7437,7 +7440,7 @@ def test_kein_aufbau(client: TestClient) -> None:
                          ("dia-wachsen", "das Verlaufsdiagramm"),
                          ("zw-auf", "der Zeitraum-Picker"),
                          ("neuheiten-auf", "der Hinweis auf Neuerungen"),
-                         ("fuss-purzel", "das Osterei der Fußzeile")):
+                         ("disco-zeichen", "das Osterei der Fußzeile")):
         pruefe(takt in stil, f"{wofuer} bewegt sich weiterhin")
     # Und was beim Überfahren reagiert, bleibt ebenfalls.
     pruefe(".knopf:hover { transform: translateY(-2px); }" in stil,
@@ -10670,19 +10673,32 @@ def test_kosmetik(client: TestClient) -> None:
            "und das versteckte Notizfeld steht in seiner Zelle, nicht "
            "zwischen zwei Zellen")
 
-    # --- Das Osterei ------------------------------------------------------
+    # --- Das Osterei: der Discomodus (seit 2.0) ----------------------------
     seite = client.get("/meinbereich").text
     pruefe("fuss-fassung" in seite and 'class="version"' in seite,
-           "die Versionsnummer steht als eigenes Element in der Fußzeile")
-    pruefe("Kontrolliertes Chaos. In Digital." in seite,
-           "und fünf Klicks darauf holen den alten Untertitel zurück")
-    pruefe("fussmarke" in seite and "purzelt" in seite,
-           "dazu schlägt das Logo einen Purzelbaum")
-    pruefe("fuss-purzel" in stil,
-           "der Takt dafür steht im Stylesheet")
+           "die Changelog-Zeile steht in der Fußzeile")
+    skript = seite.split("Ein Osterei: der Discomodus")[1].split("</script>")[0]
+    pruefe('querySelector(".fuss-fassung")' in skript and "klicks >= 5" in skript
+           and 'e.target.closest("a")' in skript,
+           "fünf Klicks auf die Zeile starten ihn, der Verweis „Changelog“ bleibt ein Verweis")
+    pruefe("setTimeout(stopp, 20000)" in skript and '"Escape"' in skript,
+           "er endet nach 20 Sekunden von selbst, Esc beendet ihn sofort")
+    pruefe("z[0].textContent = z[1]" in skript and "el.children.length" in skript,
+           "zerlegt werden nur Texte ohne Kinder, und sie kommen buchstabengleich zurück")
+    pruefe("Kontrolliertes Chaos" not in seite and "purzelt" not in seite,
+           "das alte Osterei (Purzelbaum) ist ersetzt")
+    # ⚠️⚠️ Die Grenze gegen echtes Flackern (lichtempfindliche Epilepsie):
+    # höchstens 3 Helligkeitsblitze pro Sekunde (WCAG), und schwach.
+    blitz = re.search(r"\.disco-blitz \{ animation: disco-blitz ([\d.]+)s", stil)
+    pruefe(blitz is not None and float(blitz.group(1)) >= 0.34,
+           "der Blitz kommt höchstens dreimal pro Sekunde")
+    takt = stil.split("@keyframes disco-blitz {")[1].split("}\n")[0]
+    werte = [float(w) for w in re.findall(r"opacity: ([\d.]+)", takt)]
+    pruefe(werte and max(werte) <= 0.2, "und ist schwach (höchstens 20 % Weiß)")
     ruhig = stil.split("@media (prefers-reduced-motion: no-preference)")
-    pruefe(all("fuss-purzel" not in t for t in ruhig[:1]),
-           "und läuft nur mit ausdrücklicher Erlaubnis für Bewegung")
+    pruefe(all("disco-blitz .5s" not in t for t in ruhig[:1])
+           and "@media (prefers-reduced-motion: reduce) {\n  /* Ruhig: nur das Band" in stil,
+           "mit „Bewegung reduzieren“ bewegt und blitzt nichts")
 
 
 

@@ -3,6 +3,10 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.0.1
+
+- Neues Osterei in der Fußzeile (ersetzt den Purzelbaum)
+
 ## 2.0
 
 - Neues Gesicht: zehn Farbwelten (darunter „Kontrast“), je hell und dunkel, acht Akzentfarben, „Automatisch“ nach dem Betriebssystem

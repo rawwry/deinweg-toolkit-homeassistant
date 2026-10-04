@@ -710,38 +710,102 @@
     baumSchalterBauen();
   })();
 
-  // --- Ein Osterei ------------------------------------------------------
-  // Fünfmal auf die Versionsnummer in der Fußzeile: das Logo schlägt
-  // einen Purzelbaum, und die Rechtezeile erinnert vier Sekunden lang an
-  // den alten Untertitel des Toolkits. Danach ist alles wie vorher.
-  //
-  // Bewusst gut versteckt: eine Versionsnummer klickt niemand aus
-  // Versehen fünfmal an. Und bewusst folgenlos - es wird nichts
-  // gespeichert und nichts abgeschickt. Der Purzelbaum hängt an
-  // "prefers-reduced-motion"; wer Bewegung abgestellt hat, bekommt nur
-  // den Spruch zu sehen.
+  // --- Ein Osterei: der Discomodus (seit 2.0) -----------------------------
+  // Fünfmal in kurzer Folge auf die Zeile „Dein Weg Toolkit 2.0 Changelog"
+  // in der Fußzeile (das Wort „Changelog" bleibt ein Verweis): 20 Sekunden
+  // rastet die ganze Seite aus, Esc oder ein Klick beendet es sofort.
+  // ⚠️ Die Grenze gegen echtes Flackern steht im Stylesheet beim Block
+  // „Discomodus" - dort nachlesen, bevor hier etwas schneller wird.
+  // Folgenlos: nichts wird gespeichert, nichts abgeschickt. Der Beat läuft
+  // über WebAudio und erst nach dem fünften Klick (Browser verlangen eine
+  // Handlung des Nutzers), leise, und endet mit dem Modus.
   (function () {
-    var marke = document.querySelector(".fussmarke"),
-        zahl  = document.querySelector(".fuss-fassung .version"),
-        recht = document.querySelector(".fuss-recht");
-    if (!marke || !zahl || !recht) { return; }
-    var klicks = 0, letzter = 0, laeuft = false;
-    zahl.addEventListener("click", function () {
+    var zeile = document.querySelector(".fuss-fassung");
+    if (!zeile) { return; }
+    var klicks = 0, letzter = 0, an = false, ende = null, teile = [], ton = null,
+        zeichen = [], ruhig = window.matchMedia
+          && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function beat() {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC || ruhig) { return null; }
+      var ctx = new AC(), laut = ctx.createGain(), takt = 60 / 124, t = ctx.currentTime + .05;
+      laut.gain.value = .12; laut.connect(ctx.destination);
+      for (var i = 0; i < 40; i++) {
+        var k = ctx.createOscillator(), g = ctx.createGain(), z = t + i * takt;
+        k.frequency.setValueAtTime(140, z); k.frequency.exponentialRampToValueAtTime(40, z + .12);
+        g.gain.setValueAtTime(1, z); g.gain.exponentialRampToValueAtTime(.001, z + .2);
+        k.connect(g); g.connect(laut); k.start(z); k.stop(z + .22);
+        var h = ctx.createOscillator(), hg = ctx.createGain(), y = z + takt / 2;
+        h.type = "square"; h.frequency.value = 7000 + (i % 4) * 400;
+        hg.gain.setValueAtTime(.08, y); hg.gain.exponentialRampToValueAtTime(.001, y + .05);
+        h.connect(hg); hg.connect(laut); h.start(y); h.stop(y + .06);
+      }
+      return ctx;
+    }
+
+    function zerlegen() {
+      // Buchstaben einzeln tanzen lassen - nur in Elementen OHNE Kinder,
+      // damit kein Knopf und kein Horcher verloren geht. Der Text wird
+      // danach buchstabengleich zurückgesetzt.
+      document.querySelectorAll("main h1, main h2, main h3, .kzahl, .gruss, .navpunkt-wort, .anmelde-fuss")
+        .forEach(function (el) {
+          if (el.children.length || !el.textContent.trim() || el.textContent.length > 60) { return; }
+          zeichen.push([el, el.textContent]);
+          el.innerHTML = Array.prototype.map.call(el.textContent, function (c, i) {
+            return '<span class="disco-zeichen" style="--i:' + i + '">'
+                   + (c === " " ? "&nbsp;" : c.replace(/[&<>]/g, "")) + "</span>";
+          }).join("");
+        });
+    }
+
+    function stopp() {
+      if (!an) { return; }
+      an = false; clearTimeout(ende);
+      document.documentElement.classList.remove("disco");
+      teile.forEach(function (t) { t.remove(); }); teile = [];
+      zeichen.forEach(function (z) { z[0].textContent = z[1]; }); zeichen = [];
+      if (ton) { try { ton.close(); } catch (e) {} ton = null; }
+      document.removeEventListener("keydown", tasteStopp);
+      document.removeEventListener("click", stopp, true);
+    }
+    function tasteStopp(e) { if (e.key === "Escape") { stopp(); } }
+
+    function los() {
+      an = true;
+      document.documentElement.classList.add("disco");
+      ["disco-licht", "disco-blitz", "disco-kugel", "disco-band", "disco-konfetti"].forEach(function (k) {
+        var d = document.createElement("div");
+        d.className = k; d.setAttribute("aria-hidden", "true");
+        if (k === "disco-band") { d.textContent = "DISCO!"; }
+        if (k === "disco-konfetti" && !ruhig) {
+          var farben = ["#ff00c8", "#ffe600", "#00ffa0", "#00d4ff", "#a100ff", "#ff7a00"];
+          for (var i = 0; i < 90; i++) {
+            var s = document.createElement("i");
+            s.style.left = (Math.random() * 100) + "%";
+            s.style.setProperty("--k", farben[i % farben.length]);
+            s.style.setProperty("--d", (2 + Math.random() * 3).toFixed(2) + "s");
+            s.style.setProperty("--v", (-Math.random() * 5).toFixed(2) + "s");
+            d.appendChild(s);
+          }
+        }
+        document.body.appendChild(d); teile.push(d);
+      });
+      if (!ruhig) { zerlegen(); }
+      ton = beat();
+      ende = setTimeout(stopp, 20000);
+      document.addEventListener("keydown", tasteStopp);
+      // Erst im nächsten Takt: sonst beendete der fünfte Klick selbst,
+      // während er noch zum Dokument hochblubbert, den Modus sofort.
+      setTimeout(function () { document.addEventListener("click", stopp, true); }, 0);
+    }
+
+    zeile.addEventListener("click", function (e) {
+      if (e.target.closest("a") || an) { return; }
       var jetzt = Date.now();
       klicks = (jetzt - letzter > 1200) ? 1 : klicks + 1;
       letzter = jetzt;
-      if (klicks < 5 || laeuft) { return; }
-      klicks = 0; laeuft = true;
-      var vorher = recht.textContent;
-      marke.classList.add("purzelt");
-      recht.textContent = "Kontrolliertes Chaos. In Digital.";
-      recht.classList.add("geheim");
-      setTimeout(function () {
-        marke.classList.remove("purzelt");
-        recht.textContent = vorher;
-        recht.classList.remove("geheim");
-        laeuft = false;
-      }, 4000);
+      if (klicks >= 5) { klicks = 0; los(); }
     });
   })();
 </script>
