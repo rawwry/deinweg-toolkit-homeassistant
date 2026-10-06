@@ -141,7 +141,7 @@ TEXTE_STANDARD["erfassung.vorlage_tag"] = (
 TEXTE_STANDARD["datensaetze.leer"] = (
     "Keine Einträge für diesen Filter.")
 TEXTE_STANDARD["auswertung.soll_erklaerung"] = (
-    "Soll = Wochenkontingent × 4,33 je Monat, auf 15 Minuten gerundet. Gepflegt unter <a href=\"/einstellungen?bereich=betreute\">Betreute Personen</a>.")
+    "Soll = Wochenkontingent × 52 ÷ 12 je Monat (3 Std/Woche = 13:00 im Monat). Ein nur beantragter Zeitraum zählt hier noch nicht mit. Gepflegt unter <a href=\"/einstellungen?bereich=betreute\">Betreute Personen</a>.")
 TEXTE_STANDARD["auswertung.soll_fehlt"] = (
     "Für einen Soll-Ist-Vergleich unter <a href=\"/einstellungen?bereich=betreute\">Betreute Personen</a> Wochenstunden hinterlegen.")
 TEXTE_STANDARD["auswertung.gestaffelt"] = (
@@ -154,13 +154,33 @@ TEXTE_STANDARD["auswertung.monate_lead"] = (
     "waren. Monate ohne erfasste Zeiten bleiben stehen, solange für sie "
     "etwas bewilligt war: eine Lücke fällt sonst nicht auf.")
 TEXTE_STANDARD["auswertung.monatsliste_lead"] = (
-    "Ein Klick führt zum ausführlichen Block.")
+    "Je Monat eine Säule: gefüllt das Geleistete, gestrichelt das Soll. "
+    "Überfahren zeigt die Werte, ein Klick führt zum ausführlichen Block.")
 TEXTE_STANDARD["auswertung.bewilligt_lead"] = (
     "Die Bescheide, die den gewählten Zeitraum berühren.")
 TEXTE_STANDARD["auswertung.monat_leer"] = (
     "In diesem Monat ist nichts erfasst – bewilligt war trotzdem etwas.")
 TEXTE_STANDARD["auswertung.tabelle_leer"] = (
     "Für {zeitraum} sind keine Zeiten erfasst.")
+TEXTE_STANDARD["auswertung.stand_lead"] = (
+    "Je Person zählt der Bescheid, in dessen Zeitraum heute fällt – "
+    "unabhängig vom Filter weiter unten. Ein Klick auf eine Person zeigt "
+    "Monat für Monat, wie sich Soll und Ist entwickeln.")
+TEXTE_STANDARD["auswertung.stand_erklaerung"] = (
+    "Monatssoll = Fachleistungsstunden pro Woche × 52 ÷ 12. Soll bis heute "
+    "= Monatssoll × Monate vom Beginn des Bescheids bis einschließlich des "
+    "laufenden Monats. Start- und laufender Monat zählen voll, auch für das "
+    "Ist: es zählt alles ab dem Ersten des Startmonats bis heute. "
+    "<strong>Grün</strong>: im Plan oder Vorsprung. <strong>Gelb</strong>: "
+    "der Rückstand ist nicht größer als ein Monatssoll, lässt sich also in "
+    "diesem Monat noch aufholen. <strong>Rot</strong>: schon vorher im "
+    "Rückstand. <strong>Orange</strong>: der Zeitraum ist erst beantragt "
+    "und wird vorläufig gerechnet – nach sechs Monaten ohne Bescheid wird "
+    "er rot. Der Balken je Person: die ganze Spur ist das Kontingent des "
+    "Bescheids, die Füllung das Geleistete, der senkrechte Strich das Soll "
+    "bis heute.")
+TEXTE_STANDARD["auswertung.stand_leer"] = (
+    "Es gibt keine aktiven betreuten Personen.")
 TEXTE_STANDARD["auswertung.verdienst_hinweis"] = (
     "Rechnerischer Wert der bisher erfassten Zeiten. Keine Abrechnung.")
 TEXTE_STANDARD["bearbeiten.dauer_hinweis"] = (
@@ -721,6 +741,7 @@ TEXTE_STANDARD["mein.vorlagen_einleitung"] = (
 TEXTE_STANDARD["mein.vorlagen_leer"] = (
     "Leg hier eine an – oder merk dir in der Erfassung einen Tag, den du "
     "schon eingetragen hast.")
+TEXTE_STANDARD["auswertung.titel.stand"] = "Stand der Bewilligungen"
 TEXTE_STANDARD["auswertung.titel.ueberblick"] = "Überblick"
 TEXTE_STANDARD["auswertung.titel.monate"] = "Monat für Monat"
 TEXTE_STANDARD["auswertung.titel.kontingent"] = "Stundenkontingent"
@@ -1190,6 +1211,12 @@ TEXTE_STANDARD["footer.text"] = (
 # wird ein Schluessel wieder gebraucht oder faellt ein neuer weg, schlaegt
 # sie an. Ohne das verrottete diese Notiz binnen zweier Versionen.
 UNGENUTZT = frozenset({
+    # seit dem Umbau 2.1: die Seitenspalte der Auswertung ist entfallen
+    # („Stundenkontingent“ und „Bewilligt“ beantwortet jetzt der „Stand
+    # der Bewilligungen“). Die Überschriften bleiben, damit eine schon
+    # umbenannte Fassung in strings.txt nicht ins Leere zeigt.
+    "auswertung.titel.kontingent", "auswertung.titel.bewilligt",
+    "auswertung.bewilligt_lead",
     # seit 2.0: die Anmeldekarte grüßt nach der Tageszeit; der Satz
     # „Mit Benutzername und Passwort anmelden …" wiederholte nur die Felder.
     "login.lead",

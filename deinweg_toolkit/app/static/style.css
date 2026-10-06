@@ -4345,55 +4345,9 @@ body.anmeldeseite {
 .auswertunghaupt {
   min-width: 0; display: flex; flex-direction: column; gap: var(--abstand);
 }
-/*
-   ⚠️ Zwei Spalten erst ab 1200px, nicht wie sonst ab 900px.
-   Die Tabellen tragen sieben Spalten und brauchen rund 630px, um ohne
-   seitliches Rollen auszukommen. Bei einer 340px breiten Seitenspalte
-   bleibt links ab etwa 1200px genug übrig - darunter stand die Tabelle
-   in einer Spalte, die schmaler war als ihr Inhalt, und rollte. Genau
-   daher kamen die Rollbalken, die auch nach dem Umbau auf
-   table-layout: auto noch blieben.
-   Unterhalb rutscht die Seitenspalte unter den Inhalt und die Tabellen
-   bekommen die volle Breite.
-*/
-.auswertungsraster { grid-template-columns: 1fr; }
-@media (min-width: 1200px) {
-  .auswertungsraster { grid-template-columns: minmax(0, 1fr) 320px; }
-  .auswertungsraster > .spalte { align-self: start; }
-}
-
-/* Monate als Sprungliste mit Verlauf in einem: der Balken zeigt, wie voll
-   der Monat war, ein Klick führt zum Block links. */
-.monatsspur { list-style: none; margin: 0; padding: 0;
-              display: flex; flex-direction: column; gap: 2px; }
-.monatsspur a {
-  display: block; padding: 8px 9px; border-radius: 8px;
-  text-decoration: none; color: var(--tinte);
-}
-.monatsspur a:hover { background: var(--flaeche-2); }
-.monatsspur a.leer { opacity: .6; }
-.mspur-kopf, .mspur-fuss {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
-}
-.mspur-name { font-size: 13px; font-weight: 600; }
-.mspur-wert { font-size: 13px; }
-.monatsspur .balkenspur { margin: 5px 0 4px; }
-.mspur-fuss { font-size: 11.5px; }
-.mspur-fuss .betrag { color: var(--akzent); font-weight: 600; }
-
-/* Welche Bescheide liegen den Zahlen zugrunde? */
-.bewilligung { padding: 10px 0; border-bottom: 1px solid var(--linie); }
-.bewilligung:first-of-type { padding-top: 0; }
-.bewilligung:last-of-type { border-bottom: none; }
-.bescheidliste { list-style: none; margin: 7px 0 0; padding: 0;
-                 display: flex; flex-direction: column; gap: 8px; }
-.bescheidliste li {
-  padding-left: 11px; border-left: 2px solid var(--akzent);
-  display: flex; flex-direction: column; gap: 1px;
-}
-.bescheidzeit { font-size: 11.5px; color: var(--leise); }
-.bescheidwerte { font-size: 12.5px; font-weight: 600; }
-
+/* ⚠️ Seit dem Umbau 2.1 gibt es keine Seitenspalte mehr: „Stunden-
+   kontingent“ und „Bewilligt“ sind entfallen, die Monate stehen als
+   eigene Kachel (.monatsbild). */
 
 /* Ein Band trennt die beiden Teile der Seite. Ohne das lief der Überblick
    ohne erkennbare Kante in die Monatsblöcke über. */
@@ -4566,37 +4520,26 @@ body.anmeldeseite {
    in der Liste sofort auffallen - nicht erst beim Aufklappen. */
 .konto.person.ohne-bewilligung { border-left: 3px solid var(--dopp); }
 
-/* Jede Personenzeile bekommt zusätzlich zur Marke einen farbigen Balken
-   links und einen sehr leichten Farbschimmer, passend zu ihrem Stand -
-   so sieht man den Zustand schon beim Überfliegen, ohne jede Zeile zu
-   lesen. Die p-*-Regeln stehen NACH .ohne-bewilligung und gewinnen bei
-   gleicher Spezifität, damit „läuft aus" und „künftig" orange statt rot
-   werden. Der Schimmer ist bewusst dezent: die Marke trägt die Aussage,
-   die Farbe unterstützt sie nur. */
-.konto.person.p-laufend      { border-left: 3px solid var(--gut);  background: var(--gut-weich); }
-.konto.person.p-selbstzahler { border-left: 3px solid var(--info); background: var(--info-weich); }
+/* ⚠️ Seit dem Umbau 2.1 (Timos „klare Struktur“) trägt die Zeile ihren
+   Stand nur noch als feine Kante links und als Punkt mit Wort - nicht mehr
+   als Tönung der ganzen Zeile. Neun getönte Kästen untereinander waren
+   die Unruhe. Die p-*-Regeln stehen weiter NACH .ohne-bewilligung und
+   gewinnen bei gleicher Spezifität (orange vor rot bei „läuft aus“). */
+.konto.person.p-laufend      { --p-ton: var(--gut); }
+.konto.person.p-selbstzahler { --p-ton: var(--info); }
 .konto.person.p-laeuft_aus,
-.konto.person.p-kuenftig     { border-left: 3px solid var(--warn); background: var(--warn-weich); }
+.konto.person.p-kuenftig     { --p-ton: var(--warn); }
 /* ⚠️ „grundwert" war bis 1.19.2 grau: dort galt der Grundwert als
    Rückfall, die Person rechnete also mit. Seit 1.20 rechnet sie gar
    nicht mehr - damit ist das derselbe Fall wie „nichts hinterlegt" und
    gehört in dieselbe Farbe. */
 .konto.person.p-abgelaufen,
 .konto.person.p-grundwert,
-.konto.person.p-leer         { border-left: 3px solid var(--dopp); background: var(--dopp-weich); }
-/* ⚠️ Der Schimmer darf den Aufklapp-Kopf beim Überfahren nicht
-   verschlucken: .konto-kopf:hover setzt eine eigene Fläche, die soll
-   sichtbar bleiben. Deshalb tönt der Schimmer nur die Zeile, nicht den
-   Kopf - der Kopf ist durchsichtig und zeigt die Tönung dahinter. */
-.konto.person[class*="p-"] .konto-kopf:hover { background: var(--flaeche); }
-/* ⚠️⚠️ Der Schimmer gehört der ZEILE, nicht dem aufgeklappten Block.
-   Er liegt auf dem ganzen <details>, und aufgeklappt stand damit ein
-   roter oder grüner Grund unter Eingabefeldern, Auswahllisten und den
-   beiden Karten von „Wer zahlt?" - die bringen alle ihre eigene neutrale
-   Fläche mit. Im dunklen Thema sah das aus, als lägen zwei Oberflächen
-   übereinander (Timos Meldung). Der Inhalt bekommt deshalb wieder den
-   Grund, den auch eine Zeile ohne Tönung hat; die Farbe bleibt am Kopf
-   und am Balken links, wo sie beim Überfliegen gebraucht wird. */
+.konto.person.p-leer         { --p-ton: var(--dopp); }
+.konto.person.ohne-bewilligung { border-left: 0; }
+/* ⚠️⚠️ Der aufgeklappte Inhalt bleibt auf dem neutralen Grund (Timos
+   Meldung von 1.39) - jetzt ohnehin, weil die Zeile nicht mehr getönt
+   ist. Die Regel bleibt, damit es so bleibt. */
 .konto.person[class*="p-"] > .konto-inhalt { background: var(--flaeche-2); }
 .konto.person .konto-daten {
   display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -4973,36 +4916,92 @@ body.anmeldeseite {
    bewusst so lang: .knopfreihe form setzt margin: 0 und gewinnt sonst. */
 .knopfreihe form.entfernen-rechts { margin-left: auto; }
 
-/* --- Bewilligte Zeiträume je betreuter Person --------------------------- */
+/* --- Bewilligte Zeiträume je betreuter Person (neu gebaut mit 2.1) -------
+   ⚠️ Bis 2.1 eine Tabelle mit sechs Eingabefeldern je Zeile, gespeichert
+   über ein kleines ✓ ganz rechts - das pinke „speichern“ darunter gehörte
+   zu den Stammdaten, und wer dort klickte, verlor still jede Änderung am
+   Zeitraum (Timos Meldung: der Haken „beantragt“ ließ sich „nicht
+   speichern“). Jetzt eine ruhige Zeile je Zeitraum; „Bearbeiten“ klappt
+   sein eigenes Formular mit eigenem „Zeitraum speichern“ auf. */
+.pe-blockkopf { display: flex; align-items: baseline; gap: 8px; }
+.pe-blockzahl { font-size: 12px; color: var(--leise); }
+.pe-block + .pe-block { margin-top: 22px; padding-top: 18px;
+                        border-top: 1px solid var(--linie); }
 
-/* Datumsfelder brauchen Platz für tt.mm.jjjj plus das Kalendersymbol des
-   Browsers - bei 130px wurde die Jahreszahl abgeschnitten. */
-.zeitraumtabelle th:nth-child(1),
-.zeitraumtabelle th:nth-child(2) { width: 155px; }
-.zeitraumtabelle th:nth-child(3),
-.zeitraumtabelle th:nth-child(4) { width: 100px; }
-.zeitraumtabelle th:last-child { width: 130px; text-align: right; }
-.tabellenrolle .liste.zeitraumtabelle td:last-child {
-  white-space: nowrap; padding-left: 6px; padding-right: 6px;
+.zr-liste { list-style: none; margin: 10px 0 12px; padding: 0;
+            border: 1px solid var(--linie); border-radius: 10px;
+            background: var(--flaeche); overflow: hidden; }
+.zr + .zr { border-top: 1px solid var(--linie-fein); }
+.zr-gilt        { --zr-ton: var(--gut); }
+.zr-vorlaeufig,
+.zr-beantragt   { --zr-ton: var(--warn); }
+.zr-kuenftig    { --zr-ton: var(--info); }
+.zr-vorbei      { --zr-ton: var(--leise); }
+.zr-kopf {
+  display: grid; align-items: center; gap: 4px 14px; padding: 11px 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "stand bearbeiten" "zeitraum zeitraum"
+                       "werte werte" "notiz notiz";
+  cursor: pointer; list-style: none; font-size: 13px;
 }
-.zeitraumtabelle td:last-child .knopf-icon { width: 28px; height: 28px; }
-.zeitraumtabelle td:last-child .marke-status { margin-right: 6px; padding: 3px 8px; }
-/* Der gerade geltende Zeitraum wird abgesetzt – das ist die Zeile, nach
-   der man sucht, wenn man die Karte aufklappt. */
-.zeitraumtabelle tr.zeile-laufend td { background: var(--akzent-weich); }
-.zeitraumtabelle input.mini { min-width: 0; }
-
-/* Das Formular zum Anlegen sitzt unter der Liste und ist abgesetzt, damit
-   die vorhandenen Zeiträume und der neue nicht ineinanderlaufen. */
+.zr-kopf::-webkit-details-marker { display: none; }
+.zr-kopf::marker { content: ""; }
+.zr-kopf:hover, .zr-zeile[open] > .zr-kopf { background: var(--flaeche-2); }
+.zr-stand { grid-area: stand; display: inline-flex; align-items: center; gap: 7px;
+            font-weight: 650; color: var(--zr-ton); white-space: nowrap; }
+.zr-stand::before { content: ""; width: 8px; height: 8px; border-radius: 50%;
+                    background: var(--zr-ton); flex: none; }
+.zr-vorbei .zr-kopf { color: var(--leise); }
+.zr-zeitraum { grid-area: zeitraum; font-weight: 600; }
+.zr-werte { grid-area: werte; color: var(--tinte-2); }
+.zr-notiz { grid-area: notiz; min-width: 0; color: var(--leise); font-size: 12.5px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zr-notiz:empty { display: none; }
+.zr-bearbeiten { grid-area: bearbeiten; display: inline-flex; align-items: center;
+                 gap: 6px; font-size: 12.5px; color: var(--leise); }
+.zr-bearbeiten svg { width: 15px; height: 15px; }
+.zr-kopf:hover .zr-bearbeiten, .zr-zeile[open] .zr-bearbeiten { color: var(--akzent); }
+.zr-editor { padding: 14px; border-top: 1px solid var(--linie-fein);
+             background: var(--flaeche-2); }
+/* ⚠️ Ein Datumsfeld braucht samt Kalenderknopf 144px, sonst schneidet der
+   Browser die Jahreszahl ab (gemessen in den Privatauslagen, 1.55). */
+.zr-felder { display: grid; gap: 10px 14px;
+             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.zr-felder .feld { margin: 0; min-width: 0; }
+.zr-notizfeld { grid-column: 1 / -1; }
+.zr-antrag {
+  display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 0;
+  padding: 10px 12px; border: 1px dashed var(--linie-stark); border-radius: 9px;
+  font-size: 12.5px; color: var(--tinte-2); cursor: pointer; line-height: 1.45;
+}
+.zr-antrag input { margin: 2px 0 0; accent-color: var(--akzent); flex: none; }
+.zr-antrag strong { color: var(--tinte); }
+.zr-antrag:has(input:checked) { border-style: solid; border-color: var(--warn);
+                                background: var(--warn-weich); }
+.zr-fuss { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.zr-fuss form.inline { margin: 0 0 0 auto; }
+.zr-neu { margin-top: 4px; }
+.zr-neu-knopf {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  list-style: none; padding: 7px 13px; border-radius: 20px;
+  border: 1px solid var(--linie-stark); font-size: 13px; font-weight: 600;
+  color: var(--tinte-2);
+}
+.zr-neu-knopf::-webkit-details-marker { display: none; }
+.zr-neu-knopf::marker { content: ""; }
+.zr-neu-knopf:hover { border-color: var(--akzent); color: var(--akzent); }
+.zr-neu[open] > .zr-neu-knopf { margin-bottom: 4px; }
 .zeitraumneu {
-  margin-top: 14px; padding-top: 14px;
-  border-top: 1px dashed var(--linie-stark);
+  margin-top: 10px; padding: 14px; border: 1px solid var(--linie);
+  border-radius: 10px; background: var(--flaeche);
 }
-.zeitraumneu .knopfreihe { margin-bottom: 0; }
-
-@media (max-width: 760px) {
-  .zeitraumtabelle { min-width: 780px; }
-  .tabellenrolle:has(.zeitraumtabelle) { overflow-x: auto; }
+@media (min-width: 900px) {
+  .zr-kopf {
+    grid-template-columns: 128px 200px 190px minmax(0, 1fr) auto;
+    grid-template-areas: "stand zeitraum werte notiz bearbeiten";
+  }
+  .zr-felder { grid-template-columns: 160px 160px 110px 120px minmax(0, 1fr); }
+  .zr-notizfeld { grid-column: auto; }
 }
 
 @media (max-width: 700px) {
@@ -8799,30 +8798,6 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 }
 .abgabekompakt li:hover { border-left-color: var(--akzent); }
 
-/* --- Auswertung: „Bewilligt" als knappe Liste (seit 2.0) ------------------
-   Eine Zeile je Person, zwei Zeilen hoch: Name und Stand oben, der
-   geltende Satz darunter. Farbe nur dort, wo sie etwas sagt: rot ohne
-   Bescheid, blau Selbstzahler, grün unbefristet - ein befristeter Bescheid
-   bleibt neutral, sein Datum ist die Auskunft. */
-.bw-liste { list-style: none; margin: 4px 0 14px; padding: 0; }
-.bw-zeile {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px;
-  padding: 9px 2px; border-bottom: 1px solid var(--linie-fein);
-}
-.bw-zeile:last-child { border-bottom: 0; }
-.bw-wer { font-weight: 650; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis;
-          white-space: nowrap; }
-.bw-stand { font-size: 12px; color: var(--leise); white-space: nowrap;
-            display: inline-flex; align-items: center; gap: 6px;
-            font-variant-numeric: tabular-nums; }
-.bw-werte { grid-column: 1 / -1; font-size: 12px; color: var(--tinte-2); margin-top: 1px; }
-.bw-punkt { width: 7px; height: 7px; border-radius: 50%; background: var(--gut); flex: none; }
-.bw-ohne .bw-stand { color: var(--dopp); font-weight: 650; }
-.bw-ohne .bw-punkt { background: var(--dopp); }
-.bw-ohne .bw-werte { color: var(--leise); }
-.bw-selbst .bw-punkt { background: var(--info); }
-.bw-fuss { margin: -4px 0 14px; font-size: 12px; color: var(--leise); }
-
 /* Der Erklärtext des zugeklappten „Zeitlisten Import" (seit 1.24 im
    <summary>, damit man ihn einmal liest und den Bereich danach übergeht)
    erscheint im Modus „kompakt" erst beim Aufklappen. Zugeklappt sagt der
@@ -8908,4 +8883,332 @@ html.mit-skript[data-hinweise="kompakt"] .importkarte:not([open]) .importkopf .l
   .tabellenrolle .liste.dateiverzeichnis tr.dateizeile > td:first-child { box-shadow: none; }
   .tabellenrolle .liste.dateiverzeichnis tr.dateidetailzeile:not([hidden]) { display: block; }
   .tabellenrolle .liste.dateiverzeichnis tr.dateidetailzeile > td { display: block; padding: 4px 0 12px; }
+}
+
+/* --- Stand der Bewilligungen (seit 2.1, neu geordnet) ------------------------
+   ⚠️ Timos Rückmeldung zur ersten Fassung: „inhaltlich richtig, aber
+   deutlich zu unruhig“. Die Ordnung jetzt:
+   1. EINE Bilanzleiste (.bs-bilanz) statt vier farbiger Kacheln. Vier
+      gleich gebaute Felder, getrennt durch Linien; farbig ist nur die
+      Abweichung.
+   2. Eine Verteilungsleiste (.bs-verteilung): wie viele Personen in
+      welchem Abschnitt, als ein Balken mit Legende.
+   3. Die Liste in Abschnitten nach Dringlichkeit, EINE Kopfzeile, jede
+      Zeile gleich gebaut und gleich hoch. Keine Ränder, keine Pillen,
+      keine getönten Zeilen - Farbe trägt der Stand (Punkt + Wort) und die
+      Füllung des Balkens.
+   ⚠️ Gestapelt ist der Ausgangszustand, die Zeile kommt über eine
+   Container-Abfrage auf .bs-liste dazu. ⚠️ --bs-raster steht AUSSERHALB
+   der Abfrage: die kann ihren eigenen Container nicht gestalten (dort
+   gesetzt war die Variable leer - so in der ersten Fassung passiert).
+   ⚠️ Kein Einrücken beim Überfahren (Stage 7): nur die getönte Fläche. */
+.bewilligungsstand {
+  --bs-orange: color-mix(in oklab, var(--warn) 55%, var(--dopp));
+  --bs-orange-weich: color-mix(in oklab, var(--bs-orange) 14%, var(--flaeche));
+}
+.bs-rot    { --bs-ton: var(--dopp); }
+.bs-gelb   { --bs-ton: var(--warn); }
+.bs-gruen  { --bs-ton: var(--gut); }
+.bs-orange { --bs-ton: var(--bs-orange); }
+.bs-info   { --bs-ton: var(--info); }
+.bs-ab-rueckstand { --bs-ton: var(--dopp); }
+.bs-ab-ohne       { --bs-ton: var(--dopp); }
+.bs-ab-vorlaeufig { --bs-ton: var(--bs-orange); }
+.bs-ab-offen      { --bs-ton: var(--warn); }
+.bs-ab-plan       { --bs-ton: var(--gut); }
+.bs-ab-selbst     { --bs-ton: var(--info); }
+
+/* 1. Bilanzleiste */
+.bs-bilanz {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 4px 0 18px; border: 1px solid var(--linie); border-radius: 12px;
+  background: var(--flaeche-2); overflow: hidden;
+}
+.bs-wert { padding: 14px 16px; min-width: 0; }
+.bs-wert:nth-child(2n) { border-left: 1px solid var(--linie); }
+.bs-wert:nth-child(n+3) { border-top: 1px solid var(--linie); }
+.bs-wert dt {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--leise);
+}
+.bs-wert dd { margin: 4px 0 0; font-size: 22px; font-weight: 650;
+              line-height: 1.15; color: var(--tinte); }
+.bs-wert dd .kmass { margin-left: 4px; }
+.bs-wert dd.bs-minus { color: var(--dopp); }
+.bs-wert dd.bs-plus  { color: var(--gut); }
+.bs-wert .bs-wert-fuss { margin-top: 4px; font-size: 12px; font-weight: 400;
+                         color: var(--leise); line-height: 1.35; }
+@media (min-width: 760px) {
+  .bs-bilanz { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .bs-wert:nth-child(n) { border-left: 1px solid var(--linie); border-top: 0; }
+  .bs-wert:first-child { border-left: 0; }
+}
+
+/* 2. Verteilung */
+.bs-verteilung { margin: 0 0 20px; }
+.bs-leiste {
+  display: flex; gap: 3px; height: 8px; border-radius: 4px; overflow: hidden;
+}
+.bs-stueck { flex: 1 1 0; background: var(--bs-ton); min-width: 6px; }
+/* „ohne Bewilligung“ und „Rückstand“ sind beide rot - gestreift hält sie
+   in der Leiste auseinander. */
+.bs-stueck.bs-ab-ohne {
+  background: repeating-linear-gradient(135deg, var(--dopp) 0 4px,
+              color-mix(in oklab, var(--dopp) 45%, var(--flaeche)) 4px 8px);
+}
+.bs-legende { list-style: none; margin: 10px 0 0; padding: 0;
+              display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; }
+.bs-legende a { display: inline-flex; align-items: center; gap: 7px;
+                color: var(--tinte-2); text-decoration: none; }
+.bs-legende a:hover { color: var(--tinte); }
+.bs-legende b { font-weight: 650; color: var(--tinte); }
+.bs-punkt { width: 8px; height: 8px; border-radius: 50%; flex: none;
+            background: var(--bs-ton); }
+.bs-punkt.bs-ab-ohne { background: transparent; box-shadow: inset 0 0 0 2px var(--dopp); }
+
+/* 3. Liste */
+.bs-liste {
+  container-type: inline-size; container-name: bsliste;
+  --bs-raster: minmax(0, 1fr) 76px 104px 216px 196px 18px;
+  border-top: 1px solid var(--linie); margin-bottom: 14px;
+}
+.bs-kopf { display: none; }
+.bs-abschnitt {
+  display: flex; align-items: center; gap: 9px;
+  padding: 18px 4px 8px; border-bottom: 1px solid var(--linie);
+}
+.bs-abschnitt-titel { font-size: 12px; font-weight: 700; letter-spacing: .05em;
+                      text-transform: uppercase; color: var(--tinte-2); }
+.bs-abschnitt-zahl { font-size: 12px; color: var(--leise); }
+.bs-zeile { border-bottom: 1px solid var(--linie-fein); }
+.bs-summary {
+  display: grid; gap: 6px 14px; padding: 12px 4px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 18px;
+  grid-template-areas: "name   name   pfeil"
+                       "stand  stand  stand"
+                       "ist    soll   soll"
+                       "balken balken balken";
+  align-items: center; font-size: 13.5px;
+}
+details.bs-zeile > .bs-summary { cursor: pointer; list-style: none; }
+details.bs-zeile > .bs-summary::-webkit-details-marker { display: none; }
+details.bs-zeile > .bs-summary::marker { content: ""; }
+details.bs-zeile > .bs-summary:hover { background: var(--flaeche-2); }
+details.bs-zeile[open] > .bs-summary { background: var(--flaeche-2); }
+.bs-c-name   { grid-area: name; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bs-c-ist    { grid-area: ist; }
+.bs-c-soll   { grid-area: soll; }
+.bs-c-stand  { grid-area: stand; min-width: 0; }
+.bs-c-balken { grid-area: balken; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.bs-pfeil    { grid-area: pfeil; justify-self: end; color: var(--leise); display: inline-flex; }
+.bs-pfeil svg { width: 18px; height: 18px; transition: transform .15s ease; }
+.bs-zeile[open] .bs-pfeil svg { transform: rotate(180deg); }
+.bs-name { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-unter { font-size: 12px; color: var(--leise); overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap; }
+.bs-marke { color: var(--bs-ton); font-weight: 650; }
+.bs-marke::after { content: " · "; color: var(--leise); font-weight: 400; }
+.bs-summary i { display: block; font-style: normal; font-size: 11px; color: var(--leise); }
+.bs-summary b { font-weight: 600; }
+/* Ohne Bescheid gibt es kein Ist und kein Soll: gestapelt fallen die
+   Striche weg, in der Zeile halten sie die Spalten. */
+.bs-flach .bs-leer { display: none; }
+
+.bs-stand { display: inline-flex; align-items: center; gap: 7px;
+            font-weight: 650; color: var(--bs-ton); white-space: nowrap; }
+.bs-stand::before { content: ""; width: 8px; height: 8px; border-radius: 50%;
+                    background: var(--bs-ton); flex: none; }
+
+/* Der Balken: Spur = Kontingent, Füllung = Ist, Strich = Soll bis heute. */
+.bs-spur { position: relative; flex: 1 1 auto; height: 8px; border-radius: 4px;
+           background: color-mix(in oklab, var(--linie) 70%, var(--flaeche)); }
+.bs-fuellung { position: absolute; inset: 0 auto 0 0; border-radius: 4px;
+               background: var(--bs-ton); min-width: 2px; }
+.bs-sollstrich { position: absolute; top: -4px; bottom: -4px; width: 2px;
+                 margin-left: -1px; border-radius: 1px; background: var(--tinte); }
+.bs-anteil { flex: none; min-width: 92px; font-size: 12px; color: var(--leise);
+             white-space: nowrap; }
+.bs-anteil b { color: var(--tinte); }
+.bs-pflegen { font-size: 12.5px; color: var(--akzent); text-decoration: none; }
+.bs-pflegen:hover { text-decoration: underline; }
+
+/* Detail: Verlauf und Monatstabelle */
+.bs-detail { padding: 6px 4px 18px; }
+.bs-verlauf { margin: 4px 0 14px; }
+.bs-verlauf svg { display: block; width: 100%; height: 110px;
+                  border-bottom: 1px solid var(--linie); }
+.bs-verlauf polyline { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke;
+                       stroke-linejoin: round; stroke-linecap: round; }
+.bs-v-soll { stroke: var(--leise); stroke-dasharray: 5 4; }
+.bs-v-ist { stroke: var(--bs-ton); }
+.bs-v-heute { stroke: var(--linie-stark); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.bs-verlauf figcaption { display: flex; justify-content: space-between; gap: 12px;
+                         margin-top: 6px; font-size: 11.5px; color: var(--leise); }
+.bs-v-legende { display: inline-flex; align-items: center; gap: 7px; }
+.bs-v-ist-zeichen, .bs-v-soll-zeichen { display: inline-block; width: 16px; height: 0;
+                                         border-top: 2px solid var(--bs-ton); }
+.bs-v-soll-zeichen { border-top: 2px dashed var(--leise); margin-left: 8px; }
+.bs-tabelle td, .bs-tabelle th { text-align: left; }
+.bs-tabelle tr.bs-kuenftig td { color: var(--leise); }
+.bs-tabelle td.bs-minus { color: var(--dopp); font-weight: 600; }
+.bs-tabelle td.bs-plus { color: var(--gut); font-weight: 600; }
+
+@container bsliste (min-width: 820px) {
+  .bs-kopf {
+    display: grid; grid-template-columns: var(--bs-raster); gap: 14px;
+    grid-template-areas: "name ist soll stand balken pfeil";
+    padding: 10px 4px 2px;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--leise);
+  }
+  .bs-summary,
+  .bs-flach .bs-summary {
+    grid-template-columns: var(--bs-raster);
+    grid-template-areas: "name ist soll stand balken pfeil";
+    min-height: 58px; padding: 9px 4px;
+  }
+  .bs-summary i { display: none; }
+  .bs-flach .bs-leer { display: block; color: var(--leise); }
+}
+
+@media (max-width: 760px) {
+  .tabellenrolle:has(.bs-tabelle) { overflow-x: auto; }
+  .bs-tabelle { min-width: 600px; }
+}
+
+/* --- Kachel „Monate“ (seit 2.1) ----------------------------------------------
+   Früher eine Sprungliste in der Seitenspalte, jetzt eine eigene Kachel
+   mit Säulen (Timos Wunsch). Reines HTML/CSS: die Höhen kommen als
+   Prozent vom Server (auswertung.monatsdiagramm), die Werte zeigt ein
+   Hinweis beim Überfahren oder Antabben, ein Klick springt zum Monat.
+   Die übrigen Säulen treten dabei zurück. */
+.mb-zahlen {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px; margin: 4px 0 22px;
+}
+.mb-zahlen dt { font-size: 11px; font-weight: 700; letter-spacing: .06em;
+                text-transform: uppercase; color: var(--leise); }
+.mb-zahlen dd { margin: 3px 0 0; font-size: 20px; font-weight: 650; }
+.mb-zahlen .mb-fuss { margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--leise); }
+@media (min-width: 760px) { .mb-zahlen { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.mb-flaeche { padding: 34px 0 30px 34px; }
+.mb-plot { position: relative; height: 220px; }
+.mb-linie { position: absolute; left: 0; right: 0; height: 0;
+            border-top: 1px dashed var(--linie); }
+.mb-linie:first-child { border-top-style: solid; border-color: var(--linie-stark); }
+.mb-linie-wert { position: absolute; right: 100%; top: -8px; margin-right: 8px;
+                 font-size: 11px; color: var(--leise); }
+.mb-saeulen {
+  position: absolute; inset: 0; list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(var(--anzahl), minmax(0, 1fr));
+  column-gap: clamp(3px, 1.2vw, 14px);
+}
+.mb-saeulen li { position: relative; min-width: 0; }
+.mb-saeule { position: absolute; inset: 0; display: block; outline-offset: 3px;
+             border-radius: 6px 6px 0 0; transition: opacity .15s ease; }
+.mb-soll { position: absolute; left: 0; right: 0; bottom: 0;
+           border: 1.5px dashed var(--leise); border-bottom: 0;
+           border-radius: 6px 6px 0 0; }
+.mb-ist { position: absolute; left: 14%; right: 14%; bottom: 0;
+          border-radius: 5px 5px 0 0; min-height: 2px;
+          background: linear-gradient(180deg, var(--akzent), var(--akzent-satt)); }
+.mb-knapp .mb-ist { background: color-mix(in oklab, var(--dopp) 75%, var(--akzent)); }
+.mb-ohne .mb-ist { background: var(--info); }
+/* Künftige Monate tragen nur ihr Soll - zurückgesetzt, damit sie nicht
+   wie leere Monate aussehen. Der laufende bekommt eine feine Kante. */
+.mb-kuenftig .mb-soll { opacity: .45; }
+.mb-laufend .mb-soll { border-color: var(--tinte-2); }
+.mb-dt-zusatz { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.mb-saeulen:hover .mb-saeule:not(:hover),
+.mb-saeulen:focus-within .mb-saeule:not(:focus-visible) { opacity: .4; }
+.mb-monat { position: absolute; top: 100%; left: 0; right: 0; margin-top: 8px;
+            text-align: center; font-size: 11px; color: var(--leise); white-space: nowrap; }
+.mb-tip {
+  position: absolute; bottom: calc(var(--h, 0%) + 10px); left: 50%; z-index: 3;
+  transform: translateX(-50%); min-width: 150px; padding: 8px 11px;
+  display: flex; flex-direction: column; gap: 2px; pointer-events: none;
+  background: var(--flaeche); border: 1px solid var(--linie-stark);
+  border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / .28);
+  font-size: 12px; color: var(--tinte-2); white-space: nowrap;
+  opacity: 0; visibility: hidden;
+}
+.mb-tip b { color: var(--tinte); font-size: 12.5px; }
+.mb-tip-prozent { font-weight: 650; color: var(--gut); }
+.mb-tip-prozent.mb-knapp { color: var(--dopp); }
+.mb-tip-prozent.mb-nah { color: var(--warn); }
+/* Der Hinweis hängt über der Säule; ganz links und ganz rechts an der
+   Kante, sonst ragte er aus der Karte. */
+.mb-saeulen li:first-child .mb-tip, .mb-saeulen li:nth-child(2) .mb-tip { left: 0; transform: none; }
+.mb-saeulen li:last-child .mb-tip, .mb-saeulen li:nth-last-child(2) .mb-tip { left: auto; right: 0; transform: none; }
+.mb-saeule:hover .mb-tip, .mb-saeule:focus-visible .mb-tip { opacity: 1; visibility: visible; }
+.mb-legende { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0;
+              font-size: 12px; color: var(--tinte-2); }
+.mb-legende > span { display: inline-flex; align-items: center; gap: 7px; }
+.mb-zeichen-ist, .mb-zeichen-soll, .mb-zeichen-knapp { width: 12px; height: 12px; border-radius: 3px; }
+.mb-zeichen-ist { background: var(--akzent); }
+.mb-zeichen-knapp { background: color-mix(in oklab, var(--dopp) 75%, var(--akzent)); }
+.mb-zeichen-soll { border: 1.5px dashed var(--leise); }
+@media (max-width: 620px) {
+  .mb-monat.mb-neben { visibility: hidden; }
+  .mb-flaeche { padding-left: 28px; }
+}
+
+/* „beantragt“ außerhalb der Auswertung (seit 2.1): in den Einstellungen und
+   in „Mein Bereich“ derselbe Ton wie „läuft aus“ - nach sechs Monaten ohne
+   Bescheid rot. Die Regeln stehen nach den p-*-Regeln und gewinnen damit. */
+.konto.person.p-beantragt         { --p-ton: var(--warn); }
+.konto.person.p-beantragt.p-lange { --p-ton: var(--dopp); }
+.bewilligungsliste li.bw-beantragt         { border-left-color: var(--warn); }
+.bewilligungsliste li.bw-beantragt.bw-lange { border-left-color: var(--dopp); }
+
+/* --- Betreute Personen: die Liste (Umbau 2.1) --------------------------------
+   Eine gerahmte Liste mit Trennlinien statt neun einzelner Kästen. Breit
+   (Container-Abfrage auf der Liste) eine Zeile je Person unter EINER
+   Kopfzeile; schmal die zwei Lagen von 1.39. ⚠️ Gestapelt ist der
+   Ausgangszustand. --pe-raster steht AUSSERHALB der Abfrage - sie kann
+   ihren eigenen Container nicht gestalten. */
+.personenliste {
+  container-type: inline-size; container-name: personen; gap: 0;
+  --pe-raster: minmax(0, 1fr) 250px 200px 84px 96px 18px;
+  border: 1px solid var(--linie); border-radius: 12px; overflow: hidden;
+  background: var(--flaeche-2);
+}
+.personenliste > .konto {
+  border: 0; border-radius: 0; border-top: 1px solid var(--linie);
+  box-shadow: inset 3px 0 0 var(--p-ton, transparent);
+}
+.personenliste > .konto:first-of-type { border-top: 0; }
+.pe-kopf { display: none; }
+.personenkopf .pz-stand .marke-status {
+  background: none; padding: 0; font-size: 12.5px; font-weight: 650;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.personenkopf .pz-stand .marke-status::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor; flex: none;
+}
+@container personen (min-width: 900px) {
+  .pe-kopf {
+    display: grid; grid-template-columns: var(--pe-raster); gap: 14px;
+    padding: 10px 16px 8px; border-bottom: 1px solid var(--linie);
+    font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--leise);
+  }
+  .personenliste > .pe-kopf + .konto { border-top: 0; }
+  .personenkopf {
+    grid-template-columns: var(--pe-raster);
+    grid-template-areas: none; row-gap: 0;
+  }
+  /* ⚠️ Plätze ausdrücklich als Zeile/Spalte: die Grundregeln setzen
+     grid-area: name/stand/pfeil mit höherer Spezifität, und ohne Bereiche
+     landeten die drei sonst in einer zweiten, impliziten Zeile. */
+  .personenkopf .konto-name { grid-area: 1 / 1; }
+  .personenkopf .pz-stand { grid-area: 1 / 2; justify-content: flex-start; }
+  .personenkopf .pz-fakten { display: contents; }
+  .personenkopf .pz-fakt:nth-child(1) { grid-area: 1 / 3; min-width: 0; }
+  .personenkopf .pz-fakt:nth-child(2) { grid-area: 1 / 4; min-width: 0; }
+  .personenkopf .pz-fakt:nth-child(3) { grid-area: 1 / 5; min-width: 0; }
+  .personenkopf .pz-fakt i { display: none; }
+  .personenkopf .konto-pfeil { grid-area: 1 / 6; }
 }

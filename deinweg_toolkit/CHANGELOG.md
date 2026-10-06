@@ -3,6 +3,14 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.1
+
+- Auswertung: neue Karte „Stand der Bewilligungen“ – je Person Soll und Ist ab Beginn des heute geltenden Bescheids, geordnet nach Dringlichkeit, mit aufklappbarer Monatstabelle und Verlauf
+- Auswertung: Seitenspalte entfallen; die Monate stehen als eigene Kachel mit Säulendiagramm (Werte beim Überfahren, Klick springt zum Monat)
+- Monatssoll betreuter Personen jetzt Wochenstunden × 52 ÷ 12, minutengenau (vorher × 4,33, auf 15 Minuten gerundet)
+- Einstellungen → Betreute Personen neu geordnet; jeder Zeitraum hat sein eigenes „Zeitraum speichern“ (vorher gingen Änderungen über den Stammdaten-Knopf still verloren)
+- Zeiträume lassen sich als „beantragt“ markieren (Marke in der vorhandenen Notiz, keine Schemaänderung)
+
 ## 2.0.2
 
 - Discomodus aufgedreht: 150 BPM mit Synthesizer, Laser, RGB-Blitze (unter 3 pro Sekunde), mehr Tempo und Konfetti

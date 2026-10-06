@@ -395,7 +395,13 @@
      wie bei den Konten in der Benutzerverwaltung. Als flache Tabelle ging
      es nicht mehr: zu jeder Person gehört jetzt eine eigene Liste
      bewilligter Zeiträume, und die passt in keine Tabellenzelle. #}
-  <div class="kontoliste">
+  <div class="kontoliste personenliste">
+    {# Seit dem Umbau 2.1: auf breiten Karten eine Zeile je Person unter
+       EINER Kopfzeile (Container-Abfrage), schmal die zwei Lagen von 1.39. #}
+    <div class="pe-kopf" aria-hidden="true">
+      <span>Betreute Person</span><span>Stand</span><span>Es gilt</span>
+      <span>Zeiträume</span><span>Erfasst</span><span></span>
+    </div>
   {% for p in personen %}
   {% set liste = zeitraeume.get(p.id, []) %}
   {% set gilt_heute = zeitraum_aktuell.get(p.id) %}
@@ -404,8 +410,8 @@
                   {# „grundwert" zählt seit 1.20 dazu: ein Grundwert ohne
                      Bescheid rechnet nicht mehr mit, die Person steht damit
                      genauso ohne gültige Bewilligung da wie eine ganz leere. #}
-                  {{ 'ohne-bewilligung' if p.aktiv and stand.art in ('abgelaufen', 'kuenftig', 'leer', 'laeuft_aus', 'grundwert') }}
-                  {{ ('p-' ~ stand.art) if p.aktiv and stand.art }}"
+                  {{ 'ohne-bewilligung' if p.aktiv and stand.art in ('abgelaufen', 'kuenftig', 'leer', 'laeuft_aus', 'beantragt', 'grundwert') }}
+                  {{ ('p-' ~ stand.art) if p.aktiv and stand.art }}{{ ' p-lange' if p.aktiv and stand.lange }}"
            id="person-{{ p.id }}" {{ 'open' if offen == p.id }}>
     {# ⚠️⚠️ Zwei Zeilen statt einer (seit 1.39, Timos Wunsch). Vorher
        stand alles in einer Flexzeile nebeneinander: Name, Statusmarke,
@@ -428,8 +434,13 @@
         {% elif stand.art == "laufend" %}
           <span class="marke-status gut">gültig</span>
           {% if stand.nachfolge %}
-          <span class="leise klein">Folgebescheid ab {{ stand.nachfolge.von | deutsch }}</span>
+          <span class="leise klein">{{ 'Folgeantrag (beantragt)' if ist_beantragt(stand.nachfolge) else 'Folgebescheid' }} ab {{ stand.nachfolge.von | deutsch }}</span>
           {% endif %}
+        {# Seit 2.1: der heute geltende Zeitraum ist nur beantragt. Orange,
+           nach sechs Monaten ab Beginn rot - dann ist Nachhaken dran. #}
+        {% elif stand.art == "beantragt" %}
+          <span class="marke-status {{ 'dopp' if stand.lange else 'offen' }}">beantragt</span>
+          <span class="leise klein">{{ 'seit 6 Monaten ausstehend – nachhaken' if stand.lange else 'Bescheid steht aus' }}</span>
         {# ⚠️ Dieser Zweig hat bis 1.12.1 gefehlt. „läuft aus“ fiel damit
            in den else-Zweig und stand als „keine Bewilligung hinterlegt“
            da - bei einer Person mit zwei gepflegten Zeiträumen. #}
@@ -495,6 +506,13 @@
       Der nächste Zeitraum beginnt erst am <strong>{{ stand.ab | deutsch }}</strong>.
       Für die Zeit davor gibt es kein Soll und keinen Verdienst.
     </p>
+    {% elif p.aktiv and stand.art == "beantragt" %}
+    <p class="meldung {{ 'fehler' if stand.lange else 'offen-hinweis' }} bewilligungswarnung">
+      Der Zeitraum ab <strong>{{ stand.ab | deutsch }}</strong> ist nur beantragt.
+      Der „Stand der Bewilligungen“ in der Auswertung rechnet vorläufig mit ihm,
+      Soll und Verdienst darunter noch nicht. Kommt der Bescheid, den Haken
+      „beantragt“ entfernen.
+    </p>
     {% elif p.aktiv and stand.art == "leer" %}
     <p class="meldung fehler bewilligungswarnung">
       Für diese Person ist kein Zeitraum hinterlegt. In der Auswertung
@@ -551,95 +569,134 @@
     </div>
     {% endif %}
 
-    {# Die Bewilligungen stehen oben: sie sind der Kern, nicht der Name. #}
-    <div class="konto-block">
-      <span class="konto-blocktitel">Bewilligte Zeiträume</span>
+    {# --- Bewilligte Zeiträume (seit dem Umbau 2.1) -----------------------
+       ⚠️ Bis hierhin eine Tabelle mit einem Eingabefeld in jeder Zelle, und
+       gespeichert wurde ein Zeitraum NUR über das kleine ✓ ganz rechts in
+       seiner Zeile. Das pinke „speichern“ unten gehört zu den Stammdaten -
+       wer dort klickte, sah „gespeichert“, und die Änderung am Zeitraum
+       (etwa der Haken „beantragt“) war still verloren (Timos Meldung).
+       Jetzt ist jeder Zeitraum eine ruhige Zeile; „Bearbeiten“ klappt sein
+       eigenes Formular mit einem eigenen „Zeitraum speichern“ auf. Bewusst
+       <details> und kein Skript. #}
+    <div class="konto-block pe-block">
+      <div class="pe-blockkopf">
+        <span class="konto-blocktitel">Bewilligte Zeiträume</span>
+        <span class="pe-blockzahl">{{ liste | length }}</span>
+      </div>
       <p class="klein leise felderklaerung">{{ t("einst.zeitraum_hinweis") }}</p>
 
       {% if liste %}
-      <div class="tabellenrolle">
-      <table class="liste dicht zeitraumtabelle">
-        <thead>
-          <tr><th>Ab</th><th>Bis</th><th class="rechts">Std/Woche</th>
-              <th class="rechts">Satz in €</th><th>Notiz</th><th>Aktion</th></tr>
-        </thead>
-        <tbody>
+      <ul class="zr-liste">
         {% for z in liste %}
-          {% set gilt = z.von <= heute and (not z.bis or z.bis >= heute) %}
-          <tr class="{{ 'zeile-laufend' if gilt }}">
-            <form action="/einstellungen/person/zeitraum/{{ z.id }}" method="post"
-                  id="zr-{{ z.id }}"></form>
-            <td><input class="mini" type="date" name="von" value="{{ z.von }}"
-                       form="zr-{{ z.id }}" required></td>
-            <td><input class="mini" type="date" name="bis" value="{{ z.bis or '' }}"
-                       form="zr-{{ z.id }}"></td>
-            <td><input class="mini kurz rechts" type="text" name="wochenstunden"
-                       inputmode="decimal" value="{{ z.wochenstunden | stunden }}"
-                       form="zr-{{ z.id }}"></td>
-            <td><input class="mini kurz rechts" type="text" name="stundensatz"
-                       inputmode="decimal"
-                       value="{{ ('%.2f' % z.stundensatz) | replace('.', ',') if z.stundensatz else '' }}"
-                       placeholder="0,00" form="zr-{{ z.id }}"></td>
-            <td><input class="mini" type="text" name="notiz" value="{{ z.notiz or '' }}"
-                       placeholder="z. B. Bescheid vom 12.07." form="zr-{{ z.id }}"></td>
-            <td class="rechts nowrap">
-              {% if gilt %}<span class="marke-status gut">gilt heute</span>{% endif %}
-              <button class="knopf-icon" type="submit" form="zr-{{ z.id }}"
-                      title="Speichern" aria-label="Speichern">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M5 12.5 10 17.5 19 7" stroke="currentColor" stroke-width="1.9"
-                        stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <form class="inline" method="post"
-                    action="/einstellungen/person/zeitraum/{{ z.id }}/loeschen"
-                    onsubmit="return dwt.frage(event, 'Diesen Zeitraum entfernen?')">
-                {{ muelleimer("Zeitraum entfernen") }}
+        {% set gilt = z.von <= heute and (not z.bis or z.bis >= heute) %}
+        {% set antrag = ist_beantragt(z) %}
+        {% set zr_art = ('vorlaeufig' if antrag and gilt else
+                         'beantragt' if antrag else
+                         'gilt' if gilt else
+                         'kuenftig' if z.von > heute else 'vorbei') %}
+        <li class="zr zr-{{ zr_art }}">
+          <details class="zr-zeile">
+            <summary class="zr-kopf">
+              <span class="zr-stand">
+                {%- if zr_art == 'vorlaeufig' %}gilt vorläufig
+                {%- elif zr_art == 'beantragt' %}beantragt
+                {%- elif zr_art == 'gilt' %}gilt heute
+                {%- elif zr_art == 'kuenftig' %}ab {{ z.von | deutsch }}
+                {%- else %}abgelaufen{% endif -%}
+              </span>
+              <span class="zr-zeitraum zahlen">{{ z.von | deutsch }} – {{ z.bis | deutsch if z.bis else 'offen' }}</span>
+              <span class="zr-werte zahlen">{{ z.wochenstunden | stunden }} Std/Woche · {{ z.stundensatz | euro }}</span>
+              <span class="zr-notiz">{{ z.notiz | ohne_marke }}</span>
+              <span class="zr-bearbeiten" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 20l.9-3.6L15.4 6a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L9.5 21.1 4 20Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Bearbeiten
+              </span>
+            </summary>
+            <div class="zr-editor">
+              <form action="/einstellungen/person/zeitraum/{{ z.id }}" method="post"
+                    id="zr-{{ z.id }}" class="zr-formular">
+                <div class="zr-felder">
+                  <label class="feld"><span>Ab</span>
+                    <input type="date" name="von" value="{{ z.von }}" required></label>
+                  <label class="feld"><span>Bis <span class="leise">– leer = offen</span></span>
+                    <input type="date" name="bis" value="{{ z.bis or '' }}"></label>
+                  <label class="feld"><span>Std/Woche</span>
+                    <input type="text" name="wochenstunden" inputmode="decimal"
+                           value="{{ z.wochenstunden | stunden }}"></label>
+                  <label class="feld"><span>Satz in €</span>
+                    <input type="text" name="stundensatz" inputmode="decimal"
+                           value="{{ ('%.2f' % z.stundensatz) | replace('.', ',') if z.stundensatz else '' }}"
+                           placeholder="0,00"></label>
+                  <label class="feld zr-notizfeld"><span>Notiz <span class="leise">– optional</span></span>
+                    <input type="text" name="notiz" value="{{ z.notiz | ohne_marke }}"
+                           placeholder="z. B. Bescheid vom 12.07."></label>
+                </div>
+                {# ⚠️ „beantragt“ steckt als Marke in der Notiz (kein eigenes
+                   Feld in der Datenbank). Das Feld oben zeigt die Notiz ohne
+                   sie, das Kästchen trägt den Zustand, beantragt_dabei sagt
+                   dem Server, dass das Kästchen überhaupt im Formular stand. #}
+                <input type="hidden" name="beantragt_dabei" value="1">
+                <label class="ankreuz zr-antrag">
+                  <input type="checkbox" name="beantragt" value="1" {{ 'checked' if antrag }}>
+                  <span><strong>Noch nicht bewilligt (beantragt)</strong> – der Bescheid
+                    steht noch aus. Nur der „Stand der Bewilligungen“ rechnet dann
+                    vorläufig mit diesen Stunden.</span>
+                </label>
               </form>
-            </td>
-          </tr>
+              <div class="zr-fuss">
+                <button class="knopf haupt klein" type="submit" form="zr-{{ z.id }}">Zeitraum speichern</button>
+                <form class="inline" method="post"
+                      action="/einstellungen/person/zeitraum/{{ z.id }}/loeschen"
+                      onsubmit="return dwt.frage(event, 'Diesen Zeitraum entfernen?')">
+                  <button class="knopf leise klein warn" type="submit">Zeitraum entfernen</button>
+                </form>
+              </div>
+            </div>
+          </details>
+        </li>
         {% endfor %}
-        </tbody>
-      </table>
-      </div>
+      </ul>
       {% else %}
       <p class="leer klein">{{ t("einst.ohne_zeitraum") }}</p>
       {% endif %}
 
-      <form class="zeitraumneu" action="/einstellungen/person/{{ p.id }}/zeitraum"
-            method="post">
-        <div class="feldreihe">
-          <label class="feld">
-            <span>Ab</span>
-            <input type="date" name="von" required>
+      <details class="zr-neu"{{ ' open' if not liste }}>
+        <summary class="zr-neu-knopf">
+          <span aria-hidden="true">+</span> Zeitraum hinzufügen
+        </summary>
+        <form class="zeitraumneu" action="/einstellungen/person/{{ p.id }}/zeitraum"
+              method="post">
+          <div class="zr-felder">
+            <label class="feld"><span>Ab</span>
+              <input type="date" name="von" required></label>
+            <label class="feld"><span>Bis <span class="leise">– leer = offen</span></span>
+              <input type="date" name="bis"></label>
+            <label class="feld"><span>Std/Woche</span>
+              <input type="text" name="wochenstunden" inputmode="decimal" placeholder="z. B. 4"></label>
+            <label class="feld"><span>Satz in €</span>
+              <input type="text" name="stundensatz" inputmode="decimal" placeholder="z. B. 65,00"></label>
+            <label class="feld zr-notizfeld"><span>Notiz <span class="leise">– optional</span></span>
+              <input type="text" name="notiz" placeholder="z. B. Bescheid vom 12.07."></label>
+          </div>
+          <label class="ankreuz zr-antrag zr-antrag-neu">
+            <input type="checkbox" name="beantragt" value="1">
+            <span><strong>Noch nicht bewilligt (beantragt)</strong> – der Bescheid
+              steht noch aus. Nur der „Stand der Bewilligungen“ rechnet dann
+              vorläufig mit diesen Stunden.</span>
           </label>
-          <label class="feld">
-            <span>Bis <span class="leise">– leer = offen</span></span>
-            <input type="date" name="bis">
-          </label>
-          <label class="feld">
-            <span>Std/Woche</span>
-            <input type="text" name="wochenstunden" inputmode="decimal" placeholder="z. B. 4">
-          </label>
-          <label class="feld">
-            <span>Satz in €</span>
-            <input type="text" name="stundensatz" inputmode="decimal" placeholder="z. B. 65,00">
-          </label>
-          <label class="feld">
-            <span>Notiz <span class="leise">– optional</span></span>
-            <input type="text" name="notiz" placeholder="z. B. Bescheid vom 12.07.">
-          </label>
-        </div>
-        <div class="knopfreihe">
-          <button class="knopf" type="submit">Zeitraum hinzufügen</button>
-        </div>
-      </form>
+          <div class="zr-fuss">
+            <button class="knopf haupt klein" type="submit">Zeitraum anlegen</button>
+          </div>
+        </form>
+      </details>
     </div>
 
     {# Stammdaten stehen bewusst UNTER den Bewilligungen: der Name ändert
        sich nie, die Bescheide dauernd. #}
-    <div class="konto-block">
-      <span class="konto-blocktitel">Stammdaten</span>
+    <div class="konto-block pe-block">
+      <div class="pe-blockkopf">
+        <span class="konto-blocktitel">Stammdaten</span>
+      </div>
       <label class="feld">
         <span>Name</span>
         <input type="text" name="name" value="{{ p.name }}"
@@ -722,7 +779,7 @@
     {# Eine Knopfzeile, ganz unten, und „entfernen“ rechts abgesetzt -
        mitten in der Karte sah sie aus wie ein vergessener Rest. #}
     <div class="knopfreihe konto-fuss">
-      <button class="knopf haupt" type="submit" form="person-f-{{ p.id }}">speichern</button>
+      <button class="knopf haupt" type="submit" form="person-f-{{ p.id }}">Stammdaten speichern</button>
       <form class="inline entfernen-rechts" action="/einstellungen/person/{{ p.id }}/loeschen" method="post"
             onsubmit="return dwt.frage(event, '{{ p.name }} aus den Stammdaten entfernen? Erfasste Zeiten bleiben erhalten, die hinterlegten Zeiträume nicht.')">
         {{ muelleimer("Person entfernen") }}

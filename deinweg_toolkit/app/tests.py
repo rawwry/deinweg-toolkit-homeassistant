@@ -1961,10 +1961,12 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
                 (datum, datum[:7], minuten, fp, datum + " 09:00"))
 
     # Von Hand nachgerechnet: 12 Monate zu 4 Std/Woche plus 5 Monate zu 7.
+    # ⚠️ Seit 2.1 mit 52/12 Wochen je Monat und ohne Viertelstunden-
+    # rundung: 4 x 260 = 1040, 7 x 260 = 1820 (vorher 1035 / 1815).
     soll_4 = soll_minuten(4, "2024-09")
     soll_7 = soll_minuten(7, "2025-09")
     erwartet_soll = soll_4 * 12 + soll_7 * 5
-    pruefe(soll_4 == 1035 and soll_7 == 1815,
+    pruefe(soll_4 == 1040 and soll_7 == 1820,
            f"Monatssoll je Stufe (ist: {soll_4} / {soll_7})")
 
     seite = client.get("/auswertung?von_jahr=2024&von_monat=08"
@@ -2065,7 +2067,8 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
 
     # --- Die Zeiträume hängen an der Person --------------------------------
     seite = client.get("/einstellungen?bereich=betreute").text
-    pruefe('id="person-' in seite and "zeitraumtabelle" in seite,
+    # Seit dem Umbau 2.1 eine Liste (zr-liste) statt einer Tabelle.
+    pruefe('id="person-' in seite and 'class="zr-liste"' in seite,
            "die Zeiträume stehen bei der Person in den Einstellungen")
     pruefe("Fortschreibung" in seite, "mit ihrer Notiz")
 
@@ -2171,20 +2174,27 @@ def test_monatsbloecke(client: TestClient) -> None:
            f"mit dem Soll über alle Monate ({_hhmm(gesamt_soll)})")
     pruefe("15 Monate" in seite, "und der Zahl der Monate")
 
-    # Die Seitenspalte: Kontingentbalken, Sprungliste, Bescheide.
-    pruefe("auswertungsraster" in seite and "auswertunghaupt" in seite,
-           "die Seite steht in zwei Spalten, über ihre ganze Länge")
-    pruefe("<h2>Stundenkontingent</h2>" in seite and "standliste" in seite,
-           "der Kontingentbalken steht in der Seitenspalte")
+    # ⚠️ Seit dem Umbau 2.1 keine Seitenspalte mehr (Timos Wunsch):
+    # „Stundenkontingent“ und „Bewilligt“ sind entfallen, die Monate
+    # stehen als eigene Kachel mit Säulen über den Monatsblöcken.
+    pruefe("auswertungsraster" not in seite and "auswertunghaupt" in seite,
+           "die Seite steht in einer Spalte")
+    pruefe("<h2>Stundenkontingent</h2>" not in seite and "standliste" not in seite
+           and 'class="bw-liste"' not in seite,
+           "Stundenkontingent und Bewilligt sind entfallen")
     pruefe("auslastung" not in seite,
            "und nicht mehr zusätzlich in der Tabellenzelle")
-    pruefe("monatsspur" in seite and 'href="#monat-2025-09"' in seite,
-           "die Monate sind als Sprungliste verlinkt")
+    kachel = seite.split('id="monatsbild"', 1)[1].split("</section>", 1)[0] \
+        if 'id="monatsbild"' in seite else ""
+    pruefe(kachel.count('<a class="mb-saeule ') == 15
+           and 'href="#monat-2025-09"' in kachel,
+           "die Monatskachel trägt je Monat eine Säule, die zum Block springt")
+    pruefe('class="mb-tip"' in kachel and "aria-label=" in kachel,
+           "jede Säule nennt ihre Werte beim Überfahren und für Vorleseprogramme")
+    pruefe(seite.index('id="monatsbild"') < seite.index('id="monat-'),
+           "die Kachel steht über den Monatsblöcken")
     pruefe(seite.count('id="monat-') == 15,
            "jeder Block trägt seine Sprungmarke")
-    # Seit 2.0 eine knappe Liste (.bw-liste) statt eines Blocks je Person.
-    pruefe("<h2>Bewilligt</h2>" in seite and 'class="bw-liste"' in seite,
-           "die zugrunde liegenden Bescheide stehen daneben")
     # Maßangaben: einmal je Spalte im Kopf, nicht in jeder Zelle.
     pruefe(seite.count('class="massangabe">Std<') >= 3,
            "die Zeitspalten tragen ihre Einheit im Kopf")
@@ -2199,14 +2209,16 @@ def test_monatsbloecke(client: TestClient) -> None:
     # erfasst hat, steht in der Übersicht, nicht in der Auswertung.
     pruefe("<th>Mitarbeiter" not in seite,
            "die Spalte „Mitarbeiter“ steht nicht mehr in der Auswertung")
-    kopf = seite.split("<thead>")[1].split("</thead>")[0]
+    # ⚠️ Seit 2.1 steht darüber der „Stand der Bewilligungen“ mit eigenen
+    # Tabellen - gezählt wird der Kopf des Überblicks.
+    kopf = (seite.split('class="liste auswertungsblatt"')[1]
+            .split("<thead>")[1].split("</thead>")[0])
     spalten = kopf.count("<th>") + kopf.count("<th ")
     pruefe(spalten == 7, f"sieben Spalten (sind: {spalten})")
     pruefe("Std</span></td>" not in seite,
            "in den Zellen selbst steht die Einheit nicht")
-    pruefe("01.08.2024" in seite and "31.07.2025" in seite,
-           "mit ihrem Zeitraum")
-    pruefe("4 Std/Woche" in seite, "und ihren Werten")
+    # (Bis 2.1 stand hier „mit ihrem Zeitraum / und ihren Werten“ - das
+    # war die Seitenspalte „Bewilligt“, die mit dem Umbau entfallen ist.)
 
     # Bei einem einzelnen Monat waere der Block eine Wiederholung.
     einer = client.get("/auswertung?von_jahr=2024&von_monat=09"
@@ -2256,7 +2268,12 @@ def test_mehrere_betreute(client: TestClient) -> None:
 
     def tabelle(html):
         # Nur der Tabellenkörper - im Filter stehen ohnehin alle Namen als
-        # Kästchen, danach kann man nicht prüfen.
+        # Kästchen, danach kann man nicht prüfen. ⚠️ Seit 2.1 der des
+        # Überblicks: der „Stand der Bewilligungen“ darüber folgt dem
+        # Filter ausdrücklich NICHT und nennt alle aktiven Personen.
+        marke = 'class="liste auswertungsblatt"'
+        if marke in html:
+            html = html.split(marke, 1)[1]
         return html.split("<tbody>")[1].split("</tbody>")[0]
 
     zwei = client.get("/auswertung?klient=Filter+Eins&klient=Filter+Zwei").text
@@ -3853,6 +3870,308 @@ def test_farbvariablen(client: TestClient) -> None:
     pruefe(not fehlend, f"keine unbekannte CSS-Variable (offen: {fehlend})")
 
 
+def test_stand_der_bewilligungen(client: TestClient) -> None:
+    """Stand der Bewilligungen (seit 2.1): je Person gegen den HEUTE
+    geltenden Bescheid, Monatssoll = FLST x 52 / 12.
+
+    Das Beispiel aus der Praxis (Bescheid 01.03.2026-28.02.2027, 3 FLST,
+    Stand 06.10.2026 -> 104:00 Soll bis heute) steht hier unter einem
+    erfundenen Namen - das Repository ist oeffentlich.
+    """
+    abschnitt("2.1: Stand der Bewilligungen")
+    from .auswertung import stand_der_bewilligungen
+    from .rechnen import (BEANTRAGT_MARKE, beantragt_zu_lange,
+                          bewilligungslage, bewilligungsstand, ist_beantragt,
+                          kontingent_im_monat, notiz_mit_marke,
+                          notiz_ohne_marke, soll_minuten)
+
+    def zr(von, bis, std=3, notiz=None):
+        return {"von": von, "bis": bis, "wochenstunden": std,
+                "stundensatz": 70, "notiz": notiz}
+
+    # --- Die Rechnung selbst ---------------------------------------------
+    pruefe(soll_minuten(3, "2026-03") == 780, "3 FLST = 13:00 im Monat")
+    pruefe(soll_minuten(2, "2026-03") == 520,
+           "2 FLST = 8:40, minutengenau statt auf die Viertelstunde")
+    pruefe(soll_minuten(3.5, "2026-03") == 910, "3,5 FLST = 15:10")
+
+    heute = "2026-10-06"
+    bescheid = [zr("2026-03-01", "2027-02-28")]
+    ist = {"2026-02": 999, "2026-03": 600, "2026-07": 900, "2026-10": 120}
+    s = bewilligungsstand(bescheid, ist, heute)
+    pruefe(s["art"] == "laufend", "der laufende Bescheid wird gefunden")
+    pruefe(s["monatssoll"] == 780 and s["soll"] == 8 * 780,
+           f"März bis Oktober = 8 × 13:00 = 104:00 (ist: {s['soll']})")
+    pruefe(s["ist"] == 1620,
+           f"das Ist zählt nur im Bescheid, der Februar nicht (ist: {s['ist']})")
+    pruefe(s["abweichung"] == 1620 - 6240 and s["offen"] == 6240 - 1620,
+           "Abweichung = Ist − Soll, offen = Soll − Ist")
+    pruefe(s["gesamt"] == 12 * 780 and s["prozent"] == round(1620 / 9360 * 100),
+           "Gesamtkontingent 156:00 und der genutzte Anteil")
+    pruefe(len(s["monate"]) == 12, "die Detailtabelle hat zwölf Monate")
+    pruefe([m["soll_kum"] for m in s["monate"]] == [780 * i for i in range(1, 13)],
+           "Soll kumuliert 13:00, 26:00 … 156:00 wie in der Tabelle aus der Praxis")
+    pruefe(s["monate"][0]["wort"] == "März 2026"
+           and s["monate"][-1]["wort"] == "Februar 2027",
+           "von März 2026 bis Februar 2027")
+    okt = s["monate"][7]
+    pruefe(okt["laufend"] and okt["ist_kum"] == 1620
+           and okt["abw_kum"] == 1620 - 6240,
+           "der laufende Monat trägt Ist kumuliert und Abweichung")
+    pruefe(all("ist" not in m for m in s["monate"][8:]),
+           "künftige Monate zeigen nur das Soll")
+    pruefe(s["ampel"] == "rot" and s["gruppe"] == "rot",
+           "mehr als ein Monatssoll Rückstand ist rot")
+
+    # Ampel: gelb = diesen Monat noch aufholbar, grün = im Plan.
+    voll = {m: 780 for m in ("2026-03", "2026-04", "2026-05", "2026-06",
+                             "2026-07", "2026-08", "2026-09")}
+    gelb = bewilligungsstand(bescheid, voll, heute)
+    pruefe(gelb["ampel"] == "gelb" and gelb["offen"] == 780,
+           "nur der laufende Monat fehlt -> gelb, noch 13:00 offen")
+    gruen = bewilligungsstand(bescheid, {**voll, "2026-10": 800}, heute)
+    pruefe(gruen["ampel"] == "gruen" and gruen["abweichung"] == 20,
+           "im Plan mit Vorsprung -> grün")
+    knapp = bewilligungsstand(bescheid, {**voll, "2026-09": 779}, heute)
+    pruefe(knapp["ampel"] == "rot",
+           "eine Minute mehr Rückstand als ein Monatssoll ist rot")
+
+    # Beginn mitten im Monat: der Startmonat zählt voll, auch fürs Ist.
+    mitte = bewilligungsstand([zr("2026-03-15", "2027-03-14")],
+                              {"2026-03": 120}, heute)
+    pruefe(mitte["soll"] == 8 * 780 and mitte["ist"] == 120,
+           "Start am 15.: der März zählt voll, auch die Zeit vor dem 15.")
+    pruefe(len(mitte["monate"]) == 13 and mitte["gesamt"] == 13 * 780,
+           "endet er am 14., zählt auch der Endmonat voll")
+
+    # Zwei Bescheide: es zählt nur der heute geltende, nichts wird addiert.
+    zwei = bewilligungsstand([zr("2026-03-01", "2027-02-28", 3),
+                              zr("2025-03-01", "2026-02-28", 35)],
+                             {}, heute)
+    pruefe(zwei["monatssoll"] == 780 and zwei["soll"] == 6240,
+           "ein älterer Bescheid wird nicht dazugerechnet")
+
+    # Unbefristet: kein Gesamtkontingent, Tabelle bis heute.
+    offen = bewilligungsstand([zr("2026-08-01", None)], {}, heute)
+    pruefe(offen["gesamt"] is None and offen["prozent"] is None
+           and len(offen["monate"]) == 3,
+           "unbefristet: kein Kontingent, Tabelle bis zum laufenden Monat")
+
+    # Sonderfälle ohne Zahlen.
+    pruefe(bewilligungsstand([], {}, heute)["art"] == "fehlt",
+           "ohne Bescheid: Bewilligung fehlt")
+    ab = bewilligungsstand([zr("2025-03-01", "2026-02-28")], {}, heute)
+    pruefe(ab["art"] == "abgelaufen" and ab["seit"] == "2026-02-28"
+           and ab["gruppe"] == "rot" and "soll" not in ab,
+           "abgelaufen: rot, mit Datum, ohne Zahlen")
+    kue = bewilligungsstand([zr("2026-12-01", "2027-11-30")], {}, heute)
+    pruefe(kue["art"] == "kuenftig" and kue["ab"] == "2026-12-01",
+           "der nächste beginnt erst: Bewilligung fehlt, mit Beginn")
+    sz = bewilligungsstand([], {"2026-10": 90, "2026-09": 500}, heute,
+                           selbstzahler=True)
+    pruefe(sz["art"] == "selbstzahler" and sz["ist"] == 90,
+           "Selbstzahler: nur das Ist des laufenden Monats")
+
+    # --- Beantragt ------------------------------------------------------
+    pruefe(notiz_mit_marke("Antrag vom 02.03.", True)
+           == f"{BEANTRAGT_MARKE} Antrag vom 02.03.",
+           "die Marke steht vorn in der Notiz")
+    pruefe(notiz_ohne_marke(f"{BEANTRAGT_MARKE} Antrag") == "Antrag",
+           "angezeigt wird die Notiz ohne Marke")
+    pruefe(notiz_mit_marke("", True) == BEANTRAGT_MARKE
+           and notiz_mit_marke(BEANTRAGT_MARKE, False) is None,
+           "auch ohne Notiz, und weg heißt wieder leer")
+    pruefe(not ist_beantragt({"notiz": "Beantragt am 12.01., bewilligt am 03.03."}),
+           "eine gewöhnliche Notiz mit dem Wort „beantragt“ ist keine Marke")
+    antrag = [zr("2026-03-01", "2027-02-28", notiz=BEANTRAGT_MARKE)]
+    sa = bewilligungsstand(antrag, {m: 780 for m in voll}, "2026-08-06")
+    pruefe(sa["art"] == "beantragt" and sa["gruppe"] == "orange"
+           and sa["soll"] == 6 * 780 and not sa["lange"],
+           "beantragt rechnet normal mit und steht orange")
+    pruefe(beantragt_zu_lange("2026-03-01", "2026-09-01")
+           and not beantragt_zu_lange("2026-03-01", "2026-08-31"),
+           "sechs Monate ab Beginn: am 01.09. ist Nachhaken dran")
+    pruefe(beantragt_zu_lange("2026-08-31", "2027-02-28")
+           and not beantragt_zu_lange("2026-08-31", "2027-02-27"),
+           "auch über einen kurzen Monat hinweg")
+    sl = bewilligungsstand(antrag, {}, "2026-10-06")
+    pruefe(sl["lange"] and sl["gruppe"] == "rot",
+           "nach sechs Monaten ohne Bescheid wird er rot")
+    pruefe(kontingent_im_monat("2026-05", antrag, 0, 0) == (0, 0, False),
+           "Verdienst und Monatsblöcke rechnen ihn nicht mit")
+    lage = bewilligungslage(antrag, 0, 0, "2026-05-10")
+    pruefe(lage["art"] == "beantragt" and not lage["lange"],
+           "die Bewilligungslage kennt den Stand „beantragt“")
+    lage = bewilligungslage(antrag + [zr("2025-03-01", "2026-02-28")], 0, 0,
+                            "2026-01-10")
+    pruefe(lage["art"] == "laufend" and ist_beantragt(lage["nachfolge"]),
+           "ein beantragter Folgezeitraum beendet die Warnung „läuft aus“")
+
+    # --- Über die Oberfläche --------------------------------------------
+    jetzt = dt.date.today()
+    monat_jetzt = jetzt.strftime("%Y-%m")
+    beginn = (jetzt.replace(day=1) - dt.timedelta(days=60)).replace(day=1)
+    for name in ("Stand Grün", "Stand Rot", "Stand Antrag", "Stand Ohne"):
+        client.post("/einstellungen/person", data={
+            "name": name, "wochenstunden": "0", "stundensatz": "0",
+            "abrechenbar": "1"})
+    with db.db() as con:
+        ids = {r["name"]: r["id"] for r in con.execute(
+            "SELECT id, name FROM person WHERE name LIKE 'Stand %'")}
+        spalten = {r["name"] for r in con.execute(
+            "PRAGMA table_info(person_zeitraum)")}
+    pruefe(spalten == {"id", "person_id", "von", "bis", "wochenstunden",
+                       "stundensatz", "notiz", "angelegt_am"},
+           "die Tabelle der Zeiträume ist unverändert (keine Schemaänderung)")
+    for name in ("Stand Grün", "Stand Rot", "Stand Antrag"):
+        client.post(f"/einstellungen/person/{ids[name]}/zeitraum", data={
+            "von": beginn.isoformat(), "wochenstunden": "3",
+            "stundensatz": "70", "notiz": "Antrag vom 01.02.",
+            "beantragt": "1" if name == "Stand Antrag" else ""})
+    with db.db() as con:
+        notizen = {r["name"]: r["notiz"] for r in con.execute(
+            "SELECT p.name, z.notiz FROM person_zeitraum z "
+            "JOIN person p ON p.id = z.person_id WHERE p.name LIKE 'Stand %'")}
+        zid = con.execute(
+            "SELECT z.id FROM person_zeitraum z JOIN person p ON p.id = z.person_id "
+            "WHERE p.name='Stand Antrag'").fetchone()["id"]
+        # Grün: drei volle Monate geleistet. Rot: nichts.
+        for i, m in enumerate((beginn.strftime("%Y-%m"),
+                               (beginn + dt.timedelta(days=32)).strftime("%Y-%m"),
+                               monat_jetzt)):
+            con.execute(
+                "INSERT INTO eintrag (mitarbeiter, datum, monat, klient, "
+                "beschreibung, dauer_min, abrechenbar, fingerprint, angelegt_am) "
+                "VALUES ('pruefer', ?, ?, 'Stand Grün', 'Besuch', 780, 1, ?, ?)",
+                (m + "-01", m, f"stand{i}", m + "-01 09:00"))
+    pruefe(notizen["Stand Antrag"] == f"{BEANTRAGT_MARKE} Antrag vom 01.02."
+           and notizen["Stand Grün"] == "Antrag vom 01.02.",
+           "das Kästchen setzt die Marke, ohne Haken bleibt die Notiz wie sie war")
+
+    seite = client.get("/einstellungen?bereich=betreute").text
+    pruefe('value="Antrag vom 01.02."' in seite
+           and f'value="{BEANTRAGT_MARKE}' not in seite,
+           "das Notizfeld zeigt die Notiz ohne Marke")
+    pruefe('name="beantragt_dabei"' in seite and "gilt vorläufig" in seite
+           and "Zeitraum speichern" in seite,
+           "Kästchen, stille Marke, „gilt vorläufig“ und ein eigenes Speichern")
+    pruefe(">beantragt<" in seite and "p-beantragt" in seite,
+           "die Personenliste kennt den Stand „beantragt“")
+
+    # Ein Formular OHNE das Kästchen lässt den Stand unangetastet ...
+    zeitraum = {"von": beginn.isoformat(), "wochenstunden": "3",
+                "stundensatz": "70", "notiz": "Antrag vom 01.02."}
+    client.post(f"/einstellungen/person/zeitraum/{zid}", data=zeitraum)
+    with db.db() as con:
+        n = con.execute("SELECT notiz FROM person_zeitraum WHERE id=?",
+                        (zid,)).fetchone()["notiz"]
+    pruefe(n == f"{BEANTRAGT_MARKE} Antrag vom 01.02.",
+           "ein Formular ohne Kästchen nimmt die Marke nicht weg")
+    # ... mit der stillen Marke und ohne Haken heißt es „bewilligt“.
+    client.post(f"/einstellungen/person/zeitraum/{zid}",
+                data={**zeitraum, "beantragt_dabei": "1"})
+    with db.db() as con:
+        n = con.execute("SELECT notiz FROM person_zeitraum WHERE id=?",
+                        (zid,)).fetchone()["notiz"]
+    pruefe(n == "Antrag vom 01.02.", "Haken raus: der Zeitraum ist bewilligt")
+    client.post(f"/einstellungen/person/zeitraum/{zid}",
+                data={**zeitraum, "beantragt_dabei": "1", "beantragt": "1"})
+
+    with db.db() as con:
+        stand = stand_der_bewilligungen(con)
+    zeilen = {z["name"]: z for z in stand["zeilen"] if z["name"].startswith("Stand ")}
+    pruefe(zeilen["Stand Grün"]["ampel"] == "gruen"
+           and zeilen["Stand Grün"]["ist"] == 3 * 780,
+           "drei volle Monate: im Plan")
+    pruefe(zeilen["Stand Rot"]["ampel"] == "rot", "nichts geleistet: rot")
+    pruefe(zeilen["Stand Antrag"]["art"] == "beantragt", "beantragt erkannt")
+    pruefe(zeilen["Stand Ohne"]["art"] == "fehlt", "ohne Bescheid: fehlt")
+    reihenfolge = [z["gruppe"] for z in stand["zeilen"]]
+    pruefe(reihenfolge == sorted(reihenfolge, key=("rot", "orange", "gelb",
+                                                   "gruen", "selbstzahler").index),
+           "sortiert nach Dringlichkeit: rot, orange, gelb, grün, Selbstzahler")
+
+    seite = client.get("/auswertung?klient=Stand+Grün").text
+    karte = seite.split('id="stand"', 1)[1].split("</section>", 1)[0]
+    pruefe("Stand der Bewilligungen" in seite
+           and f"Stand: <strong>{jetzt.strftime('%d.%m.%Y')}</strong>" in karte
+           and "jeweils aktueller Bewilligungszeitraum" in karte,
+           "die Karte nennt das heutige Datum")
+    pruefe("Stand Rot" in karte and "Stand Ohne" in karte,
+           "sie folgt dem Personenfilter nicht")
+    pruefe(seite.index('id="stand"') < seite.index('class="liste auswertungsblatt"'),
+           "sie steht über dem Überblick")
+    pruefe("Bewilligung fehlt" in karte and "Vorläufig – Bescheid steht aus" in karte
+           and "noch " in karte and "im Plan" in karte,
+           "Bewilligung fehlt, vorläufig, offen und im Plan stehen im Klartext da")
+    pruefe("Soll kumuliert" in karte and "Abweichung kumuliert" in karte,
+           "die Detailtabelle hat ihre sechs Spalten")
+    pruefe("<details class=\"bs-zeile" in karte,
+           "jede Person mit Bescheid klappt auf - ohne Skript")
+    stil = client.get("/static/style.css").text
+    pruefe("@container bsliste (min-width: 820px)" in stil
+           and "container-name: bsliste" in stil,
+           "gestapelt ist der Ausgangszustand, die Zeile kommt per Container-Abfrage")
+    # --- Umbau nach Timos Rückmeldung --------------------------------------
+    # Der Fehler: ein Zeitraum speicherte nur über ein kleines ✓, das pinke
+    # „speichern“ darunter gehörte zu den Stammdaten. Jetzt hat jeder
+    # Zeitraum sein eigenes, beschriftetes Speichern.
+    einst = client.get(f"/einstellungen?bereich=betreute&offen={ids['Stand Antrag']}").text
+    block = einst.split(f'id="person-{ids["Stand Antrag"]}"')[1] \
+        .split('<details class="konto person')[0]
+    pruefe(f'type="submit" form="zr-{zid}">Zeitraum speichern' in block,
+           "jeder Zeitraum hat sein eigenes „Zeitraum speichern“")
+    pruefe(f'id="zr-{zid}"' in block and 'name="beantragt"' in block.split(f'id="zr-{zid}"')[1].split("</form>")[0],
+           "und das Kästchen „beantragt“ steht IN diesem Formular")
+    pruefe(">Stammdaten speichern<" in block and ">speichern<" not in block,
+           "der Knopf der Stammdaten sagt, was er speichert")
+    antwort = client.post(f"/einstellungen/person/{ids['Stand Grün']}", data={
+        "name": "Stand Grün", "selbstzahler": "0", "abrechenbar": "1",
+        "aktiv": "1"}, follow_redirects=False)
+    pruefe(f"offen={ids['Stand Grün']}" in antwort.headers.get("location", ""),
+           "nach dem Speichern der Stammdaten bleibt die Person aufgeklappt")
+    stil = client.get("/static/style.css").text
+    pruefe(".konto.person.p-laufend      { --p-ton: var(--gut); }" in stil
+           and "background: var(--gut-weich); }" not in stil.split(".konto.person.p-laufend")[1][:60],
+           "die Personenzeile ist nicht mehr vollflächig getönt")
+
+    # Die Karte: Abschnitte in der vereinbarten Reihenfolge, Bilanzleiste.
+    from .auswertung import STAND_ABSCHNITTE, monatsdiagramm
+    reihe = [k for k, _ in STAND_ABSCHNITTE]
+    pruefe(reihe == ["rueckstand", "ohne", "vorlaeufig", "offen", "plan", "selbst"],
+           "Abschnitte: Rückstand, ohne Bewilligung, vorläufig, offen, im Plan, Selbstzahler")
+    gefunden = [k for k in reihe if f'id="bs-ab-{k}"' in karte]
+    pruefe(gefunden == sorted(gefunden, key=reihe.index) and len(gefunden) >= 3,
+           "und sie stehen in dieser Reihenfolge auf der Seite")
+    pruefe('<dl class="bs-bilanz">' in karte and 'class="bs-verteilung"' in karte,
+           "eine Bilanzleiste und die Verteilung statt farbiger Kacheln")
+    pruefe('class="bs-sollstrich"' in karte and 'class="bs-fuellung' in karte,
+           "der Balken zeigt Ist und den Strich für das Soll bis heute")
+
+    # Die Monatskachel: Stärkster/schwächster Monat nur unter den
+    # abgeschlossenen - ein künftiger stünde sonst mit 0 % als schwächster da.
+    vorgestern = (jetzt.replace(day=1) - dt.timedelta(days=40)).strftime("%Y-%m")
+    gestern = (jetzt.replace(day=1) - dt.timedelta(days=5)).strftime("%Y-%m")
+    morgen = (jetzt.replace(day=28) + dt.timedelta(days=10)).strftime("%Y-%m")
+    def block_(monat, ist, soll):
+        return {"monat": monat, "wort": monat, "ist": ist, "soll": soll,
+                "betrag": 0.0, "prozent": round(ist / soll * 100) if soll else None}
+    bild = monatsdiagramm([block_(vorgestern, 600, 780), block_(gestern, 900, 780),
+                           block_(jetzt.strftime("%Y-%m"), 60, 780),
+                           block_(morgen, 0, 780)])
+    pruefe(bild["schwaechster"]["monat"] == vorgestern
+           and bild["staerkster"]["monat"] == gestern,
+           "stärkster und schwächster Monat nur unter den abgeschlossenen")
+    pruefe([b["zeit"] for b in bild["saeulen"]] == ["vorbei", "vorbei", "laufend", "kuenftig"],
+           "laufender und künftiger Monat sind als solche markiert")
+    pruefe(bild["linien"][0]["wert"] == 0 and bild["linien"][-1]["pos"] == 100,
+           "die Skala beginnt bei null und endet oben auf einer runden Zahl")
+
+    with db.db() as con:
+        con.execute("DELETE FROM eintrag WHERE fingerprint LIKE 'stand%'")
+        con.execute("DELETE FROM person WHERE name LIKE 'Stand %'")
+
+
 def test_bewilligung_nachfolge(client: TestClient) -> None:
     """Ein hinterlegter Folgebescheid beendet die Warnung."""
     abschnitt("Bewilligung mit Folgebescheid")
@@ -4391,11 +4710,12 @@ def test_selbstzahler(client: TestClient) -> None:
             "'11:00','Selbstzahler Probe','Besuch',120,1,'szp1','2026-05-04 09:00')")
     ausw = client.get("/auswertung?von_jahr=2026&von_monat=05&"
                       "bis_jahr=2026&bis_monat=05").text
-    seitenspalte = ausw[ausw.index("Selbstzahler Probe"):] \
-        if "Selbstzahler Probe" in ausw else ""
-    zeile = ausw.split('class="bw-zeile bw-selbst"')[1].split("</li>")[0] \
-        if 'class="bw-zeile bw-selbst"' in ausw else ""
-    pruefe("Selbstzahler Probe" in zeile and "Selbstzahler" in zeile.split("bw-stand")[1],
+    # Seit 2.1 steht er im „Stand der Bewilligungen“ im Abschnitt
+    # Selbstzahler, nicht als „ohne Bescheid“.
+    abschnitt_sz = ausw.split('id="bs-ab-selbst"', 1)[1] \
+        if 'id="bs-ab-selbst"' in ausw else ""
+    pruefe("Selbstzahler Probe" in abschnitt_sz
+           and "bs-stand bs-info\">Selbstzahler" in abschnitt_sz,
            "die Auswertung nennt den Selbstzahler beim Namen, nicht „Grundwert“")
 
     # Zeilenfärbung nach Status: eine gültige Person grün, eine leere rot.
@@ -4815,7 +5135,9 @@ def test_abrechnungsart(client: TestClient) -> None:
     # Beim Kostenträger stehen die Zahlenfelder nicht mehr sichtbar da -
     # aber als verstecktes Feld, damit ein Speichern sie nicht verliert.
     block = client.get(f"/einstellungen?bereich=betreute&offen={aid}").text
-    person = block.split(f'id="person-{aid}"')[1].split("</details>")[0]
+    # ⚠️ Seit 2.1 stehen die Zeiträume selbst als <details> im Block -
+    # geschnitten wird deshalb bis zur nächsten Person.
+    person = block.split(f'id="person-{aid}"')[1].split('<details class="konto person')[0]
     pruefe("Vereinbarter Stundensatz" not in person,
            "beim Kostenträger gibt es kein Satzfeld")
     pruefe('type="hidden" name="stundensatz"' in person,
@@ -4834,7 +5156,9 @@ def test_abrechnungsart(client: TestClient) -> None:
         "name": "Artfrau", "wochenstunden": "3", "stundensatz": "44,00",
         "abrechenbar": "1", "aktiv": "1", "selbstzahler": "1"})
     block = client.get(f"/einstellungen?bereich=betreute&offen={aid}").text
-    person = block.split(f'id="person-{aid}"')[1].split("</details>")[0]
+    # ⚠️ Seit 2.1 stehen die Zeiträume selbst als <details> im Block -
+    # geschnitten wird deshalb bis zur nächsten Person.
+    person = block.split(f'id="person-{aid}"')[1].split('<details class="konto person')[0]
     pruefe("Vereinbarter Stundensatz" in person,
            "beim Selbstzahler heißt das Feld „Vereinbarter Stundensatz“")
     pruefe("grundwertumzug" not in person,
@@ -5901,7 +6225,7 @@ def test_eigene_bezeichnungen(client: TestClient) -> None:
     pruefe("<h2>Mein Konto</h2>" in client.get("/meinbereich/konto").text,
            "„Mein Konto“ steht als Überschrift auf seiner eigenen Seite")
     auswertung = client.get("/auswertung").text
-    for wort in ("Überblick", "Stundenkontingent", "Monate", "Bewilligt"):
+    for wort in ("Überblick", "Monate"):
         pruefe(f"<h2>{wort}</h2>" in auswertung,
                f"„{wort}“ steht in der Auswertung")
 
@@ -12282,6 +12606,7 @@ def _durchlauf(client: TestClient) -> None:
         test_neuigkeiten(client)
         test_farbvariablen(client)
         test_bewilligung_nachfolge(client)
+        test_stand_der_bewilligungen(client)
         test_zeitwahl(client)
         test_konto_zugeklappt(client)
         test_meine_zeiten_namensspalte(client)

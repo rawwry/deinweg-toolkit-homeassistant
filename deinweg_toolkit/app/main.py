@@ -42,13 +42,14 @@ from . import wiki as _wiki
 from .rechnen import (  # noqa: F401
     BEWILLIGUNG_HANDLUNG, auswahllisten, bereichsfilter,
     bewilligungen_pruefen, bewilligungslage, deutsch, euro, gesamtstunden,
-    jetzt, klientenauswahl, mitarbeiter_zu_benutzer, mitarbeiterauswahl,
+    ist_beantragt, jetzt, klientenauswahl, mitarbeiter_zu_benutzer,
+    mitarbeiterauswahl, notiz_ohne_marke,
     monat_verschieben, monat_wort, stunden, tage, tageszahl, zahl)
 
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "2.0.2"
+VERSION = "2.1"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -352,6 +353,10 @@ templates.env.filters["tage"] = tage
 # traegt. NICHT zahl() dafuer nehmen - der schreibt zwei
 # Nachkommastellen wie bei einem Geldbetrag.
 templates.env.filters["tageszahl"] = tageszahl
+# Beantragte Zeitraeume (seit 2.1): die Marke steckt in der Notiz, weil es
+# kein eigenes Feld dafuer gibt - angezeigt wird die Notiz ohne sie.
+templates.env.globals["ist_beantragt"] = ist_beantragt
+templates.env.filters["ohne_marke"] = notiz_ohne_marke
 
 
 # --- Kern: Datei einlesen ---------------------------------------------------

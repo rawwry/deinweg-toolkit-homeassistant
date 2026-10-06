@@ -20,6 +20,7 @@ gibt es nur dort.
 
 from __future__ import annotations
 
+import calendar
 import datetime as dt
 import os
 import re
@@ -229,7 +230,21 @@ def monatsliste(von: str, bis: str) -> list[str]:
     return ergebnis
 
 
+# ⚠️⚠️ Zwei Faktoren, zwei Fragen (seit 2.1):
+#
+# MONATSFAKTOR (4,33) bleibt fuer das MITARBEITER-Soll - genauer fuer
+# ARBEITSTAGE_MONAT, aus dem "Mein Bereich" den Wert eines freien Tages
+# rechnet. Daran hat sich nichts geaendert.
+#
+# Das Soll einer BETREUTEN PERSON rechnet seit 2.1 mit 52 / 12 Wochen je
+# Monat und minutengenau, ohne Rundung auf die Viertelstunde - so rechnet
+# das Team selbst ("3 FLST = 13,00 Std im Monat", Wunsch aus der Praxis,
+# Timos Entscheidung "52/12 ueberall fuer Klienten"). Bei 3 FLST kommen
+# beide Rechnungen auf 13:00, bei 2 FLST stand vorher 8:45, jetzt 8:40.
+# Weil FLST * 52/12 * 60 = FLST * 260 ist, ergibt jede uebliche Angabe
+# ganze Minuten - eine Rundung braucht es gar nicht.
 MONATSFAKTOR = 4.33  # durchschnittliche Wochen pro Monat, so von der Leitung vorgegeben
+WOCHEN_JE_MONAT_KLIENT = 52 / 12
 
 
 def runde_viertelstunde(minuten: float) -> int:
@@ -238,16 +253,16 @@ def runde_viertelstunde(minuten: float) -> int:
 
 
 def soll_minuten(wochenstunden: float, monat: str = "") -> int | None:
-    """Rechnet das Wochenkontingent mit dem Faktor 4,33 auf einen Monat hoch.
+    """Monatssoll einer betreuten Person: Wochenstunden × 52 ÷ 12, in Minuten.
 
-    Der Monat selbst geht nicht mehr in die Rechnung ein - das Ergebnis ist
+    Der Monat selbst geht nicht in die Rechnung ein - das Ergebnis ist
     für jeden Monat gleich - wird aber als Parameter beibehalten, damit
     Aufrufer nicht angepasst werden müssen und ein leerer Monat weiterhin
     "kein Soll" bedeutet.
     """
     if not wochenstunden or not monat:
         return None
-    return runde_viertelstunde(wochenstunden * 60 * MONATSFAKTOR)
+    return int(round(wochenstunden * 60 * WOCHEN_JE_MONAT_KLIENT))
 
 
 def soll_zeitraum(wochenstunden: float, monate: list[str]) -> int | None:
@@ -286,6 +301,64 @@ def monatsgrenzen(monat: str) -> tuple[str, str]:
 BEWILLIGUNG_BALD_TAGE = 60
 
 
+# --- Beantragt, aber noch nicht bewilligt (seit 2.1) --------------------------
+#
+# Der Folgebescheid kommt oft Monate spaeter (Bearbeitungsstau beim
+# Kostentraeger). Gearbeitet wird in der Zeit trotzdem, als laege er vor -
+# mit den beantragten Stunden. Ein solcher Zeitraum wird ganz normal unter
+# Einstellungen -> Betreute Personen angelegt, mit dem Kaestchen "noch
+# nicht bewilligt (beantragt)".
+#
+# ⚠️⚠️ Dafuer gibt es KEIN eigenes Feld in der Datenbank, und es darf keins
+# dazukommen (Timos Vorgabe fuer diese Fassung: keine Schemaaenderung,
+# auf dem Pi liegen Realdaten). Das Kaestchen schreibt deshalb eine Marke
+# vorn in die vorhandene Notiz. Bewusst in eckigen Klammern: eine echte
+# Notiz wie "Beantragt am 12.01., bewilligt am 03.03." darf nicht
+# versehentlich als Marke gelten.
+BEANTRAGT_MARKE = "[beantragt]"
+# Nach so vielen Monaten ab Beginn wird aus dem orangen "steht aus" ein
+# rotes "nachhaken" - und erst dann meldet es auch die Bewilligungsmail.
+BEANTRAGT_MAHNT_MONATE = 6
+
+
+def ist_beantragt(z) -> bool:
+    """Traegt dieser Zeitraum die Marke "beantragt"?"""
+    try:
+        notiz = z["notiz"] or ""
+    except (KeyError, IndexError, TypeError):
+        return False
+    return notiz.strip().lower().startswith(BEANTRAGT_MARKE)
+
+
+def notiz_ohne_marke(notiz) -> str:
+    """Die Notiz so, wie der Mensch sie geschrieben hat - ohne Marke."""
+    text = (notiz or "").strip()
+    if text.lower().startswith(BEANTRAGT_MARKE):
+        text = text[len(BEANTRAGT_MARKE):].strip()
+    return text
+
+
+def notiz_mit_marke(notiz, beantragt: bool) -> str | None:
+    """Setzt oder entfernt die Marke; leer wird wie bisher zu None."""
+    text = notiz_ohne_marke(notiz)
+    if beantragt:
+        text = f"{BEANTRAGT_MARKE} {text}".strip()
+    return text or None
+
+
+def beantragt_zu_lange(von: str, heute: str) -> bool:
+    """Steht der Antrag schon BEANTRAGT_MAHNT_MONATE Monate ab Beginn aus?"""
+    try:
+        beginn = dt.date.fromisoformat(von)
+        tag = dt.date.fromisoformat(heute)
+    except (TypeError, ValueError):
+        return False
+    monat = beginn.month - 1 + BEANTRAGT_MAHNT_MONATE
+    jahr, monat = beginn.year + monat // 12, monat % 12 + 1
+    letzter = calendar.monthrange(jahr, monat)[1]
+    return tag >= dt.date(jahr, monat, min(beginn.day, letzter))
+
+
 def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
                      vorlauf: int | None = None,
                      selbstzahler: bool = False) -> dict:
@@ -301,6 +374,8 @@ def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
     * ``laeuft_aus`` - gilt noch, endet bald, und es gibt keinen Nachfolger
     * ``abgelaufen`` - der letzte Bescheid ist vorbei
     * ``kuenftig``   - der naechste beginnt erst
+    * ``beantragt``  - heute gilt ein Zeitraum, der nur beantragt ist
+      (seit 2.1, ``lange`` = steht seit BEANTRAGT_MAHNT_MONATE aus)
     * ``grundwert``  - kein Bescheid, aber ein alter Grundwert. Seit 1.20
       rechnet der nicht mehr mit; die Lage heisst damit "hier steht ein
       Wert, der nichts tut" und verlangt, aufgeloest zu werden.
@@ -327,6 +402,15 @@ def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
         if z["von"] <= heute and (not z["bis"] or z["bis"] >= heute):
             laufend = z
             break
+
+    # ⚠️ Beantragt (seit 2.1): ein eigener Stand. Der Folgeantrag ist
+    # raus, gewarnt werden muss also nicht mehr "hier muss ein Antrag
+    # raus" - aber dass der Bescheid noch fehlt, soll sichtbar bleiben
+    # (orange). Nach BEANTRAGT_MAHNT_MONATE wird er rot und erst dann
+    # meldet ihn auch die Bewilligungsmail.
+    if laufend and ist_beantragt(laufend):
+        return {"art": "beantragt", "zeitraum": laufend, "ab": laufend["von"],
+                "lange": beantragt_zu_lange(laufend["von"], heute)}
 
     if laufend:
         # Deckt irgendein spaeterer Zeitraum die Zeit nach diesem hier ab?
@@ -368,7 +452,7 @@ def bewilligungslage(zeitraeume, grund_stunden, grund_satz, heute: str,
 # Welche Lagen verlangen, dass jemand tätig wird? Reihenfolge ist zugleich
 # die Dringlichkeit, nach der sortiert wird.
 BEWILLIGUNG_HANDLUNG = ("abgelaufen", "leer", "laeuft_aus", "kuenftig",
-                        "grundwert")
+                        "beantragt", "grundwert")
 
 
 # --- Urlaub -------------------------------------------------------------------
@@ -573,6 +657,12 @@ def kontingent_im_monat(monat: str, zeitraeume, grund_stunden: float,
     """
     anfang, ende = monatsgrenzen(monat)
     for z in zeitraeume or []:
+        # ⚠️ Ein nur BEANTRAGTER Zeitraum (seit 2.1) zaehlt hier nicht -
+        # Verdienst, Monatsbloecke und Stundenkontingent behandeln ihn wie
+        # "ohne Bescheid" (Timos Entscheidung). Vorlaeufig mit ihm rechnet
+        # allein der "Stand der Bewilligungen" (bewilligungsstand()).
+        if ist_beantragt(z):
+            continue
         if z["von"] > ende:
             continue
         if z["bis"] and z["bis"] < anfang:
@@ -581,6 +671,106 @@ def kontingent_im_monat(monat: str, zeitraeume, grund_stunden: float,
     if selbstzahler:
         return grund_stunden or 0, grund_satz or 0, False
     return 0, 0, False
+
+
+# --- Stand der Bewilligungen (seit 2.1) ----------------------------------------
+#
+# Wunsch aus der Praxis: "Bin ich bei dieser Person HEUTE im Plan?" Die
+# Auswertung darunter rechnet ueber einen frei gewaehlten Zeitraum (ohne
+# Angabe das Kalenderjahr) und verglich deshalb mitten im Bescheid das
+# Geleistete mit einem Soll, das November und Dezember schon enthielt -
+# fast jede Person stand im Rueckstand. Hier zaehlt allein der Bescheid,
+# in dessen Zeitraum heute faellt.
+#
+# Die Regeln (alle mit Timo abgestimmt, 06.10.2026):
+# * Soll bis heute = Monatssoll x Monate vom Startmonat bis EINSCHLIESSLICH
+#   des laufenden. Der laufende Monat zaehlt bewusst voll.
+# * Start- und Endmonat zaehlen voll - auch fuers Ist: ein Bescheid ab dem
+#   15. deckt in der Praxis den ganzen Monat (Beratung im Vorfeld).
+#   Das Ist laeuft vom Ersten des Startmonats bis heute.
+# * Ampel: gruen = Ist >= Soll; gelb = Rueckstand hoechstens ein
+#   Monatssoll, also diesen Monat noch aufholbar; rot = mehr. Mit einer
+#   festen Grenze (2 Std) staende am Monatsersten jede Person rot da.
+# * Ein nur beantragter Zeitraum rechnet hier normal mit (vorlaeufig).
+STAND_GRUPPEN = ("rot", "orange", "gelb", "gruen", "selbstzahler")
+
+
+def bewilligungsstand(zeitraeume, ist_je_monat: dict, heute: str,
+                      selbstzahler: bool = False) -> dict:
+    """Stand einer betreuten Person gegen ihren heute geltenden Bescheid.
+
+    ``zeitraeume`` absteigend nach ``von`` wie ueberall (der zuletzt
+    begonnene gewinnt), ``ist_je_monat`` = {"YYYY-MM": Minuten bis heute}.
+
+    ``art``: ``laufend`` · ``beantragt`` · ``selbstzahler`` · ``fehlt``
+    (nie etwas hinterlegt) · ``kuenftig`` (der naechste beginnt erst) ·
+    ``abgelaufen``. Zahlen gibt es nur bei ``laufend`` und ``beantragt``.
+    """
+    heute_monat = heute[:7]
+    if selbstzahler:
+        return {"art": "selbstzahler", "gruppe": "selbstzahler",
+                "ist": ist_je_monat.get(heute_monat, 0)}
+
+    z = next((x for x in zeitraeume or []
+              if x["von"] <= heute and (not x["bis"] or x["bis"] >= heute)),
+             None)
+    if not z:
+        kuenftig = [x for x in zeitraeume or [] if x["von"] > heute]
+        if kuenftig:
+            return {"art": "kuenftig", "gruppe": "rot",
+                    "ab": min(x["von"] for x in kuenftig)}
+        vergangen = [x["bis"] for x in zeitraeume or [] if x["bis"]]
+        if vergangen:
+            return {"art": "abgelaufen", "gruppe": "rot", "seit": max(vergangen)}
+        return {"art": "fehlt", "gruppe": "rot"}
+
+    beantragt = ist_beantragt(z)
+    monatssoll = soll_minuten(z["wochenstunden"] or 0, heute_monat) or 0
+    start = z["von"][:7]
+    ende = z["bis"][:7] if z["bis"] else heute_monat
+
+    monate, soll_kum, ist_kum = [], 0, 0
+    soll_bis, ist_bis = 0, 0
+    for m in monatsliste(start, ende):
+        soll_kum += monatssoll
+        zeile = {"monat": m, "wort": monat_wort(m), "soll": monatssoll,
+                 "soll_kum": soll_kum, "laufend": m == heute_monat,
+                 "kuenftig": m > heute_monat}
+        if m <= heute_monat:
+            ist = ist_je_monat.get(m, 0)
+            ist_kum += ist
+            zeile.update(ist=ist, ist_kum=ist_kum, abw_kum=ist_kum - soll_kum)
+            soll_bis, ist_bis = soll_kum, ist_kum
+        monate.append(zeile)
+
+    abweichung = ist_bis - soll_bis
+    if abweichung >= 0:
+        ampel = "gruen"
+    elif -abweichung <= monatssoll:
+        ampel = "gelb"
+    else:
+        ampel = "rot"
+    lange = beantragt and beantragt_zu_lange(z["von"], heute)
+    if ampel == "rot" or lange:
+        gruppe = "rot"
+    elif beantragt:
+        gruppe = "orange"
+    else:
+        gruppe = ampel
+    # Ein unbefristeter Bescheid hat kein Gesamtkontingent - und damit auch
+    # keinen Anteil, der "genutzt" waere.
+    gesamt = monatssoll * len(monate) if z["bis"] else None
+    return {
+        "art": "beantragt" if beantragt else "laufend",
+        "gruppe": gruppe, "ampel": ampel, "lange": lange,
+        "zeitraum": z, "von": z["von"], "bis": z["bis"],
+        "wochenstunden": z["wochenstunden"] or 0, "monatssoll": monatssoll,
+        "soll": soll_bis, "ist": ist_bis, "abweichung": abweichung,
+        "offen": max(-abweichung, 0),
+        "gesamt": gesamt,
+        "prozent": round(ist_bis / gesamt * 100) if gesamt else None,
+        "monate": monate,
+    }
 
 
 def bereichsfilter(von_jahr="", von_monat="", bis_jahr="", bis_monat="",

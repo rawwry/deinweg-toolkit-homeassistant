@@ -92,7 +92,7 @@
    gleich im Markup - einmal für die offenen Fälle und einmal für die
    Grundwerte, samt vollständig wiederholtem Stift-Symbol. #}
 {% macro bewilligungszeile(b) %}
-<li class="bw-{{ b.art }}">
+<li class="bw-{{ b.art }}{{ ' bw-lange' if b.lange }}">
   <span class="bw-name">{{ b.name }}</span>
   <span class="bw-lage">
     {% if b.art == "abgelaufen" %}
@@ -106,6 +106,10 @@
         {{ b.tage }} {{ "Tag" if b.tage == 1 else "Tage" }}</span>
     {% elif b.art == "kuenftig" %}
       <span class="marke-status offen">gilt erst ab {{ b.ab | deutsch }}</span>
+    {# Seit 2.1: Folgeantrag ist raus, der Bescheid fehlt noch. #}
+    {% elif b.art == "beantragt" %}
+      <span class="marke-status {{ 'dopp' if b.lange else 'offen' }}">beantragt</span>
+      <span class="leise">{{ 'seit 6 Monaten ausstehend – nachhaken' if b.lange else 'Bescheid steht aus' }} · ab {{ b.ab | deutsch }}</span>
     {% elif b.art == "grundwert" %}
       <span class="marke-status weg">Grundwert ohne Wirkung</span>
     {% else %}

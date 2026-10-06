@@ -657,8 +657,12 @@ def pruefe_bewilligungen(con, k: dict) -> list[str]:
     # gesamten Bestand auf einmal gemeldet. Aufgeraeumt wird ueber die
     # Umzugshilfe in den Einstellungen; die zeigt sie deutlich genug.
     # Sobald dort nichts mehr steht, kann diese Zeile weg.
+    # ⚠️ "beantragt" (seit 2.1) erst, wenn der Antrag seit sechs Monaten
+    # aussteht (Timos Entscheidung): vorher ist der Folgeantrag ja raus,
+    # und eine Mail, die woechentlich "beantragt" meldet, waere Rauschen.
     faelle = [b for b in bewilligungen_holen(con, vorlauf)
-              if b["art"] != "grundwert"]
+              if b["art"] != "grundwert"
+              and (b["art"] != "beantragt" or b.get("lange"))]
     if not faelle:
         return []
 
@@ -678,6 +682,9 @@ def pruefe_bewilligungen(con, k: dict) -> list[str]:
             wort = f"läuft am {_datum(b.get('bis'))} aus (noch {b.get('tage')} Tage)"
         elif b["art"] == "kuenftig":
             wort = f"gilt erst ab {_datum(b.get('ab'))}"
+        elif b["art"] == "beantragt":
+            wort = (f"beantragt ab {_datum(b.get('ab'))}, Bescheid steht "
+                    "seit über 6 Monaten aus")
         else:
             wort = "keine Bewilligung hinterlegt"
         zeilen.append(f"  {b['name']}: {wort}")

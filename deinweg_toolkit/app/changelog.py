@@ -2852,4 +2852,22 @@ CHANGELOG = [
         "kommt rein. Der Türsteher heißt Esc",
         "Nach 20 Sekunden ist Sperrstunde – die Zeiterfassung wartet schon",
     ]},
+    {"version": "2.1", "titel": "Stand der Bewilligungen", "punkte": [
+        "Auswertung: neue Karte ganz oben – je betreuter Person, ob die "
+        "Stunden zum heutigen Tag im Plan sind, gerechnet ab Beginn des "
+        "laufenden Bescheids statt ab dem 1. Januar",
+        "Geordnet nach Dringlichkeit: im Rückstand, ohne gültige "
+        "Bewilligung, vorläufig, diesen Monat noch offen, im Plan",
+        "Ein Klick auf eine Person zeigt Monat für Monat Soll und Ist, "
+        "jeweils auch aufsummiert, dazu den Verlauf als Linie",
+        "Die Monate der Auswertung als eigene Kachel mit Säulen – "
+        "Überfahren zeigt die Werte, ein Klick springt zum Monat",
+        "Die Seitenspalten „Stundenkontingent“ und „Bewilligt“ sind "
+        "entfallen, die Tabellen haben jetzt die volle Breite",
+        "Monatssoll jetzt Wochenstunden × 52 ÷ 12 (3 Std/Woche = 13:00)",
+        "Betreute Personen aufgeräumt: ruhigere Liste, jeder Zeitraum mit "
+        "eigenem „Zeitraum speichern“",
+        "Ein Zeitraum lässt sich als „beantragt“ markieren, solange der "
+        "Bescheid aussteht – die neue Karte rechnet dann vorläufig mit ihm",
+    ]},
 ]

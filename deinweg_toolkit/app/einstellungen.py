@@ -24,7 +24,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from . import auth, dateien, db, kfz, mail, ntfy, passwort, texte_standard, wiki
 from . import profilbild as _profilbild
 from .parser import norm, NICHT_ABRECHENBAR
-from .rechnen import saldo_lesen
+from .rechnen import ist_beantragt, notiz_mit_marke, saldo_lesen
 
 # Klartextnamen der Textgruppen. Der Schluesselpraefix allein ("vorgaenge",
 # "kfz", "einst") sagt niemandem etwas, der nicht im Code liest.
@@ -417,7 +417,7 @@ def einstellungen(request: Request, bereich: str = "oberflaeche",
                                        heute_wert,
                                        selbstzahler=p["selbstzahler"])
         lage[p["id"]] = stand
-        if stand["art"] in ("laufend", "laeuft_aus"):
+        if stand["art"] in ("laufend", "laeuft_aus", "beantragt"):
             aktuell[p["id"]] = stand["zeitraum"]
     # Fuer die Ueberschrift: bei wie vielen aktiven Personen ist etwas zu
     # tun?
@@ -552,7 +552,8 @@ def person_speichern(person_id: int, name: str = Form(""),
             "abrechenbar=?, aktiv=?, selbstzahler=? WHERE id=?",
             (name, stunden, satz, 1 if abrechenbar else 0, 1 if aktiv else 0,
              1 if selbstzahler == "1" else 0, person_id))
-    return einstellungen_zurueck(hinweis=f"{name} gespeichert.")
+    # Seit 2.1 zurueck zur aufgeklappten Person statt an den Listenanfang.
+    return zeitraum_zurueck(person_id, hinweis=f"{name} gespeichert.")
 
 
 # --- Bewilligte Zeitraeume je betreuter Person -------------------------------
@@ -612,7 +613,8 @@ def zeitraum_pruefen(von: str, bis: str, wochenstunden: str, stundensatz: str):
 def zeitraum_anlegen(person_id: int, von: str = Form(""), bis: str = Form(""),
                      wochenstunden: str = Form("0"),
                      stundensatz: str = Form("0"), notiz: str = Form(""),
-                     grundwert_leeren: str = Form("")):
+                     grundwert_leeren: str = Form(""),
+                     beantragt: str = Form("")):
     """Legt einen bewilligten Zeitraum an.
 
     ``grundwert_leeren`` kommt nur aus der Umzugshilfe (seit 1.20): dort
@@ -635,7 +637,7 @@ def zeitraum_anlegen(person_id: int, von: str = Form(""), bis: str = Form(""),
             "INSERT INTO person_zeitraum (person_id, von, bis, wochenstunden, "
             "stundensatz, notiz, angelegt_am) VALUES (?,?,?,?,?,?,?)",
             (person_id, von_datum, bis_datum, stunden, satz,
-             notiz.strip() or None, _u["jetzt"]()))
+             notiz_mit_marke(notiz, beantragt == "1"), _u["jetzt"]()))
         # ⚠️ Bei einem Selbstzahler NICHT: dort ist der Grundwert der
         # vereinbarte Satz und keine Altlast.
         if grundwert_leeren and not person["selbstzahler"]:
@@ -652,10 +654,12 @@ def zeitraum_anlegen(person_id: int, von: str = Form(""), bis: str = Form(""),
 @router.post("/einstellungen/person/zeitraum/{zeitraum_id}")
 def zeitraum_speichern(zeitraum_id: int, von: str = Form(""), bis: str = Form(""),
                        wochenstunden: str = Form("0"),
-                       stundensatz: str = Form("0"), notiz: str = Form("")):
+                       stundensatz: str = Form("0"), notiz: str = Form(""),
+                       beantragt: str = Form(""), beantragt_dabei: str = Form("")):
     with db.db() as con:
-        satz_alt = con.execute("SELECT person_id FROM person_zeitraum WHERE id=?",
-                               (zeitraum_id,)).fetchone()
+        satz_alt = con.execute(
+            "SELECT person_id, notiz FROM person_zeitraum WHERE id=?",
+            (zeitraum_id,)).fetchone()
     if not satz_alt:
         return einstellungen_zurueck(fehler="Diesen Zeitraum gibt es nicht mehr.")
     person_id = satz_alt["person_id"]
@@ -663,12 +667,21 @@ def zeitraum_speichern(zeitraum_id: int, von: str = Form(""), bis: str = Form(""
     if fehler:
         return zeitraum_zurueck(person_id, fehler=fehler)
     von_datum, bis_datum, stunden, satz = werte
+    # ⚠️ "beantragt" (seit 2.1) steckt als Marke in der Notiz. Das Feld
+    # zeigt die Notiz OHNE Marke - ein Formular ohne das Kaestchen hiesse
+    # sonst still "bewilligt" (Arbeitsregel 11). Deshalb die stille Marke
+    # beantragt_dabei, dieselbe Bauart wie rechte_dabei: fehlt sie, bleibt
+    # der gespeicherte Stand, wie er war.
+    if beantragt_dabei:
+        ist_antrag = beantragt == "1"
+    else:
+        ist_antrag = ist_beantragt(satz_alt)
     with db.db() as con:
         con.execute(
             "UPDATE person_zeitraum SET von=?, bis=?, wochenstunden=?, "
             "stundensatz=?, notiz=? WHERE id=?",
-            (von_datum, bis_datum, stunden, satz, notiz.strip() or None,
-             zeitraum_id))
+            (von_datum, bis_datum, stunden, satz,
+             notiz_mit_marke(notiz, ist_antrag), zeitraum_id))
     return zeitraum_zurueck(person_id, hinweis="Zeitraum gespeichert.")
 
 

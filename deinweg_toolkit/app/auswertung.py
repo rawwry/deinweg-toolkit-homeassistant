@@ -19,8 +19,10 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 
 from . import db
-from .rechnen import (auswahllisten, bereichsfilter, kontingent_im_monat,
-                      monat_wort, monatsgrenzen, monatsliste, soll_minuten,
+from .parser import norm
+from .rechnen import (STAND_GRUPPEN, auswahllisten, bereichsfilter,
+                      bewilligungsstand, kontingent_im_monat,
+                      monat_wort, monatsliste, soll_minuten,
                       zeitraeume_lesen)
 
 router = APIRouter()
@@ -32,6 +34,184 @@ _u: dict = {}
 def setup(templates, umgebung=None) -> None:
     _u["templates"] = templates
     _u.update(umgebung or {})
+
+
+# ⚠️ Abschnitte der Karte (seit dem Umbau 2.1, Timos „deutlich zu
+# unruhig“): statt einer Farbe je Zeile eine Ordnung nach Dringlichkeit -
+# dieselbe Reihenfolge wie vereinbart (rot, orange, gelb, gruen,
+# Selbstzahler). Die Farbe traegt danach nur noch der Stand selbst.
+STAND_ABSCHNITTE = (
+    ("rueckstand", "Im Rückstand"),
+    ("ohne", "Ohne gültige Bewilligung"),
+    ("vorlaeufig", "Vorläufig – Bescheid steht aus"),
+    ("offen", "Diesen Monat noch offen"),
+    ("plan", "Im Plan"),
+    ("selbst", "Selbstzahler"),
+)
+
+
+def _abschnitt(z: dict) -> str:
+    if z["art"] == "selbstzahler":
+        return "selbst"
+    if z["art"] in ("fehlt", "kuenftig", "abgelaufen"):
+        return "ohne"
+    if z["art"] == "beantragt":
+        return "vorlaeufig"
+    return {"rot": "rueckstand", "gelb": "offen"}.get(z["ampel"], "plan")
+
+
+def _balken(z: dict) -> dict:
+    """Ein Balken je Person: Spur = Kontingent, Fuellung = Ist, Strich = Soll.
+
+    Bei einem unbefristeten Bescheid gibt es kein Kontingent; dann reicht
+    die Spur bis zum groesseren von Ist und Soll (plus Luft), damit Ist und
+    Soll trotzdem gegeneinander stehen.
+    """
+    basis = z["gesamt"] or max(z["ist"], z["soll"], 1) * 1.15
+    def anteil(wert):
+        return round(min(wert / basis * 100, 100), 1) if basis else 0
+    return {"ist": anteil(z["ist"]), "soll": anteil(z["soll"]),
+            "befristet": bool(z["gesamt"])}
+
+
+def _verlauf(z: dict) -> dict:
+    """Soll und Ist aufsummiert als zwei Linien (Detailansicht).
+
+    Gerechnet in einem Feld 0..100 x 0..40; gezeichnet wird mit
+    preserveAspectRatio="none" und vector-effect, damit die Linien in
+    jeder Breite gleich dick bleiben.
+    """
+    monate = z["monate"]
+    hoechst = max([m["soll_kum"] for m in monate]
+                  + [m.get("ist_kum", 0) for m in monate] + [1])
+    schritt = 100 / max(len(monate) - 1, 1)
+    def y(wert):
+        return round(40 - wert / hoechst * 36, 2)
+    soll = " ".join(f"{round(i * schritt, 2)},{y(m['soll_kum'])}"
+                    for i, m in enumerate(monate))
+    ist = " ".join(f"{round(i * schritt, 2)},{y(m['ist_kum'])}"
+                   for i, m in enumerate(monate) if "ist_kum" in m)
+    heute_x = next((round(i * schritt, 2) for i, m in enumerate(monate)
+                    if m["laufend"]), None)
+    return {"soll": soll, "ist": ist, "heute": heute_x}
+
+
+def monatsdiagramm(bloecke: list[dict]) -> dict | None:
+    """Saeulen je Monat fuer die Kachel „Monate“ (seit 2.1).
+
+    Reines HTML/CSS: je Monat eine Spalte mit dem Soll als Umriss und dem
+    Ist als Fuellung, Hoehen in Prozent einer gemeinsamen Skala. Keine
+    Diagrammbibliothek (Abschnitt 13). Die Skala endet auf einer runden
+    Stundenzahl, damit die Hilfslinien glatte Werte tragen.
+    """
+    if not bloecke:
+        return None
+    hoechst = max(max(b["ist"], b["soll"] or 0) for b in bloecke) / 60
+    if hoechst <= 0:
+        return None
+    for schritt in (5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000):
+        if hoechst / schritt <= 4:
+            break
+    oben = schritt * (int(hoechst // schritt) + 1)
+    linien = [{"wert": w, "pos": round(w / oben * 100, 2)}
+              for w in range(0, oben + 1, schritt)]
+    jetzt = dt.date.today().strftime("%Y-%m")
+    saeulen = []
+    for b in bloecke:
+        saeulen.append({
+            "zeit": ("kuenftig" if b["monat"] > jetzt else
+                     "laufend" if b["monat"] == jetzt else "vorbei"),
+            **b,
+            "kurz": f"{MONATSKURZ[int(b['monat'][5:7])]} {b['monat'][2:4]}",
+            "h_ist": round(b["ist"] / 60 / oben * 100, 2),
+            "h_soll": round((b["soll"] or 0) / 60 / oben * 100, 2),
+            "lage": ("ohne" if not b["soll"] else
+                     "voll" if b["ist"] >= b["soll"] else
+                     "knapp" if b["prozent"] < 90 else "nah"),
+        })
+    # ⚠️ Stärkster und schwächster Monat nur unter den ABGESCHLOSSENEN:
+    # ein künftiger Monat stuende sonst mit 0 % als „schwächster“ da, und
+    # der laufende ist noch nicht vorbei (gemessen am Kalenderjahr 2026).
+    mit_soll = [b for b in bloecke if b["soll"] and b["monat"] < jetzt]
+    return {
+        "saeulen": saeulen, "linien": linien,
+        "staerkster": max(mit_soll, key=lambda b: b["prozent"]) if mit_soll else None,
+        "schwaechster": min(mit_soll, key=lambda b: b["prozent"]) if mit_soll else None,
+    }
+
+
+MONATSKURZ = ("", "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug",
+              "Sep", "Okt", "Nov", "Dez")
+
+
+def stand_der_bewilligungen(con, heute: str | None = None) -> dict:
+    """Die Karte "Stand der Bewilligungen" (seit 2.1).
+
+    ⚠️ Bewusst UNABHAENGIG vom Filter der Seite: die Frage ist "wie steht
+    jede Person heute gegen ihren laufenden Bescheid", und die hat genau
+    eine Antwort. Ein Mitarbeiterfilter etwa liesse das Ist schrumpfen und
+    jede Person im Rueckstand aussehen.
+
+    Alle AKTIVEN Personen, auch ohne erfasste Zeiten (dann sieht man genau
+    den Rueckstand, um den es geht). Sortiert nach Dringlichkeit:
+    rot, orange (beantragt), gelb, gruen, Selbstzahler - darin nach Namen.
+    """
+    heute = heute or dt.date.today().isoformat()
+    personen = con.execute(
+        "SELECT id, name, selbstzahler FROM person WHERE aktiv=1").fetchall()
+    zeitraeume = zeitraeume_lesen(con)
+    # ⚠️ Zugeordnet ueber parser.norm() und nicht ueber den exakten Namen:
+    # Schreibweisen aus Fremdexporten weichen ab (Abschnitt 4).
+    ist: dict[str, dict[str, int]] = {}
+    for r in con.execute(
+            "SELECT klient, monat, SUM(dauer_min) m FROM eintrag "
+            "WHERE datum <= ? GROUP BY klient, monat", (heute,)):
+        je = ist.setdefault(norm(r["klient"]), {})
+        je[r["monat"]] = je.get(r["monat"], 0) + (r["m"] or 0)
+
+    zeilen = []
+    for p in personen:
+        stand = bewilligungsstand(zeitraeume.get(p["name"], []),
+                                  ist.get(norm(p["name"]), {}), heute,
+                                  selbstzahler=bool(p["selbstzahler"]))
+        zeile = {"id": p["id"], "name": p["name"], **stand}
+        zeile["abschnitt"] = _abschnitt(zeile)
+        if zeile.get("monate"):
+            zeile["balken"] = _balken(zeile)
+            zeile["verlauf"] = _verlauf(zeile)
+        zeilen.append(zeile)
+    zeilen.sort(key=lambda z: (STAND_GRUPPEN.index(z["gruppe"]),
+                               z["name"].casefold()))
+    # Abschnitte in fester Reihenfolge, leere fallen weg. Innerhalb eines
+    # Abschnitts bleibt die Sortierung von oben (Dringlichkeit, Name).
+    abschnitte = []
+    for schluessel, titel in STAND_ABSCHNITTE:
+        teil = [z for z in zeilen if z["abschnitt"] == schluessel]
+        if teil:
+            abschnitte.append({"schluessel": schluessel, "titel": titel,
+                               "zeilen": teil})
+
+    gerechnet = [z for z in zeilen if z["art"] in ("laufend", "beantragt")]
+    befristet = [z for z in gerechnet if z["gesamt"]]
+    soll = sum(z["soll"] for z in gerechnet)
+    ist_summe = sum(z["ist"] for z in gerechnet)
+    gesamt = sum(z["gesamt"] for z in befristet)
+    ist_befristet = sum(z["ist"] for z in befristet)
+    return {
+        "heute": heute,
+        "zeilen": zeilen,
+        "abschnitte": abschnitte,
+        "summe": {
+            "ist": ist_summe, "soll": soll, "abweichung": ist_summe - soll,
+            "personen": len(gerechnet),
+            "rot": sum(1 for z in gerechnet if z["ampel"] == "rot"),
+            "gelb": sum(1 for z in gerechnet if z["ampel"] == "gelb"),
+            "gesamt": gesamt,
+            "prozent": round(ist_befristet / gesamt * 100) if gesamt else None,
+            "ohne": sum(1 for z in zeilen
+                        if z["art"] in ("fehlt", "kuenftig", "abgelaufen")),
+        },
+    }
 
 
 @router.get("/auswertung", response_class=HTMLResponse)
@@ -76,6 +256,7 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         stamm = {r["name"]: r for r in con.execute(
             "SELECT name, wochenstunden, stundensatz, selbstzahler "
             "FROM person WHERE aktiv=1")}
+        stand = stand_der_bewilligungen(con)
         zeitraeume = zeitraeume_lesen(con)
         # Welche Monate deckt die Auswahl tatsächlich ab? Grundlage für das Soll.
         vorhandene = [r["monat"] for r in con.execute(
@@ -162,14 +343,6 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
     # Monate ohne erfasste Zeiten bleiben stehen, solange fuer sie ein Soll
     # gilt. Genau die will man sehen - eine Luecke faellt sonst nicht auf.
     monatsbloecke = []
-    # Zwei verschiedene Dinge, die beide "kein Zeitraum" heissen: beim
-    # Selbstzahler ist das der Normalfall (er braucht keinen Bescheid),
-    # beim Kostentraeger-Fall ist es eine Luecke - dort wurde gearbeitet,
-    # ohne dass etwas bewilligt war. Seit 1.20 werden sie getrennt
-    # gezaehlt und in der Seitenspalte verschieden benannt; vorher lief
-    # beides unter "Grundwert" und sah damit gleich harmlos aus.
-    selbst_monate: dict[str, int] = {}
-    ohne_bescheid_monate: dict[str, int] = {}
     for monat in monate:
         zeilen, m_ist, m_soll, m_betrag, m_n = [], 0, 0, 0.0, 0
         for r in roh:
@@ -197,15 +370,6 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
                 "aus_zeitraum": aus_zeitraum,
                 "betrag": zeilenbetrag, "leute": leute,
             })
-            if not aus_zeitraum:
-                if p and p["selbstzahler"]:
-                    selbst_monate[klient] = selbst_monate.get(klient, 0) + 1
-                elif ist:
-                    # Gearbeitet, aber nichts bewilligt. Genau die Monate
-                    # muessen in der Seitenspalte auffallen - in der
-                    # Tabelle stehen sie nur als drei Striche da.
-                    ohne_bescheid_monate[klient] = (
-                        ohne_bescheid_monate.get(klient, 0) + 1)
             m_ist += ist
             m_soll += soll
             m_betrag += zeilenbetrag
@@ -219,31 +383,6 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
             "prozent": round(m_ist / m_soll * 100) if m_soll else None,
             "leer": m_ist == 0,
         })
-
-    # --- Welche Bescheide liegen dem Ganzen zugrunde? -----------------------
-    # Steht in der Seitenspalte und beantwortet die Frage, die beim Lesen
-    # der Zahlen als naechstes kommt: woher kommt dieser Stundensatz?
-    # Nur die Zeitraeume, die den gefilterten Bereich ueberhaupt beruehren.
-    filterbeginn = monatsgrenzen(monate[0])[0] if monate else ""
-    filterende = monatsgrenzen(monate[-1])[1] if monate else ""
-    zeitraum_liste = []
-    for r in je_klient:
-        treffer = [z for z in zeitraeume.get(r["klient"], [])
-                   if z["von"] <= filterende
-                   and (not z["bis"] or z["bis"] >= filterbeginn)]
-        selbst = selbst_monate.get(r["klient"], 0)
-        offen = ohne_bescheid_monate.get(r["klient"], 0)
-        p_stamm = stamm.get(r["klient"])
-        selbstzahler = bool(p_stamm["selbstzahler"]) if p_stamm else False
-        if treffer or selbst or offen:
-            zeitraum_liste.append({
-                "klient": r["klient"],
-                # aufsteigend lesen, so wie die Bescheide aufeinander folgen
-                "zeitraeume": list(reversed(treffer)),
-                "selbst_monate": selbst,
-                "ohne_bescheid": offen,
-                "selbstzahler": selbstzahler,
-            })
 
     gesamt_ist = sum(r["m"] for r in je_klient)
     gesamt_soll = sum(b["soll"] or 0 for b in monatsbloecke)
@@ -267,6 +406,6 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         "soll_aktiv": any(r["soll"] for r in je_klient),
         "gestaffelt": gestaffelt,
         "monatsbloecke": monatsbloecke, "zusammenfassung": zusammenfassung,
-        "zeitraum_liste": zeitraum_liste,
+        "stand": stand, "diagramm": monatsdiagramm(monatsbloecke),
         "zeitraum_wort": filter_["wort"], "aktive_filter": filter_["aktive"],
         "f": filter_["f"], "seite": "auswertung", **zusatz})
