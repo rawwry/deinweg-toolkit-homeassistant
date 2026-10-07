@@ -147,13 +147,16 @@
     {% for z in zeilen %}
       {% if loop.changed(z.datum) %}
       {% set ts = tagessummen.get(z.datum) %}
-      {# Seit 2.4.1 ein eigenes Band je Tag (Timos Meldung: die Tageszeile
-         ging zwischen den Einträgen unter): Wochentag und Datum, rechts
-         Anzahl und Summe als Pille. „Heute“ trägt den kräftigeren Ton.
-         ⚠️ Ohne Kalenderblatt (2.4.2, Timo: „bitte keine Icons“). #}
+      {# Seit 2.5 ist jeder Tag ein gerahmter Block (Timos Wahl „B“ unter
+         drei Entwürfen): die Tageszeile ist sein Kopf, die letzte Zeile
+         (`tagende`) schließt ihn unten ab, dazwischen steht eine leere
+         Zeile als Luft. ⚠️ Bewusst weiter EINE Tabelle - Mehrfachauswahl,
+         klebender Kopf und htmx hängen daran. Ohne Kalenderblatt (2.4.2,
+         Timo: „bitte keine Icons“). #}
       {% set wort = (z.datum | tagwort).replace(" · ", ", ") %}
       {% set teile = wort.split(", ", 1) %}
       {% set heute_tag = wort.startswith("Heute") %}
+      {% if not loop.first %}<tr class="tagluecke" aria-hidden="true"><td colspan="7"></td></tr>{% endif %}
       <tr class="tagzeile{{ ' ist-heute' if heute_tag }}">
         <th colspan="7" scope="rowgroup">
           <span class="tagzeile-inhalt">
@@ -163,7 +166,7 @@
         </th>
       </tr>
       {% endif %}
-      <tr>
+      <tr{% if loop.last or loop.nextitem.datum != z.datum %} class="tagende"{% endif %}>
         <td class="wahlspalte">
           {%- if z.id in loeschbar %}<input type="checkbox" name="ids" value="{{ z.id }}"
             form="massenloeschen" class="massenwahl"

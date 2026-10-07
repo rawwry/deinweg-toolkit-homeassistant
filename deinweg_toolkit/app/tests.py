@@ -11454,13 +11454,17 @@ def test_etappe_arbeitszeit(client: TestClient) -> None:
     pruefe('class="tag-blatt"' not in liste,
            "kein Kalenderblatt mehr (2.4.2, Timo: keine Icons)")
     stil_alle = client.get("/static/style.css").text
-    pruefe(".liste tbody tr:not(.tagzeile):has(+ .tagzeile) > td { padding-bottom: 24px; }" in stil_alle
-           and "~ .liste thead tr:first-child > th.wahlspalte + th" in stil_alle,
-           "mehr Luft zwischen den Tagen, und „Zeit“ trägt die runde Ecke")
-    stil_tag = client.get("/static/style.css").text.split(".liste .tagzeile th {", 1)[1].split("}", 1)[0]
-    pruefe("background: var(--tag-ton)" in stil_tag and "inset 4px 0 0" in stil_tag
-           and "font-size: 14px" in stil_tag,
-           "das Tagesband ist getönt, mit Akzentkante, und nicht mehr kleiner als der Inhalt")
+    pruefe(liste.count('class="tagluecke"') == 4 and liste.count('class="tagende"') == 5,
+           "jeder Tag ist ein Block: Luft dazwischen, die letzte Zeile schließt ihn ab (2.5)")
+    pruefe(".liste.eintragsliste tr.tagende > td { border-bottom: 1px solid var(--linie); }" in stil_alle
+           and ".liste .tagluecke td { height: 14px;" in stil_alle,
+           "der Block trägt seinen Rahmen, die Lücke ist leer")
+    kopf_e = stil_alle.split(".liste.eintragsliste thead th {", 1)[1].split("}", 1)[0]
+    pruefe("font-size: 13px" in kopf_e and "text-transform: none" in kopf_e,
+           "der Spaltenkopf der Übersicht ist nicht mehr die kleine Versalzeile")
+    stil_tag = stil_alle.split(".liste .tagzeile th {", 1)[1].split("}", 1)[0]
+    pruefe("border-radius: 12px 12px 0 0" in stil_tag and "box-shadow" not in stil_tag,
+           "die Tageszeile ist der Kopf ihres Blocks, ohne Akzentkante")
     pruefe("<th>Datum</th>" not in liste, "die Datumsspalte ist entfallen")
     stil = client.get("/static/style.css").text
     pruefe('grid-template-areas: "wahl person person dauer"' in stil,

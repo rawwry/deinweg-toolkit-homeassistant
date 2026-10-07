@@ -8684,57 +8684,67 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 .wochenkarte .kastenmonat { min-width: 4.6em; }
 
 /* --- Übersicht: nach Tagen gegliedert ------------------------------------
-   Eine Überschriftzeile je Tag. ⚠️ Ohne Zebrastreifen in dieser Tabelle:
-   die Tageszeilen verschöben das Muster, und die Gliederung leisten jetzt
-   die Tage selbst. */
-/* ⚠️⚠️ Seit 2.4.1 ein eigenes Band je Tag (Timos Meldung: „diese
-   Unterheadlines hervorheben … Schriftgrößen und Abstände“). Vorher 12,5px
-   Text ohne Fläche - die Tage gingen zwischen den 15px-Zeilen unter.
-   Jetzt: getönte Fläche mit Akzentkante links (dieselbe Form wie die
-   Abschnitte der Bewilligungen), ein kleines Kalenderblatt, Wochentag
-   fett 15px, Datum leise, rechts Anzahl und Summe als Pille. „Heute“
-   trägt den kräftigeren Ton. */
+   ⚠️⚠️ Seit 2.5 ist jeder Tag ein gerahmter BLOCK (Timos Wahl „B“ unter
+   drei Entwürfen). 2.4.1/2.4.2 hatten ein getöntes Band quer über die
+   Tabelle - Timo: es stand „so leer im Raum“, und der Spaltenkopf war
+   kleiner als die Tageszeile. Jetzt:
+   - der Spaltenkopf ist frei (ohne Fläche), 13px in gemischter Schrift -
+     nicht mehr die versale 11,5px-Beschriftung der übrigen Tabellen;
+   - die Tageszeile ist der Kopf ihres Blocks (oben gerundet, leicht
+     getönt), die letzte Zeile des Tages (`tagende`, aus der Vorlage)
+     schließt ihn unten ab, die Zellen am Rand tragen die Seitenlinien;
+   - zwischen zwei Tagen steht eine leere Zeile (`tagluecke`) als Luft.
+   ⚠️ Bewusst weiter EINE Tabelle: Mehrfachauswahl, klebender Kopf und htmx
+   hängen daran. Ohne Zebrastreifen - die Gliederung leisten die Tage. */
+.liste.eintragsliste thead th {
+  font-size: 13px; font-weight: 650; text-transform: none; letter-spacing: 0;
+  color: var(--tinte-2); background: var(--flaeche);
+  border-bottom: 0; padding: 4px 14px 10px;
+}
+.liste.eintragsliste td { padding: 10px 14px; font-size: 14.5px; }
+.liste.eintragsliste td:nth-child(4) { font-weight: 600; }
 .liste .tagzeile th {
-  --tag-ton: color-mix(in oklab, var(--akzent) calc(var(--mix-spalte) * 2), var(--flaeche));
-  padding: 8px 12px; text-align: left; white-space: normal;
+  padding: 9px 14px; text-align: left; white-space: normal;
   font-size: 14px; font-weight: 500; text-transform: none; letter-spacing: 0;
-  color: var(--tinte); background: var(--tag-ton);
-  border-top: 1px solid var(--linie);
-  border-bottom: 1px solid color-mix(in oklab, var(--akzent) 22%, var(--linie));
-  box-shadow: inset 4px 0 0 color-mix(in oklab, var(--akzent) 70%, transparent);
+  color: var(--tinte);
+  background: color-mix(in oklab, var(--akzent) calc(var(--mix-spalte) * 1.4), var(--flaeche-2));
+  border: 1px solid var(--linie); border-radius: 12px 12px 0 0;
 }
-.liste tbody .tagzeile:first-child th { border-top: 0; }
 .liste .tagzeile.ist-heute th {
-  --tag-ton: color-mix(in oklab, var(--akzent) calc(var(--mix-gruppe) * 1.1), var(--flaeche));
-  box-shadow: inset 4px 0 0 var(--akzent);
+  background: color-mix(in oklab, var(--akzent) var(--mix-gruppe), var(--flaeche-2));
+  border-color: color-mix(in oklab, var(--akzent) 40%, var(--linie));
 }
-.tagzeile-inhalt { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-height: 28px; }
-.tagzeile-wort { font-size: 15px; }
+.tagzeile-inhalt { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.tagzeile-wort { font-size: 14.5px; }
 .tagzeile-wort b { font-weight: 700; }
-.tagzeile-datum { margin-left: 6px; color: var(--leise); font-weight: 500; font-variant-numeric: tabular-nums; }
-.tagzeile-summe { margin-left: auto; display: inline-flex; align-items: center; gap: 10px;
+.tagzeile-datum { margin-left: 6px; color: var(--leise); font-weight: 500; font-size: 13.5px;
+                  font-variant-numeric: tabular-nums; }
+.tagzeile-summe { margin-left: auto; display: inline-flex; align-items: baseline; gap: 10px;
                   font-size: 13px; font-weight: 500; color: var(--leise);
                   font-variant-numeric: tabular-nums; }
-.tagzeile-summe strong {
-  color: var(--akzent); font-weight: 700; font-size: 13px;
-  padding: 2px 10px; border-radius: 999px;
-  background: color-mix(in oklab, var(--akzent) 14%, var(--flaeche));
-  border: 1px solid color-mix(in oklab, var(--akzent) 30%, transparent);
-}
-/* Luft zwischen den Tagen (2.4.2, Timos Wunsch: Bänder flacher, dafür
-   mehr Abstand): die letzte Zeile vor einem neuen Band bekommt unten
-   mehr Polsterung - Ränder gibt es an Tabellenzeilen nicht. Die erste
-   Zeile nach dem Band etwas Luft nach oben.
-   ⚠️ Nur über 760px: am Telefon ist jede Zelle ein Rasterfeld, dort
-   bekäme sonst jedes einzelne die Polsterung (dort trägt margin-top am
-   Band den Abstand). */
+.tagzeile-summe strong { color: var(--akzent); font-weight: 700; font-size: 14px; }
+.liste .tagluecke td { height: 14px; padding: 0; border: 0; background: none; }
 @media (min-width: 761px) {
-  .liste tbody .tagzeile + tr > td { padding-top: 14px; }
-  .liste tbody tr:not(.tagzeile):has(+ .tagzeile) > td { padding-bottom: 24px; }
+  /* Die Seitenlinien tragen die Randzellen; ist die Auswahlspalte
+     verborgen, ist „Zeit“ die erste sichtbare. */
+  .liste.eintragsliste tr:not(.tagzeile):not(.tagluecke) > td:first-child,
+  .auswahlschalter:not(:checked) ~ .liste.eintragsliste tr:not(.tagzeile):not(.tagluecke) > td:nth-child(2) {
+    border-left: 1px solid var(--linie);
+  }
+  .liste.eintragsliste tr:not(.tagzeile):not(.tagluecke) > td:last-child { border-right: 1px solid var(--linie); }
+  .liste.eintragsliste tr.tagende > td { border-bottom: 1px solid var(--linie); }
+  .liste.eintragsliste tr.tagende > td:first-child,
+  .auswahlschalter:not(:checked) ~ .liste.eintragsliste tr.tagende > td:nth-child(2) { border-bottom-left-radius: 12px; }
+  .liste.eintragsliste tr.tagende > td:last-child { border-bottom-right-radius: 12px; }
 }
-.liste:has(.tagzeile) tbody tr:nth-child(even) { background: none; }
-.liste:has(.tagzeile) tbody tr:not(.tagzeile):hover { background: var(--zeile-hover); }
-.liste tbody tr.tagzeile:hover { background: none; }
+/* Die Fläche beim Überfahren liegt auf den Zellen, nicht auf der Zeile -
+   sonst ragte sie an den gerundeten Ecken eckig heraus. */
+.liste.eintragsliste tbody tr,
+.liste.eintragsliste tbody tr:nth-child(even),
+.liste.eintragsliste tbody tr:hover { background: none; }
+@media (min-width: 761px) {
+  .liste.eintragsliste tbody tr:not(.tagzeile):not(.tagluecke):hover > td { background: var(--zeile-hover); }
+}
 /* Steht der Filter als Letztes in seiner Karte, braucht er keine eigene
    Abschlusslinie - sonst zog sich unter der Fußzeile ein leeres Band
    mit einem zweiten Strich durch die Karte. */
@@ -8765,10 +8775,9 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
   .liste.eintragsliste { min-width: 0; table-layout: auto; }
   .liste.eintragsliste thead { display: none; }
   .liste.eintragsliste, .liste.eintragsliste tbody { display: block; width: 100%; }
-  .liste.eintragsliste tr.tagzeile { display: block; }
-  .liste.eintragsliste tr.tagzeile th { display: block; padding: 8px 12px; margin-top: 22px;
-                                        border-radius: 10px; border: 1px solid var(--linie); }
-  .liste.eintragsliste tr.tagzeile:first-child th { margin-top: 0; }
+  .liste.eintragsliste tr.tagzeile, .liste.eintragsliste tr.tagluecke { display: block; }
+  .liste.eintragsliste tr.tagzeile th { display: block; padding: 9px 14px; }
+  .liste.eintragsliste tr.tagluecke td { display: block; height: 14px; }
   /* Am Telefon eine Zeile: Wochentag und Datum untereinander, rechts nur
      die Summe - mit Anzahl brach die Pille in eine zweite Zeile um. */
   .tagzeile-inhalt { flex-wrap: nowrap; gap: 10px; }
@@ -8776,16 +8785,19 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
   .tagzeile-wort b { display: block; }
   .tagzeile-datum { margin-left: 0; font-size: 12.5px; }
   .tagzeile-anzahl { display: none; }
-  .liste.eintragsliste tr:not(.tagzeile) {
+  .liste.eintragsliste tr:not(.tagzeile):not(.tagluecke) {
     display: grid; align-items: center;
     grid-template-columns: auto auto minmax(0, 1fr) auto;
     grid-template-areas: "wahl person person dauer"
                          "wahl zeit   text   aktion"
                          "wahl ma     ma     aktion";
-    column-gap: 10px; row-gap: 2px; padding: 10px 2px;
-    border-bottom: 1px solid var(--linie-fein);
+    column-gap: 10px; row-gap: 2px; padding: 10px 14px;
+    border: 1px solid var(--linie); border-width: 0 1px 1px;
+    border-bottom-color: var(--linie-fein);
   }
-  .liste.eintragsliste tr:not(.tagzeile) > td {
+  .liste.eintragsliste tr.tagende { border-bottom-color: var(--linie); border-radius: 0 0 12px 12px; }
+  .liste.eintragsliste tr:not(.tagzeile):not(.tagluecke):hover { background: var(--zeile-hover); }
+  .liste.eintragsliste tr:not(.tagzeile):not(.tagluecke) > td {
     display: block; padding: 0; border: 0; min-width: 0; font-size: 13.5px;
   }
   .liste.eintragsliste td:nth-child(1) { grid-area: wahl; }
@@ -8887,7 +8899,7 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 /* ⚠️ Nicht in Wiki und Dateien (.wiki-verzeichnis, Timos Wunsch): dort
    steht vorn das getönte Symbolfeld, und der Strich daneben wirkte wie ein
    Rest. Die getönte Fläche der Zeile bleibt. */
-.liste:not(.wiki-verzeichnis) tbody tr:not(.tagzeile):hover > :first-child {
+.liste:not(.wiki-verzeichnis) tbody tr:not(.tagzeile):not(.tagluecke):hover > :first-child {
   box-shadow: inset 2px 0 0 var(--akzent);
 }
 .abgabekompakt li:hover { border-left-color: var(--akzent); }

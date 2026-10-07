@@ -2946,4 +2946,9 @@ CHANGELOG = [
         "Mehr Luft zwischen den Tagen",
         "Die linke obere Ecke der Tabelle ist wieder rund",
     ]},
+    {"version": "2.5", "titel": "Übersicht in Tagesblöcken", "punkte": [
+        "Jeder Tag ist ein eigener, gerahmter Block mit Wochentag, Datum und Summe im Kopf",
+        "Zwischen den Tagen steht Luft statt eines Bandes quer über die Tabelle",
+        "Die Spaltenüberschriften sind größer und ruhiger, die betreute Person steht fett",
+    ]},
 ]
