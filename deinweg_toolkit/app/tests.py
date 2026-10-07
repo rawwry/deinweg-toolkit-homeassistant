@@ -1979,7 +1979,7 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
            "der Verdienst rechnet jeden Monat mit dem Satz dieses Monats")
     # Der Hinweis unter der Tabelle. In den Zellen selbst steht seit 1.4.3
     # keine Marke mehr - sie brach die Zeilen um.
-    pruefe("Monat für Monat mit den Werten" in seite,
+    pruefe("jeder Monat mit den Werten gerechnet" in seite,
            "die Auswertung weist auf die Staffelung hin")
     pruefe("Grundwert</span>" not in seite,
            "in den Zellen steht keine Marke „Grundwert“ mehr")
@@ -2011,8 +2011,11 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
     pruefe(_hhmm(soll_minuten(5, "2025-03")) not in seite,
            "eine Person ohne Zeitraum bekommt kein Soll aus dem Grundwert")
     pruefe("200,00 €" not in seite, "und auch keinen Verdienst")
-    pruefe("ohne Bescheid" in seite,
-           "die Seitenspalte nennt die Monate mit Zeiten, aber ohne Bewilligung")
+    # (Bis 2.0 nannte die Seitenspalte „ohne Bescheid“; seit 2.1 gibt es
+    # sie nicht mehr. Die Zeile der Person zeigt im Soll einen Platzhalter.)
+    zeile = seite.split('<td class="stark">Ohne Zeitraum</td>', 1)[1].split("</tr>", 1)[0]
+    pruefe("platzhalter" in zeile,
+           "in der Zeile der Person steht kein Soll, sondern ein Platzhalter")
 
     # Als Selbstzahler ist derselbe Wert der vereinbarte Satz und zaehlt.
     with db.db() as con:
@@ -2138,11 +2141,12 @@ def test_monatsbloecke(client: TestClient) -> None:
     seite = client.get("/auswertung?von_jahr=2024&von_monat=08"
                        "&bis_jahr=2025&bis_monat=10&klient=Blockmann").text
 
-    # 15 Monate, jeder mit einem Soll - also 15 Blöcke.
-    pruefe(seite.count('class="karte monatsblock') == 15,
-           f"je Monat ein Block (sind: {seite.count('class=\"karte monatsblock')})")
+    # 15 Monate, jeder mit einem Soll - also 15 Zeilen. Seit 2.2 eine
+    # aufklappbare Zeile je Monat statt einer Karte.
+    pruefe(seite.count('<details class="mz ') == 15,
+           f"je Monat eine Zeile (sind: {seite.count('<details class=\"mz ')})")
     for wort in ("August 2024", "Januar 2025", "Juli 2025", "Oktober 2025"):
-        pruefe(f"<h3>{wort}</h3>" in seite, f"der Block „{wort}“ steht da")
+        pruefe(f'<span class="mz-monat">{wort}' in seite, f"die Zeile „{wort}“ steht da")
 
     # Der Monat aus dem ersten Zeitraum: 2 Std zu 60,49 EUR.
     pruefe("120,98 €" in seite,
@@ -2154,9 +2158,9 @@ def test_monatsbloecke(client: TestClient) -> None:
 
     # Ein Monat ohne Zeiten bleibt stehen, solange etwas bewilligt war -
     # sonst faellt die Luecke nicht auf.
-    pruefe("ohne-zeiten" in seite,
+    pruefe("mz-leer" in seite,
            "Monate ohne erfasste Zeiten bleiben stehen")
-    pruefe("In diesem Monat ist nichts erfasst" in seite,
+    pruefe("In diesem Monat wurde nichts erfasst" in seite,
            "und sagen das auch")
 
     # Das Soll je Monat richtet sich nach dem jeweiligen Zeitraum.
@@ -2167,8 +2171,8 @@ def test_monatsbloecke(client: TestClient) -> None:
     # Der Überblick darüber - seit 1.4.1 eine Karte mit Kennzahlen und
     # einer Zeile je Person, statt drei Kästen nebeneinander.
     pruefe("<h2>Überblick</h2>" in seite, "es gibt einen Überblick")
-    pruefe('class="abschnittsband"' in seite and "Monat für Monat" in seite,
-           "und ein Band, das die Monatsblöcke davon abgrenzt")
+    pruefe('class="karte monatskarte"' in seite and "Monat für Monat" in seite,
+           "und eine eigene Karte „Monat für Monat“")
     gesamt_soll = soll_minuten(4, "2024-09") * 12 + soll_minuten(3, "2025-09") * 3
     pruefe(_hhmm(gesamt_soll) in seite,
            f"mit dem Soll über alle Monate ({_hhmm(gesamt_soll)})")
@@ -2184,17 +2188,21 @@ def test_monatsbloecke(client: TestClient) -> None:
            "Stundenkontingent und Bewilligt sind entfallen")
     pruefe("auslastung" not in seite,
            "und nicht mehr zusätzlich in der Tabellenzelle")
-    kachel = seite.split('id="monatsbild"', 1)[1].split("</section>", 1)[0] \
-        if 'id="monatsbild"' in seite else ""
+    kachel = seite.split('class="monatsbild"', 1)[1].split('class="mz-liste', 1)[0] \
+        if 'class="monatsbild"' in seite else ""
     pruefe(kachel.count('<a class="mb-saeule ') == 15
            and 'href="#monat-2025-09"' in kachel,
-           "die Monatskachel trägt je Monat eine Säule, die zum Block springt")
+           "das Diagramm trägt je Monat eine Säule, die zum Monat springt")
     pruefe('class="mb-tip"' in kachel and "aria-label=" in kachel,
            "jede Säule nennt ihre Werte beim Überfahren und für Vorleseprogramme")
-    pruefe(seite.index('id="monatsbild"') < seite.index('id="monat-'),
-           "die Kachel steht über den Monatsblöcken")
+    pruefe("des Solls erreicht" in kachel and "Geleistet:" in kachel,
+           "der Hinweis sagt in Worten, was die Zahlen bedeuten (Timos Wunsch)")
+    pruefe(seite.index('class="monatsbild"') < seite.index('id="monat-'),
+           "das Diagramm steht über den Monatszeilen")
     pruefe(seite.count('id="monat-') == 15,
-           "jeder Block trägt seine Sprungmarke")
+           "jede Zeile trägt ihre Sprungmarke")
+    pruefe("a.hash.slice(1)" in seite,
+           "ein Klick auf eine Säule klappt den Monat auf")
     # Maßangaben: einmal je Spalte im Kopf, nicht in jeder Zelle.
     pruefe(seite.count('class="massangabe">Std<') >= 3,
            "die Zeitspalten tragen ihre Einheit im Kopf")
@@ -2223,9 +2231,9 @@ def test_monatsbloecke(client: TestClient) -> None:
     # Bei einem einzelnen Monat waere der Block eine Wiederholung.
     einer = client.get("/auswertung?von_jahr=2024&von_monat=09"
                        "&bis_jahr=2024&bis_monat=09&klient=Blockmann").text
-    pruefe("monatsblock" not in einer,
+    pruefe('<details class="mz ' not in einer,
            "bei einem einzigen Monat entfällt die Aufteilung")
-    pruefe('class="abschnittsband"' not in einer, "und das Band dazu auch")
+    pruefe('class="karte monatskarte"' not in einer, "und die Karte dazu auch")
     pruefe("<h2>Überblick</h2>" in einer, "der Überblick bleibt")
 
     # ⚠️ Seit 1.20 rechnet ein Monat ohne Bescheid gar nicht mehr - der
@@ -2246,8 +2254,9 @@ def test_monatsbloecke(client: TestClient) -> None:
     pruefe(">Grundwert<" not in seite,
            "ein Monat ohne Zeitraum trägt keine Marke „Grundwert“ mehr")
     pruefe("40,00 €" not in seite, "und rechnet auch nicht mit dem Grundsatz")
-    pruefe("ohne Bescheid" in seite,
-           "stattdessen steht in der Seitenspalte, dass nichts bewilligt war")
+    zeile = seite.split('<td class="stark">Grundmann</td>', 1)[1].split("</tr>", 1)[0]
+    pruefe("platzhalter" in zeile,
+           "stattdessen steht im Soll der Zeile ein Platzhalter")
 
 
 def test_mehrere_betreute(client: TestClient) -> None:
@@ -2281,8 +2290,8 @@ def test_mehrere_betreute(client: TestClient) -> None:
     pruefe("Filter Eins" in körper and "Filter Zwei" in körper,
            "beide gewählten Personen stehen in der Auswertung")
     pruefe("Filter Drei" not in körper, "die dritte nicht")
-    pruefe("2 betreute Personen" in zwei,
-           "die Chipleiste nennt die Zahl der Personen")
+    pruefe("nur <strong>Filter Eins, Filter Zwei</strong>" in zwei,
+           "der Satz unter dem Filter nennt beide Personen")
 
     einer = tabelle(client.get("/auswertung?klient=Filter+Eins").text)
     pruefe("Filter Zwei" not in einer, "eine einzelne Person filtert wie bisher")
@@ -3153,7 +3162,7 @@ def test_texte_nur_abweichungen(client: TestClient) -> None:
            "ohne strings.txt gelten die eingebauten Texte")
     pruefe(len(texte()) == len(TEXTE_STANDARD),
            "und zwar alle, nicht ein leeres Verzeichnis")
-    pruefe("keinerlei Relevanz" in client.get("/").text,
+    pruefe("brauchst du diesen Bereich nicht" in client.get("/").text,
            "die Erklärtexte stehen dann auch wirklich auf der Seite")
     pruefe(not os.path.exists(STRINGS_DATEI),
            "der Start legt die Datei nicht mehr von selbst an")
@@ -4091,20 +4100,45 @@ def test_stand_der_bewilligungen(client: TestClient) -> None:
                                                    "gruen", "selbstzahler").index),
            "sortiert nach Dringlichkeit: rot, orange, gelb, grün, Selbstzahler")
 
-    seite = client.get("/auswertung?klient=Stand+Grün").text
+    # ⚠️ Seit 2.2 eine eigene Unterseite „Bewilligungen“ (die Vorgabe beim
+    # Öffnen der Auswertung), ohne Zeitraumfilter.
+    seite = client.get("/auswertung").text
     karte = seite.split('id="stand"', 1)[1].split("</section>", 1)[0]
     pruefe("Stand der Bewilligungen" in seite
-           and f"Stand: <strong>{jetzt.strftime('%d.%m.%Y')}</strong>" in karte
-           and "jeweils aktueller Bewilligungszeitraum" in karte,
-           "die Karte nennt das heutige Datum")
-    pruefe("Stand Rot" in karte and "Stand Ohne" in karte,
-           "sie folgt dem Personenfilter nicht")
-    pruefe(seite.index('id="stand"') < seite.index('class="liste auswertungsblatt"'),
-           "sie steht über dem Überblick")
+           and f"Stand: <strong>{jetzt.strftime('%d.%m.%Y')}</strong>" in karte,
+           "die Seite nennt das heutige Datum")
+    pruefe("Stand Rot" in karte and "Stand Ohne" in karte
+           and 'class="filter"' not in seite,
+           "sie zeigt alle aktiven Personen und hat keinen Zeitraumfilter")
+    pruefe('class="ak-umfang auswertung-reiter"' in seite
+           and 'href="/auswertung/zeitraum"' in seite,
+           "die zweite Ebene führt zu „Zeitraum & Nachweis“")
+    alt = client.get("/auswertung?klient=Stand+Grün&von_jahr=2026",
+                     follow_redirects=False)
+    pruefe(alt.status_code == 302
+           and alt.headers["location"].startswith("/auswertung/zeitraum?")
+           and "klient=Stand" in alt.headers["location"],
+           "eine alte Adresse mit Filter landet samt Angaben auf „Zeitraum & Nachweis“")
+    zeitraum = client.get("/auswertung/zeitraum").text
+    pruefe('id="stand"' not in zeitraum and "auswertungsblatt" in zeitraum,
+           "„Zeitraum & Nachweis“ trägt den Überblick, nicht den Stand")
+    # Die Pillen filtern die Liste, die Bilanz bleibt beim Ganzen.
+    nur = client.get("/auswertung?lage=rueckstand").text
+    nur_liste = nur.split('class="bs-liste"', 1)[1]
+    pruefe('id="bs-ab-rueckstand"' in nur_liste and 'id="bs-ab-ohne"' not in nur_liste,
+           "eine Pille zeigt nur ihren Abschnitt")
+    pruefe(nur.split('<dl class="bs-bilanz">')[1].split("</dl>")[0]
+           == karte.split('<dl class="bs-bilanz">')[1].split("</dl>")[0],
+           "die Bilanz darüber bleibt beim Ganzen")
+    pruefe('id="bs-ab-ohne"' in client.get("/auswertung?lage=quatsch").text,
+           "eine unbekannte Angabe zeigt wieder alles")
+    pillen = karte.split('class="bs-lagen"', 1)[1].split("</nav>", 1)[0]
+    pruefe('hx-select="#bs-bereich"' in pillen and 'href="/auswertung?lage=' in pillen,
+           "die Pillen tauschen nur die Liste und gehen auch ohne Skript")
     pruefe("Bewilligung fehlt" in karte and "Vorläufig – Bescheid steht aus" in karte
            and "noch " in karte and "im Plan" in karte,
            "Bewilligung fehlt, vorläufig, offen und im Plan stehen im Klartext da")
-    pruefe("Soll kumuliert" in karte and "Abweichung kumuliert" in karte,
+    pruefe("Soll bis dahin" in karte and "Abweichung bis dahin" in karte,
            "die Detailtabelle hat ihre sechs Spalten")
     pruefe("<details class=\"bs-zeile" in karte,
            "jede Person mit Bescheid klappt auf - ohne Skript")
@@ -4143,8 +4177,10 @@ def test_stand_der_bewilligungen(client: TestClient) -> None:
     gefunden = [k for k in reihe if f'id="bs-ab-{k}"' in karte]
     pruefe(gefunden == sorted(gefunden, key=reihe.index) and len(gefunden) >= 3,
            "und sie stehen in dieser Reihenfolge auf der Seite")
-    pruefe('<dl class="bs-bilanz">' in karte and 'class="bs-verteilung"' in karte,
+    pruefe('<dl class="bs-bilanz">' in karte and 'class="bs-leiste"' in karte,
            "eine Bilanzleiste und die Verteilung statt farbiger Kacheln")
+    pruefe(karte.count("Wie wird gerechnet?") == 1 and "bs-ampel-erklaerung" in karte,
+           "eine Erklärung, die Ampel als Liste")
     pruefe('class="bs-sollstrich"' in karte and 'class="bs-fuellung' in karte,
            "der Balken zeigt Ist und den Strich für das Soll bis heute")
 
@@ -4171,6 +4207,87 @@ def test_stand_der_bewilligungen(client: TestClient) -> None:
         con.execute("DELETE FROM eintrag WHERE fingerprint LIKE 'stand%'")
         con.execute("DELETE FROM person WHERE name LIKE 'Stand %'")
 
+
+
+def test_auswertung_2_2(client: TestClient) -> None:
+    """2.2: Verdienst nur mit Recht, Monate als Zeilen, Texte einmal neu."""
+    abschnitt("Auswertung 2.2: Verdienst-Recht und Neustand der Texte")
+    from .main import STRINGS_DATEI, texte_neustand
+
+    # --- Verdienst und Stundensätze nur mit dem Recht ----------------------
+    ohne = _konto(client, "ohnegeld", "ohnegeldpasswort", ["auswertung"])
+    seite = ohne.get("/auswertung/zeitraum?von_jahr=&bis_jahr=").text
+    inhalt = seite.split("<main", 1)[1].split("</main>", 1)[0]
+    pruefe("Verdienst" not in inhalt and "€" not in inhalt,
+           "ohne das Recht steht kein Verdienst und kein Euro-Betrag auf der Seite")
+    pruefe("auswertungsblatt" in seite and "Geleistet" in seite,
+           "die Stunden sieht das Konto trotzdem")
+    with db.db() as con:
+        bid = con.execute("SELECT id FROM benutzer WHERE benutzername='ohnegeld'"
+                          ).fetchone()["id"]
+        schema_vorher = con.execute("SELECT sql FROM sqlite_master WHERE name='benutzer'"
+                                    ).fetchone()["sql"]
+    # Ein Formular OHNE die stille Marke fasst das Recht nicht an.
+    client.post(f"/einstellungen/benutzer/{bid}", data={
+        "benutzername": "ohnegeld", "rolle": "benutzer", "aktiv": "1",
+        "verdienst_sehen": "1"})
+    with db.db() as con:
+        pruefe(bid not in auth.verdienst_konten(con),
+               "ohne die stille Marke ändert sich am Recht nichts")
+    client.post(f"/einstellungen/benutzer/{bid}", data={
+        "benutzername": "ohnegeld", "rolle": "benutzer", "aktiv": "1",
+        "rechte_dabei": "1", "bereiche": ["auswertung"], "verdienst_sehen": "1"})
+    with db.db() as con:
+        pruefe(bid in auth.verdienst_konten(con),
+               "mit Haken steht das Konto in der Liste (konfig, keine neue Spalte)")
+        pruefe(con.execute("SELECT sql FROM sqlite_master WHERE name='benutzer'"
+                           ).fetchone()["sql"] == schema_vorher,
+               "die Tabelle benutzer ist unverändert")
+    mit = ohne.get("/auswertung/zeitraum?von_jahr=&bis_jahr=").text
+    pruefe("k-verdienst" in mit and "<th>Verdienst" in mit,
+           "mit dem Recht erscheinen Kennzahl und Spalte")
+    verwaltung = client.get("/einstellungen?bereich=benutzer").text
+    pruefe('name="verdienst_sehen"' in verwaltung
+           and "Verdienst und Stundensätze" in verwaltung,
+           "der Optionspunkt steht in der Benutzerverwaltung")
+    client.post(f"/einstellungen/benutzer/{bid}/loeschen")
+    with db.db() as con:
+        pruefe(bid not in auth.verdienst_konten(con),
+               "beim Löschen des Kontos fällt es aus der Liste")
+    neu_konto = _konto(client, "mitgeld", "mitgeldpasswort", ["auswertung"],
+                       verdienst_sehen="1")
+    pruefe("k-verdienst" in neu_konto.get("/auswertung/zeitraum?von_jahr=").text,
+           "auch beim Anlegen lässt sich das Recht gleich mitgeben")
+
+    # --- Die Zeitraum-Seite: ein Satz statt der Chips -----------------------
+    seite = client.get("/auswertung/zeitraum").text
+    pruefe('class="zr-gezeigt"' in seite and 'class="filterstand"' not in seite,
+           "unter dem Filter steht ein Satz, was gezeigt wird - die Chips fehlen")
+    pruefe(seite.count("Wie wird gerechnet?") == 1,
+           "eine Erklärung je Seite")
+    stil = client.get("/static/style.css").text
+    pruefe("@container monatszeilen (min-width: 760px)" in stil
+           and "container-name: monatszeilen" in stil,
+           "gestapelt ist der Ausgangszustand der Monatszeilen")
+    pruefe(".monatsblock" not in stil and ".mb-zahlen" not in stil
+           and ".bs-legende" not in stil,
+           "die alten Monatskarten und Legenden sind aus dem Stylesheet")
+
+    # --- Der Neustand der Texte: genau einmal -------------------------------
+    texte_standard.datei_schreiben(STRINGS_DATEI, {"mein.lead": "Eigener Wortlaut"})
+    with db.db() as con:
+        con.execute("DELETE FROM konfig WHERE schluessel='texte_neustand'")
+    texte_neustand()
+    stamm, endung = os.path.splitext(STRINGS_DATEI)
+    pruefe(not os.path.exists(STRINGS_DATEI)
+           and os.path.exists(f"{stamm}-bis-2.1{endung}"),
+           "die eigene strings.txt wird einmal beiseitegelegt, nicht gelöscht")
+    texte_standard.datei_schreiben(STRINGS_DATEI, {"mein.lead": "Danach geändert"})
+    texte_neustand()
+    pruefe(os.path.exists(STRINGS_DATEI),
+           "was danach geändert wird, bleibt stehen - es passiert nur einmal")
+    os.remove(STRINGS_DATEI)
+    os.remove(f"{stamm}-bis-2.1{endung}")
 
 def test_bewilligung_nachfolge(client: TestClient) -> None:
     """Ein hinterlegter Folgebescheid beendet die Warnung."""
@@ -4497,7 +4614,7 @@ def test_auswertung_standard(client: TestClient) -> None:
     abschnitt("Auswertung: laufendes Jahr")
     jahr = str(dt.date.today().year)
 
-    seite = client.get("/auswertung").text
+    seite = client.get("/auswertung/zeitraum").text
     pruefe(f"Jahr {jahr}" in seite,
            "ohne Angabe steht das laufende Jahr im Kopf")
     pruefe(f'<option value="{jahr}" selected>' in seite,
@@ -4506,7 +4623,7 @@ def test_auswertung_standard(client: TestClient) -> None:
     # ⚠️ Wer ausdrücklich „alle“ wählt, bekommt weiterhin alles. Erkannt
     # wird das an der Abfrage: das Filterformular schickt immer alle
     # Felder mit, auch die leeren.
-    alle = client.get("/auswertung?von_jahr=&bis_jahr=&von_monat=&bis_monat=").text
+    alle = client.get("/auswertung/zeitraum?von_jahr=&bis_jahr=&von_monat=&bis_monat=").text
     pruefe("alle Zeiten" in alle,
            "mit ausdrücklich leerem Jahr gilt wieder die ganze Zeit")
 
@@ -4529,7 +4646,7 @@ def test_auswertung_standard(client: TestClient) -> None:
     client.post(f"/einstellungen/person/{kid}/zeitraum", data={
         "von": f"{jahr}-01-01", "bis": "", "wochenstunden": "4",
         "stundensatz": "50", "notiz": ""})
-    seite = client.get("/auswertung").text
+    seite = client.get("/auswertung/zeitraum").text
     for klasse in ("k-geleistet", "k-bewilligt", "k-verdienst"):
         pruefe(klasse in seite, f"die Kennzahl „{klasse}“ ist eingefärbt")
 
@@ -4708,8 +4825,7 @@ def test_selbstzahler(client: TestClient) -> None:
             "ende, klient, beschreibung, dauer_min, abrechenbar, fingerprint, "
             "angelegt_am) VALUES ('pruefer','2026-05-04','2026-05','09:00',"
             "'11:00','Selbstzahler Probe','Besuch',120,1,'szp1','2026-05-04 09:00')")
-    ausw = client.get("/auswertung?von_jahr=2026&von_monat=05&"
-                      "bis_jahr=2026&bis_monat=05").text
+    ausw = client.get("/auswertung").text
     # Seit 2.1 steht er im „Stand der Bewilligungen“ im Abschnitt
     # Selbstzahler, nicht als „ohne Bescheid“.
     abschnitt_sz = ausw.split('id="bs-ab-selbst"', 1)[1] \
@@ -6224,8 +6340,8 @@ def test_eigene_bezeichnungen(client: TestClient) -> None:
         pruefe(f"<h2>{wort}</h2>" in seite, f"„{wort}“ steht als Überschrift da")
     pruefe("<h2>Mein Konto</h2>" in client.get("/meinbereich/konto").text,
            "„Mein Konto“ steht als Überschrift auf seiner eigenen Seite")
-    auswertung = client.get("/auswertung").text
-    for wort in ("Überblick", "Monate"):
+    auswertung = client.get("/auswertung/zeitraum").text
+    for wort in ("Überblick", "Monat für Monat"):
         pruefe(f"<h2>{wort}</h2>" in auswertung,
                f"„{wort}“ steht in der Auswertung")
 
@@ -6301,7 +6417,7 @@ def test_leerzellen_schalter(client: TestClient) -> None:
     """Leere Zellen der Auswertung: leer oder mit Strich."""
     abschnitt("Leere Zellen in der Auswertung")
     stil = client.get("/static/style.css").text
-    seite = client.get("/auswertung").text
+    seite = client.get("/auswertung/zeitraum").text
 
     # ⚠️ Der Strich steht IMMER im Markup und wird nur ausgeblendet -
     # dieselbe Technik wie bei Hell/Dunkel und den Listenansichten. Beim
@@ -7474,7 +7590,7 @@ def test_htmx(client: TestClient) -> None:
            in seite, "der Filter der Übersicht tauscht nur den Bereich")
     # ⚠️ Dasselbe Partial baut auch den Filter der Auswertung - dort lädt
     # die Seite weiter ganz neu (Diagramm und Monatsblöcke).
-    pruefe('hx-boost' not in client.get("/auswertung").text,
+    pruefe('hx-boost' not in client.get("/auswertung/zeitraum").text,
            "die Auswertung bleibt beim gewöhnlichen Seitenaufbau")
     # Der Bereich muss die Werkzeuge der Liste umschließen, aber NICHT die
     # Reiterleiste - die führt auf andere Seiten.
@@ -7822,7 +7938,7 @@ def test_kein_blitzen(client: TestClient) -> None:
     # Bild 673px hoch und fiel dann auf 594px zusammen - die Tabelle
     # darunter sprang um 79px. Mit ihm ist das erste Bild so hoch wie
     # das fertige.
-    for seite in ("/eintraege", "/auswertung"):
+    for seite in ("/eintraege", "/auswertung/zeitraum"):
         text = client.get(seite).text
         pruefe('class="filterwahl zeitwahl-feld zeitwahl-platz' in text,
                f"{seite} liefert den Platzhalter mit")
@@ -11682,7 +11798,7 @@ def test_zeiterfassung_auswahl(client: TestClient) -> None:
     kopf_i = seite.split('class="importkopf"')[1].split("</summary>")[0]
     pruefe('class="lead"' in kopf_i,
            "die Erläuterung steht mit Infozeichen im zugeklappten Kopf")
-    pruefe("keinerlei Relevanz" in kopf_i,
+    pruefe("brauchst du diesen Bereich nicht" in kopf_i,
            "und sagt ausdrücklich, wen der Bereich nicht betrifft")
     pruefe("<p" not in kopf_i,
            "als <span> - ein <summary> darf keinen Absatz enthalten")
@@ -12607,6 +12723,7 @@ def _durchlauf(client: TestClient) -> None:
         test_farbvariablen(client)
         test_bewilligung_nachfolge(client)
         test_stand_der_bewilligungen(client)
+        test_auswertung_2_2(client)
         test_zeitwahl(client)
         test_konto_zugeklappt(client)
         test_meine_zeiten_namensspalte(client)

@@ -3,6 +3,13 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.2
+
+- Auswertung in zwei Unterseiten: „Bewilligungen“ (Stand heute, ohne Filter, mit Pillen nach Stand) und „Zeitraum & Nachweis“ (Filter, Überblick, Monat für Monat); alte Adressen mit Filter werden weitergeleitet
+- Monat für Monat als aufklappbare Zeilen statt zwölf Karten; die Seite ist rund ein Viertel so lang
+- Neues Recht „Verdienst und Stundensätze“ (gespeichert in `konfig`, keine Schemaänderung); Administratoren sehen beides immer
+- Alle Erklärtexte neu geschrieben; eine vorhandene `strings.txt` wird einmalig als `strings-bis-2.1.txt` beiseitegelegt
+
 ## 2.1
 
 - Auswertung: neue Karte „Stand der Bewilligungen“ – je Person Soll und Ist ab Beginn des heute geltenden Bescheids, geordnet nach Dringlichkeit, mit aufklappbarer Monatstabelle und Verlauf

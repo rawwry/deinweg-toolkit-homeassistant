@@ -4358,33 +4358,6 @@ body.anmeldeseite {
 .abschnittsband h2 { margin: 0 0 4px; }
 .abschnittsband p { margin: 0; max-width: 78ch; }
 
-.monatsliste { display: flex; flex-direction: column; gap: 12px; }
-
-/*
-   Ein Block je Monat. Der Kopf trägt die Zahlen, nach denen man sucht
-   (geleistet, bewilligt, Abweichung, Verdienst), die Tabelle darunter die
-   Aufschlüsselung je betreuter Person. Bewusst eigene Karten statt einer
-   durchlaufenden Tabelle: über zwölf Monate hinweg fände man in einer
-   Tabelle den Monatswechsel nicht wieder.
-*/
-.monatsblock { padding-top: 16px; padding-bottom: 16px; margin: 0; }
-.monatsblock.ohne-zeiten { opacity: .72; }
-.monatsleiste {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 14px 20px; flex-wrap: wrap;
-  padding-bottom: 12px; margin-bottom: 12px;
-  border-bottom: 1px solid var(--linie);
-}
-.monatsleiste h3 { margin: 0; font-size: 17px; }
-.monatswerte {
-  display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap;
-  font-size: 13.5px;
-}
-.mwert { display: inline-flex; align-items: baseline; gap: 7px; }
-.mlabel { font-size: 11.5px; color: var(--leise); text-transform: uppercase;
-          letter-spacing: .05em; }
-.monatsbetrag { font-size: 16px; font-weight: 700; color: var(--akzent);
-                white-space: nowrap; }
 /* Eine Zeile ohne geleistete Zeit tritt zurück – sie steht nur da, damit
    die Lücke auffällt. Bewusst NICHT .zeile-zu: das ist die grüne Zeile
    für Erledigtes und hieße hier das Gegenteil. */
@@ -8891,8 +8864,8 @@ html.mit-skript[data-hinweise="kompakt"] .importkarte:not([open]) .importkopf .l
    1. EINE Bilanzleiste (.bs-bilanz) statt vier farbiger Kacheln. Vier
       gleich gebaute Felder, getrennt durch Linien; farbig ist nur die
       Abweichung.
-   2. Eine Verteilungsleiste (.bs-verteilung): wie viele Personen in
-      welchem Abschnitt, als ein Balken mit Legende.
+   2. Eine Verteilungsleiste (.bs-leiste) und darunter seit 2.2 Pillen,
+      die die Liste nach Stand filtern.
    3. Die Liste in Abschnitten nach Dringlichkeit, EINE Kopfzeile, jede
       Zeile gleich gebaut und gleich hoch. Keine Ränder, keine Pillen,
       keine getönten Zeilen - Farbe trägt der Stand (Punkt + Wort) und die
@@ -8944,8 +8917,11 @@ html.mit-skript[data-hinweise="kompakt"] .importkarte:not([open]) .importkopf .l
   .bs-wert:first-child { border-left: 0; }
 }
 
-/* 2. Verteilung */
-.bs-verteilung { margin: 0 0 20px; }
+/* 2. Verteilung und Pillen (seit 2.2). Die Leiste zeigt, wie sich alle
+   Personen verteilen; die Pillen darunter filtern die Liste (?lage=…),
+   in derselben Form wie die Pillen der Aufgaben. Die Bilanz darüber
+   bleibt beim Ganzen. */
+.bs-bereich { display: flex; flex-direction: column; }
 .bs-leiste {
   display: flex; gap: 3px; height: 8px; border-radius: 4px; overflow: hidden;
 }
@@ -8956,12 +8932,13 @@ html.mit-skript[data-hinweise="kompakt"] .importkarte:not([open]) .importkopf .l
   background: repeating-linear-gradient(135deg, var(--dopp) 0 4px,
               color-mix(in oklab, var(--dopp) 45%, var(--flaeche)) 4px 8px);
 }
-.bs-legende { list-style: none; margin: 10px 0 0; padding: 0;
-              display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; }
-.bs-legende a { display: inline-flex; align-items: center; gap: 7px;
-                color: var(--tinte-2); text-decoration: none; }
-.bs-legende a:hover { color: var(--tinte); }
-.bs-legende b { font-weight: 650; color: var(--tinte); }
+.bs-lagen { --ak-hoehe: 34px; display: flex; flex-wrap: wrap; gap: 6px;
+            margin: 12px 0 16px; }
+.bs-lagen .ak-pille { font-size: 13px; }
+.bs-ampel-erklaerung { list-style: none; margin: 0 0 12px; padding: 0;
+                       display: flex; flex-direction: column; gap: 6px; }
+.bs-ampel-erklaerung li { display: flex; align-items: baseline; gap: 9px; }
+.bs-ampel-erklaerung .bs-punkt { position: relative; top: 1px; }
 .bs-punkt { width: 8px; height: 8px; border-radius: 50%; flex: none;
             background: var(--bs-ton); }
 .bs-punkt.bs-ab-ohne { background: transparent; box-shadow: inset 0 0 0 2px var(--dopp); }
@@ -9080,18 +9057,14 @@ details.bs-zeile[open] > .bs-summary { background: var(--flaeche-2); }
    Früher eine Sprungliste in der Seitenspalte, jetzt eine eigene Kachel
    mit Säulen (Timos Wunsch). Reines HTML/CSS: die Höhen kommen als
    Prozent vom Server (auswertung.monatsdiagramm), die Werte zeigt ein
-   Hinweis beim Überfahren oder Antabben, ein Klick springt zum Monat.
-   Die übrigen Säulen treten dabei zurück. */
-.mb-zahlen {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 24px; margin: 4px 0 22px;
-}
-.mb-zahlen dt { font-size: 11px; font-weight: 700; letter-spacing: .06em;
-                text-transform: uppercase; color: var(--leise); }
-.mb-zahlen dd { margin: 3px 0 0; font-size: 20px; font-weight: 650; }
-.mb-zahlen .mb-fuss { margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--leise); }
-@media (min-width: 760px) { .mb-zahlen { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-
+   Hinweis beim Überfahren oder Antabben, ein Klick öffnet den Monat
+   darunter. Die übrigen Säulen treten dabei zurück. Seit 2.2 steht die
+   Kachel mit den aufklappbaren Monaten in EINER Karte (.monatskarte). */
+.monatsbild { margin: 4px 0 22px; padding-bottom: 18px;
+              border-bottom: 1px solid var(--linie); }
+.mb-spanne { margin: 10px 0 0; font-size: 12.5px; color: var(--leise); }
+.mb-spanne strong { color: var(--tinte-2); font-weight: 600; }
+.mb-tip > span { display: block; }
 .mb-flaeche { padding: 34px 0 30px 34px; }
 .mb-plot { position: relative; height: 220px; }
 .mb-linie { position: absolute; left: 0; right: 0; height: 0;
@@ -9119,7 +9092,6 @@ details.bs-zeile[open] > .bs-summary { background: var(--flaeche-2); }
    wie leere Monate aussehen. Der laufende bekommt eine feine Kante. */
 .mb-kuenftig .mb-soll { opacity: .45; }
 .mb-laufend .mb-soll { border-color: var(--tinte-2); }
-.mb-dt-zusatz { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .mb-saeulen:hover .mb-saeule:not(:hover),
 .mb-saeulen:focus-within .mb-saeule:not(:focus-visible) { opacity: .4; }
 .mb-monat { position: absolute; top: 100%; left: 0; right: 0; margin-top: 8px;
@@ -9211,4 +9183,93 @@ details.bs-zeile[open] > .bs-summary { background: var(--flaeche-2); }
   .personenkopf .pz-fakt:nth-child(3) { grid-area: 1 / 5; min-width: 0; }
   .personenkopf .pz-fakt i { display: none; }
   .personenkopf .konto-pfeil { grid-area: 1 / 6; }
+}
+
+
+/* --- Auswertung, zweite Ebene (seit 2.2) -------------------------------------
+   Die Reiter „Bewilligungen | Zeitraum & Nachweis“ übernehmen die Form von
+   „Meine | Alle“ der Aufgaben (.ak-umfang). Am Telefon teilen sie sich die
+   Breite. */
+.auswertung-reiter { margin-top: -4px; }
+@media (max-width: 600px) {
+  .auswertung-reiter { gap: 0; }
+  .auswertung-reiter a { flex: 1 1 0; justify-content: center; }
+}
+/* Ein Satz unter dem Filter: was gerade gezeigt wird. */
+.zr-gezeigt { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--linie);
+              font-size: 13px; color: var(--tinte-2); }
+
+/* --- Monat für Monat als aufklappbare Zeilen (seit 2.2) ----------------------
+   ⚠️ Bis 2.1 je Monat eine Karte mit ausgeklappter Tabelle - über zwölf
+   Monate 5.100px, gut 60 % der Seite. Jetzt eine Zeile je Monat, die zur
+   Tabelle der Personen aufklappt. Kopf und Zeilen teilen sich --mz-raster
+   (steht AUSSERHALB der Container-Abfrage, die kann ihren eigenen
+   Container nicht gestalten). Gestapelt ist der Ausgangszustand. */
+.mz-liste {
+  container-type: inline-size; container-name: monatszeilen;
+  --mz-raster: minmax(130px, 1.2fr) 86px 86px minmax(150px, 1.3fr) 96px 18px;
+  border-top: 1px solid var(--linie);
+}
+.mz-liste.mit-geld {
+  --mz-raster: minmax(130px, 1.2fr) 86px 86px minmax(150px, 1.3fr) 96px 112px 18px;
+}
+.mz-kopf { display: none; }
+.mz { border-bottom: 1px solid var(--linie-fein); }
+.mz-zeile {
+  display: grid; gap: 8px 14px; padding: 12px 4px; cursor: pointer;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-areas: "monat    monat    monat    pfeil"
+                       "ist      soll     abw      abw"
+                       "erreicht erreicht erreicht erreicht";
+  align-items: center; font-size: 13.5px; list-style: none;
+}
+.mit-geld .mz-zeile {
+  grid-template-areas: "monat    monat    monat    pfeil"
+                       "ist      soll     abw      geld"
+                       "erreicht erreicht erreicht erreicht";
+}
+.mz-zeile::-webkit-details-marker { display: none; }
+.mz-zeile::marker { content: ""; }
+.mz-zeile:hover, .mz[open] > .mz-zeile { background: var(--flaeche-2); }
+.mz-monat { grid-area: monat; font-weight: 650; }
+.mz-ist { grid-area: ist; }
+.mz-soll { grid-area: soll; }
+.mz-abw { grid-area: abw; }
+.mz-geld { grid-area: geld; }
+.mz-erreicht { grid-area: erreicht; }
+.mz-zeile > .bs-pfeil { grid-area: pfeil; justify-self: end; }
+.monatsbild + .mz-liste { border-top: 0; }
+.mz-zusatz { margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--warn); }
+.mz-wert { min-width: 0; }
+.mz-wert i { display: block; font-style: normal; font-size: 11px; color: var(--leise); }
+.mz-wert b { font-weight: 600; }
+.mz-erreicht { display: grid; grid-template-columns: 1fr auto;
+               align-items: center; column-gap: 10px; }
+.mz-erreicht i { grid-column: 1 / -1; }
+.mz-spur { position: relative; height: 8px; border-radius: 4px;
+           background: color-mix(in oklab, var(--linie) 70%, var(--flaeche)); }
+.mz-fuellung { position: absolute; inset: 0 auto 0 0; border-radius: 4px; min-width: 2px;
+               background: var(--gut); }
+.mz-fuellung.mz-nah { background: var(--warn); }
+.mz-fuellung.mz-knapp { background: var(--dopp); }
+.mz-plus { color: var(--gut); }
+.mz-minus { color: var(--dopp); }
+.mz-kuenftig > .mz-zeile { color: var(--leise); }
+.mz-leer > .mz-zeile .mz-monat { color: var(--tinte-2); }
+.mz[open] .bs-pfeil svg { transform: rotate(180deg); }
+.mz-detail { padding: 6px 4px 16px; }
+@container monatszeilen (min-width: 760px) {
+  .mz-kopf {
+    display: grid; grid-template-columns: var(--mz-raster); gap: 14px;
+    padding: 10px 4px 6px; border-bottom: 1px solid var(--linie);
+    font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--leise);
+  }
+  .mz-zeile, .mit-geld .mz-zeile {
+    grid-template-columns: var(--mz-raster); min-height: 52px; padding: 8px 4px;
+    grid-template-areas: "monat ist soll erreicht abw pfeil";
+  }
+  .mit-geld .mz-zeile { grid-template-areas: "monat ist soll erreicht abw geld pfeil"; }
+  .mz-wert i { display: none; }
+  .mz-erreicht { grid-template-columns: 1fr 44px; }
 }

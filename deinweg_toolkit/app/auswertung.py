@@ -16,7 +16,7 @@ from __future__ import annotations
 import datetime as dt
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from . import db
 from .parser import norm
@@ -214,12 +214,48 @@ def stand_der_bewilligungen(con, heute: str | None = None) -> dict:
     }
 
 
+# Die Felder des Zeitraumfilters. Kommt eines davon an /auswertung an,
+# meint die Adresse die alte Seite (vor 2.2) - ein Lesezeichen oder ein
+# Verweis aus „Mein Bereich“ - und wird zur Unterseite „Zeitraum & Nachweis“
+# weitergereicht, samt allen Angaben.
+FILTERFELDER = ("von_jahr", "von_monat", "bis_jahr", "bis_monat",
+                "mitarbeiter", "klient", "q", "nur_abrechenbar")
+
+
 @router.get("/auswertung", response_class=HTMLResponse)
+def bewilligungen(request: Request, lage: str = ""):
+    """Unterseite „Bewilligungen“ (seit 2.2, die Vorgabe beim Öffnen).
+
+    ⚠️⚠️ Bis 2.1 standen beide Fragen auf EINER Seite: „bin ich heute im
+    Plan?“ (gegen den geltenden Bescheid, ohne Filter) und „was wurde im
+    Zeitraum X geleistet?“ (mit Filter). Drei Kennzahlenreihen, „Geleistet“
+    in zwei Bedeutungen, und der Filter stand zwischen beiden, als gehöre
+    er zur oberen Karte. Timos Auftrag: Struktur. Jetzt hat jede Seite
+    genau einen Zeitbezug.
+    """
+    if any(k in request.query_params for k in FILTERFELDER):
+        return RedirectResponse(
+            f"/auswertung/zeitraum?{request.url.query}", status_code=302)
+    with db.db() as con:
+        stand = stand_der_bewilligungen(con)
+    # Die Pillen filtern die Liste; die Bilanz oben bleibt beim Ganzen.
+    schluessel = {ab["schluessel"] for ab in stand["abschnitte"]}
+    lage = lage if lage in schluessel else ""
+    sichtbar = [ab for ab in stand["abschnitte"]
+                if not lage or ab["schluessel"] == lage]
+    return _u["templates"].TemplateResponse(
+        request=request, name="auswertung_bewilligungen.html", context={
+            "stand": stand, "abschnitte": sichtbar, "lage": lage,
+            "seite": "auswertung", "unterseite": "bewilligungen"})
+
+
+@router.get("/auswertung/zeitraum", response_class=HTMLResponse)
 def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
                bis_jahr: str = "", bis_monat: str = "",
                mitarbeiter: list[str] = Query([]),
                klient: list[str] = Query([]), q: str = "",
                nur_abrechenbar: str = ""):
+    """Unterseite „Zeitraum & Nachweis“: alles, was dem Filter folgt."""
     # ⚠️ Ohne jede Angabe steht das LAUFENDE JAHR da, nicht die gesamte
     # Zeit. Bei vierzehn Monatsblöcken war die Seite sonst schon beim
     # Aufschlagen unlesbar lang.
@@ -256,7 +292,6 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         stamm = {r["name"]: r for r in con.execute(
             "SELECT name, wochenstunden, stundensatz, selbstzahler "
             "FROM person WHERE aktiv=1")}
-        stand = stand_der_bewilligungen(con)
         zeitraeume = zeitraeume_lesen(con)
         # Welche Monate deckt die Auswahl tatsächlich ab? Grundlage für das Soll.
         vorhandene = [r["monat"] for r in con.execute(
@@ -384,6 +419,13 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
             "leer": m_ist == 0,
         })
 
+    # Wo steht der Monat zur Gegenwart? Die aufklappbaren Zeilen und die
+    # Säulen zeigen den laufenden und die künftigen Monate anders an.
+    jetzt_monat = dt.date.today().strftime("%Y-%m")
+    for b in monatsbloecke:
+        b["zeit"] = ("kuenftig" if b["monat"] > jetzt_monat else
+                     "laufend" if b["monat"] == jetzt_monat else "vorbei")
+
     gesamt_ist = sum(r["m"] for r in je_klient)
     gesamt_soll = sum(b["soll"] or 0 for b in monatsbloecke)
     zusammenfassung = {
@@ -406,6 +448,8 @@ def auswertung(request: Request, von_jahr: str = "", von_monat: str = "",
         "soll_aktiv": any(r["soll"] for r in je_klient),
         "gestaffelt": gestaffelt,
         "monatsbloecke": monatsbloecke, "zusammenfassung": zusammenfassung,
-        "stand": stand, "diagramm": monatsdiagramm(monatsbloecke),
+        "diagramm": monatsdiagramm(monatsbloecke),
+        "monate_mit": zusammenfassung["monate_mit"],
         "zeitraum_wort": filter_["wort"], "aktive_filter": filter_["aktive"],
-        "f": filter_["f"], "seite": "auswertung", **zusatz})
+        "f": filter_["f"], "seite": "auswertung", "unterseite": "zeitraum",
+        **zusatz})

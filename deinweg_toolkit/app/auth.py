@@ -76,6 +76,7 @@ def setup(templates, sitzung_tage: int, cookie_name: str = "") -> None:
     templates.env.globals["hat_einst_zugriff"] = hat_einst_zugriff
     templates.env.globals["darf_wiki_schreiben"] = darf_wiki_schreiben
     templates.env.globals["darf_bewilligungen_sehen"] = darf_bewilligungen_sehen
+    templates.env.globals["darf_verdienst_sehen"] = darf_verdienst_sehen
     templates.env.globals["darf_fremde_loeschen"] = darf_fremde_loeschen
     templates.env.globals["darf_aufgaben_loeschen"] = darf_aufgaben_loeschen
     templates.env.globals["zeigt_sprueche"] = zeigt_sprueche
@@ -467,6 +468,50 @@ def darf_bewilligungen_sehen(benutzer) -> bool:
     bekommt sie ausdruecklich abgeschaltet.
     """
     return _schalter(benutzer, "bewilligungen_sehen", True)
+
+
+# --- Verdienst sehen (seit 2.2) -----------------------------------------------
+#
+# ⚠️⚠️ Timos Vorgabe: Verdienst und Stundensaetze in der Auswertung sieht
+# NICHT jeder, der die Auswertung sieht. Ein Einzelrecht wie die anderen -
+# aber OHNE neue Spalte an `benutzer` (auf dem Pi liegen Realdaten, die
+# Stage-8-Regel "keine Schemaaenderung" gilt weiter). Die Liste der
+# Konten steht deshalb in `konfig` unter "verdienst_sehen" als
+# kommagetrennte Kontonummern - dieselbe Bauart wie "wiki_geschuetzt".
+#
+# ⚠️ Standard ist NEIN (leere Liste): Geldbetraege sind eine heikle
+# Auskunft, und "leer = alle" haette sie nach dem Update sofort jedem
+# gezeigt. Administratoren sehen sie immer - wie bei den uebrigen
+# Einzelrechten; sie koennten sich das Recht ohnehin selbst geben.
+# ⚠️ Beim Loeschen eines Kontos faellt seine Nummer aus der Liste - sonst
+# erbte ein neues Konto mit derselben Nummer das Recht (dieselbe Lehre
+# wie bei den Profilbildern in 2.0).
+VERDIENST_SCHLUESSEL = "verdienst_sehen"
+
+
+def verdienst_konten(con) -> set[int]:
+    zeile = con.execute("SELECT wert FROM konfig WHERE schluessel=?",
+                        (VERDIENST_SCHLUESSEL,)).fetchone()
+    return {int(t) for t in ((zeile["wert"] if zeile else "") or "").split(",")
+            if t.strip().isdigit()}
+
+
+def verdienst_konten_setzen(con, benutzer_id: int, darf: bool) -> None:
+    konten = verdienst_konten(con)
+    (konten.add if darf else konten.discard)(int(benutzer_id))
+    con.execute("INSERT INTO konfig (schluessel, wert) VALUES (?, ?) "
+                "ON CONFLICT(schluessel) DO UPDATE SET wert=excluded.wert",
+                (VERDIENST_SCHLUESSEL, ",".join(str(k) for k in sorted(konten))))
+
+
+def darf_verdienst_sehen(benutzer) -> bool:
+    """Verdienst und Stundensaetze in „Zeitraum & Nachweis“ (seit 2.2)."""
+    if not benutzer:
+        return False
+    if benutzer["rolle"] == "admin":
+        return True
+    with db.db() as con:
+        return int(benutzer["id"]) in verdienst_konten(con)
 
 
 # --- Geschuetzte Wiki-Ordner --------------------------------------------------

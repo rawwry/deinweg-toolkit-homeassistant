@@ -32,3 +32,19 @@
 {% endif %}
 {{ untermenue(punkte, "Arbeitszeit") }}
 {% endmacro %}
+
+
+{# Die zweite Ebene unter „Auswertung“ (seit 2.2). Zwei Seiten mit je
+   EINEM Zeitbezug: „Bewilligungen“ gilt für heute und hört auf keinen
+   Filter, „Zeitraum & Nachweis“ folgt dem Filter. Bewusst in der Form der
+   Reiter „Meine | Alle“ der Aufgaben (Linie mit Akzentstrich) und nicht
+   als zweite Pillenleiste: zwei gleich aussehende Leisten übereinander
+   ließen nicht erkennen, welche die obere Ebene ist. #}
+{% macro auswertung_reiter(unterseite) %}
+<nav class="ak-umfang auswertung-reiter" aria-label="Auswertung">
+  <a href="/auswertung" class="{{ 'aktiv' if unterseite == 'bewilligungen' }}"
+     {{ 'aria-current=page' if unterseite == 'bewilligungen' }}>Bewilligungen</a>
+  <a href="/auswertung/zeitraum" class="{{ 'aktiv' if unterseite == 'zeitraum' }}"
+     {{ 'aria-current=page' if unterseite == 'zeitraum' }}>Zeitraum &amp; Nachweis</a>
+</nav>
+{% endmacro %}

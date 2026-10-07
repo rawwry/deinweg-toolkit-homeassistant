@@ -1,64 +1,57 @@
 {% extends "base.html" %}
-{% from "_untermenue.html" import arbeitszeit with context %}
-{% block titel %} – Auswertung{% endblock %}
+{% from "_untermenue.html" import arbeitszeit, auswertung_reiter with context %}
+{% block titel %} – Zeitraum & Nachweis{% endblock %}
 {% block inhalt %}
 
 {{ arbeitszeit('auswertung') }}
+{{ auswertung_reiter('zeitraum') }}
 
-{# Seit 2.1 ganz oben und UNABHÄNGIG vom Filter darunter (Timos
-   Entscheidung): je Person der Stand gegen den heute geltenden Bescheid.
-   Der Überblick, die Monatsblöcke und der Verdienst folgen weiter dem
-   Filter. #}
-{% include "_bewilligungsstand.html" %}
+{# --- Zeitraum & Nachweis (seit 2.2 eine eigene Unterseite) -----------------
+   Alles auf dieser Seite folgt dem Filter: was im gewählten Zeitraum
+   geleistet wurde, gegen das Soll dieses Zeitraums, und Monat für Monat
+   für den Nachweis gegenüber dem Kostenträger. Der Stand gegen den heute
+   geltenden Bescheid steht auf der Unterseite „Bewilligungen“.
 
-{# Die Seite läuft seit 1.4.1 in einer einzigen Spalte. Vorher standen oben
-   zwei Spalten und darunter volle Breite – die beiden Hälften waren
-   verschieden hoch, dadurch klaffte rechts eine Lücke, und ab den
-   Monatsblöcken wechselte das Raster mitten auf der Seite. Dieselben
-   Personen standen außerdem in drei Kästen nebeneinander. Jetzt trägt
-   eine Zeile alles, was zu einer Person zu sagen ist, und die Seite hat
-   genau zwei Teile: Überblick und Monat für Monat. #}
+   ⚠️ Verdienst und Stundensätze nur mit dem Recht „Verdienst und
+   Stundensätze“ (auth.darf_verdienst_sehen, seit 2.2, Timos Vorgabe).
+   Ohne das Recht fehlen Kennzahl, beide Spalten, der Betrag je Monat und
+   die Zeile im Hinweis der Säulen - nicht nur ausgegraut. #}
+{% set geld = darf_verdienst_sehen(request.state.benutzer) %}
+
 <section class="karte">
   <div class="kopfzeile">
-    <h1>Auswertung{% if aktive_filter %} <span class="marke-status offen">gefiltert</span>{% endif %}</h1>
-    <p class="summe">{{ gesamt | gesamtstunden }} <span>· {{ zeitraum_wort }}</span></p>
+    <h1>{{ t("auswertung.titel.zeitraum") }}</h1>
   </div>
+  <p class="lead">{{ t("auswertung.zeitraum_lead") }}</p>
 
-  {% with ziel = "/auswertung", abrechenbar_zeigen = true %}{% include "_filter.html" %}{% endwith %}
+  {% with ziel = "/auswertung/zeitraum", abrechenbar_zeigen = true, ohne_filterstand = true %}{% include "_filter.html" %}{% endwith %}
+
+  {# Ein Satz, was gerade gezeigt wird - die Felder darüber muss man sonst
+     einzeln ablesen. #}
+  <p class="zr-gezeigt">
+    Gezeigt wird <strong>{{ zeitraum_wort }}</strong>
+    {%- if monate_anzahl > 1 %} ({{ monate_anzahl }} Monate){% endif %}
+    {%- if f.klienten | length == 1 %} · nur <strong>{{ f.klienten[0] }}</strong>
+    {%- elif f.klienten %} · nur <strong>{{ f.klienten | join(", ") }}</strong>
+    {%- else %} · alle betreuten Personen{% endif %}
+    {%- if f.mitarbeiterliste %} · nur Zeiten von <strong>{{ f.mitarbeiterliste | join(", ") }}</strong>
+    {%- else %} · Zeiten aller Mitarbeitenden{% endif %}
+    {%- if f.nur_abrechenbar %} · nur abrechenbare Zeiten{% endif %}.
+  </p>
 </section>
 
-{# ⚠️ Seit dem Umbau 2.1 EINE Spalte (Timos Wunsch): die Seitenspalte trug
-   „Stundenkontingent“ und „Bewilligt“ - beides beantwortet jetzt der
-   „Stand der Bewilligungen“ oben, und zwar gegen den heute geltenden
-   Bescheid statt gegen den Filter. Die Monatsliste ist eine eigene Kachel
-   mit Diagramm geworden (unten, vor den Monatsblöcken). Die Tabellen
-   bekommen damit die volle Breite. #}
 <div class="auswertunghaupt">
 
 <section class="karte">
   <div class="kopfzeile">
     <h2>{{ t("auswertung.titel.ueberblick") }}</h2>
-    <p class="boxumfang">
-      <strong>{{ zeitraum_wort }}</strong>
-      {%- if monate_anzahl > 1 %} · {{ monate_anzahl }} Monate{% endif %}
-      {%- if f.klienten | length == 1 %} · nur <strong>{{ f.klienten[0] }}</strong>
-      {%- elif f.klienten %} · nur <strong>{{ f.klienten | join(", ") }}</strong>
-      {%- else %} · alle betreuten Personen{% endif %}
-      {%- if f.mitarbeiter %} · nur Zeiten von <strong>{{ f.mitarbeiter }}</strong>{% endif %}
-    </p>
   </div>
 
   {% if je_klient %}
-  <div class="kennzahlen kennzahlen-auswertung">
-    {# Die Einheit steht klein und gedämpft hinter der Zahl – sie soll
-       lesbar sein, aber nicht mit ihr um Aufmerksamkeit ringen. #}
-    {# Vier Kästen, vier Töne: das Geleistete grün, das Bewilligte blau
-       als Bezugsgröße, die Abweichung rot oder grün je nach Vorzeichen,
-       der Verdienst in der Akzentfarbe. Zwei farblose Kästen dazwischen
-       sahen aus, als fehlte ihnen etwas. #}
+  <div class="kennzahlen kennzahlen-auswertung{{ ' ohne-geld' if not geld }}">
     <div class="kennzahl k-geleistet">
       <span class="kzahl">{{ zusammenfassung.ist | hhmm }}<span class="kmass">Std</span></span>
-      <span class="klabel">geleistet · {{ zusammenfassung.n }} Einheiten</span>
+      <span class="klabel">geleistet · {{ zusammenfassung.n }} Einträge</span>
     </div>
     <div class="kennzahl {{ 'k-bewilligt' if zusammenfassung.soll }}">
       <span class="kzahl">
@@ -66,7 +59,7 @@
           {{ zusammenfassung.soll | hhmm }}<span class="kmass">Std</span>
         {%- else -%}—{%- endif -%}
       </span>
-      <span class="klabel">bewilligt{% if zusammenfassung.prozent %} · {{ zusammenfassung.prozent }} % genutzt{% endif %}</span>
+      <span class="klabel">Soll{% if zusammenfassung.prozent is not none %} · {{ zusammenfassung.prozent }} % erreicht{% endif %}</span>
     </div>
     <div class="kennzahl {% if zusammenfassung.abweichung is not none %}{{ 'hat k-ueberfaellig' if zusammenfassung.abweichung < 0 else 'k-plus' }}{% endif %}">
       <span class="kzahl">
@@ -74,13 +67,14 @@
           {{ '+' if zusammenfassung.abweichung >= 0 }}{{ zusammenfassung.abweichung | hhmm }}<span class="kmass">Std</span>
         {%- else -%}—{%- endif -%}
       </span>
-      <span class="klabel">Abweichung</span>
+      <span class="klabel">Abweichung vom Soll</span>
     </div>
+    {% if geld %}
     <div class="kennzahl k-verdienst">
       <span class="kzahl">{{ verdienst_gesamt | euro }}</span>
-      <span class="klabel">Verdienst · {{ zusammenfassung.personen }}
-        {{ "Person" if zusammenfassung.personen == 1 else "Personen" }}</span>
+      <span class="klabel">Verdienst, rechnerisch</span>
     </div>
+    {% endif %}
   </div>
 
   <div class="tabellenrolle">
@@ -91,37 +85,36 @@
            Zahlenspalten die Einheit, bei den beiden anderen das, was
            dort steht. So sind alle Köpfe gleich hoch und gleich gebaut. #}
         <th>Betreute Person <span class="massangabe">Name</span></th>
-        <th class="einheitspalte">Einheit <span class="massangabe">Anz</span></th>
+        <th class="einheitspalte">Einträge <span class="massangabe">Anz</span></th>
         <th>Geleistet <span class="massangabe">Std</span></th>
-        <th>Bewilligt <span class="massangabe">Std</span></th>
+        <th>Soll <span class="massangabe">Std</span></th>
         <th>Abweichung <span class="massangabe">Std</span></th>
-        <th>Satz <span class="massangabe">€</span></th>
+        {% if geld %}
+        <th>Satz <span class="massangabe">€/Std</span></th>
         <th>Verdienst <span class="massangabe">€</span></th>
+        {% endif %}
       </tr>
     </thead>
     <tbody>
     {% for r in je_klient %}
       <tr>
-        {# Der Kontingentbalken steht in der Seitenspalte, nicht hier -
-           in einer Tabellenzelle zog er jede Zeile auf drei Zeilen auf. #}
         <td class="stark">{{ r.klient }}</td>
         <td class="zahlen leise">{{ r.n }}</td>
         <td class="zahlen stark">{{ r.m | hhmm }}</td>
-        {# Keine Marke in der Zelle: sie zwang die Zeile zum Umbruch. Dass
-           gestaffelt gerechnet wurde, steht in der Spalte „Satz“ („2
-           Sätze“) und als Hinweis unter der Tabelle. #}
         <td class="zahlen leise">{% if r.soll %}{{ r.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
         <td class="zahlen">
           {% if r.abweichung is not none %}
             <span class="marke-status {{ 'gut' if r.abweichung >= 0 else 'dopp' }}">{{ '+' if r.abweichung >= 0 }}{{ r.abweichung | hhmm }}</span>
           {% else %}<span class="platzhalter">—</span>{% endif %}
         </td>
+        {% if geld %}
         <td class="zahlen leise">
           {% if r.satz is not none %}{{ r.satz | zahl }}
           {% elif r.saetze %}{{ r.saetze | length }} Sätze
           {% else %}<span class="platzhalter">—</span>{% endif %}
         </td>
         <td class="zahlen stark betrag">{% if r.betrag %}{{ r.betrag | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+        {% endif %}
       </tr>
     {% endfor %}
     </tbody>
@@ -133,29 +126,32 @@
         <td class="zahlen stark">{{ zusammenfassung.ist | hhmm }}</td>
         <td class="zahlen leise">{% if zusammenfassung.soll %}{{ zusammenfassung.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
         <td></td>
+        {% if geld %}
         <td></td>
         <td class="zahlen stark betrag gross">{{ verdienst_gesamt | zahl }}</td>
+        {% endif %}
       </tr>
     </tfoot>
     {% endif %}
   </table>
   </div>
 
-  {# ⚠️ Seit 2.0 zugeklappt: vier Absätze Kleingedrucktes unter der Tabelle
-     standen bei jedem Besuch da und wogen so schwer wie eine Zeile Zahlen.
-     Wer wissen will, wie gerechnet wird, klappt auf - dieselbe Form wie
-     die Hinweise in den Einstellungen. Die Texte selbst sind unverändert. #}
+  {# EINE Erklärung für die ganze Seite (bis 2.1 standen zwei
+     „Wie wird gerechnet?“ auf derselben Seite). #}
   <details class="hinweise auswertung-hinweise">
     <summary>Wie wird gerechnet?{% if gestaffelt or not soll_aktiv %} <span class="marke-status offen">bitte lesen</span>{% endif %}</summary>
     <div class="hinweise-inhalt">
       <p class="klein leise">{{ t("auswertung.soll_erklaerung") }}</p>
+      <p class="klein leise">{{ t("auswertung.monate_lead") }}</p>
       {% if gestaffelt %}
       <p class="klein leise">{{ t("auswertung.gestaffelt") }}</p>
       {% endif %}
       {% if not soll_aktiv %}
       <p class="klein leise">{{ t("auswertung.soll_fehlt") }}</p>
       {% endif %}
-      <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.verdienst_hinweis") }}</p>
+      {% if geld %}
+      <p class="klein leise">{{ t("auswertung.verdienst_hinweis") }}</p>
+      {% endif %}
     </div>
   </details>
   {% else %}
@@ -166,154 +162,162 @@
 {# --- Monat für Monat ------------------------------------------------------
    Für einen Nachweis gegenüber dem Kostenträger reicht die Summe über den
    ganzen Zeitraum nicht: es zählt der einzelne Monat, und der rechnet mit
-   dem Satz, der in genau diesem Monat bewilligt war. Erst ab zwei Monaten –
-   bei einem einzigen stünde hier dasselbe noch einmal. #}
-{% if monatsbloecke and monate_anzahl > 1 %}
-<div class="abschnittsband" id="monate">
-  <h2>{{ t("auswertung.titel.monate") }}</h2>
-  <p class="klein leise">{{ t("auswertung.monate_lead") }}</p>
-</div>
+   dem Satz, der in genau diesem Monat bewilligt war. Erst ab zwei Monaten.
 
-{# --- Kachel „Monate“: alle Monate auf einen Blick -----------------------
-   Seit 2.1 eine eigene Kachel statt der Sprungliste in der Seitenspalte.
-   Je Monat eine Säule: Füllung = geleistet, Umriss = Soll. Überfahren
-   (oder Antabben) zeigt die Werte, ein Klick springt zum Monatsblock -
-   reines HTML/CSS, kein Skript, keine Diagrammbibliothek (Abschnitt 13). #}
-{% if diagramm %}
-<section class="karte monatsbild" id="monatsbild">
+   ⚠️ Seit 2.2 EINE Karte: oben die Säulen, darunter je Monat eine Zeile,
+   die zur Tabelle der Personen aufklappt. Bis 2.1 stand jeder Monat als
+   eigene Karte mit ausgeklappter Tabelle da - gemessen 5.100px von 8.300px
+   Seitenhöhe. Ein Klick auf eine Säule öffnet den Monat (Skript unten),
+   ohne Skript springt er nur dorthin. #}
+{% if monatsbloecke and monate_anzahl > 1 %}
+<section class="karte monatskarte" id="monate">
   <div class="kopfzeile">
-    <h2>{{ t("auswertung.titel.monatsliste") }}</h2>
-    <p class="boxumfang">{{ zeitraum_wort }} · {{ monate_anzahl }} Monate</p>
+    <h2>{{ t("auswertung.titel.monate") }}</h2>
   </div>
   <p class="lead">{{ t("auswertung.monatsliste_lead") }}</p>
 
-  <dl class="mb-zahlen">
-    <div>
-      <dt>Ausgeschöpft</dt>
-      <dd>{% if zusammenfassung.prozent is not none %}<span class="zahlen">{{ zusammenfassung.prozent }} %</span>{% else %}–{% endif %}</dd>
-      <dd class="mb-fuss">{{ zusammenfassung.ist | hhmm }} von {{ (zusammenfassung.soll or 0) | hhmm }} Std</dd>
-    </div>
-    {% if diagramm.staerkster %}
-    <div>
-      <dt>Stärkster Monat <span class="mb-dt-zusatz">abgeschlossen</span></dt>
-      <dd><span class="zahlen">{{ diagramm.staerkster.prozent }} %</span></dd>
-      <dd class="mb-fuss">{{ diagramm.staerkster.wort }}</dd>
-    </div>
-    <div>
-      <dt>Schwächster Monat <span class="mb-dt-zusatz">abgeschlossen</span></dt>
-      <dd><span class="zahlen">{{ diagramm.schwaechster.prozent }} %</span></dd>
-      <dd class="mb-fuss">{{ diagramm.schwaechster.wort }}</dd>
-    </div>
-    {% endif %}
-    <div>
-      <dt>Verdienst</dt>
-      <dd><span class="zahlen">{{ verdienst_gesamt | euro }}</span></dd>
-      <dd class="mb-fuss">rechnerisch, über alle Monate</dd>
-    </div>
-  </dl>
-
-  <div class="mb-flaeche">
-    <div class="mb-plot">
-      {% for l in diagramm.linien %}
-      <span class="mb-linie" style="bottom: {{ l.pos }}%"><span class="mb-linie-wert zahlen">{{ l.wert }}</span></span>
-      {% endfor %}
-      <ol class="mb-saeulen" style="--anzahl: {{ diagramm.saeulen | length }}">
-        {% for b in diagramm.saeulen %}
-        <li>
-          <a class="mb-saeule mb-{{ b.lage }} mb-{{ b.zeit }}" href="#monat-{{ b.monat }}"
-             style="--h: {{ [b.h_ist, b.h_soll] | max }}%"
-             aria-label="{{ b.wort }}: {{ b.ist | hhmm }} von {{ (b.soll or 0) | hhmm }} Stunden{% if b.prozent is not none %}, {{ b.prozent }} Prozent{% endif %}">
-            <span class="mb-soll" style="height: {{ b.h_soll }}%"></span>
-            <span class="mb-ist" style="height: {{ b.h_ist }}%"></span>
-            <span class="mb-tip">
-              <b>{{ b.wort }}{% if b.zeit == "laufend" %} · läuft{% elif b.zeit == "kuenftig" %} · kommt noch{% endif %}</b>
-              <span class="zahlen">{{ b.ist | hhmm }}{% if b.soll %} von {{ b.soll | hhmm }}{% endif %} Std</span>
-              {% if b.prozent is not none %}<span class="mb-tip-prozent mb-{{ b.lage }} zahlen">{{ b.prozent }} %</span>{% endif %}
-              <span class="zahlen">{{ b.betrag | euro }}</span>
-            </span>
-          </a>
-          <span class="mb-monat{{ ' mb-neben' if loop.revindex0 % 2 }}">{{ b.kurz }}</span>
-        </li>
+  {% if diagramm %}
+  <div class="monatsbild">
+    <div class="mb-flaeche">
+      <div class="mb-plot">
+        {% for l in diagramm.linien %}
+        <span class="mb-linie" style="bottom: {{ l.pos }}%"><span class="mb-linie-wert zahlen">{{ l.wert }}</span></span>
         {% endfor %}
-      </ol>
+        <ol class="mb-saeulen" style="--anzahl: {{ diagramm.saeulen | length }}">
+          {% for b in diagramm.saeulen %}
+          <li>
+            <a class="mb-saeule mb-{{ b.lage }} mb-{{ b.zeit }}" href="#monat-{{ b.monat }}"
+               style="--h: {{ [b.h_ist, b.h_soll] | max }}%"
+               aria-label="{{ b.wort }}: {{ b.ist | hhmm }} Stunden geleistet{% if b.soll %} von {{ b.soll | hhmm }} Stunden Soll{% endif %}{% if b.prozent is not none %}, {{ b.prozent }} Prozent des Solls erreicht{% endif %}">
+              <span class="mb-soll" style="height: {{ b.h_soll }}%"></span>
+              <span class="mb-ist" style="height: {{ b.h_ist }}%"></span>
+              <span class="mb-tip">
+                <b>{{ b.wort }}{% if b.zeit == "laufend" %} · läuft noch{% elif b.zeit == "kuenftig" %} · liegt in der Zukunft{% endif %}</b>
+                <span>Geleistet: <span class="zahlen">{{ b.ist | hhmm }} Std</span></span>
+                {% if b.soll %}<span>Soll: <span class="zahlen">{{ b.soll | hhmm }} Std</span></span>{% endif %}
+                {% if b.prozent is not none %}<span class="mb-tip-prozent mb-{{ b.lage }}"><span class="zahlen">{{ b.prozent }} %</span> des Solls erreicht</span>{% endif %}
+                {% if geld %}<span>Verdienst: <span class="zahlen">{{ b.betrag | euro }}</span></span>{% endif %}
+              </span>
+            </a>
+            <span class="mb-monat{{ ' mb-neben' if loop.revindex0 % 2 }}">{{ b.kurz }}</span>
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
     </div>
+    <p class="mb-legende">
+      <span><span class="mb-zeichen-ist"></span>geleistete Stunden</span>
+      <span><span class="mb-zeichen-soll"></span>Soll</span>
+      <span><span class="mb-zeichen-knapp"></span>weniger als 90 % des Solls</span>
+    </p>
+    {% if diagramm.staerkster %}
+    <p class="mb-spanne">
+      Bester abgeschlossener Monat: <strong>{{ diagramm.staerkster.wort }}</strong> mit {{ diagramm.staerkster.prozent }} % des Solls
+      {%- if diagramm.schwaechster.monat != diagramm.staerkster.monat %} · schwächster: <strong>{{ diagramm.schwaechster.wort }}</strong> mit {{ diagramm.schwaechster.prozent }} %{% endif %}
+    </p>
+    {% endif %}
   </div>
-  <p class="mb-legende">
-    <span><span class="mb-zeichen-ist"></span>geleistet</span>
-    <span><span class="mb-zeichen-soll"></span>Soll</span>
-    <span><span class="mb-zeichen-knapp"></span>unter 90 % des Solls</span>
-    <span class="leise">Std · ein Klick springt zum Monat</span>
-  </p>
-</section>
-{% endif %}
-
-<div class="monatsliste">
-{% for b in monatsbloecke %}
-<section class="karte monatsblock {{ 'ohne-zeiten' if b.leer }}" id="monat-{{ b.monat }}">
-  <div class="monatsleiste">
-    <h3>{{ b.wort }}</h3>
-    <div class="monatswerte">
-      <span class="mwert">
-        <span class="mlabel">geleistet</span>
-        <span class="zahlen stark">{{ b.ist | hhmm }}<span class="massangabe">Std</span></span>
-      </span>
-      <span class="mwert">
-        <span class="mlabel">bewilligt</span>
-        <span class="zahlen leise">
-          {%- if b.soll %}{{ b.soll | hhmm }}<span class="massangabe">Std</span>{% else %}<span class="platzhalter">—</span>{% endif -%}
-        </span>
-      </span>
-      {% if b.abweichung is not none %}
-      <span class="marke-status {{ 'gut' if b.abweichung >= 0 else 'dopp' }}">
-        {{ '+' if b.abweichung >= 0 }}{{ b.abweichung | hhmm }}
-      </span>
-      {% endif %}
-      <span class="monatsbetrag zahlen">{{ b.betrag | euro }}</span>
-    </div>
-  </div>
-
-  <div class="tabellenrolle">
-  {# Dieselbe Spaltenfolge wie im Überblick, damit das Auge sie nicht neu
-     lernen muss. #}
-  <table class="liste dicht auswertungsblatt monatsblatt">
-    <thead>
-      <tr><th>Betreute Person <span class="massangabe">Name</span></th>
-          <th class="einheitspalte">Einheit <span class="massangabe">Anz</span></th>
-          <th>Geleistet <span class="massangabe">Std</span></th>
-          <th>Bewilligt <span class="massangabe">Std</span></th>
-          <th>Abweichung <span class="massangabe">Std</span></th>
-          <th>Satz <span class="massangabe">€</span></th>
-          <th>Verdienst <span class="massangabe">€</span></th></tr>
-    </thead>
-    <tbody>
-      {% for z in b.zeilen %}
-      <tr class="{{ 'ohne-ist' if not z.m }}">
-        <td class="stark">{{ z.klient }}</td>
-        <td class="zahlen leise">{% if z.n %}{{ z.n }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-        <td class="zahlen stark">{% if z.m %}{{ z.m | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-        {# Ohne Marke: sie brach jede zweite Zeile um. Wo der Grundwert
-           gegriffen hat, steht gebündelt in der Seitenspalte unter
-           „Bewilligt“ – einmal je Person statt einmal je Zeile. #}
-        <td class="zahlen leise">{% if z.soll %}{{ z.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-        <td class="zahlen">
-          {% if z.abweichung is not none %}
-          <span class="marke-status {{ 'gut' if z.abweichung >= 0 else 'dopp' }}">{{ '+' if z.abweichung >= 0 }}{{ z.abweichung | hhmm }}</span>
-          {% else %}<span class="platzhalter">—</span>{% endif %}
-        </td>
-        <td class="zahlen leise">{% if z.satz %}{{ z.satz | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-        <td class="zahlen stark betrag">{% if z.betrag %}{{ z.betrag | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% if b.leer %}
-  <p class="klein leise" style="margin: 10px 0 0;">{{ t("auswertung.monat_leer") }}</p>
   {% endif %}
+
+  {# Je Monat eine Zeile, die zur Tabelle der Personen aufklappt. Kopf und
+     Zeilen teilen sich die Spaltenaufteilung über --mz-raster (dieselbe
+     Lehre wie bei --erfassraster und --vz-raster). Gestapelt ist der
+     Ausgangszustand, die eine Zeile kommt über eine Container-Abfrage. #}
+  <div class="mz-liste{{ ' mit-geld' if geld }}">
+    <div class="mz-kopf" aria-hidden="true">
+      <span>Monat</span><span>Geleistet</span><span>Soll</span>
+      <span>Erreicht</span><span>Abweichung</span>
+      {% if geld %}<span>Verdienst</span>{% endif %}
+      <span></span>
+    </div>
+    {% for b in monatsbloecke %}
+    <details class="mz mz-{{ b.zeit }}{{ ' mz-leer' if b.leer }}" id="monat-{{ b.monat }}">
+      <summary class="mz-zeile">
+        <span class="mz-monat">{{ b.wort }}{% if b.zeit == "laufend" %} <span class="mz-zusatz">läuft</span>{% endif %}</span>
+        <span class="mz-wert mz-ist"><i>Geleistet</i><b class="zahlen">{{ b.ist | hhmm }}</b></span>
+        <span class="mz-wert mz-soll"><i>Soll</i><b class="zahlen">{% if b.soll %}{{ b.soll | hhmm }}{% else %}–{% endif %}</b></span>
+        <span class="mz-wert mz-erreicht">
+          <i>Erreicht</i>
+          {% if b.prozent is not none %}
+          <span class="mz-spur"><span class="mz-fuellung mz-{{ 'voll' if b.prozent >= 100 else ('knapp' if b.prozent < 90 else 'nah') }}" style="width: {{ [b.prozent, 100] | min }}%"></span></span>
+          <b class="zahlen">{{ b.prozent }} %</b>
+          {% else %}<b>–</b>{% endif %}
+        </span>
+        <span class="mz-wert mz-abw"><i>Abweichung</i>
+          {% if b.abweichung is not none %}<b class="zahlen {{ 'mz-plus' if b.abweichung >= 0 else 'mz-minus' }}">{{ '+' if b.abweichung >= 0 }}{{ b.abweichung | hhmm }}</b>{% else %}<b>–</b>{% endif %}
+        </span>
+        {% if geld %}<span class="mz-wert mz-geld"><i>Verdienst</i><b class="zahlen">{{ b.betrag | euro }}</b></span>{% endif %}
+        <span class="bs-pfeil" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </summary>
+
+      <div class="mz-detail">
+        {% if b.leer %}
+        <p class="klein leise" style="margin: 0 0 10px;">{{ t("auswertung.monat_leer") }}</p>
+        {% endif %}
+        <div class="tabellenrolle">
+        {# Dieselbe Spaltenfolge wie im Überblick, damit das Auge sie nicht
+           neu lernen muss. #}
+        <table class="liste dicht auswertungsblatt monatsblatt">
+          <thead>
+            <tr><th>Betreute Person <span class="massangabe">Name</span></th>
+                <th class="einheitspalte">Einträge <span class="massangabe">Anz</span></th>
+                <th>Geleistet <span class="massangabe">Std</span></th>
+                <th>Soll <span class="massangabe">Std</span></th>
+                <th>Abweichung <span class="massangabe">Std</span></th>
+                {% if geld %}
+                <th>Satz <span class="massangabe">€/Std</span></th>
+                <th>Verdienst <span class="massangabe">€</span></th>
+                {% endif %}</tr>
+          </thead>
+          <tbody>
+            {% for z in b.zeilen %}
+            <tr class="{{ 'ohne-ist' if not z.m }}">
+              <td class="stark">{{ z.klient }}</td>
+              <td class="zahlen leise">{% if z.n %}{{ z.n }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+              <td class="zahlen stark">{% if z.m %}{{ z.m | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+              <td class="zahlen leise">{% if z.soll %}{{ z.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+              <td class="zahlen">
+                {% if z.abweichung is not none %}
+                <span class="marke-status {{ 'gut' if z.abweichung >= 0 else 'dopp' }}">{{ '+' if z.abweichung >= 0 }}{{ z.abweichung | hhmm }}</span>
+                {% else %}<span class="platzhalter">—</span>{% endif %}
+              </td>
+              {% if geld %}
+              <td class="zahlen leise">{% if z.satz %}{{ z.satz | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+              <td class="zahlen stark betrag">{% if z.betrag %}{{ z.betrag | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+
+  {# Klick auf eine Säule: den Monat aufklappen, dann springt der Verweis
+     hin. Dasselbe beim Laden mit Sprungmarke in der Adresse. Diese Seite
+     wird nicht über htmx getauscht - der Horcher am Fenster ist deshalb
+     nur einmal da. #}
+  <script>
+  (function () {
+    function oeffnen(id) {
+      var ziel = id && document.getElementById(id);
+      if (ziel && ziel.tagName === "DETAILS") ziel.open = true;
+    }
+    var saeulen = document.querySelector(".mb-saeulen");
+    if (saeulen) saeulen.addEventListener("click", function (e) {
+      var a = e.target.closest("a.mb-saeule");
+      if (a) oeffnen(a.hash.slice(1));
+    });
+    window.addEventListener("hashchange", function () { oeffnen(location.hash.slice(1)); });
+    oeffnen(location.hash.slice(1));
+  })();
+  </script>
 </section>
-{% endfor %}
-</div>
 {% endif %}
+
+
 
 </div>
 

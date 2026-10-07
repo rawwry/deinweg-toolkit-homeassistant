@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% from "_untermenue.html" import arbeitszeit, auswertung_reiter with context %}
+{% block titel %} – Bewilligungen{% endblock %}
+{% block inhalt %}
+
+{{ arbeitszeit('auswertung') }}
+{{ auswertung_reiter('bewilligungen') }}
+
+{# --- Bewilligungen (seit 2.2 eine eigene Unterseite) -------------------------
+   Wunsch aus der Praxis: „Bin ich bei dieser Person HEUTE im Plan?“ Je
+   Person zählt allein der Bescheid, in dessen Zeitraum heute fällt -
+   ⚠️ es gibt hier bewusst KEINEN Zeitraumfilter (rechnen.bewilligungsstand).
+
+   Aufbau: eine Bilanzleiste, darunter Pillen nach Stand (sie filtern die
+   Liste, die Bilanz bleibt beim Ganzen), dann die Liste in Abschnitten
+   nach Dringlichkeit. Farbe trägt nur der Stand (Punkt und Wort) und die
+   Füllung des Balkens. Jede Person mit Bescheid klappt zu ihrer
+   Monatstabelle auf - bewusst <details> und kein Skript. #}
+{% set darf_pflegen = hat_zugriff(request.state.benutzer, "einstellungen")
+      and hat_einst_zugriff(request.state.benutzer, "betreute") %}
+{% macro stand_wort(z) -%}
+  {%- if z.abweichung >= 0 -%}
+    <span class="bs-stand bs-gruen">im Plan{% if z.abweichung > 0 %} · {{ z.abweichung | hhmm }} Std voraus{% endif %}</span>
+  {%- else -%}
+    <span class="bs-stand bs-{{ z.ampel }}">noch {{ z.offen | hhmm }} Std offen</span>
+  {%- endif -%}
+{%- endmacro %}
+{% macro pfeil() %}<span class="bs-pfeil" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endmacro %}
+
+<section class="karte bewilligungsstand" id="stand">
+  <div class="kopfzeile">
+    <h1>{{ t("auswertung.titel.stand") }}</h1>
+    <p class="boxumfang">Stand: <strong>{{ stand.heute | deutsch }}</strong></p>
+  </div>
+  <p class="lead">{{ t("auswertung.stand_lead") }}</p>
+
+  {% if stand.zeilen %}
+  {% set s = stand.summe %}
+  {# Die Summen über alle Personen mit Bescheid. Vier gleich gebaute
+     Felder in einer Leiste; farbig ist allein die Abweichung. #}
+  <dl class="bs-bilanz">
+    <div class="bs-wert">
+      <dt>Geleistet</dt>
+      <dd><span class="zahlen">{{ s.ist | hhmm }}</span><span class="kmass">Std</span></dd>
+      <dd class="bs-wert-fuss">seit Beginn der Bescheide · {{ s.personen }} {{ "Person" if s.personen == 1 else "Personen" }}</dd>
+    </div>
+    <div class="bs-wert">
+      <dt>Soll bis heute</dt>
+      <dd><span class="zahlen">{{ s.soll | hhmm }}</span><span class="kmass">Std</span></dd>
+      <dd class="bs-wert-fuss">einschließlich des laufenden Monats</dd>
+    </div>
+    <div class="bs-wert">
+      <dt>Abweichung vom Soll</dt>
+      <dd class="{{ 'bs-minus' if s.abweichung < 0 else 'bs-plus' }}"><span class="zahlen">{{ '+' if s.abweichung >= 0 }}{{ s.abweichung | hhmm }}</span><span class="kmass">Std</span></dd>
+      <dd class="bs-wert-fuss">{% if s.rot %}{{ s.rot }} {{ "Person" if s.rot == 1 else "Personen" }} im Rückstand{% else %}niemand im Rückstand{% endif %}</dd>
+    </div>
+    <div class="bs-wert">
+      <dt>Kontingent gesamt</dt>
+      <dd>{% if s.gesamt %}<span class="zahlen">{{ s.gesamt | hhmm }}</span><span class="kmass">Std</span>{% else %}–{% endif %}</dd>
+      <dd class="bs-wert-fuss">{% if s.prozent is not none %}davon {{ s.prozent }} % geleistet{% else %}keine befristeten Bescheide{% endif %}</dd>
+    </div>
+  </dl>
+
+  {# Die Pillen filtern die Liste darunter (?lage=…). Ohne Skript sind es
+     gewöhnliche Verweise, mit htmx tauscht nur der Bereich darunter -
+     kein Sprung an den Seitenanfang. Die Leiste darüber zeigt die
+     Verteilung über alle Personen. #}
+  <div id="bs-bereich" class="bs-bereich">
+    <div class="bs-leiste" aria-hidden="true">
+      {% for ab in stand.abschnitte %}
+      <span class="bs-stueck bs-ab-{{ ab.schluessel }}" style="flex-grow: {{ ab.zeilen | length }}"></span>
+      {% endfor %}
+    </div>
+    <nav class="bs-lagen" aria-label="Personen nach Stand"
+         hx-boost="true" hx-target="#bs-bereich" hx-select="#bs-bereich"
+         hx-swap="outerHTML" hx-push-url="true">
+      <a href="/auswertung" class="ak-pille{{ ' aktiv' if not lage }}"
+         {{ 'aria-current=true' if not lage }}>Alle <span class="ak-zahl">{{ stand.zeilen | length }}</span></a>
+      {% for ab in stand.abschnitte %}
+      <a href="/auswertung?lage={{ ab.schluessel }}" class="ak-pille{{ ' aktiv' if lage == ab.schluessel }}"
+         {{ 'aria-current=true' if lage == ab.schluessel }}><span class="bs-punkt bs-ab-{{ ab.schluessel }}"></span>{{ ab.titel }} <span class="ak-zahl">{{ ab.zeilen | length }}</span></a>
+      {% endfor %}
+    </nav>
+
+    <div class="bs-liste">
+      <div class="bs-kopf" aria-hidden="true">
+        <span class="bs-c-name">Betreute Person</span>
+        <span class="bs-c-ist">Geleistet</span>
+        <span class="bs-c-soll">Soll bis heute</span>
+        <span class="bs-c-stand">Stand</span>
+        <span class="bs-c-balken">Kontingent</span>
+      </div>
+
+      {% for ab in abschnitte %}
+      <div class="bs-abschnitt" id="bs-ab-{{ ab.schluessel }}">
+        <span class="bs-punkt bs-ab-{{ ab.schluessel }}"></span>
+        <span class="bs-abschnitt-titel">{{ ab.titel }}</span>
+        <span class="bs-abschnitt-zahl zahlen">{{ ab.zeilen | length }}</span>
+      </div>
+
+      {% for z in ab.zeilen %}
+      {% if z.monate %}
+      <details class="bs-zeile" id="stand-{{ z.id }}">
+        <summary class="bs-summary">
+          <span class="bs-c-name">
+            <span class="bs-name">{{ z.name }}</span>
+            <span class="bs-unter">
+              {%- if z.art == "beantragt" %}<span class="bs-marke {{ 'bs-rot' if z.lange else 'bs-orange' }}">{{ 'beantragt · seit 6 Monaten – bitte nachhaken' if z.lange else 'beantragt' }}</span>{% endif -%}
+              {{ z.von | deutsch }} – {{ z.bis | deutsch if z.bis else 'offen' }} · {{ z.wochenstunden | stunden }} Std pro Woche
+            </span>
+          </span>
+          <span class="bs-c-ist"><i>Geleistet</i><b class="zahlen">{{ z.ist | hhmm }}</b></span>
+          <span class="bs-c-soll"><i>Soll bis heute</i><b class="zahlen">{{ z.soll | hhmm }}</b></span>
+          <span class="bs-c-stand">{{ stand_wort(z) }}</span>
+          <span class="bs-c-balken">
+            <span class="bs-spur" title="Geleistet {{ z.ist | hhmm }} Std · Soll bis heute {{ z.soll | hhmm }} Std{% if z.gesamt %} · Kontingent {{ z.gesamt | hhmm }} Std{% endif %}">
+              <span class="bs-fuellung bs-{{ z.ampel }}" style="width: {{ z.balken.ist }}%"></span>
+              <span class="bs-sollstrich" style="left: {{ z.balken.soll }}%"></span>
+            </span>
+            <span class="bs-anteil">
+              {%- if z.gesamt %}<b class="zahlen">{{ z.prozent }} %</b> von {{ z.gesamt | hhmm }} Std{% else %}unbefristet{% endif -%}
+            </span>
+          </span>
+          {{ pfeil() }}
+        </summary>
+
+        <div class="bs-detail">
+          {# Soll und Geleistet aufsummiert: wo die Linien auseinanderlaufen,
+             ist der Rückstand entstanden. Zahlen dazu in der Tabelle. #}
+          <figure class="bs-verlauf">
+            <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+              {% if z.verlauf.heute is not none %}<line class="bs-v-heute" x1="{{ z.verlauf.heute }}" x2="{{ z.verlauf.heute }}" y1="0" y2="40"/>{% endif %}
+              <polyline class="bs-v-soll" points="{{ z.verlauf.soll }}"/>
+              {% if z.verlauf.ist %}<polyline class="bs-v-ist bs-{{ z.ampel }}" points="{{ z.verlauf.ist }}"/>{% endif %}
+            </svg>
+            <figcaption>
+              <span>{{ z.monate[0].wort }}</span>
+              <span class="bs-v-legende"><span class="bs-v-ist-zeichen bs-{{ z.ampel }}"></span>geleistet, aufsummiert <span class="bs-v-soll-zeichen"></span>Soll, aufsummiert</span>
+              <span>{{ z.monate[-1].wort }}</span>
+            </figcaption>
+          </figure>
+          <div class="tabellenrolle">
+          <table class="liste dicht bs-tabelle">
+            <thead>
+              <tr><th>Monat</th>
+                  <th>Soll im Monat <span class="massangabe">Std</span></th>
+                  <th>Soll bis dahin <span class="massangabe">Std</span></th>
+                  <th>Geleistet im Monat <span class="massangabe">Std</span></th>
+                  <th>Geleistet bis dahin <span class="massangabe">Std</span></th>
+                  <th>Abweichung bis dahin <span class="massangabe">Std</span></th></tr>
+            </thead>
+            <tbody>
+            {% for m in z.monate %}
+              <tr class="{{ 'zeile-laufend' if m.laufend }}{{ ' bs-kuenftig' if m.kuenftig }}">
+                <td>{{ m.wort }}{% if m.laufend %} <span class="leise klein">· läuft</span>{% endif %}</td>
+                <td class="zahlen">{{ m.soll | hhmm }}</td>
+                <td class="zahlen">{{ m.soll_kum | hhmm }}</td>
+                {% if m.kuenftig %}
+                <td></td><td></td><td></td>
+                {% else %}
+                <td class="zahlen">{{ m.ist | hhmm }}</td>
+                <td class="zahlen">{{ m.ist_kum | hhmm }}</td>
+                <td class="zahlen {{ 'bs-plus' if m.abw_kum >= 0 else 'bs-minus' }}">{{ '+' if m.abw_kum >= 0 }}{{ m.abw_kum | hhmm }}</td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+            </tbody>
+            {% if z.gesamt %}
+            <tfoot>
+              <tr><td class="stark">Kontingent des Bescheids</td>
+                  <td class="zahlen stark">{{ z.gesamt | hhmm }}</td>
+                  <td></td><td></td><td></td><td></td></tr>
+            </tfoot>
+            {% endif %}
+          </table>
+          </div>
+        </div>
+      </details>
+      {% else %}
+      {# Ohne geltenden Bescheid gibt es nichts zu rechnen - die Zeile sagt,
+         warum, und führt (wer darf) dorthin, wo man es behebt. Gleich gebaut
+         wie die übrigen, damit die Spalten durchlaufen. #}
+      <div class="bs-zeile bs-flach">
+        <div class="bs-summary">
+          <span class="bs-c-name">
+            <span class="bs-name">{{ z.name }}</span>
+            <span class="bs-unter">
+              {%- if z.art == "selbstzahler" %}kein Kontingent · geleistet im {{ monat_wort(stand.heute[:7]) }}
+              {%- elif z.art == "abgelaufen" %}Ist ein Folgeantrag gestellt? Dann trag ihn als „beantragt“ ein.
+              {%- elif z.art == "kuenftig" %}der nächste Bescheid gilt erst ab {{ z.ab | deutsch }}
+              {%- else %}noch kein Bewilligungszeitraum eingetragen{% endif -%}
+            </span>
+          </span>
+          <span class="bs-c-ist{{ ' bs-leer' if z.art != 'selbstzahler' }}"><i>Geleistet</i><b class="zahlen">{% if z.art == "selbstzahler" %}{{ z.ist | hhmm }}{% else %}–{% endif %}</b></span>
+          <span class="bs-c-soll bs-leer"><i>Soll bis heute</i><b>–</b></span>
+          <span class="bs-c-stand">
+            {%- if z.art == "selbstzahler" %}<span class="bs-stand bs-info">Selbstzahler</span>
+            {%- elif z.art == "abgelaufen" %}<span class="bs-stand bs-rot">abgelaufen seit {{ z.seit | deutsch }}</span>
+            {%- else %}<span class="bs-stand bs-rot">Bewilligung fehlt</span>{% endif -%}
+          </span>
+          <span class="bs-c-balken">
+            {% if darf_pflegen and z.art != "selbstzahler" %}
+            <a class="bs-pflegen" href="/einstellungen?bereich=betreute&offen={{ z.id }}#person-{{ z.id }}">Zeiträume pflegen</a>
+            {% endif %}
+          </span>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <details class="hinweise auswertung-hinweise">
+    <summary>Wie wird gerechnet?</summary>
+    <div class="hinweise-inhalt">
+      <p class="klein leise">{{ t("auswertung.stand_rechnung") }}</p>
+      <ul class="bs-ampel-erklaerung klein leise">
+        <li><span class="bs-punkt bs-ab-plan"></span><span>{{ t("auswertung.ampel_gruen") }}</span></li>
+        <li><span class="bs-punkt bs-ab-offen"></span><span>{{ t("auswertung.ampel_gelb") }}</span></li>
+        <li><span class="bs-punkt bs-ab-rueckstand"></span><span>{{ t("auswertung.ampel_rot") }}</span></li>
+        <li><span class="bs-punkt bs-ab-vorlaeufig"></span><span>{{ t("auswertung.ampel_orange") }}</span></li>
+      </ul>
+      <p class="klein leise" style="margin-bottom: 0;">{{ t("auswertung.balken_erklaerung") }}</p>
+    </div>
+  </details>
+  {% else %}
+  <p class="leer">{{ t("auswertung.stand_leer") }}</p>
+  {% endif %}
+</section>
+
+{% endblock %}

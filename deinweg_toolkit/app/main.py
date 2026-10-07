@@ -49,7 +49,7 @@ from .rechnen import (  # noqa: F401
 BASIS = os.path.dirname(__file__)
 
 APP_NAME = os.environ.get("APP_NAME", "Dein Weg Toolkit")
-VERSION = "2.1"
+VERSION = "2.2"
 
 # Änderungsprotokoll, chronologisch von alt nach neu. Die Seite dreht die
 # Reihenfolge selbst. Bewusst hier im Code und nicht in einer Textdatei, damit
@@ -287,6 +287,35 @@ def texte_verschlanken() -> None:
               f"{len(schlank)} eigene", flush=True)
     except OSError as e:
         print(f"[start] strings.txt nicht schreibbar: {e}", flush=True)
+
+
+# ⚠️⚠️ EINMALIG mit 2.2 (Timos Auftrag: „überschreib auch meine eigenen
+# Texte, damit wir 1x einen gemeinsamen Stand haben“). Alle Erklärtexte
+# sind neu geschrieben; eine eigene Fassung in strings.txt gewönne gegen
+# jeden davon. Die Datei wird deshalb einmal beiseitegelegt (nicht
+# gelöscht: strings-bis-2.1.txt daneben), der Vermerk in konfig sorgt
+# dafür, dass es bei genau diesem einen Mal bleibt - was Timo danach
+# selbst umformuliert, bleibt stehen. Klappt das Umbenennen nicht, wird
+# nichts vermerkt und der nächste Start versucht es erneut.
+TEXTE_NEUSTAND = "2.2"
+
+
+def texte_neustand() -> None:
+    with db.db() as con:
+        r = con.execute("SELECT wert FROM konfig WHERE schluessel='texte_neustand'").fetchone()
+        if r and r["wert"] == TEXTE_NEUSTAND:
+            return
+        if os.path.exists(STRINGS_DATEI):
+            stamm, endung = os.path.splitext(STRINGS_DATEI)
+            try:
+                os.replace(STRINGS_DATEI, f"{stamm}-bis-2.1{endung}")
+                print("[start] eigene Texte beiseitegelegt (Neustand 2.2)", flush=True)
+            except OSError as e:
+                print(f"[start] strings.txt nicht beiseitezulegen: {e}", flush=True)
+                return
+        con.execute("INSERT INTO konfig (schluessel, wert) VALUES ('texte_neustand', ?) "
+                    "ON CONFLICT(schluessel) DO UPDATE SET wert=excluded.wert",
+                    (TEXTE_NEUSTAND,))
 
 
 def spruch() -> dict:
@@ -587,6 +616,7 @@ async def start() -> None:
         else:
             print("[start]   Passwort:     wie in ADMIN_PASSWORT hinterlegt", flush=True)
         print("[start] " + "=" * 60, flush=True)
+    texte_neustand()
     texte_verschlanken()
     _wiki.wiki_anlegen()
     try:

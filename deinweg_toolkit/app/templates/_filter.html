@@ -125,7 +125,9 @@
     </div>
   </div>
 </form>
-{% if aktive_filter %}
+{# ⚠️ Die Auswertung (seit 2.2) sagt in einem ganzen Satz, was gezeigt
+   wird, und lässt die Chips weg - sonst stünde dasselbe zweimal da. #}
+{% if aktive_filter and not ohne_filterstand %}
 <div class="filterstand">
   <span class="filterstand-marke">Aktiv</span>
   {% for feld, wert in aktive_filter %}

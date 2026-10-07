@@ -173,7 +173,7 @@
       </form>
       <form action="/privatauslagen/block/{{ w.b.id }}/zustand" method="post"
             hx-push-url="false"
-            onsubmit="return dwt.frage(event, 'Diesen Block wieder auf „offen“ stellen?\n\nDas geht nur, solange kein anderer offen ist.')">
+            onsubmit="return dwt.frage(event, 'Diese Mappe wieder auf „offen“ stellen?\n\nDas geht nur, solange keine andere Mappe offen ist.')">
         <input type="hidden" name="ziel" value="offen">
         <button class="knopf leise klein" type="submit">zurück auf offen</button>
       </form>

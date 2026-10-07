@@ -1051,6 +1051,7 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
                      sprueche_sehen: str = Form(""),
                      wiki_schreiben: str = Form(""),
                      bewilligungen_sehen: str = Form(""),
+                     verdienst_sehen: str = Form(""),
                      bereiche: list[str] = Form([]),
                      einst_bereiche: list[str] = Form([]),
                      wiki_ordner: list[str] = Form([]),
@@ -1091,6 +1092,10 @@ def benutzer_anlegen(benutzername: str = Form(""), passwort: str = Form(""),
              auth.wiki_ordner_speichern(dateien_ordner,
                                         auth.geschuetzte_dateiordner(con)),
              _u["VERSION"], _u["jetzt"]()))
+        if verdienst_sehen:
+            neu_id = con.execute("SELECT id FROM benutzer WHERE benutzername=?",
+                                 (benutzername,)).fetchone()["id"]
+            auth.verdienst_konten_setzen(con, neu_id, True)
     return benutzer_zurueck(hinweis=f"„{benutzername}“ angelegt.")
 
 
@@ -1105,6 +1110,7 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
                        sprueche_sehen: str = Form(""),
                        wiki_schreiben: str = Form(""),
                        bewilligungen_sehen: str = Form(""),
+                       verdienst_sehen: str = Form(""),
                        bereiche: list[str] = Form([]),
                        einst_bereiche: list[str] = Form([]),
                        rechte_dabei: str = Form(""),
@@ -1161,6 +1167,10 @@ def benutzer_speichern(benutzer_id: int, benutzername: str = Form(""),
             felder["berechtigungen"] = auth.berechtigungen_speichern(bereiche)
             felder["einst_bereiche"] = auth.einst_bereiche_speichern(
                 einst_bereiche)
+            # Steht nicht an `benutzer`, sondern in konfig (siehe
+            # auth.VERDIENST_SCHLUESSEL) - und haengt deshalb ebenso an
+            # der stillen Marke.
+            auth.verdienst_konten_setzen(con, benutzer_id, bool(verdienst_sehen))
         if neues_passwort:
             felder["passwort_hash"] = db.passwort_hashen(neues_passwort)
         # Ein vorher angeforderter Link darf das, was die Verwaltung eben
@@ -1196,6 +1206,8 @@ def benutzer_loeschen(request: Request, benutzer_id: int):
         # Das Profilbild geht mit (seit 2.0) - sonst erbte ein neues Konto
         # mit derselben Nummer das Bild.
         _profilbild.entfernen(con, benutzer_id)
+        # Dasselbe fuer das Recht „Verdienst sehen“ (seit 2.2).
+        auth.verdienst_konten_setzen(con, benutzer_id, False)
     return benutzer_zurueck(hinweis=f"„{satz['benutzername']}“ gelöscht.")
 
 

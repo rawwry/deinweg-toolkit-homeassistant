@@ -308,7 +308,7 @@
   <p class="klein leise">{{ t("einst.schreibweise_betreute") }}</p>
   <p class="klein leise">{{ t("einst.stundensatz") }}</p>
   <p class="klein leise">{{ t("einst.selbstzahler_satz") }}</p>
-  <p class="klein leise"><a href="/auswertung">Zur Auswertung</a></p>
+  <p class="klein leise"><a href="/auswertung">Zu den Bewilligungen in der Auswertung</a></p>
 {% endcall %}
 
 <section class="karte" id="betreute">
@@ -1518,6 +1518,10 @@
             <input type="checkbox" name="bewilligungen_sehen" value="1" checked>
             Bewilligungen in „Mein Bereich“
           </label>
+          <label class="bereich-kachel">
+            <input type="checkbox" name="verdienst_sehen" value="1">
+            Verdienst und Stundensätze
+          </label>
         </div>
         {# ⚠️ Die Sprüche stehen bewusst NICHT bei den Einzelrechten: sie
            sind kein Recht, sondern eine Anzeigefrage. Deshalb gelten sie
@@ -1742,6 +1746,14 @@
             <input type="checkbox" name="bewilligungen_sehen" value="1" form="bn-{{ b.id }}"
                    {{ 'checked' if b.bewilligungen_sehen }}>
             Bewilligungen in „Mein Bereich“
+          </label>
+          {# Seit 2.2. Steht in konfig statt an `benutzer` (keine
+             Schemaänderung) und hängt deshalb an derselben stillen Marke
+             wie die Bereiche. Administratoren sehen den Verdienst immer. #}
+          <label class="bereich-kachel{{ ' fest' if b.rolle == 'admin' }}">
+            <input type="checkbox" name="verdienst_sehen" value="1" form="bn-{{ b.id }}"
+                   {{ 'checked' if darf_verdienst_sehen(b) }}{{ ' disabled' if b.rolle == 'admin' }}>
+            Verdienst und Stundensätze
           </label>
         </div>
       </fieldset>

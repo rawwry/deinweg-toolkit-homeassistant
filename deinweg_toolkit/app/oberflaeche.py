@@ -205,8 +205,11 @@ def schnellsuche(request: Request):
         liste.append(_eintrag("Seiten", "Übersicht", "/eintraege", "uebersicht",
                               "Arbeitszeit", "datensätze einträge liste"))
     if darf("auswertung"):
-        liste.append(_eintrag("Seiten", "Auswertung", "/auswertung", "auswertung",
-                              "Arbeitszeit", "soll ist kontingent verdienst"))
+        liste.append(_eintrag("Seiten", "Bewilligungen", "/auswertung", "auswertung",
+                              "Auswertung", "stand soll ist kontingent rückstand im plan"))
+        liste.append(_eintrag("Seiten", "Zeitraum & Nachweis", "/auswertung/zeitraum",
+                              "auswertung", "Auswertung",
+                              "zeitraum monate nachweis kostenträger verdienst"))
     if darf("verwaltungsvorgaenge"):
         liste.append(_eintrag("Seiten", "Aufgaben", "/vorgaenge", "aufgaben",
                               "", "vorgänge fristen"))

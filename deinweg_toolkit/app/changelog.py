@@ -2870,4 +2870,19 @@ CHANGELOG = [
         "Ein Zeitraum lässt sich als „beantragt“ markieren, solange der "
         "Bescheid aussteht – die neue Karte rechnet dann vorläufig mit ihm",
     ]},
+    {"version": "2.2", "titel": "Auswertung in zwei Teilen", "punkte": [
+        "Die Auswertung hat zwei Unterseiten: „Bewilligungen“ zeigt, wer "
+        "heute im Plan ist, die zweite alles für einen gewählten Zeitraum – "
+        "zum Beispiel für den Nachweis beim Kostenträger",
+        "Bewilligungen: die Pillen über der Liste filtern nach Stand, "
+        "zum Beispiel nur „Im Rückstand“",
+        "Monat für Monat: jeder Monat ist eine Zeile, die sich aufklappen "
+        "lässt – ein Klick auf eine Säule im Diagramm öffnet den Monat",
+        "Fährst du über eine Säule, steht dort ausgeschrieben, was die Zahlen "
+        "bedeuten, etwa „80 % des Solls erreicht“",
+        "Verdienst und Stundensätze sieht nur noch, wer das Recht dazu hat "
+        "(Einstellungen → Benutzerverwaltung)",
+        "Alle Erklärtexte im Programm sind neu und verständlicher geschrieben. "
+        "Eigene Textänderungen wurden dafür einmalig zurückgesetzt",
+    ]},
 ]
