@@ -858,6 +858,75 @@
   })();
 </script>
 
+{# Tabellen (seit 2.3): Sortieren per Klick auf den Spaltentitel und eine
+   Hilfezeile, die erklärt, was eine Spalte zeigt. Beides hängt am Dokument
+   und nicht an der einzelnen Tabelle - so gilt es auch für Tabellen, die
+   htmx später einsetzt, ohne dass sich etwas doppelt anmeldet. Ohne Skript
+   bleibt die Tabelle, wie sie vom Server kommt. #}
+<script>
+  (function () {
+    function wert(zelle) {
+      if (!zelle) { return ""; }
+      var w = zelle.dataset.wert;
+      return w !== undefined ? w : zelle.textContent.trim();
+    }
+    function vergleichen(a, b) {
+      var x = parseFloat(a), y = parseFloat(b);
+      var zahlA = a !== "" && !isNaN(x) && isFinite(a),
+          zahlB = b !== "" && !isNaN(y) && isFinite(b);
+      // Leere Zellen stehen immer hinten, egal in welcher Richtung.
+      if (a === "" && b !== "") { return null; }
+      if (b === "" && a !== "") { return null; }
+      if (zahlA && zahlB) { return x - y; }
+      return String(a).localeCompare(String(b), "de", { sensitivity: "base" });
+    }
+    function sortieren(th) {
+      var tabelle = th.closest("table"), koerper = tabelle && tabelle.tBodies[0];
+      if (!koerper) { return; }
+      var spalte = Array.prototype.indexOf.call(th.parentNode.children, th);
+      // Spalten vor dieser Zelle mit colspan mitzählen.
+      var index = 0;
+      for (var i = 0; i < spalte; i++) { index += th.parentNode.children[i].colSpan || 1; }
+      var auf = th.getAttribute("aria-sort") !== "ascending";
+      tabelle.querySelectorAll("th[aria-sort]").forEach(function (x) { x.removeAttribute("aria-sort"); });
+      th.setAttribute("aria-sort", auf ? "ascending" : "descending");
+      var zeilen = Array.prototype.slice.call(koerper.rows);
+      zeilen.sort(function (r1, r2) {
+        var a = wert(r1.cells[index]), b = wert(r2.cells[index]);
+        var e = vergleichen(a, b);
+        if (e === null) { return a === "" ? 1 : -1; }
+        return auf ? e : -e;
+      });
+      zeilen.forEach(function (r) { koerper.appendChild(r); });
+    }
+    document.addEventListener("click", function (e) {
+      var th = e.target.closest && e.target.closest("table[data-sortierbar] th[data-sort]");
+      if (th) { sortieren(th); }
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " ") { return; }
+      var th = e.target.closest && e.target.closest("table[data-sortierbar] th[data-sort]");
+      if (th) { e.preventDefault(); sortieren(th); }
+    });
+    function hilfe(e) {
+      var th = e.target.closest && e.target.closest("th[data-hilfe]");
+      if (!th) { return; }
+      var rolle = th.closest(".tabellenrolle"),
+          zeile = rolle && rolle.nextElementSibling;
+      if (!zeile || !zeile.classList.contains("tabellenhilfe")) { return; }
+      var titel = th.cloneNode(true);
+      titel.querySelectorAll(".massangabe").forEach(function (m) { m.remove(); });
+      zeile.textContent = "";
+      var b = document.createElement("strong");
+      b.textContent = titel.textContent.trim() + ": ";
+      zeile.appendChild(b);
+      zeile.appendChild(document.createTextNode(th.dataset.hilfe));
+    }
+    document.addEventListener("mouseover", hilfe);
+    document.addEventListener("focusin", hilfe);
+  })();
+</script>
+
 {# ⚠️ Das Skript der Mehrfachauswahl steht hier und nicht bei
    ihrem Makro: sie wird an mehreren Stellen aufgerufen (Filterzeile,
    Aufgabenformular), und hier läuft es je Seite genau einmal. Ohne

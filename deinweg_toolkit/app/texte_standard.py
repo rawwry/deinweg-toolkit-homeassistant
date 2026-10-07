@@ -228,6 +228,33 @@ TEXTE_STANDARD["auswertung.balken_erklaerung"] = (
     "Bescheids, der farbige Teil zeigt die geleisteten Stunden, und der "
     "senkrechte Strich markiert das Soll bis heute. Reicht die Farbe bis "
     "zum Strich oder darüber hinaus, ist die Person im Plan.")
+
+# Spaltenerklärungen der Personentabelle (seit 2.3). Sie erscheinen in der
+# Zeile unter der Tabelle, sobald man über einen Spaltentitel fährt.
+TEXTE_STANDARD["auswertung.spaltenhilfe"] = (
+    "Fahr über einen Spaltentitel oder tipp ihn an, dann steht hier, was "
+    "die Spalte zeigt. Ein Klick auf den Titel sortiert die Tabelle.")
+TEXTE_STANDARD["auswertung.spalte_person"] = (
+    "Die betreute Person, für die die Zeiten erfasst wurden.")
+TEXTE_STANDARD["auswertung.spalte_eintraege"] = (
+    "Wie viele Zeiteinträge es im gewählten Zeitraum für diese Person gibt.")
+TEXTE_STANDARD["auswertung.spalte_geleistet"] = (
+    "Die Stunden, die im gewählten Zeitraum für diese Person erfasst sind.")
+TEXTE_STANDARD["auswertung.spalte_soll"] = (
+    "Die bewilligten Stunden für diesen Zeitraum: Stunden pro Woche × 52 "
+    "÷ 12 je Monat. Ohne gültigen Bescheid bleibt die Zelle leer.")
+TEXTE_STANDARD["auswertung.spalte_erreicht"] = (
+    "Wie viel Prozent des Solls geleistet sind. Grün ab 100 %, gelb ab "
+    "90 %, darunter rot.")
+TEXTE_STANDARD["auswertung.spalte_abweichung"] = (
+    "Geleistet minus Soll. Fehlen Stunden, zeigt der Balken nach links und "
+    "die Zahl ist rot; mehr als bewilligt ist grün.")
+TEXTE_STANDARD["auswertung.spalte_satz"] = (
+    "Der Stundensatz laut Bescheid. Wechselt er im Zeitraum, steht hier, "
+    "wie viele verschiedene Sätze es waren.")
+TEXTE_STANDARD["auswertung.spalte_verdienst"] = (
+    "Geleistete Stunden × Stundensatz, Monat für Monat. Ein rechnerischer "
+    "Wert, keine Abrechnung.")
 TEXTE_STANDARD["auswertung.verdienst_hinweis"] = (
     "Der Verdienst ist ein rechnerischer Wert: geleistete Stunden × "
     "Stundensatz des jeweiligen Monats. Er ersetzt keine Abrechnung.")

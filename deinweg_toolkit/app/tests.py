@@ -2013,7 +2013,7 @@ def test_kontingent_zeitraeume(client: TestClient) -> None:
     pruefe("200,00 €" not in seite, "und auch keinen Verdienst")
     # (Bis 2.0 nannte die Seitenspalte „ohne Bescheid“; seit 2.1 gibt es
     # sie nicht mehr. Die Zeile der Person zeigt im Soll einen Platzhalter.)
-    zeile = seite.split('<td class="stark">Ohne Zeitraum</td>', 1)[1].split("</tr>", 1)[0]
+    zeile = seite.split('<td class="g-person stark">Ohne Zeitraum</td>', 1)[1].split("</tr>", 1)[0]
     pruefe("platzhalter" in zeile,
            "in der Zeile der Person steht kein Soll, sondern ein Platzhalter")
 
@@ -2210,19 +2210,27 @@ def test_monatsbloecke(client: TestClient) -> None:
            "die Geldspalten ebenso")
     pruefe('class="kmass">Std<' in seite,
            "die Kennzahlen tragen ihre Einheit hinter der Zahl")
-    pruefe('class="massangabe">Name<' in seite
-           and 'class="massangabe">Anz<' in seite,
-           "auch die beiden Spalten ohne Einheit tragen eine zweite Zeile")
+    # ⚠️ Seit 2.3 (Entwurf E) stehen die Köpfe unten bündig - die
+    # Namensspalte braucht kein „Name“ als Füllzeile mehr.
+    pruefe('class="massangabe">Anz<' in seite and 'class="massangabe">%<' in seite,
+           "Einträge und Erreicht tragen ihre Einheit im Kopf")
     # Die Spalte "Mitarbeiter" ist mit 1.4.4 entfallen - wer die Zeit
     # erfasst hat, steht in der Übersicht, nicht in der Auswertung.
     pruefe("<th>Mitarbeiter" not in seite,
            "die Spalte „Mitarbeiter“ steht nicht mehr in der Auswertung")
     # ⚠️ Seit 2.1 steht darüber der „Stand der Bewilligungen“ mit eigenen
     # Tabellen - gezählt wird der Kopf des Überblicks.
-    kopf = (seite.split('class="liste auswertungsblatt"')[1]
+    # ⚠️ Seit 2.3 in drei Gruppen (Betreuung · Stunden · Geld) mit der
+    # neuen Spalte „Erreicht“ - gezählt wird die Zeile der Spaltentitel.
+    kopf = (seite.split('class="liste auswertungsblatt gruppiert')[1]
             .split("<thead>")[1].split("</thead>")[0])
-    spalten = kopf.count("<th>") + kopf.count("<th ")
-    pruefe(spalten == 7, f"sieben Spalten (sind: {spalten})")
+    gruppen = kopf.split("</tr>", 1)[0]
+    spalten_zeile = kopf.split("</tr>", 1)[1]
+    spalten = spalten_zeile.count("<th>") + spalten_zeile.count("<th ")
+    pruefe(spalten == 8, f"acht Spalten (sind: {spalten})")
+    pruefe('class="gruppenkopf"' in gruppen and ">Betreuung<" in gruppen
+           and ">Stunden<" in gruppen and ">Geld<" in gruppen,
+           "darüber die drei Gruppen")
     pruefe("Std</span></td>" not in seite,
            "in den Zellen selbst steht die Einheit nicht")
     # (Bis 2.1 stand hier „mit ihrem Zeitraum / und ihren Werten“ - das
@@ -2254,7 +2262,7 @@ def test_monatsbloecke(client: TestClient) -> None:
     pruefe(">Grundwert<" not in seite,
            "ein Monat ohne Zeitraum trägt keine Marke „Grundwert“ mehr")
     pruefe("40,00 €" not in seite, "und rechnet auch nicht mit dem Grundsatz")
-    zeile = seite.split('<td class="stark">Grundmann</td>', 1)[1].split("</tr>", 1)[0]
+    zeile = seite.split('<td class="g-person stark">Grundmann</td>', 1)[1].split("</tr>", 1)[0]
     pruefe("platzhalter" in zeile,
            "stattdessen steht im Soll der Zeile ein Platzhalter")
 
@@ -4209,6 +4217,52 @@ def test_stand_der_bewilligungen(client: TestClient) -> None:
 
 
 
+def test_tabellen_2_3(client: TestClient) -> None:
+    """Tabellen-Facelift 2.3 (Entwurf E): getönter Kopf, Gruppenfarben,
+    klebender Kopf und Summe, Balken, Sortieren und Spaltenhilfe."""
+    abschnitt("Tabellen 2.3: Entwurf E")
+    stil = client.get("/static/style.css").text
+    grund = stil.split(".liste {", 1)[1].split("}", 1)[0]
+    pruefe("border-collapse: separate" in grund and "border-spacing: 0" in grund,
+           "die Tabellen stehen auf „separate“ - nur so kleben Kopf und Summe ohne Spalt")
+    pruefe("tabular-nums" in grund, "Ziffern laufen gleich breit")
+    kopf = stil.split(".liste th {", 1)[1].split("}", 1)[0]
+    pruefe("uppercase" not in kopf and "var(--tinte)" in kopf,
+           "Spaltentitel in der Schriftfarbe, nicht mehr klein, grau und versal")
+    pruefe("--mix-gruppe: 20%" in stil and "--mix-gruppe: 11%" in stil,
+           "das dunkle Thema tönt den Kopf kräftiger als das helle")
+    pruefe(".liste .g-person" in stil and ".liste .g-stunden" in stil
+           and ".liste .g-geld" in stil, "drei Gruppenfarben")
+    klebend = stil.split("@media (min-width: 861px) {\n  /* ⚠️ Die Kopfzeile ist 67px", 1)
+    pruefe(len(klebend) == 2 and ".liste thead { position: sticky" in klebend[1].split("}\n}", 1)[0]
+           and ".liste tfoot { position: sticky" in klebend[1].split("}\n}", 1)[0],
+           "Kopf und Summe kleben als Ganzes, und nur ab 861px")
+    pruefe(".liste thead tr { position: sticky" not in stil,
+           "keine einzeln klebenden Kopfzeilen (die ließen einen Spalt)")
+    pruefe("translateX" not in stil.split("=== 2.3 · Tabellen", 1)[1],
+           "beim Überfahren rückt nichts ein")
+
+    seite = client.get("/auswertung/zeitraum?von_jahr=&bis_jahr=").text
+    pruefe('class="liste auswertungsblatt gruppiert' in seite and "data-sortierbar" in seite,
+           "die Personentabelle ist gruppiert und sortierbar")
+    pruefe('class="tabellenhilfe"' in seite and "data-hilfe=" in seite,
+           "jede Spalte erklärt sich in der Zeile unter der Tabelle")
+    pruefe("tb-erreicht" in seite and "tb-abw" in seite,
+           "Erreicht und Abweichung tragen ihre Balken")
+    pruefe('class="marke-status gut"' not in seite.split("<main", 1)[1]
+           and 'class="marke-status dopp"' not in seite.split("<main", 1)[1],
+           "die Abweichung steht nicht mehr als Pille in der Zelle")
+    pruefe(seite.count('class="liste auswertungsblatt gruppiert') >= 2,
+           "Überblick und Monate teilen sich dasselbe Makro")
+
+    basis = client.get("/").text
+    pruefe("table[data-sortierbar] th[data-sort]" in basis
+           and 'document.addEventListener("mouseover", hilfe)' in basis,
+           "Sortieren und Hilfe hängen einmal am Dokument (übersteht htmx)")
+    pruefe("html:not(.mit-skript) .tabellenhilfe { display: none; }" in stil,
+           "ohne Skript fällt die Hilfezeile weg")
+
+
 def test_auswertung_2_2(client: TestClient) -> None:
     """2.2: Verdienst nur mit Recht, Monate als Zeilen, Texte einmal neu."""
     abschnitt("Auswertung 2.2: Verdienst-Recht und Neustand der Texte")
@@ -4244,7 +4298,7 @@ def test_auswertung_2_2(client: TestClient) -> None:
                            ).fetchone()["sql"] == schema_vorher,
                "die Tabelle benutzer ist unverändert")
     mit = ohne.get("/auswertung/zeitraum?von_jahr=&bis_jahr=").text
-    pruefe("k-verdienst" in mit and "<th>Verdienst" in mit,
+    pruefe("k-verdienst" in mit and ">Verdienst <span" in mit,
            "mit dem Recht erscheinen Kennzahl und Spalte")
     verwaltung = client.get("/einstellungen?bereich=benutzer").text
     pruefe('name="verdienst_sehen"' in verwaltung
@@ -12724,6 +12778,7 @@ def _durchlauf(client: TestClient) -> None:
         test_bewilligung_nachfolge(client)
         test_stand_der_bewilligungen(client)
         test_auswertung_2_2(client)
+        test_tabellen_2_3(client)
         test_zeitwahl(client)
         test_konto_zugeklappt(client)
         test_meine_zeiten_namensspalte(client)

@@ -1683,15 +1683,33 @@ form.inline { display: inline; }
 
 /* --- Tabellen ------------------------------------------------------- */
 
-.liste { width: 100%; border-collapse: collapse; font-size: 14px; }
-.liste th {
-  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
-  color: var(--leise); font-weight: 700; padding: 0 10px 8px;
-  border-bottom: 1px solid var(--linie); white-space: nowrap;
+/* ⚠️⚠️ Seit 2.3 (Entwurf E, Timos Wahl nach zwei Runden Entwürfen): der
+   Kopf ist eine getönte Fläche in der Farbe seiner Gruppe, die Titel
+   stehen in der Schriftfarbe statt klein, grau und versal - vorher wich
+   die Schrift im Kopf kaum vom Inhalt ab. Ohne Gruppe ist die Farbe der
+   Akzent (--g).
+   ⚠️ „separate" statt „collapse": nur so lassen sich Kopf und Summe
+   klebend setzen, ohne dass beim Rollen ein Spalt aufgeht oder die Zeilen
+   springen (genau das war an Konzept C kaputt). Damit es keine doppelten
+   Linien gibt, tragen die Zellen nur unten eine. */
+.liste {
+  width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px;
+  font-variant-numeric: tabular-nums; --g: var(--akzent);
 }
+.liste th {
+  text-align: left; font-size: 13px; color: var(--tinte); font-weight: 700;
+  padding: 10px 10px 9px; white-space: nowrap;
+}
+.liste thead th {
+  vertical-align: bottom;
+  background: color-mix(in oklab, var(--g) var(--mix-gruppe), var(--flaeche));
+  border-bottom: 2px solid color-mix(in oklab, var(--g) 55%, var(--linie));
+}
+.liste thead tr:first-child > th:first-child { border-top-left-radius: 10px; }
+.liste thead tr:first-child > th:last-child  { border-top-right-radius: 10px; }
 .liste td { padding: 9px 10px; border-bottom: 1px solid var(--linie-fein); vertical-align: top; }
 .liste tbody tr:nth-child(even) { background: var(--zebra); }
-.liste tbody tr:hover, .liste tbody tr:nth-child(even):hover { background: var(--flaeche-2); }
+.liste tbody tr:hover, .liste tbody tr:nth-child(even):hover { background: var(--zeile-hover); }
 .liste.dicht td { padding: 6px 10px; font-size: 13.5px; }
 .liste td form { margin: 0; }
 .liste a { color: var(--akzent); }
@@ -1709,7 +1727,8 @@ form.inline { display: inline; }
 .marke-status.weg  { background: var(--flaeche-2);   color: var(--leise); }
 .marke-status.info { background: var(--info-weich);  color: var(--info); }
 
-.balkenzelle { width: 168px; padding-top: 11px !important; }
+.balkenzelle { width: 168px; }
+td.balkenzelle { padding-top: 11px !important; }
 .balkenspur { display: block; height: 7px; border-radius: 4px;
               background: var(--flaeche-2); border: 1px solid var(--linie-fein);
               overflow: hidden; }
@@ -3158,8 +3177,17 @@ main > form#erfassung, main > #erfassen:not(:has(*)) { position: absolute; }
 
 .betrag { white-space: nowrap; }
 .betrag.gross { font-size: 16px; color: var(--akzent); }
-.liste tfoot td { border-top: 1px solid var(--linie); border-bottom: none;
-                  padding-top: 10px; }
+/* Die Summenzeile trägt dieselbe Farbe wie ihr Kopf, etwas leiser, und
+   eine kräftige Linie darüber (seit 2.3) - vorher hob sie sich nur durch
+   eine graue Linie ab und ging unter. */
+.liste tfoot td {
+  background: color-mix(in oklab, var(--g) calc(var(--mix-gruppe) * .8), var(--flaeche));
+  color: var(--tinte); font-weight: 700;
+  border-top: 2px solid color-mix(in oklab, var(--g) 70%, transparent); border-bottom: none;
+  padding-top: 11px; padding-bottom: 11px;
+}
+.liste tfoot tr:last-child > td:first-child { border-bottom-left-radius: 10px; }
+.liste tfoot tr:last-child > td:last-child  { border-bottom-right-radius: 10px; }
 
 /* Kopfzeile über der Datensatzliste: links die Zahl, rechts der Export.
    Beide Formate im selben leisen Stil - Excel war früher der auffällige
@@ -3482,11 +3510,19 @@ textarea:focus { border-color: var(--akzent); }
   --info:       #86b6e8;
   --info-weich: #1b2530;
   --gut-weich:  #17281f;
+  /* Tabellen (seit 2.3, Entwurf E): wie viel Gruppenfarbe im Kopf und als
+     Hauch in der Spalte liegt. ⚠️ Im dunklen Thema deutlich mehr als im
+     hellen - dort muss der Kopf HELLER als die Karte sein, sonst versinkt
+     er (Timos Meldung zu Konzept C). */
+  --mix-gruppe: 20%;
+  --mix-spalte: 5%;
 }
 [data-thema="hell"] {
   --info:       #245c94;
   --info-weich: #e9f1fa;
   --gut-weich:  #e7f4ee;
+  --mix-gruppe: 11%;
+  --mix-spalte: 3.5%;
 }
 
 /* zwei gleich breite Karten nebeneinander */
@@ -4384,7 +4420,7 @@ body.anmeldeseite {
    Nur die Namensspalte bekommt einen Hinweis, damit sie sich nicht den
    ganzen Platz nimmt. */
 .tabellenrolle .liste.auswertungsblatt { table-layout: auto; min-width: 0; }
-.auswertungsblatt th:first-child { width: 22%; }
+.auswertungsblatt tr:not(.gruppenkopf) > th:first-child { width: 22%; }
 /* „Einheit" ist länger als „Einh." und soll nicht umbrechen müssen. */
 .auswertungsblatt th.einheitspalte { width: 10%; }
 /* ⚠️ Ab 760px KANN diese Hülle nicht mehr rollen - clip statt auto.
@@ -4443,19 +4479,13 @@ body.anmeldeseite {
 /* Zweizeilige Spaltentitel brauchen Luft, sonst kleben Titel und Einheit
    aneinander und der Kopf wirkt gedrängt. */
 .liste th .massangabe {
-  display: block; margin-left: 0; margin-top: 3px;
-  font-size: 10px; letter-spacing: .06em; line-height: 1.2;
+  display: block; margin-left: 0; margin-top: 2px;
+  font-size: 11px; line-height: 1.2; opacity: .65;
 }
-.liste th:has(.massangabe) { padding-top: 12px; padding-bottom: 12px; }
-.auswertungsblatt thead th {
-  vertical-align: bottom; line-height: 1.25;
-  border-bottom: 1px solid var(--linie-stark);
-}
+.auswertungsblatt thead th { vertical-align: bottom; line-height: 1.25; }
 /* Bei den Kennzahlen sitzt die Einheit direkt hinter der grossen Zahl. */
 .kmass { font-size: 14px; font-weight: 500; opacity: .5; margin-left: 4px; }
-.auswertungsblatt tfoot td {
-  border-top: 1px solid var(--linie-stark); padding-top: 12px;
-}
+
 /* Die Summe steht in der Akzentfarbe, aber nicht größer als der Rest -
    bei fünfstelligen Beträgen sprengte .betrag.gross (16px) sonst seine
    Spalte und die ganze Tabelle brauchte einen Rollbalken. */
@@ -7741,7 +7771,7 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 .einstellungsinhalt .liste tbody tr:nth-child(even) { background: none; }
 .einstellungsinhalt .liste tbody tr:hover,
 .einstellungsinhalt .liste tbody tr:nth-child(even):hover {
-  background: var(--flaeche-2);
+  background: var(--zeile-hover);
 }
 
 /* Der Kopf eines Punktes: Überschrift, ein Satz, Hinweise zugeklappt.
@@ -8621,7 +8651,7 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
 .tagzeile-summe { font-weight: 500; color: var(--leise); font-variant-numeric: tabular-nums; }
 .tagzeile-summe strong { color: var(--akzent); font-weight: 700; }
 .liste:has(.tagzeile) tbody tr:nth-child(even) { background: none; }
-.liste:has(.tagzeile) tbody tr:not(.tagzeile):hover { background: var(--flaeche-2); }
+.liste:has(.tagzeile) tbody tr:not(.tagzeile):hover { background: var(--zeile-hover); }
 .liste tbody tr.tagzeile:hover { background: none; }
 /* Steht der Filter als Letztes in seiner Karte, braucht er keine eigene
    Abschlusslinie - sonst zog sich unter der Fußzeile ein leeres Band
@@ -9273,3 +9303,98 @@ details.bs-zeile[open] > .bs-summary { background: var(--flaeche-2); }
   .mz-wert i { display: none; }
   .mz-erreicht { grid-template-columns: 1fr 44px; }
 }
+
+/* === 2.3 · Tabellen: Entwurf E ===========================================
+   Timos Auftrag: Köpfe mit mehr Kontrast, mehr Farbe, aber nicht bunt.
+   Nach zwei Runden Entwürfen gewählt: E, die Gruppenfarben.
+   ⚠️ Die Regeln für Kopf und Summenzeile stehen bei „.liste" oben (Tabellen),
+   hier folgt, was nur gruppierte Tabellen, die Balken und das Sortieren
+   brauchen. */
+:root { --zeile-hover: color-mix(in oklab, var(--akzent) 8%, var(--flaeche)); }
+
+/* --- Gruppen -------------------------------------------------------------
+   Eine Tabelle mit „.gruppiert" trägt über den Spaltentiteln eine Zeile mit
+   den Gruppen. Jede Zelle nennt ihre Gruppe als Klasse - eine Eigenschaft
+   wie --g erbt nicht von <col>, deshalb im Markup an jeder Zelle.
+   Betreuung = Akzent, Stunden = Blau, Geld = Grün. */
+.liste .g-person  { --g: var(--akzent); }
+.liste .g-stunden { --g: var(--info); }
+.liste .g-geld    { --g: var(--gut); }
+.liste.gruppiert tr.gruppenkopf th {
+  color: var(--g); font-size: 11px; font-weight: 750; letter-spacing: .09em;
+  text-transform: uppercase; padding: 9px 10px 2px;
+  border-top: 3px solid var(--g); border-bottom: 0;
+}
+.liste.gruppiert thead tr:not(.gruppenkopf) th {
+  padding-top: 3px;
+  border-bottom: 1px solid color-mix(in oklab, var(--g) 45%, var(--linie));
+}
+/* Ein Hauch der Gruppenfarbe in der Spalte - durchscheinend, damit Zebra
+   und Überfahren der Zeile darunter sichtbar bleiben. */
+.liste.gruppiert tbody td { background: color-mix(in oklab, var(--g) var(--mix-spalte), transparent); }
+.liste.gruppiert .g-start { border-left: 1px solid color-mix(in oklab, var(--g) 28%, var(--linie)); }
+.liste.gruppiert thead tr.gruppenkopf th:first-child { border-top-left-radius: 10px; }
+
+/* --- Kopf und Summe bleiben beim Rollen stehen ---------------------------
+   ⚠️ thead und tfoot als GANZES klebend, nicht die einzelnen Zeilen: zwei
+   getrennt klebende Kopfzeilen ließen einen Spalt und sprangen. Nur ab
+   861px - darunter klebt die Kopfzeile der Seite nicht, und die Tabellen
+   rollen dort seitlich (ein Rollbereich nimmt jedem Kleben die Grundlage).
+   Liegt die Tabelle in einer Karte, die selbst rollt, bleibt sie einfach
+   stehen; das ist harmlos. */
+@media (min-width: 861px) {
+  /* ⚠️ Die Kopfzeile ist 67px hoch, --kopfhoehe (72px) enthält Luft für
+     Sprungmarken - mit 72 klaffte ein Spalt, durch den die Zeilen
+     schienen. 6px weniger schiebt den Kopf knapp unter ihre Kante. */
+  .liste thead { position: sticky; top: calc(var(--kopfhoehe) - 6px); z-index: 3; }
+  .liste tfoot { position: sticky; bottom: 0; z-index: 3; }
+}
+
+/* --- Sortieren ---------------------------------------------------------- */
+table[data-sortierbar] th[data-sort] { cursor: pointer; user-select: none; }
+table[data-sortierbar] th[data-sort]:hover { color: var(--g); }
+table[data-sortierbar] th[data-sort]:focus-visible { outline: 2px solid var(--g); outline-offset: -2px; }
+th[aria-sort]::after {
+  content: "▲"; display: inline-block; margin-left: 5px; font-size: 9px;
+  color: var(--g); vertical-align: 1px;
+}
+th[aria-sort="descending"]::after { content: "▼"; }
+/* Mit Maßangabe steht der Pfeil hinter dem Titel, nicht unter der Einheit. */
+th[aria-sort]:has(.massangabe)::after { position: absolute; margin-top: 3px; }
+th[aria-sort]:has(.massangabe) { position: relative; }
+/* Die Zeile, die beim Überfahren eines Titels sagt, was die Spalte zeigt.
+   Ohne Skript gibt es weder Sortieren noch Erklärung - dann fällt sie weg. */
+.tabellenhilfe {
+  margin: 8px 2px 0; font-size: 12.5px; color: var(--tinte-2); min-height: 20px;
+}
+.tabellenhilfe strong { color: var(--tinte); }
+html:not(.mit-skript) .tabellenhilfe { display: none; }
+@media (hover: none) { .tabellenhilfe { min-height: 0; } }
+
+/* --- Balken in der Auswertung -------------------------------------------
+   Erreicht: eine Spur, gefüllt bis zum Anteil am Soll - grün ab 100 %,
+   gelb ab 90 %, darunter rot. Abweichung: ein Balken von der Mitte aus,
+   nach links, wenn Stunden fehlen; die Zahl trägt dieselbe Farbe (statt
+   einer Pille, die jede Zeile unruhig machte). */
+/* ⚠️ Umbrechbar: in der Auswertung darf nichts die Mindestbreite der
+   Tabelle hochsetzen (siehe „.auswertungsblatt"). Wird es eng, rutscht die
+   Zahl unter den Balken, statt die Tabelle zu sprengen. */
+.tb-erreicht, .tb-abw { display: inline-flex; flex-wrap: wrap; align-items: center;
+                        column-gap: 8px; row-gap: 3px; }
+.tb-zahl { white-space: nowrap; }
+.tb-spur { position: relative; width: 64px; height: 6px; border-radius: 3px;
+           background: var(--linie); flex: 0 0 auto; }
+.tb-fuell { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--gut); }
+.tb-fuell.tb-nah   { background: var(--warn); }
+.tb-fuell.tb-knapp { background: var(--dopp); }
+.tb-dspur { position: relative; width: 56px; height: 6px; flex: 0 0 auto; }
+.tb-dspur::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px;
+                    width: 1px; background: var(--linie-stark); }
+.tb-dteil { position: absolute; top: 0; height: 6px; border-radius: 3px; }
+.tb-minus .tb-dteil { right: 50%; background: var(--dopp); }
+.tb-plus  .tb-dteil { left: 50%;  background: var(--gut); }
+.tb-minus .tb-zahl { color: var(--dopp); font-weight: 650; }
+.tb-plus  .tb-zahl { color: var(--gut);  font-weight: 650; }
+/* Am Telefon zählt die Zahl - die Balken kosten dort die Breite, die den
+   Namen fehlt. */
+@media (max-width: 560px) { .tb-spur, .tb-dspur { display: none; } }

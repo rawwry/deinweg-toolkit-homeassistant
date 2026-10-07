@@ -293,40 +293,48 @@
   </div>
 
   <div class="tabellenrolle">
-    <table class="liste kfz-vergleich">
+    {# Seit 2.3 in drei farbigen Gruppen wie die Auswertung der Arbeitszeit
+       (Entwurf E): Fahrzeug · Fahrt · Kosten. Ein Klick auf einen
+       Spaltentitel sortiert. #}
+    <table class="liste kfz-vergleich gruppiert" data-sortierbar>
       <thead>
+        <tr class="gruppenkopf">
+          <th class="g-person">Fahrzeug</th>
+          <th colspan="3" class="g-stunden g-start">Fahrt</th>
+          <th colspan="3" class="g-geld g-start">Kosten</th>
+        </tr>
         <tr>
-          <th>Fahrzeug</th>
-          <th>Km-Stand</th>
-          <th>gefahren</th>
-          <th>Verbrauch</th>
-          <th>Kosten</th>
-          <th>je km</th>
-          <th class="balkenzelle">Anteil</th>
+          <th class="g-person" data-sort tabindex="0">Name</th>
+          <th class="g-stunden g-start" data-sort tabindex="0">Km-Stand</th>
+          <th class="g-stunden" data-sort tabindex="0">gefahren</th>
+          <th class="g-stunden" data-sort tabindex="0">Verbrauch</th>
+          <th class="g-geld g-start" data-sort tabindex="0">Kosten</th>
+          <th class="g-geld" data-sort tabindex="0">je km</th>
+          <th class="g-geld balkenzelle" data-sort tabindex="0">Anteil</th>
         </tr>
       </thead>
       <tbody>
       {% set hoechste = je_fahrzeug | map(attribute='kosten') | max %}
       {% for r in je_fahrzeug %}
         <tr>
-          <td>
+          <td class="g-person" data-wert="{{ r.name }}">
             <a class="stark" href="/fuhrpark?fahrzeug={{ r.id }}">{{ r.name }}</a>
             {% if r.kennzeichen %}<br><span class="klein leise">{{ r.kennzeichen }}</span>{% endif %}
           </td>
-          <td class="zahlen">{{ r.stand | km }}</td>
-          <td class="zahlen">{{ r.strecke | km if r.strecke else "—" }}</td>
-          <td class="zahlen">
+          <td class="g-stunden g-start zahlen" data-wert="{{ r.stand or 0 }}">{{ r.stand | km }}</td>
+          <td class="g-stunden zahlen" data-wert="{{ r.strecke or '' }}">{{ r.strecke | km if r.strecke else "—" }}</td>
+          <td class="g-stunden zahlen" data-wert="{{ r.verbrauch or '' }}">
             {%- if r.verbrauch %}{{ komma(r.verbrauch) }} {{ r.einheit }}
               <span class="klein leise kuerzel">{{ r.messungen }}
                 {{ 'Messung' if r.messungen == 1 else 'Messungen' }}</span>
             {%- else %}<span class="leise">—</span>{% endif %}
           </td>
-          <td class="zahlen stark betrag">{{ r.kosten | euro }}</td>
-          <td class="zahlen">
+          <td class="g-geld g-start zahlen stark betrag" data-wert="{{ r.kosten or 0 }}">{{ r.kosten | euro }}</td>
+          <td class="g-geld zahlen" data-wert="{{ r.je_km or '' }}">
             {%- if r.je_km %}{{ "%.2f" | format(r.je_km) | replace(".", ",") }} €
             {%- else %}<span class="leise">—</span>{% endif %}
           </td>
-          <td class="balkenzelle">
+          <td class="g-geld balkenzelle" data-wert="{{ r.kosten or 0 }}">
             <span class="balkenspur">
               <span class="balken" style="width: {{ (r.kosten / hoechste * 100) | round | int if hoechste else 0 }}%"></span>
             </span>

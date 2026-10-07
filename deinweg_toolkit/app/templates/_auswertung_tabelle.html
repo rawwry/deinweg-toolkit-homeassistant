@@ -1,0 +1,94 @@
+{# Die Personentabelle der Auswertung (seit 2.3, Entwurf E).
+   ⚠️ EIN Makro für den Überblick UND jeden Monat: zwei Fassungen derselben
+   Tabelle liefen früher oder später auseinander - bis 2.2 stand sie
+   zweimal im Markup.
+   Drei Gruppen mit eigener Farbe: Betreuung (Akzent), Stunden (Info),
+   Geld (Grün, nur mit dem Recht „Verdienst"). Die Farbe sitzt im Kopf, als
+   Hauch in der Spalte und in der Summenzeile (Stylesheet, „Gruppen"). #}
+
+{% macro balken_erreicht(ist, soll) -%}
+  {%- set p = (ist / soll * 100) | round | int -%}
+  <span class="tb-erreicht">
+    <span class="tb-spur" aria-hidden="true"><span class="tb-fuell{{ '' if p >= 100 else (' tb-nah' if p >= 90 else ' tb-knapp') }}" style="width: {{ [p, 100] | min }}%"></span></span>
+    <span class="tb-zahl">{{ p }} %</span>
+  </span>
+{%- endmacro %}
+
+{# Der Balken misst die Abweichung am eigenen Soll: ganz ausgeschlagen
+   (halbe Spur) heißt „ein volles Soll daneben“. Am größten Ausschlag der
+   Tabelle gemessen, drückte ein einziger Ausreißer alle anderen Balken auf
+   wenige Pixel zusammen. #}
+{% macro balken_abweichung(abw, soll) -%}
+  {%- set breite = ([(abw | abs) / soll * 50, 50] | min) if soll else 0 -%}
+  <span class="tb-abw {{ 'tb-plus' if abw >= 0 else 'tb-minus' }}">
+    <span class="tb-dspur" aria-hidden="true"><span class="tb-dteil" style="width: {{ breite | round(1) }}%"></span></span>
+    <span class="tb-zahl">{{ '+' if abw >= 0 }}{{ abw | hhmm }}</span>
+  </span>
+{%- endmacro %}
+
+{% macro personentabelle(zeilen, geld, fuss=none, klasse="") %}
+<div class="tabellenrolle">
+<table class="liste auswertungsblatt gruppiert {{ klasse }}" data-sortierbar>
+  <thead>
+    <tr class="gruppenkopf">
+      <th colspan="2" class="g-person">Betreuung</th>
+      <th colspan="4" class="g-stunden g-start">Stunden</th>
+      {% if geld %}<th colspan="2" class="g-geld g-start">Geld</th>{% endif %}
+    </tr>
+    <tr>
+      <th class="g-person" data-sort tabindex="0" data-hilfe="{{ t("auswertung.spalte_person") }}">Betreute Person</th>
+      <th class="g-person einheitspalte" data-sort tabindex="0" data-hilfe="{{ t("auswertung.spalte_eintraege") }}">Einträge <span class="massangabe">Anz</span></th>
+      <th class="g-stunden g-start" data-sort tabindex="0" data-hilfe="{{ t("auswertung.spalte_geleistet") }}">Geleistet <span class="massangabe">Std</span></th>
+      <th class="g-stunden" data-sort tabindex="0" data-hilfe="{{ t("auswertung.spalte_soll") }}">Soll <span class="massangabe">Std</span></th>
+      <th class="g-stunden" data-sort tabindex="0" data-hilfe="{{ t("auswertung.spalte_erreicht") }}">Erreicht <span class="massangabe">%</span></th>
+      <th class="g-stunden" data-sort tabindex="0" data-hilfe="{{ t("auswertung.spalte_abweichung") }}">Abweichung <span class="massangabe">Std</span></th>
+      {% if geld %}
+      <th class="g-geld g-start" data-sort tabindex="0" data-hilfe="{{ t("auswertung.spalte_satz") }}">Satz <span class="massangabe">€/Std</span></th>
+      <th class="g-geld" data-sort tabindex="0" data-hilfe="{{ t("auswertung.spalte_verdienst") }}">Verdienst <span class="massangabe">€</span></th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in zeilen %}
+    <tr class="{{ 'ohne-ist' if not r.m }}">
+      <td class="g-person stark">{{ r.klient }}</td>
+      <td class="g-person zahlen leise" data-wert="{{ r.n or 0 }}">{% if r.n %}{{ r.n }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+      <td class="g-stunden g-start zahlen stark" data-wert="{{ r.m or 0 }}">{% if r.m %}{{ r.m | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+      <td class="g-stunden zahlen leise" data-wert="{{ r.soll or '' }}">{% if r.soll %}{{ r.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+      <td class="g-stunden zahlen" data-wert="{{ ((r.m or 0) / r.soll * 100) | round(1) if r.soll else '' }}">
+        {% if r.soll %}{{ balken_erreicht(r.m or 0, r.soll) }}{% else %}<span class="platzhalter">—</span>{% endif %}
+      </td>
+      <td class="g-stunden zahlen" data-wert="{{ r.abweichung if r.abweichung is not none else '' }}">
+        {% if r.abweichung is not none %}{{ balken_abweichung(r.abweichung, r.soll) }}{% else %}<span class="platzhalter">—</span>{% endif %}
+      </td>
+      {% if geld %}
+      <td class="g-geld g-start zahlen leise" data-wert="{{ r.satz if r.satz is not none else '' }}">
+        {% if r.satz is not none and r.satz %}{{ r.satz | zahl }}
+        {% elif r.saetze %}{{ r.saetze | length }} Sätze
+        {% else %}<span class="platzhalter">—</span>{% endif %}
+      </td>
+      <td class="g-geld zahlen stark betrag" data-wert="{{ r.betrag or '' }}">{% if r.betrag %}{{ r.betrag | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+      {% endif %}
+    </tr>
+  {% endfor %}
+  </tbody>
+  {% if fuss %}
+  <tfoot>
+    <tr>
+      <td class="g-person stark">Summe</td>
+      <td class="g-person zahlen">{{ fuss.n }}</td>
+      <td class="g-stunden g-start zahlen">{{ fuss.ist | hhmm }}</td>
+      <td class="g-stunden zahlen">{% if fuss.soll %}{{ fuss.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
+      <td class="g-stunden zahlen">{% if fuss.prozent is not none %}{{ fuss.prozent }} %{% endif %}</td>
+      <td class="g-stunden zahlen">{% if fuss.abweichung is not none %}<span class="{{ 'tb-plus' if fuss.abweichung >= 0 else 'tb-minus' }}"><span class="tb-zahl">{{ '+' if fuss.abweichung >= 0 }}{{ fuss.abweichung | hhmm }}</span></span>{% endif %}</td>
+      {% if geld %}
+      <td class="g-geld g-start"></td>
+      <td class="g-geld zahlen betrag">{{ fuss.verdienst | zahl }}</td>
+      {% endif %}
+    </tr>
+  </tfoot>
+  {% endif %}
+</table>
+</div>
+<p class="tabellenhilfe" aria-live="polite">{{ t("auswertung.spaltenhilfe") }}</p>
+{% endmacro %}

@@ -2885,4 +2885,15 @@ CHANGELOG = [
         "Alle Erklärtexte im Programm sind neu und verständlicher geschrieben. "
         "Eigene Textänderungen wurden dafür einmalig zurückgesetzt",
     ]},
+    {"version": "2.3", "titel": "Tabellen mit mehr Kontrast", "punkte": [
+        "Alle Tabellen haben einen farbigen Kopf und eine abgesetzte "
+        "Summenzeile; die Spaltentitel sind größer und besser lesbar",
+        "In der Auswertung und im Fahrzeugvergleich sind die Spalten in "
+        "farbige Gruppen geteilt – zum Beispiel Betreuung, Stunden und Geld",
+        "Kopf und Summe bleiben am Schreibtisch beim Rollen stehen",
+        "Neue Spalte „Erreicht“ mit Balken; die Abweichung zeigt einen Balken "
+        "nach links oder rechts und ist rot oder grün",
+        "Ein Klick auf einen Spaltentitel sortiert die Tabelle, und unter der "
+        "Tabelle steht, was die Spalte bedeutet",
+    ]},
 ]

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_untermenue.html" import arbeitszeit, auswertung_reiter with context %}
+{% from "_auswertung_tabelle.html" import personentabelle with context %}
 {% block titel %} – Zeitraum & Nachweis{% endblock %}
 {% block inhalt %}
 
@@ -77,64 +78,10 @@
     {% endif %}
   </div>
 
-  <div class="tabellenrolle">
-  <table class="liste auswertungsblatt">
-    <thead>
-      <tr>
-        {# Jede Spalte trägt eine zweite, gedämpfte Zeile - bei den
-           Zahlenspalten die Einheit, bei den beiden anderen das, was
-           dort steht. So sind alle Köpfe gleich hoch und gleich gebaut. #}
-        <th>Betreute Person <span class="massangabe">Name</span></th>
-        <th class="einheitspalte">Einträge <span class="massangabe">Anz</span></th>
-        <th>Geleistet <span class="massangabe">Std</span></th>
-        <th>Soll <span class="massangabe">Std</span></th>
-        <th>Abweichung <span class="massangabe">Std</span></th>
-        {% if geld %}
-        <th>Satz <span class="massangabe">€/Std</span></th>
-        <th>Verdienst <span class="massangabe">€</span></th>
-        {% endif %}
-      </tr>
-    </thead>
-    <tbody>
-    {% for r in je_klient %}
-      <tr>
-        <td class="stark">{{ r.klient }}</td>
-        <td class="zahlen leise">{{ r.n }}</td>
-        <td class="zahlen stark">{{ r.m | hhmm }}</td>
-        <td class="zahlen leise">{% if r.soll %}{{ r.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-        <td class="zahlen">
-          {% if r.abweichung is not none %}
-            <span class="marke-status {{ 'gut' if r.abweichung >= 0 else 'dopp' }}">{{ '+' if r.abweichung >= 0 }}{{ r.abweichung | hhmm }}</span>
-          {% else %}<span class="platzhalter">—</span>{% endif %}
-        </td>
-        {% if geld %}
-        <td class="zahlen leise">
-          {% if r.satz is not none %}{{ r.satz | zahl }}
-          {% elif r.saetze %}{{ r.saetze | length }} Sätze
-          {% else %}<span class="platzhalter">—</span>{% endif %}
-        </td>
-        <td class="zahlen stark betrag">{% if r.betrag %}{{ r.betrag | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-        {% endif %}
-      </tr>
-    {% endfor %}
-    </tbody>
-    {% if je_klient | length > 1 %}
-    <tfoot>
-      <tr>
-        <td class="stark">Summe</td>
-        <td class="zahlen leise">{{ zusammenfassung.n }}</td>
-        <td class="zahlen stark">{{ zusammenfassung.ist | hhmm }}</td>
-        <td class="zahlen leise">{% if zusammenfassung.soll %}{{ zusammenfassung.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-        <td></td>
-        {% if geld %}
-        <td></td>
-        <td class="zahlen stark betrag gross">{{ verdienst_gesamt | zahl }}</td>
-        {% endif %}
-      </tr>
-    </tfoot>
-    {% endif %}
-  </table>
-  </div>
+  {{ personentabelle(je_klient, geld,
+       fuss={"n": zusammenfassung.n, "ist": zusammenfassung.ist, "soll": zusammenfassung.soll,
+             "prozent": zusammenfassung.prozent, "abweichung": zusammenfassung.abweichung,
+             "verdienst": verdienst_gesamt} if je_klient | length > 1 else none) }}
 
   {# EINE Erklärung für die ganze Seite (bis 2.1 standen zwei
      „Wie wird gerechnet?“ auf derselben Seite). #}
@@ -254,42 +201,9 @@
         {% if b.leer %}
         <p class="klein leise" style="margin: 0 0 10px;">{{ t("auswertung.monat_leer") }}</p>
         {% endif %}
-        <div class="tabellenrolle">
-        {# Dieselbe Spaltenfolge wie im Überblick, damit das Auge sie nicht
-           neu lernen muss. #}
-        <table class="liste dicht auswertungsblatt monatsblatt">
-          <thead>
-            <tr><th>Betreute Person <span class="massangabe">Name</span></th>
-                <th class="einheitspalte">Einträge <span class="massangabe">Anz</span></th>
-                <th>Geleistet <span class="massangabe">Std</span></th>
-                <th>Soll <span class="massangabe">Std</span></th>
-                <th>Abweichung <span class="massangabe">Std</span></th>
-                {% if geld %}
-                <th>Satz <span class="massangabe">€/Std</span></th>
-                <th>Verdienst <span class="massangabe">€</span></th>
-                {% endif %}</tr>
-          </thead>
-          <tbody>
-            {% for z in b.zeilen %}
-            <tr class="{{ 'ohne-ist' if not z.m }}">
-              <td class="stark">{{ z.klient }}</td>
-              <td class="zahlen leise">{% if z.n %}{{ z.n }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-              <td class="zahlen stark">{% if z.m %}{{ z.m | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-              <td class="zahlen leise">{% if z.soll %}{{ z.soll | hhmm }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-              <td class="zahlen">
-                {% if z.abweichung is not none %}
-                <span class="marke-status {{ 'gut' if z.abweichung >= 0 else 'dopp' }}">{{ '+' if z.abweichung >= 0 }}{{ z.abweichung | hhmm }}</span>
-                {% else %}<span class="platzhalter">—</span>{% endif %}
-              </td>
-              {% if geld %}
-              <td class="zahlen leise">{% if z.satz %}{{ z.satz | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-              <td class="zahlen stark betrag">{% if z.betrag %}{{ z.betrag | zahl }}{% else %}<span class="platzhalter">—</span>{% endif %}</td>
-              {% endif %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        </div>
+        {# Dieselbe Tabelle wie im Überblick (ein Makro), damit das Auge
+           sie nicht neu lernen muss. #}
+        {{ personentabelle(b.zeilen, geld, klasse="monatsblatt") }}
       </div>
     </details>
     {% endfor %}

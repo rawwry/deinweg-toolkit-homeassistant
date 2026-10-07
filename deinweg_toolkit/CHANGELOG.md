@@ -3,6 +3,12 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.3
+
+- Tabellen-Facelift (Entwurf E): getönter Kopf in Gruppenfarbe, Titel in Schriftfarbe statt klein und versal, abgesetzte Summenzeile; Kopf und Summe kleben ab 861px beim Rollen
+- Auswertung und Fahrzeugvergleich in farbigen Spaltengruppen; neue Spalte „Erreicht“ mit Balken, Abweichung als Balken von der Mitte
+- Sortieren per Klick auf den Spaltentitel und eine Erklärzeile unter der Tabelle (nur mit Skript)
+
 ## 2.2
 
 - Auswertung in zwei Unterseiten: „Bewilligungen“ (Stand heute, ohne Filter, mit Pillen nach Stand) und „Zeitraum & Nachweis“ (Filter, Überblick, Monat für Monat); alte Adressen mit Filter werden weitergeleitet
