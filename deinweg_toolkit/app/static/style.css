@@ -6324,6 +6324,12 @@ a.vgk-wert:hover { text-decoration: underline; }
 }
 .auswahlschalter:not(:checked) ~ .massenleiste,
 .auswahlschalter:not(:checked) ~ .liste .wahlspalte { display: none; }
+/* ⚠️ Ist die Auswahlspalte versteckt, ist „Zeit“ die erste sichtbare
+   Kopfzelle - die runde Ecke saß sonst auf der unsichtbaren Spalte, und
+   links war der Kopf eckig, rechts rund (Timos Meldung, 2.4.2). */
+.auswahlschalter:not(:checked) ~ .liste thead tr:first-child > th.wahlspalte + th {
+  border-top-left-radius: 10px;
+}
 
 /* Monatsübersicht: erste Spalte breiter, Zahlen schmal */
 .monatstabelle th:first-child { width: 30%; }
@@ -8690,7 +8696,7 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
    trägt den kräftigeren Ton. */
 .liste .tagzeile th {
   --tag-ton: color-mix(in oklab, var(--akzent) calc(var(--mix-spalte) * 2), var(--flaeche));
-  padding: 10px 12px; text-align: left; white-space: normal;
+  padding: 8px 12px; text-align: left; white-space: normal;
   font-size: 14px; font-weight: 500; text-transform: none; letter-spacing: 0;
   color: var(--tinte); background: var(--tag-ton);
   border-top: 1px solid var(--linie);
@@ -8702,17 +8708,7 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
   --tag-ton: color-mix(in oklab, var(--akzent) calc(var(--mix-gruppe) * 1.1), var(--flaeche));
   box-shadow: inset 4px 0 0 var(--akzent);
 }
-.tagzeile-inhalt { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.tag-blatt {
-  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
-  width: 40px; height: 40px; flex: none; border-radius: 9px; line-height: 1;
-  background: var(--flaeche); border: 1px solid color-mix(in oklab, var(--akzent) 30%, var(--linie));
-}
-.tag-blatt b { font-size: 16px; font-weight: 750; color: var(--tinte); font-variant-numeric: tabular-nums; }
-.tag-blatt small { margin-top: 3px; font-size: 10px; font-weight: 700; letter-spacing: .06em;
-                   text-transform: uppercase; color: var(--akzent); }
-.ist-heute .tag-blatt { background: var(--akzent); border-color: var(--akzent); }
-.ist-heute .tag-blatt b, .ist-heute .tag-blatt small { color: var(--auf-akzent); }
+.tagzeile-inhalt { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-height: 28px; }
 .tagzeile-wort { font-size: 15px; }
 .tagzeile-wort b { font-weight: 700; }
 .tagzeile-datum { margin-left: 6px; color: var(--leise); font-weight: 500; font-variant-numeric: tabular-nums; }
@@ -8720,13 +8716,22 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
                   font-size: 13px; font-weight: 500; color: var(--leise);
                   font-variant-numeric: tabular-nums; }
 .tagzeile-summe strong {
-  color: var(--akzent); font-weight: 700; font-size: 13.5px;
-  padding: 4px 11px; border-radius: 999px;
+  color: var(--akzent); font-weight: 700; font-size: 13px;
+  padding: 2px 10px; border-radius: 999px;
   background: color-mix(in oklab, var(--akzent) 14%, var(--flaeche));
   border: 1px solid color-mix(in oklab, var(--akzent) 30%, transparent);
 }
-/* Die erste Zeile nach dem Band bekommt etwas Luft nach oben. */
-.liste tbody .tagzeile + tr > td { padding-top: 15px; }
+/* Luft zwischen den Tagen (2.4.2, Timos Wunsch: Bänder flacher, dafür
+   mehr Abstand): die letzte Zeile vor einem neuen Band bekommt unten
+   mehr Polsterung - Ränder gibt es an Tabellenzeilen nicht. Die erste
+   Zeile nach dem Band etwas Luft nach oben.
+   ⚠️ Nur über 760px: am Telefon ist jede Zelle ein Rasterfeld, dort
+   bekäme sonst jedes einzelne die Polsterung (dort trägt margin-top am
+   Band den Abstand). */
+@media (min-width: 761px) {
+  .liste tbody .tagzeile + tr > td { padding-top: 14px; }
+  .liste tbody tr:not(.tagzeile):has(+ .tagzeile) > td { padding-bottom: 24px; }
+}
 .liste:has(.tagzeile) tbody tr:nth-child(even) { background: none; }
 .liste:has(.tagzeile) tbody tr:not(.tagzeile):hover { background: var(--zeile-hover); }
 .liste tbody tr.tagzeile:hover { background: none; }
@@ -8761,10 +8766,9 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
   .liste.eintragsliste thead { display: none; }
   .liste.eintragsliste, .liste.eintragsliste tbody { display: block; width: 100%; }
   .liste.eintragsliste tr.tagzeile { display: block; }
-  .liste.eintragsliste tr.tagzeile th { display: block; padding: 10px 12px; margin-top: 14px;
+  .liste.eintragsliste tr.tagzeile th { display: block; padding: 8px 12px; margin-top: 22px;
                                         border-radius: 10px; border: 1px solid var(--linie); }
   .liste.eintragsliste tr.tagzeile:first-child th { margin-top: 0; }
-  .tag-blatt { width: 36px; height: 36px; }
   /* Am Telefon eine Zeile: Wochentag und Datum untereinander, rechts nur
      die Summe - mit Anzahl brach die Pille in eine zweite Zeile um. */
   .tagzeile-inhalt { flex-wrap: nowrap; gap: 10px; }
@@ -9568,9 +9572,19 @@ details.bs-zeile > .bs-summary:hover { box-shadow: inset 2px 0 0 var(--akzent); 
 @media (min-width: 861px) {
   /* ⚠️ Die Kopfzeile ist 67px hoch, --kopfhoehe (72px) enthält Luft für
      Sprungmarken - mit 72 klaffte ein Spalt, durch den die Zeilen
-     schienen. 6px weniger schiebt den Kopf knapp unter ihre Kante. */
-  .liste thead { position: sticky; top: calc(var(--kopfhoehe) - 6px); z-index: 3; }
-  .liste tfoot { position: sticky; bottom: 0; z-index: 3; }
+     schienen. 6px weniger schiebt den Kopf knapp unter ihre Kante.
+     ⚠️⚠️ NUR in einer .tabellenrolle (deren Karte auf clip steht) und in
+     der Übersicht (2.4.2): liegt die Tabelle direkt in einer Karte mit
+     overflow-x: auto, ist DIE Karte der Rollbereich - der Kopf rechnete
+     seine 66px dann ab der Karte und lag 23px tief über der ersten Zeile
+     (Timos Screenshot). */
+  :is(.tabellenrolle, .karte:has(> .eintragsliste)) > .liste thead {
+    position: sticky; top: calc(var(--kopfhoehe) - 6px); z-index: 3;
+  }
+  :is(.tabellenrolle, .karte:has(> .eintragsliste)) > .liste tfoot {
+    position: sticky; bottom: 0; z-index: 3;
+  }
+  .karte:has(> .eintragsliste) { overflow-x: clip; }
 }
 
 /* --- Sortieren ---------------------------------------------------------- */

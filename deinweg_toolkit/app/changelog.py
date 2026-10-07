@@ -2940,4 +2940,10 @@ CHANGELOG = [
         "Anzahl und Summe des Tages stehen rechts, die Summe als Pille",
         "Der heutige Tag ist kräftiger hervorgehoben",
     ]},
+    {"version": "2.4.2", "titel": "Übersicht nachgeschliffen", "punkte": [
+        "Der Tabellenkopf der Übersicht verdeckt nicht mehr den ersten Tag",
+        "Kein Kalenderblatt mehr, die Tagesbänder sind etwas flacher",
+        "Mehr Luft zwischen den Tagen",
+        "Die linke obere Ecke der Tabelle ist wieder rund",
+    ]},
 ]

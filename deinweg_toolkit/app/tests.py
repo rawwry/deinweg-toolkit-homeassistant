@@ -4235,9 +4235,11 @@ def test_tabellen_2_3(client: TestClient) -> None:
     pruefe(".liste .g-person" in stil and ".liste .g-stunden" in stil
            and ".liste .g-geld" in stil, "drei Gruppenfarben")
     klebend = stil.split("@media (min-width: 861px) {\n  /* ⚠️ Die Kopfzeile ist 67px", 1)
-    pruefe(len(klebend) == 2 and ".liste thead { position: sticky" in klebend[1].split("}\n}", 1)[0]
-           and ".liste tfoot { position: sticky" in klebend[1].split("}\n}", 1)[0],
-           "Kopf und Summe kleben als Ganzes, und nur ab 861px")
+    block = klebend[1].split("\n}\n", 1)[0] if len(klebend) == 2 else ""
+    pruefe("> .liste thead {\n    position: sticky" in block
+           and "> .liste tfoot {\n    position: sticky" in block
+           and ":is(.tabellenrolle, .karte:has(> .eintragsliste))" in block,
+           "Kopf und Summe kleben als Ganzes, nur ab 861px und nur, wo die Karte nicht selbst rollt")
     pruefe(".liste thead tr { position: sticky" not in stil,
            "keine einzeln klebenden Kopfzeilen (die ließen einen Spalt)")
     pruefe("translateX" not in stil.split("=== 2.3 · Tabellen", 1)[1],
@@ -11449,8 +11451,12 @@ def test_etappe_arbeitszeit(client: TestClient) -> None:
     pruefe("<b>Montag</b>" in liste and "09.03.2026" in liste and "2 Einträge" in liste
            and "02:00 Std" in liste,
            "mit Wochentag, Anzahl und Summe des Tages")
-    pruefe('class="tag-blatt"' in liste and "<b>09</b>" in liste and "<small>Mär</small>" in liste,
-           "jeder Tag trägt ein Kalenderblatt (2.4.1)")
+    pruefe('class="tag-blatt"' not in liste,
+           "kein Kalenderblatt mehr (2.4.2, Timo: keine Icons)")
+    stil_alle = client.get("/static/style.css").text
+    pruefe(".liste tbody tr:not(.tagzeile):has(+ .tagzeile) > td { padding-bottom: 24px; }" in stil_alle
+           and "~ .liste thead tr:first-child > th.wahlspalte + th" in stil_alle,
+           "mehr Luft zwischen den Tagen, und „Zeit“ trägt die runde Ecke")
     stil_tag = client.get("/static/style.css").text.split(".liste .tagzeile th {", 1)[1].split("}", 1)[0]
     pruefe("background: var(--tag-ton)" in stil_tag and "inset 4px 0 0" in stil_tag
            and "font-size: 14px" in stil_tag,

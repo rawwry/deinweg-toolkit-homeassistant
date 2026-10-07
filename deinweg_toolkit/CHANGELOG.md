@@ -3,6 +3,10 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.4.2
+
+- Übersicht: klebender Kopf nur noch dort, wo die Karte nicht selbst rollt (`.karte` mit `overflow-x: auto` war der Bezugsrahmen, der Kopf lag über dem ersten Tagesband); Kalenderblatt entfernt, Bänder flacher, 24px Luft vor jedem neuen Tag (nur über 760px); runde Ecke an „Zeit“, wenn die Auswahlspalte verborgen ist
+
 ## 2.4.1
 
 - Übersicht: Tageszeilen als getöntes Band mit Akzentkante, Kalenderblatt (Tag/Monat), Wochentag fett und Summe als Pille; „Heute“ kräftiger; am Telefon einzeilig
