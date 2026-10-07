@@ -4223,9 +4223,11 @@ def test_tabellen_2_3(client: TestClient) -> None:
            "die Tabellen stehen auf „separate“ - nur so kleben Kopf und Summe ohne Spalt")
     pruefe("tabular-nums" in grund, "Ziffern laufen gleich breit")
     kopf = stil.split(".liste th {", 1)[1].split("}", 1)[0]
-    pruefe("uppercase" not in kopf and "font-size: 12px" in kopf
-           and "var(--tinte-2)" in kopf,
-           "Spaltentitel kleiner und gedämpfter als der Inhalt (2.3.1), nicht versal")
+    pruefe("uppercase" in kopf and "font-size: 11.5px" in kopf and "var(--leise)" in kopf,
+           "Spaltentitel klein, versal und gedämpft - klar vom Inhalt abgesetzt (2.3.2)")
+    zelle = stil.split(".liste td {", 1)[1].split("}", 1)[0]
+    pruefe("font-size: 15px" in zelle and "padding: 13px 12px" in zelle,
+           "der Inhalt steht größer und mit mehr Luft")
     pruefe("--mix-gruppe: 20%" in stil and "--mix-gruppe: 11%" in stil,
            "das dunkle Thema tönt den Kopf kräftiger als das helle")
     pruefe(".liste .g-person" in stil and ".liste .g-stunden" in stil

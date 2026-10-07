@@ -3,6 +3,10 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.3.2
+
+- Tabellen: Spaltentitel 11,5px versal und gesperrt, Gruppen als farbige 14px-Überschrift, Zeilen 15px mit 13px Polsterung (dicht: 14px/9px)
+
 ## 2.3.1
 
 - Tabellen: Spaltentitel 12px, halbfett, gedämpft (Inhalt bleibt 14px) – drei klar getrennte Stufen Gruppe · Spalte · Zeile

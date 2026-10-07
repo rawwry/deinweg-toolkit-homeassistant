@@ -2902,4 +2902,11 @@ CHANGELOG = [
         "Die Einheiten unter den Spaltentiteln (Std, Anz, €) sind entfallen",
         "Mein Bereich: die Spalte heißt jetzt „Freie Tage“",
     ]},
+    {"version": "2.3.2", "titel": "Mehr Luft in den Tabellen", "punkte": [
+        "Spaltentitel stehen klein und in Großbuchstaben – deutlich als "
+        "Beschriftung erkennbar, nicht als Inhalt",
+        "Die Gruppen über den Spalten (Betreuung, Stunden, Geld) sind jetzt "
+        "farbige Überschriften",
+        "Zeilen mit mehr Abstand und etwas größerer Schrift",
+    ]},
 ]
