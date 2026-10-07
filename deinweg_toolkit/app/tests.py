@@ -11446,8 +11446,15 @@ def test_etappe_arbeitszeit(client: TestClient) -> None:
     liste = client.get("/eintraege?mitarbeiter=Woche+Probe").text
     pruefe(liste.count('class="tagzeile"') == 5,
            "je Tag eine Überschriftzeile")
-    pruefe("Montag, 09.03.2026" in liste and "2 Einträge" in liste and "02:00 Std" in liste,
+    pruefe("<b>Montag</b>" in liste and "09.03.2026" in liste and "2 Einträge" in liste
+           and "02:00 Std" in liste,
            "mit Wochentag, Anzahl und Summe des Tages")
+    pruefe('class="tag-blatt"' in liste and "<b>09</b>" in liste and "<small>Mär</small>" in liste,
+           "jeder Tag trägt ein Kalenderblatt (2.4.1)")
+    stil_tag = client.get("/static/style.css").text.split(".liste .tagzeile th {", 1)[1].split("}", 1)[0]
+    pruefe("background: var(--tag-ton)" in stil_tag and "inset 4px 0 0" in stil_tag
+           and "font-size: 14px" in stil_tag,
+           "das Tagesband ist getönt, mit Akzentkante, und nicht mehr kleiner als der Inhalt")
     pruefe("<th>Datum</th>" not in liste, "die Datumsspalte ist entfallen")
     stil = client.get("/static/style.css").text
     pruefe('grid-template-areas: "wahl person person dauer"' in stil,

@@ -3,6 +3,10 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.4.1
+
+- Übersicht: Tageszeilen als getöntes Band mit Akzentkante, Kalenderblatt (Tag/Monat), Wochentag fett und Summe als Pille; „Heute“ kräftiger; am Telefon einzeilig
+
 ## 2.4
 
 - Auswertung → Bewilligungen neu gestaltet: gerahmte Liste mit Kopf in Gruppen (Betreuung · Bis heute · Bescheid), drei wachsende Spalten statt einer, Abschnitte als farbige Zeilen, Kopf klebt beim Rollen

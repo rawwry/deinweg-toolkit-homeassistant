@@ -2934,4 +2934,10 @@ CHANGELOG = [
         "Die Abschnitte (Im Rückstand, Vorläufig …) sind farbige Zeilen, "
         "die Monatstabelle ist in Soll und Geleistet gegliedert",
     ]},
+    {"version": "2.4.1", "titel": "Tage in der Übersicht hervorgehoben", "punkte": [
+        "Übersicht: jeder Tag ist ein eigenes, getöntes Band mit kleinem "
+        "Kalenderblatt, Wochentag und Datum",
+        "Anzahl und Summe des Tages stehen rechts, die Summe als Pille",
+        "Der heutige Tag ist kräftiger hervorgehoben",
+    ]},
 ]

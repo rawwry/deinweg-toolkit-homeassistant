@@ -147,10 +147,25 @@
     {% for z in zeilen %}
       {% if loop.changed(z.datum) %}
       {% set ts = tagessummen.get(z.datum) %}
-      <tr class="tagzeile">
+      {# Seit 2.4.1 ein eigenes Band je Tag (Timos Meldung: die Tageszeile
+         ging zwischen den Einträgen unter): links ein Kalenderblatt mit
+         Tag und Monat, daneben Wochentag und Datum, rechts Anzahl und Summe
+         als Pille. „Heute“ trägt den kräftigeren Ton. #}
+      {% set wort = (z.datum | tagwort).replace(" · ", ", ") %}
+      {% set teile = wort.split(", ", 1) %}
+      {% set heute_tag = wort.startswith("Heute") %}
+      <tr class="tagzeile{{ ' ist-heute' if heute_tag }}">
         <th colspan="7" scope="rowgroup">
-          <span class="tagzeile-wort">{{ z.datum | tagwort }}</span>
-          {% if ts %}<span class="tagzeile-summe">{{ ts.n }} Eintr{{ 'ag' if ts.n == 1 else 'äge' }} · <strong>{{ ts.m | hhmm }} Std</strong></span>{% endif %}
+          <span class="tagzeile-inhalt">
+            {% if z.datum and z.datum | length == 10 %}
+            <span class="tag-blatt" aria-hidden="true">
+              <b>{{ z.datum[8:10] }}</b>
+              <small>{{ ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"][(z.datum[5:7] | int) - 1] }}</small>
+            </span>
+            {% endif %}
+            <span class="tagzeile-wort"><b>{{ teile[0] }}</b>{% if teile | length > 1 %} <span class="tagzeile-datum">{{ teile[1] }}</span>{% endif %}</span>
+            {% if ts %}<span class="tagzeile-summe"><span class="tagzeile-anzahl">{{ ts.n }} Eintr{{ 'ag' if ts.n == 1 else 'äge' }}</span> <strong>{{ ts.m | hhmm }} Std</strong></span>{% endif %}
+          </span>
         </th>
       </tr>
       {% endif %}

@@ -8681,15 +8681,52 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
    Eine Überschriftzeile je Tag. ⚠️ Ohne Zebrastreifen in dieser Tabelle:
    die Tageszeilen verschöben das Muster, und die Gliederung leisten jetzt
    die Tage selbst. */
+/* ⚠️⚠️ Seit 2.4.1 ein eigenes Band je Tag (Timos Meldung: „diese
+   Unterheadlines hervorheben … Schriftgrößen und Abstände“). Vorher 12,5px
+   Text ohne Fläche - die Tage gingen zwischen den 15px-Zeilen unter.
+   Jetzt: getönte Fläche mit Akzentkante links (dieselbe Form wie die
+   Abschnitte der Bewilligungen), ein kleines Kalenderblatt, Wochentag
+   fett 15px, Datum leise, rechts Anzahl und Summe als Pille. „Heute“
+   trägt den kräftigeren Ton. */
 .liste .tagzeile th {
-  padding: 16px 12px 7px; text-align: left; white-space: normal;
-  font-size: 12.5px; font-weight: 700; text-transform: none; letter-spacing: 0;
-  color: var(--tinte); background: none; border-bottom: 1px solid var(--linie);
+  --tag-ton: color-mix(in oklab, var(--akzent) calc(var(--mix-spalte) * 2), var(--flaeche));
+  padding: 10px 12px; text-align: left; white-space: normal;
+  font-size: 14px; font-weight: 500; text-transform: none; letter-spacing: 0;
+  color: var(--tinte); background: var(--tag-ton);
+  border-top: 1px solid var(--linie);
+  border-bottom: 1px solid color-mix(in oklab, var(--akzent) 22%, var(--linie));
+  box-shadow: inset 4px 0 0 color-mix(in oklab, var(--akzent) 70%, transparent);
 }
-.liste tbody .tagzeile:first-child th { padding-top: 6px; }
-.tagzeile-wort { margin-right: 10px; }
-.tagzeile-summe { font-weight: 500; color: var(--leise); font-variant-numeric: tabular-nums; }
-.tagzeile-summe strong { color: var(--akzent); font-weight: 700; }
+.liste tbody .tagzeile:first-child th { border-top: 0; }
+.liste .tagzeile.ist-heute th {
+  --tag-ton: color-mix(in oklab, var(--akzent) calc(var(--mix-gruppe) * 1.1), var(--flaeche));
+  box-shadow: inset 4px 0 0 var(--akzent);
+}
+.tagzeile-inhalt { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.tag-blatt {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 40px; height: 40px; flex: none; border-radius: 9px; line-height: 1;
+  background: var(--flaeche); border: 1px solid color-mix(in oklab, var(--akzent) 30%, var(--linie));
+}
+.tag-blatt b { font-size: 16px; font-weight: 750; color: var(--tinte); font-variant-numeric: tabular-nums; }
+.tag-blatt small { margin-top: 3px; font-size: 10px; font-weight: 700; letter-spacing: .06em;
+                   text-transform: uppercase; color: var(--akzent); }
+.ist-heute .tag-blatt { background: var(--akzent); border-color: var(--akzent); }
+.ist-heute .tag-blatt b, .ist-heute .tag-blatt small { color: var(--auf-akzent); }
+.tagzeile-wort { font-size: 15px; }
+.tagzeile-wort b { font-weight: 700; }
+.tagzeile-datum { margin-left: 6px; color: var(--leise); font-weight: 500; font-variant-numeric: tabular-nums; }
+.tagzeile-summe { margin-left: auto; display: inline-flex; align-items: center; gap: 10px;
+                  font-size: 13px; font-weight: 500; color: var(--leise);
+                  font-variant-numeric: tabular-nums; }
+.tagzeile-summe strong {
+  color: var(--akzent); font-weight: 700; font-size: 13.5px;
+  padding: 4px 11px; border-radius: 999px;
+  background: color-mix(in oklab, var(--akzent) 14%, var(--flaeche));
+  border: 1px solid color-mix(in oklab, var(--akzent) 30%, transparent);
+}
+/* Die erste Zeile nach dem Band bekommt etwas Luft nach oben. */
+.liste tbody .tagzeile + tr > td { padding-top: 15px; }
 .liste:has(.tagzeile) tbody tr:nth-child(even) { background: none; }
 .liste:has(.tagzeile) tbody tr:not(.tagzeile):hover { background: var(--zeile-hover); }
 .liste tbody tr.tagzeile:hover { background: none; }
@@ -8724,7 +8761,17 @@ polyline.kfz-linie { fill: none; stroke-width: 2.2; stroke-linejoin: round;
   .liste.eintragsliste thead { display: none; }
   .liste.eintragsliste, .liste.eintragsliste tbody { display: block; width: 100%; }
   .liste.eintragsliste tr.tagzeile { display: block; }
-  .liste.eintragsliste tr.tagzeile th { display: block; padding: 18px 2px 8px; }
+  .liste.eintragsliste tr.tagzeile th { display: block; padding: 10px 12px; margin-top: 14px;
+                                        border-radius: 10px; border: 1px solid var(--linie); }
+  .liste.eintragsliste tr.tagzeile:first-child th { margin-top: 0; }
+  .tag-blatt { width: 36px; height: 36px; }
+  /* Am Telefon eine Zeile: Wochentag und Datum untereinander, rechts nur
+     die Summe - mit Anzahl brach die Pille in eine zweite Zeile um. */
+  .tagzeile-inhalt { flex-wrap: nowrap; gap: 10px; }
+  .tagzeile-wort { font-size: 14.5px; min-width: 0; line-height: 1.25; }
+  .tagzeile-wort b { display: block; }
+  .tagzeile-datum { margin-left: 0; font-size: 12.5px; }
+  .tagzeile-anzahl { display: none; }
   .liste.eintragsliste tr:not(.tagzeile) {
     display: grid; align-items: center;
     grid-template-columns: auto auto minmax(0, 1fr) auto;
