@@ -6,24 +6,24 @@
    Geld (Grün, nur mit dem Recht „Verdienst"). Die Farbe sitzt im Kopf, als
    Hauch in der Spalte und in der Summenzeile (Stylesheet, „Gruppen"). #}
 
+{# Ein Balken, der wie der in „Bewilligungen“ gelesen wird: die Spur reicht
+   bis 150 %, der senkrechte Strich ist das Soll (100 %), die Füllung das
+   Geleistete. Was über den Strich hinausragt, ist mehr als bewilligt.
+   Grün ab 100 %, gelb ab 90 %, darunter rot (seit 2.3.3 - vorher endete
+   der Balken bei 100 %, und 103 % sah aus wie 160 %). #}
 {% macro balken_erreicht(ist, soll) -%}
   {%- set p = (ist / soll * 100) | round | int -%}
-  <span class="tb-erreicht">
-    <span class="tb-spur" aria-hidden="true"><span class="tb-fuell{{ '' if p >= 100 else (' tb-nah' if p >= 90 else ' tb-knapp') }}" style="width: {{ [p, 100] | min }}%"></span></span>
+  <span class="tb-erreicht" title="{{ p }} % des Solls erreicht">
+    <span class="tb-spur" aria-hidden="true"><span class="tb-fuell{{ '' if p >= 100 else (' tb-nah' if p >= 90 else ' tb-knapp') }}" style="width: {{ ([p, 150] | min) / 1.5 }}%"></span></span>
     <span class="tb-zahl">{{ p }} %</span>
   </span>
 {%- endmacro %}
 
-{# Der Balken misst die Abweichung am eigenen Soll: ganz ausgeschlagen
-   (halbe Spur) heißt „ein volles Soll daneben“. Am größten Ausschlag der
-   Tabelle gemessen, drückte ein einziger Ausreißer alle anderen Balken auf
-   wenige Pixel zusammen. #}
+{# Die Abweichung ist nur noch eine Zahl in ihrer Farbe. ⚠️ Der Balken von
+   der Mitte aus (2.3) ist entfallen - Timo: „total unverständlich“; er
+   zeigte dasselbe wie „Erreicht“ daneben, nur kleiner. #}
 {% macro balken_abweichung(abw, soll) -%}
-  {%- set breite = ([(abw | abs) / soll * 50, 50] | min) if soll else 0 -%}
-  <span class="tb-abw {{ 'tb-plus' if abw >= 0 else 'tb-minus' }}">
-    <span class="tb-dspur" aria-hidden="true"><span class="tb-dteil" style="width: {{ breite | round(1) }}%"></span></span>
-    <span class="tb-zahl">{{ '+' if abw >= 0 }}{{ abw | hhmm }}</span>
-  </span>
+  <span class="tb-abw {{ 'tb-plus' if abw >= 0 else 'tb-minus' }}"><span class="tb-zahl">{{ '+' if abw >= 0 }}{{ abw | hhmm }}</span></span>
 {%- endmacro %}
 
 {% macro personentabelle(zeilen, geld, fuss=none, klasse="") %}

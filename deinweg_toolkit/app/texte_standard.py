@@ -244,11 +244,12 @@ TEXTE_STANDARD["auswertung.spalte_soll"] = (
     "Die bewilligten Stunden für diesen Zeitraum: Stunden pro Woche × 52 "
     "÷ 12 je Monat. Ohne gültigen Bescheid bleibt die Zelle leer.")
 TEXTE_STANDARD["auswertung.spalte_erreicht"] = (
-    "Wie viel Prozent des Solls geleistet sind. Grün ab 100 %, gelb ab "
-    "90 %, darunter rot.")
+    "Wie viel Prozent des Solls geleistet sind. Der Strich im Balken ist das "
+    "Soll; reicht die Farbe darüber hinaus, ist mehr geleistet als bewilligt. "
+    "Grün ab 100 %, gelb ab 90 %, darunter rot.")
 TEXTE_STANDARD["auswertung.spalte_abweichung"] = (
-    "Geleistet minus Soll. Fehlen Stunden, zeigt der Balken nach links und "
-    "die Zahl ist rot; mehr als bewilligt ist grün.")
+    "Geleistet minus Soll, in Stunden. Rot heißt: so viele Stunden fehlen "
+    "noch. Grün heißt: so viele mehr als bewilligt.")
 TEXTE_STANDARD["auswertung.spalte_satz"] = (
     "Der Stundensatz laut Bescheid. Wechselt er im Zeitraum, steht hier, "
     "wie viele verschiedene Sätze es waren.")

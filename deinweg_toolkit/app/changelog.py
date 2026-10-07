@@ -2909,4 +2909,9 @@ CHANGELOG = [
         "farbige Überschriften",
         "Zeilen mit mehr Abstand und etwas größerer Schrift",
     ]},
+    {"version": "2.3.3", "titel": "Ein Balken, der sich lesen lässt", "punkte": [
+        "Auswertung: der Balken unter „Erreicht“ hat einen Strich fürs Soll – "
+        "was darüber hinausragt, ist mehr als bewilligt",
+        "Die Abweichung steht nur noch als Zahl da: rot fehlt, grün ist mehr",
+    ]},
 ]

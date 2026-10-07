@@ -3,6 +3,10 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.3.3
+
+- Auswertung: Balken „Erreicht“ mit Soll-Strich (Spur bis 150 %), Abweichung nur noch als farbige Zahl – der Balken von der Mitte aus ist entfallen
+
 ## 2.3.2
 
 - Tabellen: Spaltentitel 11,5px versal und gesperrt, Gruppen als farbige 14px-Überschrift, Zeilen 15px mit 13px Polsterung (dicht: 14px/9px)

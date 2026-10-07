@@ -9387,29 +9387,26 @@ html:not(.mit-skript) .tabellenhilfe { display: none; }
 @media (hover: none) { .tabellenhilfe { min-height: 0; } }
 
 /* --- Balken in der Auswertung -------------------------------------------
-   Erreicht: eine Spur, gefüllt bis zum Anteil am Soll - grün ab 100 %,
-   gelb ab 90 %, darunter rot. Abweichung: ein Balken von der Mitte aus,
-   nach links, wenn Stunden fehlen; die Zahl trägt dieselbe Farbe (statt
-   einer Pille, die jede Zeile unruhig machte). */
+   „Erreicht“: die Spur reicht bis 150 %, der Strich darin ist das Soll
+   (100 %), die Füllung das Geleistete - dieselbe Lesart wie der Balken in
+   „Bewilligungen“. Grün ab 100 %, gelb ab 90 %, darunter rot.
+   „Abweichung“ ist seit 2.3.3 nur noch die Zahl in ihrer Farbe; der
+   Balken von der Mitte aus war unverständlich (Timos Meldung). */
 /* ⚠️ Umbrechbar: in der Auswertung darf nichts die Mindestbreite der
    Tabelle hochsetzen (siehe „.auswertungsblatt"). Wird es eng, rutscht die
    Zahl unter den Balken, statt die Tabelle zu sprengen. */
-.tb-erreicht, .tb-abw { display: inline-flex; flex-wrap: wrap; align-items: center;
-                        column-gap: 8px; row-gap: 3px; }
+.tb-erreicht { display: inline-flex; flex-wrap: wrap; align-items: center;
+               column-gap: 10px; row-gap: 3px; }
 .tb-zahl { white-space: nowrap; }
-.tb-spur { position: relative; width: 52px; height: 6px; border-radius: 3px;
+.tb-spur { position: relative; width: 84px; height: 8px; border-radius: 4px;
            background: var(--linie); flex: 0 0 auto; }
-.tb-fuell { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--gut); }
+.tb-spur::after { content: ""; position: absolute; left: 66.667%; top: -4px; bottom: -4px;
+                  width: 2px; margin-left: -1px; border-radius: 1px; background: var(--tinte-2); }
+.tb-fuell { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--gut); }
 .tb-fuell.tb-nah   { background: var(--warn); }
 .tb-fuell.tb-knapp { background: var(--dopp); }
-.tb-dspur { position: relative; width: 46px; height: 6px; flex: 0 0 auto; }
-.tb-dspur::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px;
-                    width: 1px; background: var(--linie-stark); }
-.tb-dteil { position: absolute; top: 0; height: 6px; border-radius: 3px; }
-.tb-minus .tb-dteil { right: 50%; background: var(--dopp); }
-.tb-plus  .tb-dteil { left: 50%;  background: var(--gut); }
 .tb-minus .tb-zahl { color: var(--dopp); font-weight: 650; }
 .tb-plus  .tb-zahl { color: var(--gut);  font-weight: 650; }
 /* Am Telefon zählt die Zahl - die Balken kosten dort die Breite, die den
    Namen fehlt. */
-@media (max-width: 560px) { .tb-spur, .tb-dspur { display: none; } }
+@media (max-width: 560px) { .tb-spur { display: none; } }
