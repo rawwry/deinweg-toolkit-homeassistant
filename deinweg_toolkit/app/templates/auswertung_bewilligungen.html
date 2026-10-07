@@ -83,16 +83,23 @@
     </nav>
 
     <div class="bs-liste">
+      {# Kopf wie bei den Tabellen von „Zeitraum & Nachweis“ (seit 2.4):
+         oben die Gruppen als farbige Überschrift, darunter die Spalten
+         klein und versal. Reine Anzeige - jede Zeile trägt ihre Angaben
+         für Vorleseprogramme selbst. #}
       <div class="bs-kopf" aria-hidden="true">
+        <span class="bs-g bs-g-person">Betreuung</span>
+        <span class="bs-g bs-g-stunden">Bis heute</span>
+        <span class="bs-g bs-g-bescheid">Bescheid</span>
         <span class="bs-c-name">Betreute Person</span>
-        <span class="bs-c-ist">Geleistet</span>
-        <span class="bs-c-soll">Soll bis heute</span>
+        <span class="bs-c-ist">Ist</span>
+        <span class="bs-c-soll">Soll</span>
         <span class="bs-c-stand">Stand</span>
         <span class="bs-c-balken">Kontingent</span>
       </div>
 
       {% for ab in abschnitte %}
-      <div class="bs-abschnitt" id="bs-ab-{{ ab.schluessel }}">
+      <div class="bs-abschnitt bs-ab-{{ ab.schluessel }}" id="bs-ab-{{ ab.schluessel }}">
         <span class="bs-punkt bs-ab-{{ ab.schluessel }}"></span>
         <span class="bs-abschnitt-titel">{{ ab.titel }}</span>
         <span class="bs-abschnitt-zahl zahlen">{{ ab.zeilen | length }}</span>
@@ -109,12 +116,16 @@
               {{ z.von | deutsch }} – {{ z.bis | deutsch if z.bis else 'offen' }} · {{ z.wochenstunden | stunden }} Std pro Woche
             </span>
           </span>
-          <span class="bs-c-ist"><i>Geleistet</i><b class="zahlen">{{ z.ist | hhmm }}</b></span>
+          <span class="bs-c-ist"><i>Ist bis heute</i><b class="zahlen">{{ z.ist | hhmm }}</b></span>
           <span class="bs-c-soll"><i>Soll bis heute</i><b class="zahlen">{{ z.soll | hhmm }}</b></span>
           <span class="bs-c-stand">{{ stand_wort(z) }}</span>
-          <span class="bs-c-balken">
-            <span class="bs-spur" title="Geleistet {{ z.ist | hhmm }} Std · Soll bis heute {{ z.soll | hhmm }} Std{% if z.gesamt %} · Kontingent {{ z.gesamt | hhmm }} Std{% endif %}">
-              <span class="bs-fuellung bs-{{ z.ampel }}" style="width: {{ z.balken.ist }}%"></span>
+          {# Variante A (seit 2.4, Timos Wahl): der Rückstand ist ein eigenes,
+             schraffiertes Stück zwischen Ist und Soll - vorher nur der
+             Abstand zwischen Füllung und Strich, und genau so ging er unter. #}
+          <span class="bs-c-balken bs-{{ z.ampel }}">
+            <span class="bs-spur" title="Ist {{ z.ist | hhmm }} Std · Soll bis heute {{ z.soll | hhmm }} Std{% if z.gesamt %} · Kontingent {{ z.gesamt | hhmm }} Std{% endif %}">
+              <span class="bs-fuellung" style="width: {{ z.balken.ist }}%"></span>
+              {% if z.balken.soll > z.balken.ist %}<span class="bs-luecke" style="left: {{ z.balken.ist }}%; width: {{ (z.balken.soll - z.balken.ist) | round(1) }}%"></span>{% endif %}
               <span class="bs-sollstrich" style="left: {{ z.balken.soll }}%"></span>
             </span>
             <span class="bs-anteil">
@@ -125,51 +136,67 @@
         </summary>
 
         <div class="bs-detail">
-          {# Soll und Geleistet aufsummiert: wo die Linien auseinanderlaufen,
-             ist der Rückstand entstanden. Zahlen dazu in der Tabelle. #}
-          <figure class="bs-verlauf">
-            <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
-              {% if z.verlauf.heute is not none %}<line class="bs-v-heute" x1="{{ z.verlauf.heute }}" x2="{{ z.verlauf.heute }}" y1="0" y2="40"/>{% endif %}
-              <polyline class="bs-v-soll" points="{{ z.verlauf.soll }}"/>
-              {% if z.verlauf.ist %}<polyline class="bs-v-ist bs-{{ z.ampel }}" points="{{ z.verlauf.ist }}"/>{% endif %}
-            </svg>
+          {# Je Monat eine Säule (seit 2.4, Variante C): Umriss = Soll im
+             Monat, Füllung = geleistet, blass = kommende Monate. Zeigt, WANN
+             ein Rückstand entstanden ist - dieselbe Bildsprache wie das
+             Monatsdiagramm auf „Zeitraum & Nachweis“. Reines HTML/CSS. #}
+          <figure class="bs-saeulen">
+            <div class="bs-saeulen-feld" style="--n: {{ z.saeulen | length }}">
+              {% for m in z.saeulen %}
+              <div class="bs-saeule bs-s-{{ m.klasse }}{{ ' bs-s-heute' if m.laufend }}"
+                   title="{{ m.wort }}: {% if m.klasse == 'kuenftig' %}Soll {{ m.soll_min | hhmm }} Std (kommt noch){% else %}geleistet {{ m.ist_min | hhmm }} von {{ m.soll_min | hhmm }} Std Soll{% if m.prozent is not none %} – {{ m.prozent }} % des Solls erreicht{% endif %}{% endif %}">
+                <span class="bs-s-soll" style="height: {{ m.soll }}%"></span>
+                {% if m.klasse != 'kuenftig' %}<span class="bs-s-ist" style="height: {{ m.ist }}%"></span>{% endif %}
+                <span class="bs-s-monat">{{ m.kurz }}</span>
+              </div>
+              {% endfor %}
+            </div>
             <figcaption>
-              <span>{{ z.monate[0].wort }}</span>
-              <span class="bs-v-legende"><span class="bs-v-ist-zeichen bs-{{ z.ampel }}"></span>geleistet, aufsummiert <span class="bs-v-soll-zeichen"></span>Soll, aufsummiert</span>
-              <span>{{ z.monate[-1].wort }}</span>
+              <span><span class="bs-s-zeichen-soll"></span>Soll im Monat</span>
+              <span><span class="bs-s-zeichen-ist"></span>geleistet (grün ab 100 %, gelb ab 90 %, darunter rot)</span>
+              <span class="leise">Überfahren zeigt die Werte</span>
             </figcaption>
           </figure>
           <div class="tabellenrolle">
-          <table class="liste dicht bs-tabelle">
+          {# Gruppen wie in „Zeitraum & Nachweis“ (seit 2.4): Soll und
+             Geleistet je „im Monat“ und „bis dahin“ - so stehen die
+             Spaltentitel kurz da, statt „Geleistet bis dahin“ fünfmal
+             ähnlich lang. #}
+          <table class="liste dicht bs-tabelle gruppiert">
             <thead>
-              <tr><th>Monat</th>
-                  <th>Soll im Monat</th>
-                  <th>Soll bis dahin</th>
-                  <th>Geleistet im Monat</th>
-                  <th>Geleistet bis dahin</th>
-                  <th>Abweichung bis dahin</th></tr>
+              <tr class="gruppenkopf">
+                <th class="g-person">Monat</th>
+                <th colspan="2" class="g-stunden g-start">Soll</th>
+                <th colspan="3" class="g-ist g-start">Geleistet</th>
+              </tr>
+              <tr><th class="g-person"></th>
+                  <th class="g-stunden g-start">im Monat</th>
+                  <th class="g-stunden">bis dahin</th>
+                  <th class="g-ist g-start">im Monat</th>
+                  <th class="g-ist">bis dahin</th>
+                  <th class="g-ist">Abweichung</th></tr>
             </thead>
             <tbody>
             {% for m in z.monate %}
               <tr class="{{ 'zeile-laufend' if m.laufend }}{{ ' bs-kuenftig' if m.kuenftig }}">
-                <td>{{ m.wort }}{% if m.laufend %} <span class="leise klein">· läuft</span>{% endif %}</td>
-                <td class="zahlen">{{ m.soll | hhmm }}</td>
-                <td class="zahlen">{{ m.soll_kum | hhmm }}</td>
+                <td class="g-person">{{ m.wort }}{% if m.laufend %} <span class="leise klein">· läuft</span>{% endif %}</td>
+                <td class="g-stunden g-start zahlen">{{ m.soll | hhmm }}</td>
+                <td class="g-stunden zahlen">{{ m.soll_kum | hhmm }}</td>
                 {% if m.kuenftig %}
-                <td></td><td></td><td></td>
+                <td class="g-ist g-start"></td><td class="g-ist"></td><td class="g-ist"></td>
                 {% else %}
-                <td class="zahlen">{{ m.ist | hhmm }}</td>
-                <td class="zahlen">{{ m.ist_kum | hhmm }}</td>
-                <td class="zahlen {{ 'bs-plus' if m.abw_kum >= 0 else 'bs-minus' }}">{{ '+' if m.abw_kum >= 0 }}{{ m.abw_kum | hhmm }}</td>
+                <td class="g-ist g-start zahlen">{{ m.ist | hhmm }}</td>
+                <td class="g-ist zahlen">{{ m.ist_kum | hhmm }}</td>
+                <td class="g-ist zahlen {{ 'bs-plus' if m.abw_kum >= 0 else 'bs-minus' }}">{{ '+' if m.abw_kum >= 0 }}{{ m.abw_kum | hhmm }}</td>
                 {% endif %}
               </tr>
             {% endfor %}
             </tbody>
             {% if z.gesamt %}
             <tfoot>
-              <tr><td class="stark">Kontingent des Bescheids</td>
-                  <td class="zahlen stark">{{ z.gesamt | hhmm }}</td>
-                  <td></td><td></td><td></td><td></td></tr>
+              <tr><td class="g-person stark">Kontingent des Bescheids</td>
+                  <td class="g-stunden g-start zahlen stark">{{ z.gesamt | hhmm }}</td>
+                  <td class="g-stunden"></td><td class="g-ist g-start"></td><td class="g-ist"></td><td class="g-ist"></td></tr>
             </tfoot>
             {% endif %}
           </table>

@@ -2922,4 +2922,16 @@ CHANGELOG = [
         "Bessere Reihenfolge: Seiten zuerst, und eine Person erscheint nicht "
         "mehr nur deshalb, weil „Aufgaben“ daneben steht",
     ]},
+    {"version": "2.4", "titel": "Bewilligungen aufgeräumt", "punkte": [
+        "Die Liste der Bewilligungen hat einen Kopf wie die Tabellen: "
+        "Betreuung · Bis heute (Ist, Soll, Stand) · Bescheid (Kontingent)",
+        "Der Platz ist gleichmäßiger verteilt – die Namensspalte nimmt nicht "
+        "mehr alles, die Zahlen stehen nicht mehr rechts gedrängt",
+        "Der Balken ist kräftiger, und der Rückstand ist ein eigenes, "
+        "schraffiertes Stück zwischen Geleistetem und Soll",
+        "Klappst du eine Person auf, zeigen Säulen jeden Monat einzeln – "
+        "so siehst du, wann ein Rückstand entstanden ist",
+        "Die Abschnitte (Im Rückstand, Vorläufig …) sind farbige Zeilen, "
+        "die Monatstabelle ist in Soll und Geleistet gegliedert",
+    ]},
 ]

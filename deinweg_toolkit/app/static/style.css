@@ -8964,10 +8964,10 @@ html.mit-skript[data-hinweise="kompakt"] .importkarte:not([open]) .importkopf .l
 /* 1. Bilanzleiste */
 .bs-bilanz {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 4px 0 18px; border: 1px solid var(--linie); border-radius: 12px;
+  margin: 6px 0 22px; border: 1px solid var(--linie); border-radius: 12px;
   background: var(--flaeche-2); overflow: hidden;
 }
-.bs-wert { padding: 14px 16px; min-width: 0; }
+.bs-wert { padding: 16px 18px; min-width: 0; }
 .bs-wert:nth-child(2n) { border-left: 1px solid var(--linie); }
 .bs-wert:nth-child(n+3) { border-top: 1px solid var(--linie); }
 .bs-wert dt {
@@ -9003,7 +9003,7 @@ html.mit-skript[data-hinweise="kompakt"] .importkarte:not([open]) .importkopf .l
               color-mix(in oklab, var(--dopp) 45%, var(--flaeche)) 4px 8px);
 }
 .bs-lagen { --ak-hoehe: 34px; display: flex; flex-wrap: wrap; gap: 6px;
-            margin: 12px 0 16px; }
+            margin: 14px 0 20px; }
 .bs-lagen .ak-pille { font-size: 13px; }
 .bs-ampel-erklaerung { list-style: none; margin: 0 0 12px; padding: 0;
                        display: flex; flex-direction: column; gap: 6px; }
@@ -9013,110 +9013,243 @@ html.mit-skript[data-hinweise="kompakt"] .importkarte:not([open]) .importkopf .l
             background: var(--bs-ton); }
 .bs-punkt.bs-ab-ohne { background: transparent; box-shadow: inset 0 0 0 2px var(--dopp); }
 
-/* 3. Liste */
+/* 3. Liste (Facelift 2.4) ----------------------------------------------
+   ⚠️⚠️ Timos Meldung zur Fassung 2.2: die Spalte „Betreute Person“ nahm
+   als einzige `1fr` den ganzen Rest, alle Zahlen klebten rechts, und der
+   Kopf unterschied sich kaum vom Inhalt. Jetzt dieselbe Ordnung wie die
+   Tabellen von „Zeitraum & Nachweis“:
+   - Die Liste ist ein gerahmter Block mit getöntem Kopf: Gruppen als
+     farbige Überschrift (Betreuung · Stunden), Spalten klein und versal.
+   - Der Platz verteilt sich auf DREI wachsende Spalten (Name, Stand,
+     Kontingent); Geleistet und Soll sind fest. Eine Linie trennt die
+     Person von den Stunden.
+   - Abschnitte (Im Rückstand …) sind eine getönte Zeile in ihrer Farbe,
+     Zeilen 15px mit Luft, Detail als eingelassene Fläche.
+   ⚠️ Gestapelt ist der Ausgangszustand, die Zeile kommt über die
+   Container-Abfrage dazu. --bs-raster steht AUSSERHALB der Abfrage (die
+   kann ihren eigenen Container nicht gestalten).
+   ⚠️ Kein Einrücken beim Überfahren (Stage 7): getönte Fläche plus die
+   Akzentkante wie in jeder Tabelle. */
 .bs-liste {
   container-type: inline-size; container-name: bsliste;
-  --bs-raster: minmax(0, 1fr) 76px 104px 216px 196px 18px;
-  border-top: 1px solid var(--linie); margin-bottom: 14px;
+  /* ⚠️ Die Mindestbreiten zusammen (798px) müssen unter der Schwelle der
+     Container-Abfrage (860px) bleiben - bei 984px wurde die Spalte
+     „Kontingent“ in einem 1024px-Fenster abgeschnitten. */
+  --bs-raster: minmax(180px, 1.3fr) 96px 104px minmax(170px, 1fr) minmax(200px, 1.25fr) 48px;
+  --bs-luft: 16px;
+  border: 1px solid var(--linie); border-radius: 12px; overflow: clip;
+  margin-bottom: 18px; background: var(--flaeche);
 }
 .bs-kopf { display: none; }
 .bs-abschnitt {
-  display: flex; align-items: center; gap: 9px;
-  padding: 18px 4px 8px; border-bottom: 1px solid var(--linie);
+  --bs-hauch: color-mix(in oklab, var(--bs-ton) 13%, var(--flaeche));
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px var(--bs-luft); background: var(--bs-hauch);
+  border-bottom: 1px solid var(--linie);
+  box-shadow: inset 4px 0 0 var(--bs-ton);
 }
-.bs-abschnitt-titel { font-size: 12px; font-weight: 700; letter-spacing: .05em;
-                      text-transform: uppercase; color: var(--tinte-2); }
-.bs-abschnitt-zahl { font-size: 12px; color: var(--leise); }
+.bs-abschnitt:not(:nth-child(2)) { border-top: 1px solid var(--linie); }
+.bs-abschnitt .bs-punkt { width: 9px; height: 9px; }
+.bs-abschnitt-titel { font-size: 14px; font-weight: 700; color: var(--tinte); }
+.bs-abschnitt-zahl {
+  font-size: 12px; font-weight: 650; color: var(--tinte-2); min-width: 22px;
+  padding: 1px 8px; border-radius: 999px; text-align: center;
+  background: color-mix(in oklab, var(--bs-ton) 16%, var(--flaeche));
+}
 .bs-zeile { border-bottom: 1px solid var(--linie-fein); }
+.bs-zeile:last-child { border-bottom: 0; }
 .bs-summary {
-  display: grid; gap: 6px 14px; padding: 12px 4px;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 18px;
+  display: grid; gap: 8px 16px; padding: 14px var(--bs-luft);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 22px;
   grid-template-areas: "name   name   pfeil"
                        "stand  stand  stand"
                        "ist    soll   soll"
                        "balken balken balken";
-  align-items: center; font-size: 13.5px;
+  align-items: center; font-size: 15px; position: relative;
 }
 details.bs-zeile > .bs-summary { cursor: pointer; list-style: none; }
 details.bs-zeile > .bs-summary::-webkit-details-marker { display: none; }
 details.bs-zeile > .bs-summary::marker { content: ""; }
-details.bs-zeile > .bs-summary:hover { background: var(--flaeche-2); }
-details.bs-zeile[open] > .bs-summary { background: var(--flaeche-2); }
-.bs-c-name   { grid-area: name; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+details.bs-zeile > .bs-summary:hover,
+details.bs-zeile[open] > .bs-summary { background: var(--zeile-hover); }
+details.bs-zeile > .bs-summary:hover { box-shadow: inset 2px 0 0 var(--akzent); }
+.bs-c-name   { grid-area: name; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .bs-c-ist    { grid-area: ist; }
 .bs-c-soll   { grid-area: soll; }
 .bs-c-stand  { grid-area: stand; min-width: 0; }
-.bs-c-balken { grid-area: balken; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.bs-c-balken { grid-area: balken; min-width: 0; display: flex; flex-direction: column;
+               align-items: stretch; gap: 6px; }
 .bs-pfeil    { grid-area: pfeil; justify-self: end; color: var(--leise); display: inline-flex; }
 .bs-pfeil svg { width: 18px; height: 18px; transition: transform .15s ease; }
 .bs-zeile[open] .bs-pfeil svg { transform: rotate(180deg); }
-.bs-name { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bs-unter { font-size: 12px; color: var(--leise); overflow: hidden;
-            text-overflow: ellipsis; white-space: nowrap; }
+.bs-name { font-size: 15px; font-weight: 650; color: var(--tinte);
+           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Gestapelt darf die Unterzeile umbrechen - am Telefon blieb von Zeitraum
+   und Hinweis sonst nur „…“. In der Zeile wird sie gekürzt (siehe unten). */
+.bs-unter { font-size: 12.5px; color: var(--leise); }
 .bs-marke { color: var(--bs-ton); font-weight: 650; }
 .bs-marke::after { content: " · "; color: var(--leise); font-weight: 400; }
-.bs-summary i { display: block; font-style: normal; font-size: 11px; color: var(--leise); }
-.bs-summary b { font-weight: 600; }
+/* In der breiten Fassung steht die Marke „beantragt“ auf einer eigenen
+   Zeile - neben Zeitraum und Wochenstunden wurde sonst alles mit „…“
+   abgeschnitten, gerade die Daten, nach denen man sucht. */
+@container bsliste (min-width: 860px) {
+  .bs-unter { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bs-unter:has(.bs-marke) { white-space: normal; }
+  .bs-marke { display: block; }
+  .bs-marke::after { content: none; }
+}
+/* Gestapelt steht über jeder Zahl ihre Beschriftung - klein und versal
+   wie im Kopf der breiten Fassung. */
+.bs-summary i { display: block; font-style: normal; font-size: 10.5px; font-weight: 700;
+                letter-spacing: .06em; text-transform: uppercase; color: var(--leise);
+                margin-bottom: 2px; }
+.bs-summary b { font-weight: 650; color: var(--tinte); }
+.bs-c-soll b { font-weight: 500; color: var(--tinte-2); }
 /* Ohne Bescheid gibt es kein Ist und kein Soll: gestapelt fallen die
    Striche weg, in der Zeile halten sie die Spalten. */
 .bs-flach .bs-leer { display: none; }
 
-.bs-stand { display: inline-flex; align-items: center; gap: 7px;
-            font-weight: 650; color: var(--bs-ton); white-space: nowrap; }
+/* Der Stand darf in seiner Spalte umbrechen - bei schmalem Fenster lief
+   „abgelaufen seit 30.04.2026“ sonst in die Spalte „Kontingent“. Der Punkt
+   hängt dann an der ersten Zeile. */
+.bs-stand { display: inline-flex; align-items: flex-start; gap: 8px; font-size: 14px;
+            font-weight: 650; color: var(--bs-ton); line-height: 1.35; }
 .bs-stand::before { content: ""; width: 8px; height: 8px; border-radius: 50%;
-                    background: var(--bs-ton); flex: none; }
+                    background: var(--bs-ton); flex: none; margin-top: .38em; }
 
-/* Der Balken: Spur = Kontingent, Füllung = Ist, Strich = Soll bis heute. */
-.bs-spur { position: relative; flex: 1 1 auto; height: 8px; border-radius: 4px;
+/* Der Balken (Variante A, seit 2.4): Spur = Kontingent, Füllung = Ist,
+   schraffiertes Stück = was bis heute fehlt, Strich = Soll bis heute.
+   14px hoch statt 8px - der schmale Balken ging neben den Zahlen unter.
+   Darunter steht der Anteil am Kontingent. */
+.bs-spur { position: relative; display: block; width: 100%; height: 14px; border-radius: 7px;
            background: color-mix(in oklab, var(--linie) 70%, var(--flaeche)); }
-.bs-fuellung { position: absolute; inset: 0 auto 0 0; border-radius: 4px;
-               background: var(--bs-ton); min-width: 2px; }
+.bs-fuellung { position: absolute; inset: 0 auto 0 0; border-radius: 7px;
+               background: var(--bs-ton); min-width: 3px; }
+.bs-luecke { position: absolute; top: 0; bottom: 0; border-radius: 0 7px 7px 0;
+             background: repeating-linear-gradient(135deg,
+               color-mix(in oklab, var(--bs-ton) 75%, transparent) 0 3px, transparent 3px 7px);
+             box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--bs-ton) 55%, transparent); }
 .bs-sollstrich { position: absolute; top: -4px; bottom: -4px; width: 2px;
                  margin-left: -1px; border-radius: 1px; background: var(--tinte); }
-.bs-anteil { flex: none; min-width: 92px; font-size: 12px; color: var(--leise);
-             white-space: nowrap; }
-.bs-anteil b { color: var(--tinte); }
-.bs-pflegen { font-size: 12.5px; color: var(--akzent); text-decoration: none; }
+.bs-anteil { font-size: 12.5px; color: var(--leise); white-space: nowrap; }
+.bs-anteil b { color: var(--tinte); font-size: 14px; }
+.bs-pflegen { font-size: 13px; font-weight: 600; color: var(--akzent); text-decoration: none; }
 .bs-pflegen:hover { text-decoration: underline; }
 
-/* Detail: Verlauf und Monatstabelle */
-.bs-detail { padding: 6px 4px 18px; }
-.bs-verlauf { margin: 4px 0 14px; }
-.bs-verlauf svg { display: block; width: 100%; height: 110px;
-                  border-bottom: 1px solid var(--linie); }
-.bs-verlauf polyline { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke;
-                       stroke-linejoin: round; stroke-linecap: round; }
-.bs-v-soll { stroke: var(--leise); stroke-dasharray: 5 4; }
-.bs-v-ist { stroke: var(--bs-ton); }
-.bs-v-heute { stroke: var(--linie-stark); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.bs-verlauf figcaption { display: flex; justify-content: space-between; gap: 12px;
-                         margin-top: 6px; font-size: 11.5px; color: var(--leise); }
-.bs-v-legende { display: inline-flex; align-items: center; gap: 7px; }
-.bs-v-ist-zeichen, .bs-v-soll-zeichen { display: inline-block; width: 16px; height: 0;
-                                         border-top: 2px solid var(--bs-ton); }
-.bs-v-soll-zeichen { border-top: 2px dashed var(--leise); margin-left: 8px; }
+/* Detail: Verlauf und Monatstabelle als eingelassene Fläche */
+.bs-detail { padding: 18px var(--bs-luft) 22px; background: var(--flaeche-2);
+             border-top: 1px solid var(--linie-fein); }
+/* Monatssäulen im Detail (Variante C, seit 2.4): Umriss = Soll im Monat,
+   Füllung = geleistet, kommende Monate nur als blasser Umriss. Ersetzt die
+   aufsummierten Linien von 2.1. */
+.bs-saeulen { margin: 0 0 18px; }
+.bs-saeulen-feld {
+  display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px;
+  height: 140px; padding-bottom: 22px; border-bottom: 1px solid var(--linie);
+  position: relative;
+}
+.bs-saeule { position: relative; display: flex; justify-content: center; }
+.bs-s-soll, .bs-s-ist {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: min(30px, 70%); border-radius: 5px 5px 0 0;
+}
+.bs-s-soll { border: 1.5px dashed color-mix(in oklab, var(--tinte-2) 55%, transparent);
+             border-bottom: 0; }
+.bs-s-ist { background: var(--gut); }
+.bs-s-nah .bs-s-ist   { background: var(--warn); }
+.bs-s-knapp .bs-s-ist { background: var(--dopp); }
+.bs-s-kuenftig .bs-s-soll { opacity: .45; }
+.bs-s-monat { position: absolute; bottom: -20px; font-size: 11.5px; color: var(--leise); }
+.bs-s-heute .bs-s-monat { color: var(--tinte); font-weight: 650; }
+.bs-saeule:hover .bs-s-soll { border-color: var(--tinte); }
+.bs-saeulen figcaption { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px;
+                         font-size: 12px; color: var(--tinte-2); }
+.bs-saeulen figcaption > span { display: inline-flex; align-items: center; gap: 7px; }
+.bs-saeulen figcaption .leise { margin-left: auto; }
+@media (hover: none) { .bs-saeulen figcaption .leise { display: none; } }
+@media (max-width: 480px) { .bs-saeulen-feld { gap: 3px; } .bs-s-monat { font-size: 11px; } }
+.bs-s-zeichen-soll, .bs-s-zeichen-ist { display: inline-block; width: 12px; height: 12px;
+                                        border-radius: 3px; }
+.bs-s-zeichen-soll { border: 1.5px dashed color-mix(in oklab, var(--tinte-2) 55%, transparent); }
+.bs-s-zeichen-ist { background: linear-gradient(90deg, var(--gut) 0 33%, var(--warn) 33% 66%, var(--dopp) 66%); }
 .bs-tabelle td, .bs-tabelle th { text-align: left; }
 .bs-tabelle tr.bs-kuenftig td { color: var(--leise); }
 .bs-tabelle td.bs-minus { color: var(--dopp); font-weight: 600; }
 .bs-tabelle td.bs-plus { color: var(--gut); font-weight: 600; }
 
-@container bsliste (min-width: 820px) {
-  .bs-kopf {
-    display: grid; grid-template-columns: var(--bs-raster); gap: 14px;
-    grid-template-areas: "name ist soll stand balken pfeil";
-    padding: 10px 4px 2px;
-    font-size: 11px; font-weight: 700; letter-spacing: .06em;
-    text-transform: uppercase; color: var(--leise);
+@container bsliste (min-width: 860px) {
+  /* ⚠️ Ohne Spaltenlücke (column-gap: 0): jede Zelle trägt ihren Abstand
+     als Polsterung rechts. Nur so kann der Kopf je Spalte seinen Ton
+     tragen (Person = Akzent, Stunden = Blau), ohne dass zwischen den
+     Spalten ein Spalt in der Kartenfarbe bleibt - und die Trennlinie
+     zwischen Person und Stunden sitzt als Kante an „Geleistet“. */
+  .bs-kopf, .bs-summary, .bs-flach .bs-summary {
+    grid-template-columns: var(--bs-raster); column-gap: 0;
   }
+  .bs-kopf > *, .bs-summary > * { padding-right: 16px; }
+  .bs-kopf > .bs-c-name, .bs-kopf > .bs-g-person,
+  .bs-summary > .bs-c-name { padding-left: var(--bs-luft); }
+  .bs-kopf > .bs-c-ist, .bs-kopf > .bs-g-stunden,
+  .bs-summary > .bs-c-ist { padding-left: 16px;
+    border-left: 1px solid color-mix(in oklab, var(--info) 28%, var(--linie)); }
+  .bs-summary > .bs-pfeil { padding-right: var(--bs-luft); }
+
+  /* Kopf in zwei Zeilen: Gruppen, dann Spalten - dieselben drei Stufen wie
+     in den Tabellen (Gruppe 14px farbig · Spalte 11,5px versal · Zeile 15px). */
+  .bs-kopf {
+    display: grid;
+    grid-template-areas: "gperson gstunden gstunden gstunden gbescheid gbescheid"
+                         "name    ist      soll     stand    balken    balken";
+    background: color-mix(in oklab, var(--info) var(--mix-gruppe), var(--flaeche));
+    border-bottom: 2px solid color-mix(in oklab, var(--info) 45%, var(--linie));
+    font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: color-mix(in oklab, var(--info) 30%, var(--leise));
+  }
+  .bs-kopf > .bs-c-name, .bs-kopf > .bs-g-person {
+    background: color-mix(in oklab, var(--akzent) var(--mix-gruppe), var(--flaeche));
+  }
+  .bs-kopf > .bs-c-name { color: color-mix(in oklab, var(--akzent) 30%, var(--leise)); }
+  .bs-kopf > span:not(.bs-g) { padding-top: 4px; padding-bottom: 12px; }
+  .bs-g { padding-top: 12px; font-size: 14px; font-weight: 750; letter-spacing: 0;
+          text-transform: none; border-top: 3px solid; }
+  .bs-g-person  { grid-area: gperson; color: var(--akzent); border-top-color: var(--akzent); }
+  .bs-g-stunden { grid-area: gstunden; color: var(--info); border-top-color: var(--info); }
+  /* Dritte Gruppe „Bescheid“ (seit 2.4): das Kontingent ist gerade NICHT
+     „bis heute“, sondern der ganze Bescheid - deshalb ein eigener Kopf. */
+  .bs-g-bescheid { grid-area: gbescheid; color: var(--gut); border-top-color: var(--gut); }
+  .bs-kopf > .bs-g-bescheid, .bs-kopf > .bs-c-balken {
+    background: color-mix(in oklab, var(--gut) var(--mix-gruppe), var(--flaeche));
+    padding-left: 16px;
+    border-left: 1px solid color-mix(in oklab, var(--gut) 28%, var(--linie));
+  }
+  .bs-kopf > .bs-c-balken { color: color-mix(in oklab, var(--gut) 30%, var(--leise)); }
+  .bs-summary > .bs-c-balken { padding-left: 16px;
+    border-left: 1px solid color-mix(in oklab, var(--gut) 22%, var(--linie)); }
+  .bs-kopf > .bs-c-name   { grid-area: name; }
+  .bs-kopf > .bs-c-ist    { grid-area: ist; }
+  .bs-kopf > .bs-c-soll   { grid-area: soll; }
+  .bs-kopf > .bs-c-stand  { grid-area: stand; }
+  .bs-kopf > .bs-c-balken { grid-area: balken; }
+
   .bs-summary,
   .bs-flach .bs-summary {
-    grid-template-columns: var(--bs-raster);
     grid-template-areas: "name ist soll stand balken pfeil";
-    min-height: 58px; padding: 9px 4px;
+    min-height: 66px; padding: 0; align-items: stretch;
   }
+  .bs-summary > * { display: flex; flex-direction: column; justify-content: center;
+                    padding-top: 12px; padding-bottom: 12px; }
+  .bs-summary > .bs-c-stand { flex-direction: row; align-items: center; justify-content: flex-start; }
+  .bs-summary > .bs-c-balken { align-items: stretch; gap: 6px; }
+  .bs-summary > .bs-pfeil { align-items: flex-end; }
   .bs-summary i { display: none; }
-  .bs-flach .bs-leer { display: block; color: var(--leise); }
+  .bs-flach .bs-leer { display: flex; color: var(--leise); }
+  .bs-flach .bs-leer b { color: var(--leise); font-weight: 400; }
 }
+@media (min-width: 861px) {
+  /* Der Kopf bleibt beim Rollen stehen - wie bei den Tabellen. */
+  .bs-kopf { position: sticky; top: calc(var(--kopfhoehe) - 6px); z-index: 3; }
+}
+.karte.bewilligungsstand { overflow-x: clip; }
 
 @media (max-width: 760px) {
   .tabellenrolle:has(.bs-tabelle) { overflow-x: auto; }
@@ -9360,6 +9493,9 @@ details.bs-zeile[open] > .bs-summary { background: var(--flaeche-2); }
 .liste .g-person  { --g: var(--akzent); }
 .liste .g-stunden { --g: var(--info); }
 .liste .g-geld    { --g: var(--gut); }
+/* „Geleistet“ in der Monatstabelle der Bewilligungen (seit 2.4) - dasselbe
+   Grün wie „im Plan“, damit Soll (blau) und Ist (grün) auseinanderfallen. */
+.liste .g-ist     { --g: var(--gut); }
 .liste.gruppiert tr.gruppenkopf th {
   color: var(--g); font-size: 14px; font-weight: 750; letter-spacing: 0;
   text-transform: none; padding: 14px 12px 4px;

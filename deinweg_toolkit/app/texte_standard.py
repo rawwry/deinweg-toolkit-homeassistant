@@ -226,8 +226,11 @@ TEXTE_STANDARD["auswertung.ampel_orange"] = (
 TEXTE_STANDARD["auswertung.balken_erklaerung"] = (
     "Der Balken je Person: Die ganze Länge ist das Kontingent des "
     "Bescheids, der farbige Teil zeigt die geleisteten Stunden, und der "
-    "senkrechte Strich markiert das Soll bis heute. Reicht die Farbe bis "
-    "zum Strich oder darüber hinaus, ist die Person im Plan.")
+    "senkrechte Strich markiert das Soll bis heute. Das schraffierte Stück "
+    "dazwischen ist der Rückstand. Reicht die Farbe bis zum Strich oder "
+    "darüber hinaus, ist die Person im Plan. Klappst du eine Person auf, "
+    "zeigen Säulen jeden Monat einzeln: der gestrichelte Umriss ist das "
+    "Soll im Monat, die Füllung das Geleistete.")
 
 # Spaltenerklärungen der Personentabelle (seit 2.3). Sie erscheinen in der
 # Zeile unter der Tabelle, sobald man über einen Spaltentitel fährt.

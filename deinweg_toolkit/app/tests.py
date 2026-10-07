@@ -4142,12 +4142,14 @@ def test_stand_der_bewilligungen(client: TestClient) -> None:
     pruefe("Bewilligung fehlt" in karte and "Vorläufig – Bescheid steht aus" in karte
            and "noch " in karte and "im Plan" in karte,
            "Bewilligung fehlt, vorläufig, offen und im Plan stehen im Klartext da")
-    pruefe("Soll bis dahin" in karte and "Abweichung bis dahin" in karte,
-           "die Detailtabelle hat ihre sechs Spalten")
+    # Seit 2.4 in Gruppen: Soll und Geleistet je „im Monat“ / „bis dahin“.
+    pruefe(">Soll</th>" in karte and ">Geleistet</th>" in karte
+           and karte.count(">bis dahin</th>") >= 2 and ">Abweichung</th>" in karte,
+           "die Detailtabelle hat ihre sechs Spalten in zwei Gruppen")
     pruefe("<details class=\"bs-zeile" in karte,
            "jede Person mit Bescheid klappt auf - ohne Skript")
     stil = client.get("/static/style.css").text
-    pruefe("@container bsliste (min-width: 820px)" in stil
+    pruefe("@container bsliste (min-width: 860px)" in stil
            and "container-name: bsliste" in stil,
            "gestapelt ist der Ausgangszustand, die Zeile kommt per Container-Abfrage")
     # --- Umbau nach Timos Rückmeldung --------------------------------------
@@ -4279,6 +4281,54 @@ def test_schnellsuche_2_3_4(client: TestClient) -> None:
            "der Suchbegriff wird im Titel hervorgehoben")
     pruefe("x.r < 3" in seite and 'var REIHE = ["Seiten"' in seite,
            "Treffer nur im Zusatz kommen nachrangig, Gruppen bleiben beisammen")
+
+
+def test_bewilligungen_2_4(client: TestClient) -> None:
+    """Facelift der Bewilligungen: ausgewogenes Raster, Kopf wie die
+    Tabellen, Abschnitte in ihrer Farbe, gruppierte Monatstabelle."""
+    abschnitt("Bewilligungen 2.4")
+    stil = client.get("/static/style.css").text
+    liste = stil.split(".bs-liste {", 1)[1].split("}", 1)[0]
+    raster = liste.split("--bs-raster:", 1)[1].split(";", 1)[0]
+    pruefe(raster.strip().startswith("minmax(180px, 1.3fr)") and raster.count("fr)") == 3,
+           "drei Spalten wachsen (Name, Stand, Kontingent) - nicht mehr nur der Name")
+    pruefe("border-radius: 12px" in liste and "overflow: clip" in liste,
+           "die Liste ist ein gerahmter Block")
+    pruefe(any("column-gap: 0" in teil[:900] for teil in stil.split("@container bsliste (min-width: 860px) {")[1:]),
+           "Kopf und Zeilen ohne Spaltenlücke, damit jede Spalte ihren Ton trägt")
+    pruefe(".bs-kopf { position: sticky;" in stil,
+           "der Kopf bleibt beim Rollen stehen")
+    seite = client.get("/auswertung").text
+    kopf = seite.split('class="bs-kopf"', 1)[1].split("</div>", 1)[0] if 'class="bs-kopf"' in seite else ""
+    pruefe('bs-g bs-g-person">Betreuung<' in kopf and 'bs-g bs-g-stunden">' in kopf,
+           "der Kopf trägt die Gruppen über den Spalten")
+    pruefe('class="bs-abschnitt bs-ab-' in seite,
+           "jede Abschnittszeile kennt ihre Farbe")
+    pruefe('class="liste dicht bs-tabelle gruppiert"' in seite,
+           "die Monatstabelle im Detail ist gruppiert wie die übrigen Tabellen")
+    # Timos Wahl nach den drei Entwürfen: Köpfe „Ist“/„Soll“ unter „Bis
+    # heute“, „Kontingent“ unter „Bescheid“; Balken A mit schraffiertem
+    # Rückstand; im Detail Monatssäulen (C) statt der Linien.
+    pruefe('bs-g bs-g-stunden">Bis heute<' in kopf and 'bs-g bs-g-bescheid">Bescheid<' in kopf
+           and 'bs-c-ist">Ist<' in kopf and 'bs-c-soll">Soll<' in kopf,
+           "Kopf: Bis heute (Ist, Soll, Stand) und Bescheid (Kontingent)")
+    pruefe('class="bs-luecke"' in seite and ".bs-luecke {" in stil
+           and "height: 14px" in stil.split(".bs-spur {", 1)[1].split("}", 1)[0],
+           "der Balken ist kräftiger und zeigt den Rückstand als eigenes Stück")
+    pruefe('class="bs-saeulen"' in seite and seite.count('class="bs-saeule ') >= 3
+           and "bs-verlauf" not in seite and "polyline" not in seite.split('id="stand"', 1)[1],
+           "im Detail stehen Monatssäulen statt der aufsummierten Linien")
+    pruefe("% des Solls erreicht" in seite.split('class="bs-saeulen"', 1)[1][:4000],
+           "jede Säule sagt in Worten, was sie zeigt")
+    from .auswertung import _saeulen
+    probe = _saeulen({"monate": [
+        {"wort": "Januar 2026", "soll": 600, "ist": 600, "kuenftig": False, "laufend": False},
+        {"wort": "Februar 2026", "soll": 600, "ist": 560, "kuenftig": False, "laufend": False},
+        {"wort": "März 2026", "soll": 600, "ist": 300, "kuenftig": False, "laufend": True},
+        {"wort": "April 2026", "soll": 600, "kuenftig": True, "laufend": False}]})
+    pruefe([x["klasse"] for x in probe] == ["gut", "nah", "knapp", "kuenftig"]
+           and probe[0]["kurz"] == "Jan" and probe[3]["ist"] == 0,
+           "die Säulenfarbe folgt denselben Grenzen wie „Erreicht“ (100 % / 90 %)")
 
 
 def test_auswertung_2_2(client: TestClient) -> None:
@@ -12798,6 +12848,7 @@ def _durchlauf(client: TestClient) -> None:
         test_auswertung_2_2(client)
         test_tabellen_2_3(client)
         test_schnellsuche_2_3_4(client)
+        test_bewilligungen_2_4(client)
         test_zeitwahl(client)
         test_konto_zugeklappt(client)
         test_meine_zeiten_namensspalte(client)

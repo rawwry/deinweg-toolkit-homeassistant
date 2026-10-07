@@ -74,26 +74,38 @@ def _balken(z: dict) -> dict:
             "befristet": bool(z["gesamt"])}
 
 
-def _verlauf(z: dict) -> dict:
-    """Soll und Ist aufsummiert als zwei Linien (Detailansicht).
+def _saeulen(z: dict) -> list[dict]:
+    """Je Monat des Bescheids eine Saeule fuer die Detailansicht (seit 2.4).
 
-    Gerechnet in einem Feld 0..100 x 0..40; gezeichnet wird mit
-    preserveAspectRatio="none" und vector-effect, damit die Linien in
-    jeder Breite gleich dick bleiben.
+    Umriss = Soll im Monat, Fuellung = geleistet, in Prozent einer
+    gemeinsamen Skala. Kommende Monate tragen nur den Umriss. Ersetzt die
+    aufsummierten Linien von 2.1 - Timo wollte sehen, WANN ein Rueckstand
+    entstanden ist, und das zeigt ein Monat neben dem anderen besser.
+    Farbe: gruen ab 100 %, gelb ab 90 %, darunter rot - dieselben Grenzen
+    wie in der Spalte „Erreicht“ von „Zeitraum & Nachweis“.
     """
     monate = z["monate"]
-    hoechst = max([m["soll_kum"] for m in monate]
-                  + [m.get("ist_kum", 0) for m in monate] + [1])
-    schritt = 100 / max(len(monate) - 1, 1)
-    def y(wert):
-        return round(40 - wert / hoechst * 36, 2)
-    soll = " ".join(f"{round(i * schritt, 2)},{y(m['soll_kum'])}"
-                    for i, m in enumerate(monate))
-    ist = " ".join(f"{round(i * schritt, 2)},{y(m['ist_kum'])}"
-                   for i, m in enumerate(monate) if "ist_kum" in m)
-    heute_x = next((round(i * schritt, 2) for i, m in enumerate(monate)
-                    if m["laufend"]), None)
-    return {"soll": soll, "ist": ist, "heute": heute_x}
+    hoechst = max([m["soll"] for m in monate]
+                  + [m.get("ist", 0) for m in monate if not m["kuenftig"]] + [1])
+    saeulen = []
+    for m in monate:
+        ist = 0 if m["kuenftig"] else m.get("ist", 0)
+        p = round(ist / m["soll"] * 100) if m["soll"] else None
+        if m["kuenftig"]:
+            klasse = "kuenftig"
+        elif p is None or p >= 100:
+            klasse = "gut"
+        elif p >= 90:
+            klasse = "nah"
+        else:
+            klasse = "knapp"
+        saeulen.append({
+            "kurz": m["wort"][:3], "wort": m["wort"], "laufend": m["laufend"],
+            "soll": round(m["soll"] / hoechst * 100, 1),
+            "ist": round(min(ist / hoechst * 100, 100), 1),
+            "klasse": klasse, "prozent": p, "ist_min": ist, "soll_min": m["soll"],
+        })
+    return saeulen
 
 
 def monatsdiagramm(bloecke: list[dict]) -> dict | None:
@@ -178,7 +190,7 @@ def stand_der_bewilligungen(con, heute: str | None = None) -> dict:
         zeile["abschnitt"] = _abschnitt(zeile)
         if zeile.get("monate"):
             zeile["balken"] = _balken(zeile)
-            zeile["verlauf"] = _verlauf(zeile)
+            zeile["saeulen"] = _saeulen(zeile)
         zeilen.append(zeile)
     zeilen.sort(key=lambda z: (STAND_GRUPPEN.index(z["gruppe"]),
                                z["name"].casefold()))

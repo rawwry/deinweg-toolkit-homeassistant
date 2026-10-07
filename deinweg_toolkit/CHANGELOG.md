@@ -3,6 +3,11 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.4
+
+- Auswertung → Bewilligungen neu gestaltet: gerahmte Liste mit Kopf in Gruppen (Betreuung · Bis heute · Bescheid), drei wachsende Spalten statt einer, Abschnitte als farbige Zeilen, Kopf klebt beim Rollen
+- Balken 14px mit schraffiertem Rückstand zwischen Ist und Soll; im Detail Monatssäulen (Soll als Umriss, Ist als Füllung) statt aufsummierter Linien; Monatstabelle in Gruppen Soll · Geleistet
+
 ## 2.3.4
 
 - Schnellsuche: Eingabefeld als `type="text"` ohne Rahmen/Fokusring (Safari zeichnete einen zweiten Kasten), Treffer mit hervorgehobenem Suchwort, Rangfolge und zusammenhängenden Gruppen, ↵ am gewählten Treffer
