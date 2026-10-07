@@ -2896,4 +2896,10 @@ CHANGELOG = [
         "Ein Klick auf einen Spaltentitel sortiert die Tabelle, und unter der "
         "Tabelle steht, was die Spalte bedeutet",
     ]},
+    {"version": "2.3.1", "titel": "Kopf und Inhalt klar getrennt", "punkte": [
+        "Spaltentitel stehen kleiner und gedämpfter als der Inhalt der Tabelle "
+        "– Überschrift und Name sind auf einen Blick zu unterscheiden",
+        "Die Einheiten unter den Spaltentiteln (Std, Anz, €) sind entfallen",
+        "Mein Bereich: die Spalte heißt jetzt „Freie Tage“",
+    ]},
 ]

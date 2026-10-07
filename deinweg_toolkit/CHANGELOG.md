@@ -3,6 +3,11 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.3.1
+
+- Tabellen: Spaltentitel 12px, halbfett, gedämpft (Inhalt bleibt 14px) – drei klar getrennte Stufen Gruppe · Spalte · Zeile
+- Keine Einheiten mehr im Tabellenkopf; „Frei“ heißt in Mein Bereich „Freie Tage“
+
 ## 2.3
 
 - Tabellen-Facelift (Entwurf E): getönter Kopf in Gruppenfarbe, Titel in Schriftfarbe statt klein und versal, abgesetzte Summenzeile; Kopf und Summe kleben ab 861px beim Rollen

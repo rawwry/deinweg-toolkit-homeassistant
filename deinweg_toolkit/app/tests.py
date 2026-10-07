@@ -2203,17 +2203,13 @@ def test_monatsbloecke(client: TestClient) -> None:
            "jede Zeile trägt ihre Sprungmarke")
     pruefe("a.hash.slice(1)" in seite,
            "ein Klick auf eine Säule klappt den Monat auf")
-    # Maßangaben: einmal je Spalte im Kopf, nicht in jeder Zelle.
-    pruefe(seite.count('class="massangabe">Std<') >= 3,
-           "die Zeitspalten tragen ihre Einheit im Kopf")
-    pruefe('class="massangabe">€<' in seite,
-           "die Geldspalten ebenso")
+    # ⚠️ Seit 2.3.1 stehen im Tabellenkopf KEINE Einheiten mehr (Timos
+    # Wunsch: „die Einheiten sind hier eindeutig ohne Erläuterung“).
+    kopfteil = seite.split('class="liste auswertungsblatt gruppiert', 1)[1].split("</thead>", 1)[0]
+    pruefe("massangabe" not in kopfteil,
+           "im Tabellenkopf steht keine Einheit mehr")
     pruefe('class="kmass">Std<' in seite,
-           "die Kennzahlen tragen ihre Einheit hinter der Zahl")
-    # ⚠️ Seit 2.3 (Entwurf E) stehen die Köpfe unten bündig - die
-    # Namensspalte braucht kein „Name“ als Füllzeile mehr.
-    pruefe('class="massangabe">Anz<' in seite and 'class="massangabe">%<' in seite,
-           "Einträge und Erreicht tragen ihre Einheit im Kopf")
+           "die Kennzahlen tragen ihre Einheit weiter hinter der Zahl")
     # Die Spalte "Mitarbeiter" ist mit 1.4.4 entfallen - wer die Zeit
     # erfasst hat, steht in der Übersicht, nicht in der Auswertung.
     pruefe("<th>Mitarbeiter" not in seite,
@@ -4227,8 +4223,9 @@ def test_tabellen_2_3(client: TestClient) -> None:
            "die Tabellen stehen auf „separate“ - nur so kleben Kopf und Summe ohne Spalt")
     pruefe("tabular-nums" in grund, "Ziffern laufen gleich breit")
     kopf = stil.split(".liste th {", 1)[1].split("}", 1)[0]
-    pruefe("uppercase" not in kopf and "var(--tinte)" in kopf,
-           "Spaltentitel in der Schriftfarbe, nicht mehr klein, grau und versal")
+    pruefe("uppercase" not in kopf and "font-size: 12px" in kopf
+           and "var(--tinte-2)" in kopf,
+           "Spaltentitel kleiner und gedämpfter als der Inhalt (2.3.1), nicht versal")
     pruefe("--mix-gruppe: 20%" in stil and "--mix-gruppe: 11%" in stil,
            "das dunkle Thema tönt den Kopf kräftiger als das helle")
     pruefe(".liste .g-person" in stil and ".liste .g-stunden" in stil
@@ -4298,7 +4295,7 @@ def test_auswertung_2_2(client: TestClient) -> None:
                            ).fetchone()["sql"] == schema_vorher,
                "die Tabelle benutzer ist unverändert")
     mit = ohne.get("/auswertung/zeitraum?von_jahr=&bis_jahr=").text
-    pruefe("k-verdienst" in mit and ">Verdienst <span" in mit,
+    pruefe("k-verdienst" in mit and ">Verdienst</th>" in mit,
            "mit dem Recht erscheinen Kennzahl und Spalte")
     verwaltung = client.get("/einstellungen?bereich=benutzer").text
     pruefe('name="verdienst_sehen"' in verwaltung
@@ -6271,7 +6268,7 @@ def test_umbau_1_39(client: TestClient) -> None:
 
     # --- 4. Monat für Monat: eigene Spalte, nur sechs offen -----------------
     tabelle = ohne_dialog.split('<h2>Monat für Monat</h2>')[1].split("</section>")[0]
-    pruefe("<th>Frei <span" in tabelle,
+    pruefe("<th>Freie Tage</th>" in tabelle,
            "die freien Tage haben eine eigene Spalte")
     pruefe('.monatstabelle .frei-marke { display: inline-block' in stil,
            "und die Marke steht nicht mehr als Block unter der Soll-Zahl")

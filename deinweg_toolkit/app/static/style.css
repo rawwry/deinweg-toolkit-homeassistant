@@ -1696,8 +1696,17 @@ form.inline { display: inline; }
   width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px;
   font-variant-numeric: tabular-nums; --g: var(--akzent);
 }
+/* ⚠️⚠️ Drei Stufen, die man auseinanderhalten muss (seit 2.3.1, Timos
+   Meldung: „Betreute Person“ im Kopf und „Adriana …“ in der Zeile standen
+   in derselben Größe und Stärke da):
+   1. Gruppe (nur gruppierte Tabellen): 11px, versal, in der Gruppenfarbe
+   2. Spaltentitel: 12px, halbfett, gedämpft und leicht in den Ton der
+      Gruppe gezogen - eine Beschriftung, kein Inhalt
+   3. Zeile: 14px in der Schriftfarbe, Namen und Hauptzahlen fett
+   Wer eine Stufe anfasst, hält den Abstand zu den beiden anderen. */
 .liste th {
-  text-align: left; font-size: 13px; color: var(--tinte); font-weight: 700;
+  text-align: left; font-size: 12px; font-weight: 600; letter-spacing: .01em;
+  color: color-mix(in oklab, var(--g) 22%, var(--tinte-2));
   padding: 10px 10px 9px; white-space: nowrap;
 }
 .liste thead th {

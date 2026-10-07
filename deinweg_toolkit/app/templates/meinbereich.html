@@ -864,15 +864,15 @@
       {# Alles linksbündig - wie in jeder anderen Liste des Programms.
          Rechtsbündige Zahlenspalten sahen daneben wie ein Fremdkörper
          aus. #}
-      <tr><th>Monat</th><th>Erfasst <span class="massangabe">Std</span></th>
-          {% if soll_std %}<th>Soll <span class="massangabe">Std</span></th>
+      <tr><th>Monat</th><th>Erfasst</th>
+          {% if soll_std %}<th>Soll</th>
           {# ⚠️ Eigene Spalte seit 1.39. Die Marke stand vorher unter der
              Soll-Zahl und machte genau die Monate zweizeilig, in denen
              jemand frei hatte - die Zeilen waren dadurch verschieden
              hoch, und die Tabelle sah aus, als sei sie kaputt. #}
-          <th>Frei <span class="massangabe">Tage</span></th>
-          <th>Saldo <span class="massangabe">Std</span></th>{% endif %}
-          <th>Einheiten <span class="massangabe">Anzahl</span></th></tr>
+          <th>Freie Tage</th>
+          <th>Saldo</th>{% endif %}
+          <th>Einheiten</th></tr>
     </thead>
     <tbody>
       {% for m in monate %}
