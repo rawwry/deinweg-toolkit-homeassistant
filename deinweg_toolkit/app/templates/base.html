@@ -526,16 +526,41 @@
           }));
         } else {
           var teile = wort.split(/\s+/);
-          treffer = (daten || []).concat(DARSTELLUNG).filter(function (d) {
+          // Rang je Treffer (seit 2.3.4): 0 Titel beginnt mit dem Wort,
+          // 1 ein Wort im Titel beginnt damit, 2 steht irgendwo im Titel,
+          // 3 nur in Zusatz oder Stichworten. Rang 3 erscheint nur, wenn
+          // sonst nichts passt - sonst fand „auf" jede betreute Person, weil
+          // bei ihr „Aufgaben und Verlauf" daneben steht.
+          var rang = function (d) {
+            var t = d.titel.toLowerCase();
+            if (t.indexOf(wort) === 0) { return 0; }
+            if ((" " + t).indexOf(" " + teile[0]) > -1) { return 1; }
+            if (t.indexOf(teile[0]) > -1) { return 2; }
+            return 3;
+          };
+          var alle = (daten || []).concat(DARSTELLUNG).filter(function (d) {
             return teile.every(function (t) { return d.worte.indexOf(t) > -1; });
+          }).map(function (d) { return {d: d, r: rang(d)}; });
+          if (alle.some(function (x) { return x.r < 3; })) {
+            alle = alle.filter(function (x) { return x.r < 3; });
+          }
+          // Gruppen bleiben beisammen; zuerst die Gruppe mit dem besten
+          // Treffer, darin nach Rang. Vorher wechselten die Gruppen mitten
+          // in der Liste und ihre Überschrift stand mehrmals da.
+          var beste = {};
+          alle.forEach(function (x) {
+            beste[x.d.gruppe] = Math.min(x.r, beste[x.d.gruppe] === undefined ? 9 : beste[x.d.gruppe]);
           });
-          // Was mit dem Wort BEGINNT, steht vorn.
-          treffer.sort(function (a, b) {
-            var x = a.titel.toLowerCase().indexOf(wort) === 0 ? 0 : 1,
-                y = b.titel.toLowerCase().indexOf(wort) === 0 ? 0 : 1;
-            return x - y;
+          var REIHE = ["Seiten", "Handgriffe", "Einstellungen", "Darstellung"];
+          var platz = function (g) { var i = REIHE.indexOf(g); return i < 0 ? REIHE.length : i; };
+          alle.forEach(function (x, i) { x.i = i; });
+          alle.sort(function (a, b) {
+            return (beste[a.d.gruppe] - beste[b.d.gruppe]) ||
+                   (platz(a.d.gruppe) - platz(b.d.gruppe)) ||
+                   (a.d.gruppe < b.d.gruppe ? -1 : a.d.gruppe > b.d.gruppe ? 1 : 0) ||
+                   (a.r - b.r) || (a.i - b.i);
           });
-          treffer = treffer.slice(0, 40);
+          treffer = alle.slice(0, 40).map(function (x) { return x.d; });
         }
         wahl = Math.min(wahl, Math.max(treffer.length - 1, 0));
         var html = "", gruppe = null;
@@ -548,8 +573,9 @@
                   ' data-i="' + i + '" href="' + schutz(t.adresse || "#") + '"' +
                   (i === wahl ? ' aria-selected="true"' : "") + ">" +
                   '<span class="ss-symbol">' + (SYMBOL[t.symbol] || SYMBOL.pfeil || "") + "</span>" +
-                  '<span class="ss-titel">' + schutz(t.titel) + "</span>" +
+                  '<span class="ss-titel">' + markieren(t.titel, wort) + "</span>" +
                   (t.zusatz ? '<span class="ss-zusatz">' + schutz(t.zusatz) + "</span>" : "") +
+                  '<span class="ss-los" aria-hidden="true">↵</span>' +
                   "</a>";
         });
         if (!treffer.length) {
@@ -561,6 +587,14 @@
         liste.innerHTML = html;
         var g = liste.querySelector(".gewaehlt");
         if (g) { g.scrollIntoView({block: "nearest"}); }
+      }
+      // Das gesuchte Wort im Titel hervorheben - erst schützen, dann die
+      // Fundstelle einrahmen, damit nie ungeschütztes HTML entsteht.
+      function markieren(titel, wort) {
+        var w = (wort || "").split(/\s+/)[0], i = w ? titel.toLowerCase().indexOf(w) : -1;
+        if (i < 0) { return schutz(titel); }
+        return schutz(titel.slice(0, i)) + "<mark>" + schutz(titel.slice(i, i + w.length)) +
+               "</mark>" + schutz(titel.slice(i + w.length));
       }
       function schutz(t) {
         return String(t).replace(/[&<>"]/g, function (c) {

@@ -148,10 +148,14 @@
 <dialog class="dialog schnellsuche" aria-label="Suchen und springen">
   <div class="ss-feld">
     {{ symbol("suche") }}
-    <input type="search" class="ss-eingabe" placeholder="Wohin? Seite, Person oder Handgriff …"
-           autocomplete="off" spellcheck="false" aria-label="Suchbegriff"
+    {# ⚠️ type="text", nicht "search" (seit 2.3.4): Safari zeichnet ein
+       Suchfeld mit eigenem Rahmen und Fokusring - im Dialog stand dadurch
+       ein zweiter, pinker Kasten im Kasten (Timos Meldung). #}
+    <input type="text" class="ss-eingabe" placeholder="Wohin? Seite, Person oder Handgriff …"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+           enterkeyhint="go" inputmode="search" aria-label="Suchbegriff"
            role="combobox" aria-expanded="true" aria-controls="ss-liste">
-    <kbd>Esc</kbd>
+    <kbd class="ss-esc">Esc</kbd>
   </div>
   <div class="ss-liste" id="ss-liste" role="listbox"></div>
   {# Die Zeichen für die Treffer - einmal hier, das Skript kopiert sie. #}

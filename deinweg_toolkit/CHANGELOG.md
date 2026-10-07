@@ -3,6 +3,10 @@
 Die Versionsnummer folgt der Version des Toolkits. Der vollständige
 Verlauf der Anwendung selbst steht in der Oberfläche unter „Changelog“.
 
+## 2.3.4
+
+- Schnellsuche: Eingabefeld als `type="text"` ohne Rahmen/Fokusring (Safari zeichnete einen zweiten Kasten), Treffer mit hervorgehobenem Suchwort, Rangfolge und zusammenhängenden Gruppen, ↵ am gewählten Treffer
+
 ## 2.3.3
 
 - Auswertung: Balken „Erreicht“ mit Soll-Strich (Spur bis 150 %), Abweichung nur noch als farbige Zahl – der Balken von der Mitte aus ist entfallen

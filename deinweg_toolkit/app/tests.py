@@ -4262,6 +4262,25 @@ def test_tabellen_2_3(client: TestClient) -> None:
            "ohne Skript fällt die Hilfezeile weg")
 
 
+def test_schnellsuche_2_3_4(client: TestClient) -> None:
+    """Facelift der Schnellsuche: randloses Feld, Rang, Hervorhebung."""
+    abschnitt("Schnellsuche 2.3.4")
+    seite = client.get("/").text
+    feld = seite.split('class="ss-eingabe"', 1)[0].rsplit("<input", 1)[1]
+    pruefe('type="text"' in feld and 'type="search"' not in feld,
+           "das Suchfeld ist kein natives Suchfeld mehr (Safari malte einen Kasten)")
+    stil = client.get("/static/style.css").text
+    pruefe(".schnellsuche .ss-feld input.ss-eingabe[type=text]:focus" in stil,
+           "der Fokusring der Felder wird im Suchfeld ausdrücklich aufgehoben")
+    regel = stil.split(".schnellsuche .ss-feld input.ss-eingabe[type=text]:focus-visible {", 1)[1].split("}", 1)[0]
+    pruefe("border: 0" in regel and "box-shadow: none" in regel and "appearance: none" in regel,
+           "ohne Rahmen, Schatten und Systemaussehen")
+    pruefe("function markieren(titel, wort)" in seite and "<mark>" in seite,
+           "der Suchbegriff wird im Titel hervorgehoben")
+    pruefe("x.r < 3" in seite and 'var REIHE = ["Seiten"' in seite,
+           "Treffer nur im Zusatz kommen nachrangig, Gruppen bleiben beisammen")
+
+
 def test_auswertung_2_2(client: TestClient) -> None:
     """2.2: Verdienst nur mit Recht, Monate als Zeilen, Texte einmal neu."""
     abschnitt("Auswertung 2.2: Verdienst-Recht und Neustand der Texte")
@@ -12778,6 +12797,7 @@ def _durchlauf(client: TestClient) -> None:
         test_stand_der_bewilligungen(client)
         test_auswertung_2_2(client)
         test_tabellen_2_3(client)
+        test_schnellsuche_2_3_4(client)
         test_zeitwahl(client)
         test_konto_zugeklappt(client)
         test_meine_zeiten_namensspalte(client)

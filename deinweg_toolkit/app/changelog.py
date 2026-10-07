@@ -2914,4 +2914,12 @@ CHANGELOG = [
         "was darüber hinausragt, ist mehr als bewilligt",
         "Die Abweichung steht nur noch als Zahl da: rot fehlt, grün ist mehr",
     ]},
+    {"version": "2.3.4", "titel": "Schnellsuche aufgefrischt", "punkte": [
+        "Die Suche mit ⌘K bzw. Strg+K hat ein sauberes Eingabefeld ohne "
+        "zweiten Rahmen darin",
+        "Das gesuchte Wort ist in den Treffern hervorgehoben, der gewählte "
+        "Treffer zeigt, was Enter öffnet",
+        "Bessere Reihenfolge: Seiten zuerst, und eine Person erscheint nicht "
+        "mehr nur deshalb, weil „Aufgaben“ daneben steht",
+    ]},
 ]
